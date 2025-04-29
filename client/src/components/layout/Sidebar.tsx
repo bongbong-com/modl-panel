@@ -58,7 +58,10 @@ const Sidebar = () => {
       path: '/', 
       icon: <Home className="h-5 w-5" />,
       notifications: 3,
-      onClick: () => navigate('/')
+      onClick: () => {
+        if (isLookupOpen) closeLookup();
+        navigate('/');
+      }
     },
     { 
       name: 'Lookup', 
@@ -71,19 +74,28 @@ const Sidebar = () => {
       path: '/tickets', 
       icon: <Ticket className="h-5 w-5" />,
       notifications: 5,
-      onClick: () => navigate('/tickets')
+      onClick: () => {
+        if (isLookupOpen) closeLookup();
+        navigate('/tickets');
+      }
     },
     { 
       name: 'Audit', 
       path: '/audit', 
       icon: <FileText className="h-5 w-5" />,
-      onClick: () => navigate('/audit')
+      onClick: () => {
+        if (isLookupOpen) closeLookup();
+        navigate('/audit');
+      }
     },
     { 
       name: 'Settings', 
       path: '/settings', 
       icon: <Settings className="h-5 w-5" />,
-      onClick: () => navigate('/settings')
+      onClick: () => {
+        if (isLookupOpen) closeLookup();
+        navigate('/settings');
+      }
     },
   ];
 
@@ -96,7 +108,7 @@ const Sidebar = () => {
     : recentLookups;
 
   return (
-    <div className="fixed top-4 left-4 z-40 flex">
+    <div className="fixed top-1/4 left-4 z-40 flex">
       {/* Fixed-width sidebar navigation (always visible) */}
       <aside 
         className="bg-sidebar/90 h-auto min-h-[300px] rounded-2xl w-16 overflow-hidden"
