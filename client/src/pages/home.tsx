@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { recentActivity } from '@/data/mockData';
+import PageContainer from '@/components/layout/PageContainer';
 
 type Activity = typeof recentActivity[0];
 
@@ -78,85 +79,79 @@ const StatCard = ({ title, value, change, changeText, color }: {
 );
 
 const Home = () => {
-  const { } = useSidebar(); // We're not using sidebar context in this component
   const [activityFilter, setActivityFilter] = useState("all");
-  
-  // More generous left margin to prevent text overlap with sidebar
-  const mainContentClass = "ml-[32px] pl-8";
 
   return (
-    <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
-      <div className="flex flex-col space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Home</h2>
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" className="text-muted-foreground">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground">
-              <RefreshCw className="h-5 w-5" />
-            </Button>
-          </div>
+    <PageContainer>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Home</h2>
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="icon" className="text-muted-foreground">
+            <Bell className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground">
+            <RefreshCw className="h-5 w-5" />
+          </Button>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard 
-            title="Active Players" 
-            value={153} 
-            change={12} 
-            changeText="from last hour" 
-            color="primary" 
-          />
-          <StatCard 
-            title="Open Tickets" 
-            value={28} 
-            change={-5} 
-            changeText="from yesterday" 
-            color="warning" 
-          />
-          <StatCard 
-            title="Mod Actions Today" 
-            value={47} 
-            change={-8} 
-            changeText="from yesterday" 
-            color="info" 
-          />
-        </div>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-md font-medium">Recent Activity</CardTitle>
-            <Select defaultValue="all" onValueChange={setActivityFilter}>
-              <SelectTrigger className="w-[180px] bg-background border border-border text-sm">
-                <SelectValue placeholder="All Activities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Activities</SelectItem>
-                <SelectItem value="moderation">Mod Actions</SelectItem>
-                <SelectItem value="ticket">Tickets</SelectItem>
-                <SelectItem value="ban">Bans</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          
-          <div className="divide-y divide-border">
-            {recentActivity
-              .filter(a => activityFilter === 'all' || a.type === activityFilter)
-              .map((activity, index) => (
-                <ActivityItem key={index} activity={activity} />
-              ))}
-          </div>
-          
-          <Separator />
-          
-          <div className="p-3 text-center">
-            <Button variant="link" className="text-sm text-primary hover:text-primary/80">
-              View All Activity →
-            </Button>
-          </div>
-        </Card>
       </div>
-    </section>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <StatCard 
+          title="Active Players" 
+          value={153} 
+          change={12} 
+          changeText="from last hour" 
+          color="primary" 
+        />
+        <StatCard 
+          title="Open Tickets" 
+          value={28} 
+          change={-5} 
+          changeText="from yesterday" 
+          color="warning" 
+        />
+        <StatCard 
+          title="Mod Actions Today" 
+          value={47} 
+          change={-8} 
+          changeText="from yesterday" 
+          color="info" 
+        />
+      </div>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-md font-medium">Recent Activity</CardTitle>
+          <Select defaultValue="all" onValueChange={setActivityFilter}>
+            <SelectTrigger className="w-[180px] bg-background border border-border text-sm">
+              <SelectValue placeholder="All Activities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Activities</SelectItem>
+              <SelectItem value="moderation">Mod Actions</SelectItem>
+              <SelectItem value="ticket">Tickets</SelectItem>
+              <SelectItem value="ban">Bans</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        
+        <div className="divide-y divide-border">
+          {recentActivity
+            .filter(a => activityFilter === 'all' || a.type === activityFilter)
+            .map((activity, index) => (
+              <ActivityItem key={index} activity={activity} />
+            ))}
+        </div>
+        
+        <Separator />
+        
+        <div className="p-3 text-center">
+          <Button variant="link" className="text-sm text-primary hover:text-primary/80">
+            View All Activity →
+          </Button>
+        </div>
+      </Card>
+    </PageContainer>
   );
 };
 

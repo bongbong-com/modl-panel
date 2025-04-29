@@ -31,12 +31,14 @@ const Sidebar = () => {
   };
   
   const closeLookup = () => {
+    if (!isLookupOpen) return;
     setIsLookupClosing(true);
     setTimeout(() => {
       setIsLookupOpen(false);
       setIsLookupClosing(false);
       setSearchQuery('');
-    }, 280); // Slightly less than animation duration
+      setIsFocused(false);
+    }, 100); // Faster than before for immediate effect
   };
 
   // Update search active state when search query changes
@@ -134,6 +136,7 @@ const Sidebar = () => {
                             )}
                             onClick={() => isLookupOpen ? closeLookup() : openLookup()}
                             onMouseEnter={openLookup}
+                            onMouseLeave={() => setTimeout(closeLookup, 50)}
                             data-lookup="true"
                           >
                             <div className="relative">
