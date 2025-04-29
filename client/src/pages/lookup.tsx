@@ -155,8 +155,8 @@ const Lookup = () => {
   
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   
-  // Fixed left margin to accommodate the always-collapsed sidebar
-  const mainContentClass = "ml-[28px] pl-6";
+  // More generous left margin to prevent text overlap with sidebar
+  const mainContentClass = "ml-[32px] pl-8";
 
   // Open the player window if an ID is provided in URL
   useEffect(() => {

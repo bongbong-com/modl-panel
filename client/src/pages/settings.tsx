@@ -12,8 +12,8 @@ import { Slider } from '@/components/ui/slider';
 const Settings = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   
-  // Fixed left margin to accommodate the always-collapsed sidebar
-  const mainContentClass = "ml-[28px] pl-6";
+  // More generous left margin to prevent text overlap with sidebar
+  const mainContentClass = "ml-[32px] pl-8";
 
   // Sliders state
   const [toxicity, setToxicity] = useState(75);

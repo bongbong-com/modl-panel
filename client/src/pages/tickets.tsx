@@ -25,8 +25,8 @@ const Tickets = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("bug");
   
-  // Fixed left margin to accommodate the always-collapsed sidebar
-  const mainContentClass = "ml-[28px] pl-6";
+  // More generous left margin to prevent text overlap with sidebar
+  const mainContentClass = "ml-[32px] pl-8";
 
   // Filter tickets by type and status
   const filteredTickets = tickets.filter(ticket => {

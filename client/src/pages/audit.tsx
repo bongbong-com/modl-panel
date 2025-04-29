@@ -12,8 +12,8 @@ const AuditLog = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [actionFilter, setActionFilter] = useState("all");
   
-  // Fixed left margin to accommodate the always-collapsed sidebar
-  const mainContentClass = "ml-[28px] pl-6";
+  // More generous left margin to prevent text overlap with sidebar
+  const mainContentClass = "ml-[32px] pl-8";
 
   // Filter logs by action type
   const filteredLogs = auditLogs.filter(log => {

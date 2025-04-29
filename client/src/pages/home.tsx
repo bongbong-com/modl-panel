@@ -81,8 +81,8 @@ const Home = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [activityFilter, setActivityFilter] = useState("all");
   
-  // Fixed left margin to accommodate the always-collapsed sidebar
-  const mainContentClass = "ml-[28px] pl-6";
+  // More generous left margin to prevent text overlap with sidebar
+  const mainContentClass = "ml-[32px] pl-8";
 
   return (
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
