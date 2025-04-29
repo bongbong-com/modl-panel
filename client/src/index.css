@@ -73,6 +73,21 @@
   .scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/60;
   }
+  
+  @keyframes slideRight {
+    from {
+      width: 0;
+      opacity: 0;
+    }
+    to {
+      width: 240px;
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-right {
+    animation: slideRight 0.3s ease forwards;
+  }
 
   .sidebar-collapsed {
     @apply w-[72px];
