@@ -79,7 +79,7 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className="bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl w-16"
+      className={`bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl ${isLookupOpen ? 'w-[320px]' : 'w-16'}`}
       style={{ backdropFilter: 'blur(12px)' }}
     >
       <div className="flex flex-col h-full p-2 pt-4">
@@ -114,10 +114,10 @@ const Sidebar = () => {
                     </Tooltip>
                     
                     {isLookupOpen && (
-                      <div className="absolute left-12 top-0 py-2">
-                        <div className="flex items-center">
+                      <div className="absolute top-0 left-14 ml-2 mt-1 w-[280px]">
+                        <div className="flex items-center w-full">
                           <div 
-                            className="bg-background/95 rounded-md border border-sidebar-border shadow-lg w-[280px] overflow-visible z-50 transition-all duration-300" 
+                            className="bg-background/95 rounded-md border border-sidebar-border shadow-lg w-full overflow-visible z-50 transition-all duration-300" 
                             style={{ backdropFilter: 'blur(12px)' }}
                           >
                             <Input
@@ -136,7 +136,7 @@ const Sidebar = () => {
                         
                         {filteredLookups.length > 0 && searchQuery && (
                           <div 
-                            className="mt-1 max-h-[220px] overflow-y-auto bg-background/95 border border-sidebar-border rounded-lg shadow-lg w-[280px]" 
+                            className="mt-1 max-h-[220px] overflow-y-auto bg-background/95 border border-sidebar-border rounded-lg shadow-lg w-full" 
                             style={{ backdropFilter: 'blur(12px)' }}
                           >
                             {filteredLookups.map((player, index) => (
