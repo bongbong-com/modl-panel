@@ -78,11 +78,11 @@ const StatCard = ({ title, value, change, changeText, color }: {
 );
 
 const Home = () => {
-  const { expanded } = useSidebar();
+  const { } = useSidebar(); // We're not using sidebar context in this component
   const [activityFilter, setActivityFilter] = useState("all");
   
-  // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
+  // Fixed left margin to accommodate the always-collapsed sidebar
+  const mainContentClass = "ml-[28px] pl-6";
 
   return (
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>

@@ -21,12 +21,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { tickets } from '@/data/mockData';
 
 const Tickets = () => {
-  const { expanded } = useSidebar();
+  const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("bug");
   
-  // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
+  // Fixed left margin to accommodate the always-collapsed sidebar
+  const mainContentClass = "ml-[28px] pl-6";
 
   // Filter tickets by type and status
   const filteredTickets = tickets.filter(ticket => {

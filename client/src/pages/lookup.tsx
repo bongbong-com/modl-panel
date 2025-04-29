@@ -148,15 +148,15 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
 };
 
 const Lookup = () => {
-  const { expanded } = useSidebar();
+  const { } = useSidebar(); // We're not using sidebar context in this component
   const [searchParams] = useLocation();
   const queryParams = new URLSearchParams(searchParams);
   const playerId = queryParams.get('id') || undefined;
   
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   
-  // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
+  // Fixed left margin to accommodate the always-collapsed sidebar
+  const mainContentClass = "ml-[28px] pl-6";
 
   // Open the player window if an ID is provided in URL
   useEffect(() => {
