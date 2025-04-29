@@ -85,8 +85,23 @@
     }
   }
   
+  @keyframes slideLeft {
+    from {
+      width: 240px;
+      opacity: 1;
+    }
+    to {
+      width: 0;
+      opacity: 0;
+    }
+  }
+  
   .animate-slide-right {
     animation: slideRight 0.3s ease forwards;
+  }
+  
+  .animate-slide-left {
+    animation: slideLeft 0.3s ease forwards;
   }
 
   .sidebar-collapsed {

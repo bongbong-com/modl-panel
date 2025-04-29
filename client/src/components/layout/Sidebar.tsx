@@ -19,15 +19,36 @@ const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
   const [location, navigate] = useLocation();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
+  const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   
-  const toggleLookup = () => {
-    setIsLookupOpen(!isLookupOpen);
+  const openLookup = () => {
+    if (!isLookupOpen && !isLookupClosing) {
+      setIsLookupOpen(true);
+      setIsLookupClosing(false);
+    }
+  };
+  
+  const closeLookup = () => {
+    if (!isFocused && searchQuery.length === 0) {
+      setIsLookupClosing(true);
+      setTimeout(() => {
+        setIsLookupOpen(false);
+        setIsLookupClosing(false);
+      }, 280); // Slightly less than animation duration
+    }
   };
 
   // Update search active state when search query changes
   useEffect(() => {
     setIsSearchActive(searchQuery.length > 0);
+    
+    // Keep search open if there's a query
+    if (searchQuery.length > 0) {
+      setIsLookupOpen(true);
+      setIsLookupClosing(false);
+    }
   }, [searchQuery, setIsSearchActive]);
 
   // Define nav items
@@ -43,7 +64,7 @@ const Sidebar = () => {
       name: 'Lookup', 
       path: '/lookup', 
       icon: <Search className="h-5 w-5" />,
-      onClick: toggleLookup
+      onClick: () => isLookupOpen ? closeLookup() : openLookup()
     },
     { 
       name: 'Tickets', 
@@ -100,8 +121,8 @@ const Sidebar = () => {
                               "w-full h-10",
                               isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
                             )}
-                            onClick={toggleLookup}
-                            onMouseEnter={() => !isLookupOpen && toggleLookup()}
+                            onClick={() => isLookupOpen ? closeLookup() : openLookup()}
+                            onMouseEnter={openLookup}
                           >
                             <div className="relative">
                               <Search className="h-5 w-5" />
@@ -154,9 +175,10 @@ const Sidebar = () => {
       {/* Expandable search area */}
       {isLookupOpen && (
         <div 
-          className="bg-sidebar/90 h-auto min-h-[300px] ml-2 rounded-xl animate-slide-right overflow-hidden"
+          className={`bg-sidebar/90 h-auto min-h-[300px] ml-2 rounded-xl overflow-hidden ${isLookupClosing ? 'animate-slide-left' : 'animate-slide-right'}`}
           style={{ backdropFilter: 'blur(12px)' }}
-          onMouseLeave={() => toggleLookup()}
+          onMouseEnter={() => setIsLookupClosing(false)}
+          onMouseLeave={closeLookup}
         >
           <div className="p-3 pt-4 w-[240px]">
             <Input
@@ -165,6 +187,8 @@ const Sidebar = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
             />
             
             {filteredLookups.length > 0 && searchQuery && (
@@ -176,7 +200,7 @@ const Sidebar = () => {
                     className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
                     onClick={() => {
                       navigate(`/lookup?id=${player.uuid}`);
-                      toggleLookup();
+                      closeLookup();
                     }}
                   >
                     <div className="flex flex-col items-start">
