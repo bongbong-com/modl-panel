@@ -156,7 +156,7 @@ const Lookup = () => {
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   
   // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[30px]";
+  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
 
   // Open the player window if an ID is provided in URL
   useEffect(() => {

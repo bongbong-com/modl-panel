@@ -13,7 +13,7 @@ const Settings = () => {
   const { expanded } = useSidebar();
   
   // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[30px]";
+  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
 
   // Sliders state
   const [toxicity, setToxicity] = useState(75);

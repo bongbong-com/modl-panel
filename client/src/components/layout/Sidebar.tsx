@@ -1,15 +1,13 @@
 import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Home, 
   Search, 
   Ticket, 
   FileText, 
   Settings, 
-  FoldHorizontal, 
-  UnfoldHorizontal,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -20,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { recentLookups } from '@/data/mockData';
 
 const Sidebar = () => {
-  const { expanded, toggle } = useSidebar();
+  const { expanded, setIsHovering, setIsSearchActive } = useSidebar();
   const [location, navigate] = useLocation();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +26,11 @@ const Sidebar = () => {
   const toggleLookup = () => {
     setIsLookupOpen(!isLookupOpen);
   };
+
+  // Update search active state when search query changes
+  useEffect(() => {
+    setIsSearchActive(searchQuery.length > 0);
+  }, [searchQuery, setIsSearchActive]);
 
   const navItems = [
     { 
@@ -75,30 +78,24 @@ const Sidebar = () => {
   return (
     <aside 
       className={cn(
-        "bg-sidebar/90 h-screen transition-all duration-300 ease-in-out overflow-hidden fixed top-4 left-4 z-40 rounded-2xl", 
-        expanded ? "sidebar-expanded w-60" : "sidebar-collapsed w-20"
+        "bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-hidden fixed top-4 left-4 z-40 rounded-2xl", 
+        expanded ? "sidebar-expanded w-60" : "sidebar-collapsed w-16"
       )}
       style={{ backdropFilter: 'blur(12px)' }}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
     >
-      <div className="flex flex-col h-full p-3">
+      <div className="flex flex-col h-full p-2">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6 mt-2">
-          <div className="flex flex-col items-center w-full">
-            <h1 className="text-base font-bold text-white">Mod Panel</h1>
+        <div className="flex justify-center items-center mb-4 mt-2">
+          <div className="flex flex-col items-center">
+            {expanded && <h1 className="text-sm font-bold text-white">Mod Panel</h1>}
             {expanded && <p className="text-xs text-muted-foreground">JohnDoe - Admin</p>}
           </div>
-          <Button
-            variant="ghost" 
-            size="icon"
-            onClick={toggle}
-            className="text-sidebar-foreground hover:bg-sidebar-accent/10 hover:text-sidebar-accent absolute right-2 top-2"
-          >
-            {expanded ? <FoldHorizontal className="h-4 w-4" /> : <UnfoldHorizontal className="h-4 w-4" />}
-          </Button>
         </div>
         
         {/* Nav Links */}
-        <nav className="flex-1 overflow-y-auto scrollbar">
+        <nav className="overflow-y-auto scrollbar">
           <ul className="space-y-1">
             {navItems.map((item) => {
               const isActive = location === item.path || (item.path === '/lookup' && isLookupOpen);
@@ -109,13 +106,13 @@ const Sidebar = () => {
                       <Button
                         variant={isActive ? "secondary" : "ghost"}
                         className={cn(
-                          "w-full justify-start px-3 py-5 h-auto",
+                          "w-full justify-start px-3 py-2 h-auto",
                           isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
                         )}
                         onClick={item.onClick}
                       >
                         {item.icon}
-                        <span className="ml-3">{item.name}</span>
+                        <span className="ml-3 text-sm">{item.name}</span>
                         {item.notifications && (
                           <Badge 
                             variant="default" 
@@ -139,22 +136,25 @@ const Sidebar = () => {
                             className="w-full bg-background/50 border-sidebar-border"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            autoFocus
                           />
-                          <div className="max-h-48 overflow-y-auto">
-                            {filteredLookups.map((player, index) => (
-                              <Button
-                                key={index}
-                                variant="ghost"
-                                className="w-full justify-start text-xs py-2 px-2 h-auto"
-                                onClick={() => navigate(`/lookup?id=${player.uuid}`)}
-                              >
-                                <div className="flex flex-col items-start">
-                                  <span className="font-medium">{player.username}</span>
-                                  <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
+                          {filteredLookups.length > 0 && (
+                            <div className="max-h-40 overflow-y-auto">
+                              {filteredLookups.map((player, index) => (
+                                <Button
+                                  key={index}
+                                  variant="ghost"
+                                  className="w-full justify-start text-xs py-2 px-2 h-auto"
+                                  onClick={() => navigate(`/lookup?id=${player.uuid}`)}
+                                >
+                                  <div className="flex flex-col items-start">
+                                    <span className="font-medium">{player.username}</span>
+                                    <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
+                                  </div>
+                                </Button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -166,7 +166,7 @@ const Sidebar = () => {
                             variant={isActive ? "secondary" : "ghost"}
                             size="icon"
                             className={cn(
-                              "w-full h-12",
+                              "w-full h-10",
                               isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
                             )}
                             onClick={item.onClick}
@@ -195,22 +195,25 @@ const Sidebar = () => {
                             className="w-full text-xs px-1 py-1 h-7 bg-background/50 border-sidebar-border"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            autoFocus
                           />
-                          <div className="max-h-48 overflow-y-auto mt-1">
-                            {filteredLookups.map((player, index) => (
-                              <Button
-                                key={index}
-                                variant="ghost"
-                                size="icon"
-                                className="w-full h-8 mb-1"
-                                onClick={() => navigate(`/lookup?id=${player.uuid}`)}
-                              >
-                                <div className="h-6 w-6 rounded-full bg-sidebar-accent/20 flex items-center justify-center">
-                                  <span className="text-xs">{player.username.substring(0, 1)}</span>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
+                          {filteredLookups.length > 0 && (
+                            <div className="max-h-40 overflow-y-auto mt-1">
+                              {filteredLookups.map((player, index) => (
+                                <Button
+                                  key={index}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-full h-8 mb-1"
+                                  onClick={() => navigate(`/lookup?id=${player.uuid}`)}
+                                >
+                                  <div className="h-6 w-6 rounded-full bg-sidebar-accent/20 flex items-center justify-center">
+                                    <span className="text-xs">{player.username.substring(0, 1)}</span>
+                                  </div>
+                                </Button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

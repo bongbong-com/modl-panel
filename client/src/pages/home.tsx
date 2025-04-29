@@ -82,7 +82,7 @@ const Home = () => {
   const [activityFilter, setActivityFilter] = useState("all");
   
   // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[30px]";
+  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
 
   return (
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>

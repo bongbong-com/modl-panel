@@ -13,7 +13,7 @@ const AuditLog = () => {
   const [actionFilter, setActionFilter] = useState("all");
   
   // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[30px]";
+  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
 
   // Filter logs by action type
   const filteredLogs = auditLogs.filter(log => {
