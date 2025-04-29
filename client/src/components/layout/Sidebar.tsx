@@ -22,6 +22,7 @@ const Sidebar = () => {
   const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [isHoveringSearch, setIsHoveringSearch] = useState(false);
   
   const openLookup = () => {
     if (!isLookupOpen && !isLookupClosing) {
@@ -31,7 +32,7 @@ const Sidebar = () => {
   };
   
   const closeLookup = () => {
-    if (!isLookupOpen) return;
+    if (!isLookupOpen || isHoveringSearch) return; // Don't close if hovering over search
     setIsLookupClosing(true);
     setTimeout(() => {
       setIsLookupOpen(false);
@@ -192,8 +193,14 @@ const Sidebar = () => {
         <div 
           className={`bg-sidebar/90 h-auto min-h-[300px] ml-2 rounded-xl overflow-hidden ${isLookupClosing ? 'animate-slide-left' : 'animate-slide-right'}`}
           style={{ backdropFilter: 'blur(12px)' }}
-          onMouseEnter={() => setIsLookupClosing(false)}
-          onMouseLeave={closeLookup}
+          onMouseEnter={() => {
+            setIsLookupClosing(false);
+            setIsHoveringSearch(true);
+          }}
+          onMouseLeave={() => {
+            setIsHoveringSearch(false);
+            closeLookup();
+          }}
         >
           <div className="p-3 pt-4 w-[240px]">
             <Input
