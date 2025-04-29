@@ -9,7 +9,8 @@ import {
   FileText, 
   Settings, 
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -78,7 +79,7 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className="bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl w-16"
+      className={`bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl ${isLookupOpen ? 'w-[340px]' : 'w-16'}`}
       style={{ backdropFilter: 'blur(12px)' }}
     >
       <div className="flex flex-col h-full p-2 pt-4">
@@ -92,57 +93,85 @@ const Sidebar = () => {
               if (item.path === '/lookup') {
                 return (
                   <li key={item.path} className="relative group">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={isActive ? "secondary" : "ghost"}
-                          size="icon"
-                          className={cn(
-                            "w-full h-10",
-                            isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
-                          )}
+                    <div className="flex justify-between items-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant={isActive ? "secondary" : "ghost"}
+                            size="icon"
+                            className={cn(
+                              "w-10 h-10",
+                              isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
+                            )}
+                            onClick={toggleLookup}
+                            onMouseEnter={() => !isLookupOpen && toggleLookup()}
+                          >
+                            <div className="relative">
+                              <Search className="h-5 w-5" />
+                            </div>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Lookup</TooltipContent>
+                      </Tooltip>
+                      
+                      {isLookupOpen && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 mr-1" 
                           onClick={toggleLookup}
-                          onMouseEnter={() => !isLookupOpen && toggleLookup()}
                         >
-                          <div className="relative">
-                            <Search className="h-5 w-5" />
-                          </div>
+                          <X className="h-4 w-4" />
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Lookup</TooltipContent>
-                    </Tooltip>
+                      )}
+                    </div>
                     
                     {isLookupOpen && (
-                      <div className="absolute left-16 top-0 py-2 px-2 bg-background/95 border border-border rounded-lg shadow-lg w-[320px] z-50 transition-all duration-200"
-                           style={{ backdropFilter: 'blur(12px)' }}>
-                        <Input
-                          placeholder="Search players..."
-                          className="w-full text-sm px-3 py-2 h-9 bg-background/50 border-sidebar-border mb-2"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          autoFocus
-                        />
-                        
-                        {filteredLookups.length > 0 && (
-                          <div className="max-h-[240px] overflow-y-auto mt-1">
-                            {filteredLookups.map((player, index) => (
-                              <Button
-                                key={index}
-                                variant="ghost"
-                                className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
-                                onClick={() => {
-                                  navigate(`/lookup?id=${player.uuid}`);
-                                  toggleLookup();
-                                }}
-                              >
-                                <div className="flex flex-col items-start">
-                                  <span className="font-medium">{player.username}</span>
-                                  <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
-                                </div>
-                              </Button>
-                            ))}
+                      <div className="mt-3 px-2 w-full">
+                        <div className="w-full space-y-3">
+                          <div className="flex items-center">
+                            <Input
+                              placeholder="Search players..."
+                              className="w-full text-sm px-3 py-2 h-9 bg-background/50 border-sidebar-border"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              autoFocus
+                            />
                           </div>
-                        )}
+                          
+                          {filteredLookups.length > 0 && searchQuery && (
+                            <div className="max-h-[240px] overflow-y-auto">
+                              {filteredLookups.map((player, index) => (
+                                <Button
+                                  key={index}
+                                  variant="ghost"
+                                  className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
+                                  onClick={() => {
+                                    navigate(`/lookup?id=${player.uuid}`);
+                                    toggleLookup();
+                                  }}
+                                >
+                                  <div className="flex flex-col items-start">
+                                    <span className="font-medium">{player.username}</span>
+                                    <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
+                                  </div>
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {!searchQuery && (
+                            <div className="text-muted-foreground text-sm px-2 py-2">
+                              Type to search for players...
+                            </div>
+                          )}
+                          
+                          {searchQuery && filteredLookups.length === 0 && (
+                            <div className="text-muted-foreground text-sm px-2 py-2">
+                              No players found matching "{searchQuery}"
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </li>
