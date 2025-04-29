@@ -81,6 +81,7 @@ const Sidebar = () => {
     <aside 
       className={`bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl ${isLookupOpen ? 'w-[320px]' : 'w-16'}`}
       style={{ backdropFilter: 'blur(12px)' }}
+      onMouseLeave={() => isLookupOpen && toggleLookup()}
     >
       <div className="flex flex-col h-full p-2 pt-4">
         {/* Nav Links */}
@@ -99,7 +100,7 @@ const Sidebar = () => {
                           variant={isActive ? "secondary" : "ghost"}
                           size="icon"
                           className={cn(
-                            "w-10 h-10",
+                            "w-full h-10",
                             isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
                           )}
                           onClick={toggleLookup}
