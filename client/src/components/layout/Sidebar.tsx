@@ -79,21 +79,26 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className={`bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl ${isLookupOpen ? 'w-[320px]' : 'w-16'} flex`}
+      className={cn(
+        "fixed top-4 left-4 z-40 flex overflow-hidden",
+        "bg-sidebar/90 h-auto min-h-[300px] rounded-2xl",
+        "transition-all duration-300 ease-in-out",
+        isLookupOpen ? "w-[320px]" : "w-16"
+      )}
       style={{ backdropFilter: 'blur(12px)' }}
       onMouseLeave={() => isLookupOpen && toggleLookup()}
     >
-      <div className="w-16 flex-shrink-0 flex flex-col h-full p-2 pt-4">
-        {/* Nav Links */}
-        <nav className="flex-1 overflow-y-auto scrollbar">
+      {/* Fixed-width sidebar navigation (always visible) */}
+      <div className="w-16 flex-shrink-0 p-2 pt-4">
+        <nav className="flex-1">
           <ul className="space-y-4">
             {navItems.map((item, index) => {
               const isActive = location === item.path || (item.path === '/lookup' && isLookupOpen);
               
-              // Special handling for lookup
+              // Special handling for lookup icon
               if (item.path === '/lookup') {
                 return (
-                  <li key={item.path} className="relative group">
+                  <li key={item.path} className="relative">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -113,53 +118,6 @@ const Sidebar = () => {
                       </TooltipTrigger>
                       <TooltipContent side="right">Lookup</TooltipContent>
                     </Tooltip>
-                    
-                    {isLookupOpen && (
-                      <div className="absolute top-0 left-12 mt-1 w-[280px]">
-                        <div className="flex items-center w-full">
-                          <div 
-                            className="bg-background/95 rounded-md border border-sidebar-border shadow-lg w-full overflow-visible z-50 transition-all duration-300" 
-                            style={{ backdropFilter: 'blur(12px)' }}
-                          >
-                            <Input
-                              placeholder="Search players..."
-                              className="w-full text-sm px-3 py-2 h-9 bg-transparent border-0"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              onBlur={() => {
-                                if (searchQuery.length === 0) {
-                                  setTimeout(() => toggleLookup(), 200);
-                                }
-                              }}
-                            />
-                          </div>
-                        </div>
-                        
-                        {filteredLookups.length > 0 && searchQuery && (
-                          <div 
-                            className="mt-1 max-h-[220px] overflow-y-auto bg-background/95 border border-sidebar-border rounded-lg shadow-lg w-full" 
-                            style={{ backdropFilter: 'blur(12px)' }}
-                          >
-                            {filteredLookups.map((player, index) => (
-                              <Button
-                                key={index}
-                                variant="ghost"
-                                className="w-full justify-start text-xs py-2 px-3 h-auto"
-                                onClick={() => {
-                                  navigate(`/lookup?id=${player.uuid}`);
-                                  toggleLookup();
-                                }}
-                              >
-                                <div className="flex flex-col items-start">
-                                  <span className="font-medium">{player.username}</span>
-                                  <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </li>
                 );
               }
@@ -199,6 +157,42 @@ const Sidebar = () => {
           </ul>
         </nav>
       </div>
+      
+      {/* Expandable search area */}
+      {isLookupOpen && (
+        <div className="flex-grow p-2 pt-4">
+          <div className="w-full h-10 mb-4">
+            <Input
+              placeholder="Search players..."
+              className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+          </div>
+          
+          {filteredLookups.length > 0 && searchQuery && (
+            <div className="max-h-[calc(100%-60px)] overflow-y-auto pr-2">
+              {filteredLookups.map((player, index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
+                  onClick={() => {
+                    navigate(`/lookup?id=${player.uuid}`);
+                    toggleLookup();
+                  }}
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">{player.username}</span>
+                    <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   );
 };
