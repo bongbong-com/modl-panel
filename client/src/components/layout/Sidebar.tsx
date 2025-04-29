@@ -79,11 +79,11 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className={`bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl ${isLookupOpen ? 'w-[320px]' : 'w-16'}`}
+      className={`bg-sidebar/90 h-auto min-h-[300px] transition-all duration-300 ease-in-out overflow-visible fixed top-4 left-4 z-40 rounded-2xl ${isLookupOpen ? 'w-[320px]' : 'w-16'} flex`}
       style={{ backdropFilter: 'blur(12px)' }}
       onMouseLeave={() => isLookupOpen && toggleLookup()}
     >
-      <div className="flex flex-col h-full p-2 pt-4">
+      <div className="w-16 flex-shrink-0 flex flex-col h-full p-2 pt-4">
         {/* Nav Links */}
         <nav className="flex-1 overflow-y-auto scrollbar">
           <ul className="space-y-4">
@@ -115,7 +115,7 @@ const Sidebar = () => {
                     </Tooltip>
                     
                     {isLookupOpen && (
-                      <div className="absolute top-0 left-14 ml-2 mt-1 w-[280px]">
+                      <div className="absolute top-0 left-12 mt-1 w-[280px]">
                         <div className="flex items-center w-full">
                           <div 
                             className="bg-background/95 rounded-md border border-sidebar-border shadow-lg w-full overflow-visible z-50 transition-all duration-300" 
