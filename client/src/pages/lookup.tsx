@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,15 +9,9 @@ import ResizableWindow from '@/components/layout/ResizableWindow';
 import { Input } from '@/components/ui/input';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { recentLookups } from '@/data/mockData';
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from '@/components/ui/tabs';
+import { useLocation } from 'wouter';
 
-const PlayerLookupWindow = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const [lookupMethod, setLookupMethod] = useState('username');
+const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; isOpen: boolean; onClose: () => void }) => {
   const [playerInfo, setPlayerInfo] = useState({
     username: 'DragonSlayer123',
     status: 'Online',
@@ -35,148 +29,119 @@ const PlayerLookupWindow = ({ isOpen, onClose }: { isOpen: boolean; onClose: () 
     ]
   });
 
-  const handleLookup = () => {
-    // In a real app, this would fetch player data from the server
-    console.log('Looking up player...');
-  };
+  useEffect(() => {
+    if (playerId && isOpen) {
+      // In a real app, fetch player data using the playerId
+      console.log('Fetching data for player:', playerId);
+      
+      // Find the player in our mock data
+      const player = recentLookups.find(p => p.uuid === playerId);
+      if (player) {
+        setPlayerInfo(prev => ({
+          ...prev,
+          username: player.username,
+          uuid: player.uuid,
+          lastOnline: player.lastOnline,
+          status: player.status === 'Active' ? 'Online' : player.status
+        }));
+      }
+    }
+  }, [playerId, isOpen]);
 
   return (
     <ResizableWindow
       id="player-lookup"
-      title="Player Lookup"
+      title={`Player Info: ${playerInfo.username}`}
       isOpen={isOpen}
       onClose={onClose}
+      initialSize={{ width: 650, height: 550 }}
     >
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Lookup Method</label>
-          <div className="grid grid-cols-5 gap-2">
-            {['Username', 'UUID', 'IP', 'Ban ID', 'Previous Name'].map((method, index) => (
-              <Button
-                key={index}
-                variant={lookupMethod === method.toLowerCase() ? 'default' : 'outline'}
-                className="text-sm"
-                onClick={() => setLookupMethod(method.toLowerCase())}
-              >
-                {method}
-              </Button>
-            ))}
-          </div>
-        </div>
-        
-        <div>
-          <label htmlFor="player-search" className="block text-sm font-medium mb-1">
-            {lookupMethod === 'username' ? 'Player Username' : 
-             lookupMethod === 'uuid' ? 'Player UUID' : 
-             lookupMethod === 'ip' ? 'Player IP Address' : 
-             lookupMethod === 'ban id' ? 'Ban ID' : 
-             'Previous Username'}
-          </label>
-          <div className="relative">
-            <Input 
-              id="player-search" 
-              placeholder={`Enter ${lookupMethod}...`}
-              className="pr-12"
-            />
-            <Button 
-              className="absolute right-0 top-0 h-full rounded-l-none"
-              onClick={handleLookup}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-        
-        {playerInfo && (
-          <>
-            <div className="pt-4 border-t border-border">
-              <h4 className="font-medium mb-3">Player Information</h4>
-              <div className="bg-background-lighter p-4 rounded-lg">
-                <div className="flex items-start gap-4">
-                  <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
-                    <span className="text-2xl font-bold text-primary">{playerInfo.username.substring(0, 2)}</span>
+        <div className="pt-2">
+          <div className="bg-background-lighter p-4 rounded-lg">
+            <div className="flex items-start gap-4">
+              <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
+                <span className="text-2xl font-bold text-primary">{playerInfo.username.substring(0, 2)}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h5 className="text-lg font-medium">{playerInfo.username}</h5>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                    {playerInfo.status}
+                  </Badge>
+                  {playerInfo.vip && (
+                    <Badge variant="outline" className="bg-info/10 text-info border-info/20">
+                      VIP
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="bg-muted text-muted-foreground">
+                    Level {playerInfo.level}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">UUID:</span>
+                    <span className="ml-1">{playerInfo.uuid}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h5 className="text-lg font-medium">{playerInfo.username}</h5>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                        {playerInfo.status}
-                      </Badge>
-                      {playerInfo.vip && (
-                        <Badge variant="outline" className="bg-info/10 text-info border-info/20">
-                          VIP
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className="bg-muted text-muted-foreground">
-                        Level {playerInfo.level}
-                      </Badge>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">UUID:</span>
-                        <span className="ml-1">{playerInfo.uuid}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">First Joined:</span>
-                        <span className="ml-1">{playerInfo.firstJoined}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Last Online:</span>
-                        <span className="ml-1">{playerInfo.lastOnline}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Playtime:</span>
-                        <span className="ml-1">{playerInfo.playtime}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">IP (masked):</span>
-                        <span className="ml-1">{playerInfo.ip}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Previous Names:</span>
-                        <span className="ml-1">{playerInfo.previousNames}</span>
-                      </div>
-                    </div>
+                  <div>
+                    <span className="text-muted-foreground">First Joined:</span>
+                    <span className="ml-1">{playerInfo.firstJoined}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Last Online:</span>
+                    <span className="ml-1">{playerInfo.lastOnline}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Playtime:</span>
+                    <span className="ml-1">{playerInfo.playtime}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">IP (masked):</span>
+                    <span className="ml-1">{playerInfo.ip}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Previous Names:</span>
+                    <span className="ml-1">{playerInfo.previousNames}</span>
                   </div>
                 </div>
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-medium">Moderation History</h4>
-              {playerInfo.warnings.map((warning, index) => (
-                <div 
-                  key={index} 
-                  className={`bg-${warning.type === 'Warning' ? 'warning' : 'info'}/10 border-l-4 border-${warning.type === 'Warning' ? 'warning' : 'info'} p-3 rounded-r-lg`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <Badge variant="outline" className={`bg-${warning.type === 'Warning' ? 'warning' : 'info'}/10 text-${warning.type === 'Warning' ? 'warning' : 'info'} border-${warning.type === 'Warning' ? 'warning' : 'info'}/20`}>
-                        {warning.type}
-                      </Badge>
-                      <p className="text-sm mt-1">{warning.reason}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{warning.date}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <h4 className="font-medium">Moderation History</h4>
+          {playerInfo.warnings.map((warning, index) => (
+            <div 
+              key={index} 
+              className={`bg-${warning.type === 'Warning' ? 'warning' : 'info'}/10 border-l-4 border-${warning.type === 'Warning' ? 'warning' : 'info'} p-3 rounded-r-lg`}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <Badge variant="outline" className={`bg-${warning.type === 'Warning' ? 'warning' : 'info'}/10 text-${warning.type === 'Warning' ? 'warning' : 'info'} border-${warning.type === 'Warning' ? 'warning' : 'info'}/20`}>
+                    {warning.type}
+                  </Badge>
+                  <p className="text-sm mt-1">{warning.reason}</p>
                 </div>
-              ))}
+                <span className="text-xs text-muted-foreground">{warning.date}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
             </div>
-            
-            <div className="pt-4 flex justify-end space-x-2">
-              <Button variant="destructive" size="sm">
-                <Ban className="h-4 w-4 mr-1" /> Ban Player
-              </Button>
-              <Button variant="default" size="sm" className="bg-warning text-white hover:bg-warning/90">
-                <TriangleAlert className="h-4 w-4 mr-1" /> Warn
-              </Button>
-              <Button variant="default" size="sm" className="bg-info text-white hover:bg-info/90">
-                <RefreshCcw className="h-4 w-4 mr-1" /> Mute
-              </Button>
-            </div>
-          </>
-        )}
+          ))}
+        </div>
+        
+        <div className="pt-4 flex justify-end space-x-2">
+          <Button variant="destructive" size="sm">
+            <Ban className="h-4 w-4 mr-1" /> Ban Player
+          </Button>
+          <Button variant="default" size="sm" className="bg-warning text-white hover:bg-warning/90">
+            <TriangleAlert className="h-4 w-4 mr-1" /> Warn
+          </Button>
+          <Button variant="default" size="sm" className="bg-info text-white hover:bg-info/90">
+            <RefreshCcw className="h-4 w-4 mr-1" /> Mute
+          </Button>
+        </div>
       </div>
     </ResizableWindow>
   );
@@ -184,21 +149,27 @@ const PlayerLookupWindow = ({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
 const Lookup = () => {
   const { expanded } = useSidebar();
-  const { openLookupWindow } = useDashboard();
-  const [isLookupWindowOpen, setIsLookupWindowOpen] = useState(false);
+  const [searchParams] = useLocation();
+  const queryParams = new URLSearchParams(searchParams);
+  const playerId = queryParams.get('id') || undefined;
+  
+  const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   
   // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[240px]" : "ml-[72px]";
+  const mainContentClass = expanded ? "ml-[70px]" : "ml-[30px]";
+
+  // Open the player window if an ID is provided in URL
+  useEffect(() => {
+    if (playerId) {
+      setIsPlayerWindowOpen(true);
+    }
+  }, [playerId]);
 
   return (
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Player Lookup</h2>
-          <Button onClick={() => setIsLookupWindowOpen(true)}>
-            <Search className="h-4 w-4 mr-2" />
-            <span>New Lookup</span>
-          </Button>
         </div>
         
         <Card>
@@ -237,7 +208,13 @@ const Lookup = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View Details">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-primary" 
+                          title="View Details"
+                          onClick={() => window.location.href = `/lookup?id=${player.uuid}`}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="View Warnings">
@@ -263,8 +240,13 @@ const Lookup = () => {
       </div>
 
       <PlayerLookupWindow 
-        isOpen={isLookupWindowOpen} 
-        onClose={() => setIsLookupWindowOpen(false)} 
+        playerId={playerId}
+        isOpen={isPlayerWindowOpen} 
+        onClose={() => {
+          setIsPlayerWindowOpen(false);
+          // Reset the URL to remove the ID parameter when window is closed
+          window.history.pushState({}, '', '/lookup');
+        }} 
       />
     </section>
   );

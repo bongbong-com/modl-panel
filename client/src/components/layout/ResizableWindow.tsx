@@ -31,10 +31,11 @@ const ResizableWindow = ({
   const [isMaximized, setIsMaximized] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [windowOffset, setWindowOffset] = useState({ x: 0, y: 0 });
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initial positioning
+  // Initialize position once
   useEffect(() => {
-    if (!isOpen || !windowRef.current) return;
+    if (!isOpen || !windowRef.current || isInitialized) return;
     
     // Center the window if initial position is percentage based
     if (typeof initialPosition.x === 'string' && initialPosition.x.includes('%')) {
@@ -43,17 +44,31 @@ const ResizableWindow = ({
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       
-      const xPercent = parseInt(initialPosition.x) / 100;
-      const yPercent = parseInt(initialPosition.y) / 100;
+      // Safe parsing of percentage values
+      let xPercent = 0.5; // Default to 50%
+      let yPercent = 0.5; // Default to 50%
+      
+      if (typeof initialPosition.x === 'string') {
+        const parsedX = parseFloat(initialPosition.x);
+        if (!isNaN(parsedX)) {
+          xPercent = parsedX / 100;
+        }
+      }
+      
+      if (typeof initialPosition.y === 'string') {
+        const parsedY = parseFloat(initialPosition.y);
+        if (!isNaN(parsedY)) {
+          yPercent = parsedY / 100;
+        }
+      }
       
       const xPos = viewportWidth * xPercent - windowWidth * xPercent;
       const yPos = viewportHeight * yPercent - windowHeight * yPercent;
       
       setPosition({ x: xPos, y: yPos });
-    } else {
-      setPosition(initialPosition);
+      setIsInitialized(true);
     }
-  }, [isOpen, initialPosition]);
+  }, [isOpen, initialPosition, isInitialized]);
 
   // Handle dragging
   useEffect(() => {
@@ -119,25 +134,31 @@ const ResizableWindow = ({
 
   if (!isOpen) return null;
 
+  // Determine transform style based on position type
+  const transformStyle = (typeof position.x === 'string' && position.x.includes('%')) 
+    ? 'translate(-50%, -50%)' 
+    : 'none';
+
   return (
     <div
       ref={windowRef}
       id={id}
       className={cn(
-        "resizable-window bg-background border border-border",
-        isMaximized && "!fixed !top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none"
+        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg",
+        isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50"
       )}
       style={{
         top: typeof position.y === 'number' ? `${position.y}px` : position.y,
         left: typeof position.x === 'number' ? `${position.x}px` : position.x,
         width: isMaximized ? '100%' : size.width,
         height: isMaximized ? '100%' : size.height,
-        transform: (typeof position.x === 'string' && position.x.includes('%')) ? 'translate(-50%, -50%)' : 'none'
+        transform: transformStyle,
+        zIndex: 40
       }}
     >
       <div 
         ref={headerRef}
-        className="window-header flex justify-between items-center p-4 border-b border-border bg-card"
+        className="window-header flex justify-between items-center p-4 border-b border-border bg-card rounded-t-lg cursor-move"
         onMouseDown={handleMouseDown}
       >
         <h3 className="font-medium">{title}</h3>

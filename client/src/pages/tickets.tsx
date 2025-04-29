@@ -26,7 +26,7 @@ const Tickets = () => {
   const [activeTab, setActiveTab] = useState("bug");
   
   // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[240px]" : "ml-[72px]";
+  const mainContentClass = expanded ? "ml-[70px]" : "ml-[30px]";
 
   // Filter tickets by type and status
   const filteredTickets = tickets.filter(ticket => {
