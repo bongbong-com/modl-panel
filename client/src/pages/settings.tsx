@@ -10,10 +10,10 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 
 const Settings = () => {
-  const { expanded } = useSidebar();
+  const { } = useSidebar(); // We're not using sidebar context in this component
   
-  // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
+  // Fixed left margin to accommodate the always-collapsed sidebar
+  const mainContentClass = "ml-[28px] pl-6";
 
   // Sliders state
   const [toxicity, setToxicity] = useState(75);

@@ -9,11 +9,11 @@ import { Separator } from '@/components/ui/separator';
 import { auditLogs } from '@/data/mockData';
 
 const AuditLog = () => {
-  const { expanded } = useSidebar();
+  const { } = useSidebar(); // We're not using sidebar context in this component
   const [actionFilter, setActionFilter] = useState("all");
   
-  // Calculate the left margin based on sidebar state
-  const mainContentClass = expanded ? "ml-[70px]" : "ml-[28px]";
+  // Fixed left margin to accommodate the always-collapsed sidebar
+  const mainContentClass = "ml-[28px] pl-6";
 
   // Filter logs by action type
   const filteredLogs = auditLogs.filter(log => {
