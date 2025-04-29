@@ -31,24 +31,17 @@ const Sidebar = () => {
   };
   
   const closeLookup = () => {
-    if (!isFocused && searchQuery.length === 0) {
-      setIsLookupClosing(true);
-      setTimeout(() => {
-        setIsLookupOpen(false);
-        setIsLookupClosing(false);
-      }, 280); // Slightly less than animation duration
-    }
+    setIsLookupClosing(true);
+    setTimeout(() => {
+      setIsLookupOpen(false);
+      setIsLookupClosing(false);
+      setSearchQuery('');
+    }, 280); // Slightly less than animation duration
   };
 
   // Update search active state when search query changes
   useEffect(() => {
     setIsSearchActive(searchQuery.length > 0);
-    
-    // Keep search open if there's a query
-    if (searchQuery.length > 0) {
-      setIsLookupOpen(true);
-      setIsLookupClosing(false);
-    }
   }, [searchQuery, setIsSearchActive]);
 
   // Define nav items
@@ -113,6 +106,12 @@ const Sidebar = () => {
       <aside 
         className="bg-sidebar/90 h-auto min-h-[300px] rounded-2xl w-16 overflow-hidden"
         style={{ backdropFilter: 'blur(12px)' }}
+        onClick={(e) => {
+          // Close search if clicked anywhere except the lookup button
+          if (isLookupOpen && !(e.target as HTMLElement).closest('button[data-lookup="true"]')) {
+            closeLookup();
+          }
+        }}
       >
         <div className="w-16 p-2 pt-4">
           <nav className="flex-1">
@@ -135,6 +134,7 @@ const Sidebar = () => {
                             )}
                             onClick={() => isLookupOpen ? closeLookup() : openLookup()}
                             onMouseEnter={openLookup}
+                            data-lookup="true"
                           >
                             <div className="relative">
                               <Search className="h-5 w-5" />
