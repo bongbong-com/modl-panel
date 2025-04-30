@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { recentLookups } from '@/data/mockData';
+import { useDashboard } from '@/contexts/DashboardContext';
+import PlayerWindow from '@/components/windows/PlayerWindow';
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
@@ -70,7 +72,7 @@ const Sidebar = () => {
       }, 100);
       
       closeTimeoutRef.current = null;
-    }, 1000);
+    }, 300);
   };
 
   // Update search active state when search query changes
@@ -285,7 +287,10 @@ const Sidebar = () => {
                     variant="ghost"
                     className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
                     onClick={() => {
-                      navigate(`/lookup?id=${player.uuid}`);
+                      // Set the URL but don't navigate away - we'll open in a window instead
+                      window.history.pushState({}, '', `/lookup?id=${player.uuid}`);
+                      // Open the lookup window in place
+                      openPlayerWindow(player.uuid);
                       closeLookup();
                     }}
                   >

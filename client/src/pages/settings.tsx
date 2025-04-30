@@ -30,7 +30,6 @@ const Settings = () => {
 
   return (
     <PageContainer>
-    <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Settings</h2>
@@ -254,7 +253,6 @@ const Settings = () => {
           </Tabs>
         </Card>
       </div>
-    </section>
       </PageContainer>
   );
 };
