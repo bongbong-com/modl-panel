@@ -191,7 +191,7 @@ const Sidebar = () => {
     : recentLookups;
 
   return (
-    <div className="fixed ml-6 top-1/4 left-4 z-40 flex">
+    <div className="fixed ml-4 top-1/4 left-4 z-40 flex">
       {/* Fixed-width sidebar navigation (always visible) */}
       <aside 
         className="bg-sidebar/90 h-auto min-h-[300px] rounded-2xl w-16 overflow-hidden"
@@ -263,8 +263,8 @@ const Sidebar = () => {
                             {item.icon}
                             {item.notifications && (
                               <Badge 
-                                variant="default" 
-                                className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-sidebar-primary text-white text-[10px]"
+                                variant="notification" 
+                                className="absolute -top-2.5 -right-3 h-4 w-4 p-0 flex items-center justify-center text-white text-[10px]"
                               >
                                 {item.notifications}
                               </Badge>

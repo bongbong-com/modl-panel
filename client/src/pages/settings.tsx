@@ -40,38 +40,38 @@ const Settings = () => {
         
         <Card>
           <Tabs defaultValue="ai">
-            <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border overflow-x-auto">
+            <TabsList className="w-full h-full justify-start rounded-none bg-transparent border-b border-border overflow-x-auto mx-1">
               <TabsTrigger 
                 value="ai" 
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-4"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Bot className="h-4 w-4 mr-2" />
                 AI Settings
               </TabsTrigger>
               <TabsTrigger 
                 value="chat" 
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-4"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Chat Filter
               </TabsTrigger>
               <TabsTrigger 
                 value="punishment" 
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-4"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Scale className="h-4 w-4 mr-2" />
                 Punishment Ladders
               </TabsTrigger>
               <TabsTrigger 
                 value="staff" 
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-4"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Shield className="h-4 w-4 mr-2" />
                 Staff Management
               </TabsTrigger>
               <TabsTrigger 
                 value="general" 
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-4"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Globe className="h-4 w-4 mr-2" />
                 General

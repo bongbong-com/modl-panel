@@ -381,7 +381,7 @@ const ResizableWindow = ({
       ref={windowRef}
       id={id}
       className={cn(
-        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg transition-colors duration-100",
+        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg",
         isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50"
       )}
       style={{

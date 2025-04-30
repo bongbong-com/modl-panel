@@ -13,7 +13,7 @@ import Settings from "@/pages/settings";
 
 function Router() {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-full overflow-hidden bg-background">
       <Sidebar />
       <main className="flex-1 overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar">
         <Switch>

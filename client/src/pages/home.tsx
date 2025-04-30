@@ -22,7 +22,7 @@ type Activity = typeof recentActivity[0];
 
 const ActivityItem = ({ activity }: { activity: Activity }) => {
   return (
-    <div className="p-4 hover:bg-muted/50 flex items-start">
+    <div className="p-4 hover:bg-muted/50 flex items-start ease-in duration-200">
       <div className={`h-10 w-10 rounded-full bg-${activity.color}-500/20 flex items-center justify-center mr-4 flex-shrink-0`}>
         {activity.type === 'ticket' && <Ticket className={`h-5 w-5 text-${activity.color}-500`} />}
         {activity.type === 'moderation' && <Shield className={`h-5 w-5 text-${activity.color}-500`} />}
