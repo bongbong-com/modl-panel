@@ -19,16 +19,16 @@ interface PlayerWindowProps {
 }
 
 const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWindowProps) => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('history');
   const [playerInfo, setPlayerInfo] = useState({
     username: 'DragonSlayer123',
     status: 'Online',
-    uuid: '12a3b456-7c89...',
+    region: 'Europe',
+    country: 'Germany',
     firstJoined: '2023-01-15',
     lastOnline: '2 hours ago',
     lastServer: 'Survival (EU-3)',
     playtime: '342 hours',
-    ip: '192.168.x.x',
     social: 'HIGH',
     gameplay: 'MED',
     punished: false,
@@ -52,7 +52,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         setPlayerInfo(prev => ({
           ...prev,
           username: player.username,
-          uuid: player.uuid,
           lastOnline: player.lastOnline,
           status: player.status === 'Active' ? 'Online' : player.status
         }));
@@ -80,7 +79,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 <h5 className="text-lg font-medium">{playerInfo.username}</h5>
                 <div className="flex flex-wrap gap-2 mt-1">
                   <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                    Real IP
+                    {playerInfo.region}/{playerInfo.country}
                   </Badge>
                   <Badge variant="outline" className={`
                     ${playerInfo.social === 'LOW' ? 'bg-muted text-muted-foreground' : 
@@ -105,8 +104,12 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">UUID:</span>
-                    <span className="ml-1">{playerInfo.uuid}</span>
+                    <span className="text-muted-foreground">Region:</span>
+                    <span className="ml-1">{playerInfo.region}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Country:</span>
+                    <span className="ml-1">{playerInfo.country}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">First Join:</span>
@@ -121,10 +124,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <span className="ml-1">{playerInfo.playtime}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Real IP:</span>
-                    <span className="ml-1">{playerInfo.ip}</span>
-                  </div>
-                  <div>
                     <span className="text-muted-foreground">Last Server:</span>
                     <span className="ml-1">{playerInfo.lastServer}</span>
                   </div>
@@ -134,9 +133,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           </div>
         </div>
         
-        <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-7 gap-1 px-1">
-            <TabsTrigger value="overview" className="text-xs py-1">Overview</TabsTrigger>
+        <Tabs defaultValue="history" className="w-full" onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-6 gap-1 px-1">
             <TabsTrigger value="history" className="text-xs py-1">
               <History className="h-3 w-3 mr-1" />
               History
@@ -163,33 +161,30 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="overview" className="space-y-2 mt-2">
-            <h4 className="font-medium">Recent Moderation Actions</h4>
-            {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => (
-              <div 
-                key={index} 
-                className="bg-warning/10 border-l-4 border-warning p-3 rounded-r-lg"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
-                      {warning.type}
-                    </Badge>
-                    <p className="text-sm mt-1">{warning.reason}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{warning.date}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground py-2">No recent moderation actions.</p>
-            )}
-          </TabsContent>
-          
           <TabsContent value="history" className="space-y-2 mt-2">
             <h4 className="font-medium">Player History</h4>
-            <div className="bg-muted/30 p-3 rounded-lg">
-              <p className="text-sm">Detailed moderation history will be displayed here.</p>
+            <div className="space-y-2">
+              {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => (
+                <div 
+                  key={index} 
+                  className="bg-warning/10 border-l-4 border-warning p-3 rounded-r-lg"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                        {warning.type}
+                      </Badge>
+                      <p className="text-sm mt-1">{warning.reason}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{warning.date}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
+                </div>
+              )) : (
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <p className="text-sm">No moderation history found for this player.</p>
+                </div>
+              )}
             </div>
           </TabsContent>
           
