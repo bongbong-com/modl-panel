@@ -223,8 +223,8 @@ const ResizableWindow = ({
         },
         size: { width: size.width, height: size.height }
       });
-      // Set to minimized size (just a very thin header)
-      setSize({ width: 250, height: 28 });
+      // Set to minimized size (just a very thin header - exactly the height of the header)
+      setSize({ width: 250, height: 0 }); // Height will be controlled by header
     }
   };
 
@@ -313,15 +313,15 @@ const ResizableWindow = ({
       ref={windowRef}
       id={id}
       className={cn(
-        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden transition-colors duration-100",
+        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg transition-colors duration-100",
         isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50",
-        isMinimized && "hover:border-primary/50"
+        isMinimized && "hover:border-primary/50 !h-7 !overflow-visible border-none" // Force the height to be exactly the header
       )}
       style={{
         top: typeof position.y === 'number' ? `${position.y}px` : position.y,
         left: typeof position.x === 'number' ? `${position.x}px` : position.x,
         width: isMaximized ? '100%' : size.width,
-        height: isMaximized ? '100%' : (isMinimized ? 28 : size.height), // exact height of the header
+        height: isMaximized ? '100%' : (isMinimized ? 28 : size.height), 
         transform: transformStyle,
         zIndex: 40
       }}
@@ -331,7 +331,7 @@ const ResizableWindow = ({
         ref={headerRef}
         className={cn(
           "px-3 py-0.5 flex items-center justify-between border-b border-border cursor-move z-40 bg-card h-7",
-          isMinimized && "border-b-0 rounded-lg bg-card/80 !h-[28px]"
+          isMinimized && "border-b-0 rounded-lg bg-card shadow-sm !h-7 w-full"
         )}
         onMouseDown={handleMouseDown}
       >
@@ -368,7 +368,7 @@ const ResizableWindow = ({
         </div>
       </div>
       
-      {/* Content area - hidden when minimized */}
+      {/* Content area - completely removed when minimized */}
       {!isMinimized && (
         <div className="p-4 h-[calc(100%-28px)] w-full overflow-y-auto scrollbar">
           {children}
