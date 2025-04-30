@@ -139,12 +139,45 @@ const ResizableWindow = ({
     ? 'translate(-50%, -50%)' 
     : 'none';
 
+  // Function to handle resize
+  const handleResize = (e: React.MouseEvent, direction: 'right' | 'bottom' | 'corner') => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isMaximized) return; // Don't allow resize when maximized
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = size.width;
+    const startHeight = size.height;
+    
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (direction === 'right' || direction === 'corner') {
+        const newWidth = Math.max(300, startWidth + (moveEvent.clientX - startX));
+        setSize(prev => ({ ...prev, width: newWidth }));
+      }
+      
+      if (direction === 'bottom' || direction === 'corner') {
+        const newHeight = Math.max(200, startHeight + (moveEvent.clientY - startY));
+        setSize(prev => ({ ...prev, height: newHeight }));
+      }
+    };
+    
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <div
       ref={windowRef}
       id={id}
       className={cn(
-        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg",
+        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden",
         isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50"
       )}
       style={{
@@ -184,6 +217,35 @@ const ResizableWindow = ({
       <div className="p-4 h-[calc(100%-60px)] overflow-y-auto scrollbar">
         {children}
       </div>
+      
+      {/* Resize handles */}
+      {!isMaximized && (
+        <>
+          {/* Right resize handle */}
+          <div 
+            className="absolute top-0 right-0 h-full w-3 cursor-e-resize"
+            onMouseDown={(e) => handleResize(e, 'right')}
+          />
+          
+          {/* Bottom resize handle */}
+          <div 
+            className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize"
+            onMouseDown={(e) => handleResize(e, 'bottom')}
+          />
+          
+          {/* Corner resize handle with visual indicator */}
+          <div 
+            className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end pb-0.5 pr-0.5"
+            onMouseDown={(e) => handleResize(e, 'corner')}
+          >
+            <div className="w-3 h-3 flex flex-col items-end">
+              <div className="h-[2px] w-[2px] bg-border mb-[1px]"></div>
+              <div className="h-[2px] w-[5px] bg-border mb-[1px]"></div>
+              <div className="h-[2px] w-[8px] bg-border"></div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

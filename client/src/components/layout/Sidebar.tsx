@@ -91,6 +91,18 @@ const Sidebar = () => {
     setIsSearchActive(searchQuery.length > 0);
   }, [searchQuery, setIsSearchActive]);
   
+  // Check URL parameters on initial load to open player window if needed
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const playerIdFromUrl = url.searchParams.get('player');
+    
+    if (playerIdFromUrl) {
+      setSelectedPlayerId(playerIdFromUrl);
+      setPlayerWindowOpen(true);
+      openDashboardLookupWindow();
+    }
+  }, [openDashboardLookupWindow]);
+  
   // Clean up any timeouts when component unmounts
   useEffect(() => {
     return () => {
@@ -116,7 +128,13 @@ const Sidebar = () => {
       name: 'Lookup', 
       path: '/lookup', 
       icon: <Search className="h-5 w-5" />,
-      onClick: () => isLookupOpen ? closeLookup() : openLookup()
+      onClick: () => {
+        if (isLookupOpen) {
+          closeLookup();
+        } else {
+          openLookup();
+        }
+      }
     },
     { 
       name: 'Tickets', 
@@ -298,9 +316,12 @@ const Sidebar = () => {
                     variant="ghost"
                     className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
                     onClick={() => {
-                      // Set the URL but don't navigate away - we'll open in a window instead
-                      window.history.pushState({}, '', `/lookup?id=${player.uuid}`);
-                      // Open the lookup window in place
+                      // Set the URL parameter without changing the page
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('player', player.uuid);
+                      window.history.pushState({}, '', url.toString());
+                      
+                      // Open the player window
                       openPlayerWindow(player.uuid);
                       closeLookup();
                     }}
@@ -325,8 +346,11 @@ const Sidebar = () => {
           onClose={() => {
             setPlayerWindowOpen(false);
             setSelectedPlayerId(null);
-            // Reset URL when window is closed
-            window.history.pushState({}, '', location === '/lookup' ? '/lookup' : '/');
+            
+            // Remove just the player parameter from URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('player');
+            window.history.pushState({}, '', url.toString());
           }}
         />
       )}
