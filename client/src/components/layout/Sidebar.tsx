@@ -250,16 +250,20 @@ const Sidebar = () => {
             setIsHoveringSearch(true);
           }}
           onMouseLeave={() => {
+            // First, update the hovering state
             setIsHoveringSearch(false);
             
-            // Make sure we start the close process when mouse leaves
-            if (closeTimeoutRef.current) {
-              clearTimeout(closeTimeoutRef.current);
-              closeTimeoutRef.current = null;
-            }
+            // Force start the closing animation directly without delay
+            // This is needed when moving away from the search panel
+            setIsLookupClosing(true);
             
-            // Directly trigger the close process
-            closeLookup();
+            // And close the panel after animation completes
+            setTimeout(() => {
+              setIsLookupOpen(false);
+              setIsLookupClosing(false);
+              setSearchQuery('');
+              setIsFocused(false);
+            }, 100);
           }}
         >
           <div className="p-3 pt-4 w-[240px]">
