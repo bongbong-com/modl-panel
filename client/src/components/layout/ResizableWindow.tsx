@@ -4,6 +4,12 @@ import { cn } from '@/lib/utils';
 import { WindowPosition } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
+// Global static tracker for last player window state to share between instances
+const lastPlayerWindowConfig = {
+  size: { width: 650, height: 550 },
+  position: { x: 100, y: 100 }
+};
+
 interface ResizableWindowProps {
   id: string;
   title: string;
@@ -38,9 +44,38 @@ const ResizableWindow = ({
   }>({ position: initialPosition, size: initialSize });
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Track last opened window size/position for new windows
+  const [lastKnownConfig, setLastKnownConfig] = useState<{ 
+    size: { width: number, height: number }, 
+    position: WindowPosition 
+  } | null>(null);
+
   // Initialize position once
   useEffect(() => {
     if (!isOpen || !windowRef.current || isInitialized) return;
+    
+    // Use the global last known window configuration for player windows
+    if (id.startsWith('player-')) {
+      // Apply the size from the last window 
+      setSize(lastPlayerWindowConfig.size);
+      
+      // Stagger the position slightly for multiple windows
+      const offset = 20;
+      const totalOpen = document.querySelectorAll('.resizable-window').length - 1;
+      
+      if (typeof lastPlayerWindowConfig.position.x === 'number' && 
+          typeof lastPlayerWindowConfig.position.y === 'number') {
+        setPosition({ 
+          x: lastPlayerWindowConfig.position.x + (offset * totalOpen),
+          y: lastPlayerWindowConfig.position.y + (offset * totalOpen)
+        });
+      } else {
+        setPosition(lastPlayerWindowConfig.position);
+      }
+      
+      setIsInitialized(true);
+      return;
+    }
     
     // Center the window if initial position is percentage based
     if (typeof initialPosition.x === 'string' && initialPosition.x.includes('%')) {
@@ -72,8 +107,15 @@ const ResizableWindow = ({
       
       setPosition({ x: xPos, y: yPos });
       setIsInitialized(true);
+      
+      // Store this as the last known configuration if it's a player window
+      if (id.startsWith('player-')) {
+        // Update the global config
+        lastPlayerWindowConfig.size = { width: windowWidth, height: windowHeight };
+        lastPlayerWindowConfig.position = { x: xPos, y: yPos };
+      }
     }
-  }, [isOpen, initialPosition, isInitialized]);
+  }, [isOpen, initialPosition, isInitialized, lastKnownConfig, id]);
 
   // Handle dragging
   useEffect(() => {
@@ -95,6 +137,14 @@ const ResizableWindow = ({
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      
+      // Save position for new windows
+      if (id.startsWith('player-')) {
+        setLastKnownConfig({ 
+          size: size,
+          position: position
+        });
+      }
     };
 
     if (isDragging) {
@@ -228,6 +278,14 @@ const ResizableWindow = ({
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      
+      // Save the current configuration for future windows
+      if (id.startsWith('player-')) {
+        setLastKnownConfig({ 
+          size: size,
+          position: position
+        });
+      }
     };
     
     document.addEventListener('mousemove', handleMouseMove);
@@ -241,13 +299,13 @@ const ResizableWindow = ({
       className={cn(
         "resizable-window fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden",
         isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50",
-        isMinimized && "!overflow-visible"
+        isMinimized && "!h-7 !overflow-hidden"
       )}
       style={{
         top: typeof position.y === 'number' ? `${position.y}px` : position.y,
         left: typeof position.x === 'number' ? `${position.x}px` : position.x,
         width: isMaximized ? '100%' : size.width,
-        height: isMaximized ? '100%' : size.height,
+        height: isMaximized ? '100%' : (isMinimized ? 28 : size.height),
         transform: transformStyle,
         zIndex: 40
       }}
