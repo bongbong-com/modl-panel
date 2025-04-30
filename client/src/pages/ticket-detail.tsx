@@ -32,6 +32,12 @@ export interface TicketMessage {
   attachments?: string[];
 }
 
+interface TicketNote {
+  content: string;
+  author: string;
+  date: string;
+}
+
 export interface TicketDetails {
   id: string;
   subject: string;
@@ -44,7 +50,7 @@ export interface TicketDetails {
   relatedPlayer?: string;
   relatedPlayerId?: string;
   messages: TicketMessage[];
-  notes: string[];
+  notes: TicketNote[];
   newNote?: string;
   isAddingNote?: boolean;
   newReply?: string;
@@ -53,6 +59,7 @@ export interface TicketDetails {
 const TicketDetail = () => {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('conversation');
+  const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   const location = useLocation();
   
   // More robust parsing of ticket ID from URL
@@ -110,8 +117,8 @@ const TicketDetail = () => {
       }
     ],
     notes: [
-      "Checked server logs - confirmed toxic behavior in chat",
-      "Previous warnings found for the reported player"
+      { content: "Checked server logs - confirmed toxic behavior in chat", author: "Admin", date: "2023-05-15 15:30" },
+      { content: "Previous warnings found for the reported player", author: "ModeratorBeta", date: "2023-05-15 16:15" }
     ]
   });
 
@@ -235,6 +242,15 @@ const TicketDetail = () => {
             Back to Tickets
           </Button>
         </div>
+        
+        {ticketDetails.relatedPlayerId && (
+          <PlayerWindow
+            playerId={ticketDetails.relatedPlayerId}
+            isOpen={isPlayerWindowOpen}
+            onClose={() => setIsPlayerWindowOpen(false)}
+            initialPosition={{ x: 50, y: 50 }}
+          />
+        )}
 
         <div className="bg-background-lighter p-6 rounded-lg">
           <div className="flex flex-col gap-4">
@@ -282,8 +298,18 @@ const TicketDetail = () => {
               {ticketDetails.relatedPlayer && (
                 <div className="flex items-center">
                   <span className="text-muted-foreground">Related Player:</span>
-                  <span className="ml-1">{ticketDetails.relatedPlayer}</span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 ml-1">
+                  <span 
+                    className="ml-1 cursor-pointer hover:underline"
+                    onClick={() => setIsPlayerWindowOpen(true)}
+                  >
+                    {ticketDetails.relatedPlayer}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 ml-1"
+                    onClick={() => setIsPlayerWindowOpen(true)}
+                  >
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -402,10 +428,14 @@ const TicketDetail = () => {
                   <div className="space-y-3">
                     {ticketDetails.notes.map((note, idx) => (
                       <div key={idx} className="bg-muted/30 p-3 rounded-lg">
-                        <div className="flex items-start">
-                          <StickyNote className="h-3.5 w-3.5 mr-2 mt-0.5 text-muted-foreground" />
-                          <span className="text-sm">{note}</span>
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="font-medium flex items-center">
+                            <StickyNote className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                            {note.author}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{note.date}</span>
                         </div>
+                        <p className="pl-5 text-sm">{note.content}</p>
                       </div>
                     ))}
                   </div>
@@ -436,11 +466,16 @@ const TicketDetail = () => {
                           onClick={() => {
                             const currentDate = new Date();
                             const formattedDate = `${currentDate.toLocaleDateString()} at ${currentDate.toLocaleTimeString()}`;
-                            const newNoteWithMetadata = `${ticketDetails.newNote} (Added by Admin on ${formattedDate})`;
+                            
+                            const newNote: TicketNote = {
+                              content: ticketDetails.newNote || '',
+                              author: 'Admin',
+                              date: formattedDate
+                            };
                             
                             setTicketDetails(prev => ({
                               ...prev,
-                              notes: [...prev.notes, newNoteWithMetadata],
+                              notes: [...prev.notes, newNote],
                               isAddingNote: false,
                               newNote: ''
                             }));
@@ -573,17 +608,7 @@ const TicketDetail = () => {
                     <Link2 className="h-3.5 w-3.5 mr-2" />
                     Link Player
                   </Button>
-                  {ticketDetails.status !== 'Closed' && (
-                    <Button 
-                      size="sm"
-                      variant="outline"
-                      className="justify-start text-destructive"
-                      onClick={() => handleStatusChange('Closed')}
-                    >
-                      <XCircle className="h-3.5 w-3.5 mr-2" />
-                      Close Ticket
-                    </Button>
-                  )}
+                  {/* Close Ticket button removed for consistency with window version */}
                 </div>
               </div>
             </div>
