@@ -40,6 +40,7 @@ interface PlayerInfo {
     value: number;
     unit: 'hours' | 'days' | 'weeks' | 'months';
   };
+  isPermanent?: boolean;
   reason?: string;
   evidence?: string;
   attachedReports?: string[];
@@ -53,6 +54,9 @@ interface PlayerInfo {
 
 const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWindowProps) => {
   const [activeTab, setActiveTab] = useState('history');
+  const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
+  const [showBanSearchResults, setShowBanSearchResults] = useState(false);
+  
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({
     username: 'DragonSlayer123',
     status: 'Online',
@@ -74,6 +78,31 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     notes: ['Player has been consistently helpful to new players', 'Frequently reports bugs and exploits']
   });
 
+  // Mock function to simulate ban search results
+  const searchBans = (query: string) => {
+    if (!query || query.length < 2) {
+      setBanSearchResults([]);
+      return;
+    }
+    
+    // Simulate API call delay
+    setTimeout(() => {
+      // Mock data for demonstration
+      const results = [
+        { id: 'ban-123', player: 'MineKnight45' },
+        { id: 'ban-456', player: 'DiamondMiner99' },
+        { id: 'ban-789', player: 'CraftMaster21' },
+        { id: 'ban-012', player: 'StoneBlazer76' }
+      ].filter(item => 
+        item.id.toLowerCase().includes(query.toLowerCase()) || 
+        item.player.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      setBanSearchResults(results);
+      setShowBanSearchResults(results.length > 0);
+    }, 300);
+  };
+  
   useEffect(() => {
     if (playerId && isOpen) {
       // In a real app, fetch player data using the playerId
@@ -286,8 +315,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Kick'}))}
+                          className={`py-1 text-xs ${playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          onClick={() => {
+                            if (playerInfo.status === 'Online') {
+                              setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Kick'}));
+                            }
+                          }}
+                          title={playerInfo.status !== 'Online' ? 'Player must be online to kick' : ''}
                         >
                           Kick
                         </Button>
@@ -516,39 +550,64 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   {playerInfo.selectedPunishmentCategory === 'Manual Mute' && (
                     <>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Duration</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="number" 
-                            placeholder="Duration" 
-                            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                            value={playerInfo.duration?.value || ''}
-                            onChange={(e) => setPlayerInfo(prev => ({
-                              ...prev, 
-                              duration: {
-                                value: parseInt(e.target.value) || 0,
-                                unit: prev.duration?.unit || 'hours'
-                              }
-                            }))}
-                            min={1}
-                          />
-                          <select 
-                            className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                            value={playerInfo.duration?.unit || 'hours'}
-                            onChange={(e) => setPlayerInfo(prev => ({
-                              ...prev, 
-                              duration: {
-                                value: prev.duration?.value || 1,
-                                unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
-                              }
-                            }))}
-                          >
-                            <option value="hours">Hours</option>
-                            <option value="days">Days</option>
-                            <option value="weeks">Weeks</option>
-                            <option value="months">Months</option>
-                          </select>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium">Duration</label>
+                          <div className="flex items-center">
+                            <input 
+                              type="checkbox" 
+                              id="permanent-mute" 
+                              className="rounded mr-2"
+                              checked={!!playerInfo.isPermanent}
+                              onChange={(e) => {
+                                const isPermanent = e.target.checked;
+                                setPlayerInfo(prev => ({
+                                  ...prev, 
+                                  isPermanent,
+                                  duration: !isPermanent ? {
+                                    value: prev.duration?.value || 24,
+                                    unit: prev.duration?.unit || 'hours'
+                                  } : undefined
+                                }));
+                              }}
+                            />
+                            <label htmlFor="permanent-mute" className="text-sm">Permanent</label>
+                          </div>
                         </div>
+                        
+                        {!playerInfo.isPermanent && (
+                          <div className="flex gap-2">
+                            <input 
+                              type="number" 
+                              placeholder="Duration" 
+                              className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                              value={playerInfo.duration?.value || ''}
+                              onChange={(e) => setPlayerInfo(prev => ({
+                                ...prev, 
+                                duration: {
+                                  value: parseInt(e.target.value) || 0,
+                                  unit: prev.duration?.unit || 'hours'
+                                }
+                              }))}
+                              min={1}
+                            />
+                            <select 
+                              className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                              value={playerInfo.duration?.unit || 'hours'}
+                              onChange={(e) => setPlayerInfo(prev => ({
+                                ...prev, 
+                                duration: {
+                                  value: prev.duration?.value || 1,
+                                  unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                }
+                              }))}
+                            >
+                              <option value="hours">Hours</option>
+                              <option value="days">Days</option>
+                              <option value="weeks">Weeks</option>
+                              <option value="months">Months</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="space-y-2">
@@ -634,39 +693,64 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   {playerInfo.selectedPunishmentCategory === 'Manual Ban' && (
                     <>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Duration</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="number" 
-                            placeholder="Duration" 
-                            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                            value={playerInfo.duration?.value || ''}
-                            onChange={(e) => setPlayerInfo(prev => ({
-                              ...prev, 
-                              duration: {
-                                value: parseInt(e.target.value) || 0,
-                                unit: prev.duration?.unit || 'hours'
-                              }
-                            }))}
-                            min={1}
-                          />
-                          <select 
-                            className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                            value={playerInfo.duration?.unit || 'hours'}
-                            onChange={(e) => setPlayerInfo(prev => ({
-                              ...prev, 
-                              duration: {
-                                value: prev.duration?.value || 1,
-                                unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
-                              }
-                            }))}
-                          >
-                            <option value="hours">Hours</option>
-                            <option value="days">Days</option>
-                            <option value="weeks">Weeks</option>
-                            <option value="months">Months</option>
-                          </select>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium">Duration</label>
+                          <div className="flex items-center">
+                            <input 
+                              type="checkbox" 
+                              id="permanent-ban" 
+                              className="rounded mr-2"
+                              checked={!!playerInfo.isPermanent}
+                              onChange={(e) => {
+                                const isPermanent = e.target.checked;
+                                setPlayerInfo(prev => ({
+                                  ...prev, 
+                                  isPermanent,
+                                  duration: !isPermanent ? {
+                                    value: prev.duration?.value || 24,
+                                    unit: prev.duration?.unit || 'hours'
+                                  } : undefined
+                                }));
+                              }}
+                            />
+                            <label htmlFor="permanent-ban" className="text-sm">Permanent</label>
+                          </div>
                         </div>
+                        
+                        {!playerInfo.isPermanent && (
+                          <div className="flex gap-2">
+                            <input 
+                              type="number" 
+                              placeholder="Duration" 
+                              className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                              value={playerInfo.duration?.value || ''}
+                              onChange={(e) => setPlayerInfo(prev => ({
+                                ...prev, 
+                                duration: {
+                                  value: parseInt(e.target.value) || 0,
+                                  unit: prev.duration?.unit || 'hours'
+                                }
+                              }))}
+                              min={1}
+                            />
+                            <select 
+                              className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                              value={playerInfo.duration?.unit || 'hours'}
+                              onChange={(e) => setPlayerInfo(prev => ({
+                                ...prev, 
+                                duration: {
+                                  value: prev.duration?.value || 1,
+                                  unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                }
+                              }))}
+                            >
+                              <option value="hours">Hours</option>
+                              <option value="days">Days</option>
+                              <option value="weeks">Weeks</option>
+                              <option value="months">Months</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="space-y-2">
@@ -852,13 +936,46 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Ban to Link</label>
-                        <input 
-                          type="text" 
-                          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" 
-                          placeholder="Search by username or ban-id"
-                          value={playerInfo.banToLink || ''}
-                          onChange={(e) => setPlayerInfo(prev => ({...prev, banToLink: e.target.value}))}
-                        />
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" 
+                            placeholder="Search by username or ban-id"
+                            value={playerInfo.banToLink || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setPlayerInfo(prev => ({...prev, banToLink: value}));
+                              searchBans(value);
+                            }}
+                            onFocus={() => {
+                              if (playerInfo.banToLink) {
+                                searchBans(playerInfo.banToLink);
+                              }
+                            }}
+                            onBlur={() => {
+                              // Delay hiding to allow for click on the dropdown items
+                              setTimeout(() => setShowBanSearchResults(false), 200);
+                            }}
+                          />
+                          
+                          {showBanSearchResults && (
+                            <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-background rounded-md border border-border shadow-md max-h-40 overflow-y-auto">
+                              {banSearchResults.map((result) => (
+                                <div 
+                                  key={result.id}
+                                  className="px-3 py-2 text-sm hover:bg-accent cursor-pointer"
+                                  onClick={() => {
+                                    setPlayerInfo(prev => ({...prev, banToLink: `${result.id} (${result.player})`}));
+                                    setShowBanSearchResults(false);
+                                  }}
+                                >
+                                  <div className="font-medium">{result.id}</div>
+                                  <div className="text-xs text-muted-foreground">{result.player}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="space-y-2">
