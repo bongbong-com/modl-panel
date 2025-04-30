@@ -40,7 +40,12 @@ const Tickets = () => {
   
   const handleNavigateToTicket = (ticketId: string) => {
     // Navigate to the ticket detail page
-    setLocation(`/tickets/${ticketId}`);
+    console.log('Navigating to ticket:', ticketId);
+    
+    // Add a small delay to make sure the navigation occurs
+    setTimeout(() => {
+      setLocation(`/tickets/${ticketId}`);
+    }, 50);
   };
 
   return (

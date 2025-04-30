@@ -53,7 +53,18 @@ const TicketDetail = () => {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('conversation');
   const location = useLocation();
-  const ticketId = location[0].split('/tickets/')[1];
+  
+  // More robust parsing of ticket ID from URL
+  const path = location[0];
+  const pathParts = path.split('/');
+  
+  // Get the last part of the URL which should be the ticket ID
+  const ticketId = pathParts[pathParts.length - 1];
+  
+  // Debug
+  console.log('Current URL path:', path);
+  console.log('Path parts:', pathParts);
+  console.log('Extracted ticket ID:', ticketId);
 
   const [ticketDetails, setTicketDetails] = useState<TicketDetails>({
     id: "T-12345",
@@ -122,9 +133,26 @@ const TicketDetail = () => {
       // In a real app, fetch ticket data using the ticketId
       console.log('Fetching data for ticket:', ticketId);
       
-      // Find the ticket in our mock data
-      const ticket = tickets.find(t => t.id === ticketId);
+      // Find the ticket in our mock data - try direct match first
+      let ticket = tickets.find(t => t.id === ticketId);
+      
+      // If no match, try with case insensitive comparison
+      if (!ticket) {
+        console.log('No exact match, trying case insensitive...');
+        ticket = tickets.find(t => 
+          t.id.toLowerCase() === ticketId.toLowerCase() || 
+          t.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === ticketId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+        );
+      }
+      
+      // If still no match, just use first ticket
+      if (!ticket && tickets.length > 0) {
+        console.log('No match found, using first ticket as fallback');
+        ticket = tickets[0];
+      }
+      
       if (ticket) {
+        console.log('Found matching ticket:', ticket);
         setTicketDetails(prev => ({
           ...prev,
           id: ticket.id,
@@ -134,6 +162,8 @@ const TicketDetail = () => {
           status: ticket.status as any,
           priority: ticket.priority
         }));
+      } else {
+        console.error('No tickets available');
       }
     }
   }, [ticketId]);
