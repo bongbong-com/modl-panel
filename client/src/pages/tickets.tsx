@@ -20,11 +20,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { tickets } from '@/data/mockData';
 import PageContainer from '@/components/layout/PageContainer';
+import TicketWindow from '@/components/windows/TicketWindow';
 
 const Tickets = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("bug");
+  const [openTickets, setOpenTickets] = useState<{ [key: string]: boolean }>({});
+  const [ticketPositions, setTicketPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
@@ -35,6 +38,32 @@ const Tickets = () => {
     const statusMatch = statusFilter === "all" || ticket.status.toLowerCase() === statusFilter;
     return typeMatch && statusMatch;
   });
+  
+  const handleOpenTicket = (ticketId: string) => {
+    // Stagger window positions for multiple windows
+    const openTicketCount = Object.values(openTickets).filter(Boolean).length;
+    const newPosition = {
+      x: 100 + (openTicketCount * 30),
+      y: 70 + (openTicketCount * 30)
+    };
+    
+    setTicketPositions(prev => ({
+      ...prev,
+      [ticketId]: newPosition
+    }));
+    
+    setOpenTickets(prev => ({
+      ...prev,
+      [ticketId]: true
+    }));
+  };
+  
+  const handleCloseTicket = (ticketId: string) => {
+    setOpenTickets(prev => ({
+      ...prev,
+      [ticketId]: false
+    }));
+  };
 
   return (
     <PageContainer>
@@ -135,7 +164,7 @@ const Tickets = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleOpenTicket(ticket.id)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                                 {ticket.status !== 'Fixed' ? (

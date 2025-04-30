@@ -146,7 +146,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     "bg-success/10 text-success border-success/20" : 
                     "bg-muted/50 text-muted-foreground border-muted/30"
                   }>
-                    {playerInfo.status}
+                    {playerInfo.status === 'Online' ? 
+                      "Online" : 
+                      "Offline"
+                    }
                   </Badge>
                   <Badge variant="outline" className={
                     playerInfo.social.toLowerCase() === 'low' ? 
