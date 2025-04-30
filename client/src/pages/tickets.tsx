@@ -42,9 +42,14 @@ const Tickets = () => {
     // Navigate to the ticket detail page
     console.log('Navigating to ticket:', ticketId);
     
+    // Remove any characters that might cause issues in the URL
+    // Replace # with "ID-" to avoid hash confusion in the URL
+    const safeTicketId = ticketId.replace('#', 'ID-');
+    console.log('Safe ticket ID for URL:', safeTicketId);
+    
     // Add a small delay to make sure the navigation occurs
     setTimeout(() => {
-      setLocation(`/tickets/${ticketId}`);
+      setLocation(`/tickets/${safeTicketId}`);
     }, 50);
   };
 

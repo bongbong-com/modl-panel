@@ -133,15 +133,32 @@ const TicketDetail = () => {
       // In a real app, fetch ticket data using the ticketId
       console.log('Fetching data for ticket:', ticketId);
       
+      // Convert from URL safe format back to original format if needed
+      // For example, if ID-BUG-1234 was used instead of #BUG-1234
+      const originalTicketId = ticketId.startsWith('ID-') 
+        ? '#' + ticketId.substring(3) 
+        : ticketId;
+      
+      console.log('Looking for ticket with ID:', originalTicketId);
+      
       // Find the ticket in our mock data - try direct match first
-      let ticket = tickets.find(t => t.id === ticketId);
+      let ticket = tickets.find(t => t.id === originalTicketId);
       
       // If no match, try with case insensitive comparison
       if (!ticket) {
         console.log('No exact match, trying case insensitive...');
         ticket = tickets.find(t => 
-          t.id.toLowerCase() === ticketId.toLowerCase() || 
-          t.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === ticketId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+          t.id.toLowerCase() === originalTicketId.toLowerCase() || 
+          t.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === originalTicketId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+        );
+      }
+      
+      // If still no match, try without the ID- prefix
+      if (!ticket) {
+        console.log('Trying without any special handling');
+        ticket = tickets.find(t => 
+          t.id === ticketId || 
+          t.id.toLowerCase() === ticketId.toLowerCase()
         );
       }
       
