@@ -67,6 +67,16 @@ const Tickets = () => {
 
   return (
     <PageContainer>
+      {/* Render ticket windows */}
+      {tickets.map(ticket => (
+        <TicketWindow
+          key={ticket.id}
+          ticketId={ticket.id}
+          isOpen={openTickets[ticket.id] || false}
+          onClose={() => handleCloseTicket(ticket.id)}
+          initialPosition={ticketPositions[ticket.id]}
+        />
+      ))}
     
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
