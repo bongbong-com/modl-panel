@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, ReactNode } from 'react';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WindowPosition } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,13 @@ const ResizableWindow = ({
   const [position, setPosition] = useState(initialPosition);
   const [size, setSize] = useState(initialSize);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [windowOffset, setWindowOffset] = useState({ x: 0, y: 0 });
+  const [windowBeforeMinimize, setWindowBeforeMinimize] = useState<{
+    position: WindowPosition;
+    size: { width: number; height: number };
+  }>({ position: initialPosition, size: initialSize });
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize position once
@@ -115,6 +120,11 @@ const ResizableWindow = ({
   };
 
   const handleMaximize = () => {
+    if (isMinimized) {
+      // If minimized, restore to normal first
+      handleMinimize();
+    }
+    
     if (isMaximized) {
       // Restore
       setIsMaximized(false);
@@ -129,6 +139,28 @@ const ResizableWindow = ({
       });
       setPosition({ x: 0, y: 0 });
       setSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+  };
+  
+  const handleMinimize = () => {
+    if (isMinimized) {
+      // Restore from minimized state
+      setIsMinimized(false);
+      setPosition(windowBeforeMinimize.position);
+      setSize(windowBeforeMinimize.size);
+    } else {
+      // Minimize
+      setIsMinimized(true);
+      // Store current window state to restore later
+      setWindowBeforeMinimize({
+        position: {
+          x: typeof position.x === 'number' ? position.x : 0,
+          y: typeof position.y === 'number' ? position.y : 0
+        },
+        size: { width: size.width, height: size.height }
+      });
+      // Set to minimized size (just the header)
+      setSize({ width: 250, height: 40 });
     }
   };
 
@@ -208,7 +240,8 @@ const ResizableWindow = ({
       id={id}
       className={cn(
         "resizable-window fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden",
-        isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50"
+        isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50",
+        isMinimized && "!overflow-visible"
       )}
       style={{
         top: typeof position.y === 'number' ? `${position.y}px` : position.y,
@@ -219,30 +252,53 @@ const ResizableWindow = ({
         zIndex: 40
       }}
     >
+      {/* Header area that's always visible */}
       <div 
         ref={headerRef}
-        className="absolute top-0 left-0 right-0 h-10 cursor-move z-10"
+        className={cn(
+          "px-3 py-2 flex items-center justify-between border-b border-border cursor-move z-30 bg-card",
+          isMinimized && "border-b-0 rounded-lg"
+        )}
         onMouseDown={handleMouseDown}
-      />
-      
-      {/* Close button positioned more centrally */}
-      <div className="absolute top-2 right-1/3 z-20">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={onClose}
-          className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-full bg-background/70"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+      >
+        {/* Window title */}
+        <div className="text-sm font-medium truncate flex-1 mr-2">
+          {title || id}
+        </div>
+        
+        {/* Control buttons */}
+        <div className="flex space-x-1 ml-auto">
+          {/* Minimize/restore button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleMinimize}
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          >
+            {isMinimized ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </Button>
+          
+          {/* Close button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onClose}
+            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
       </div>
       
-      <div className="p-4 h-full w-full overflow-y-auto scrollbar">
-        {children}
-      </div>
+      {/* Content area - hidden when minimized */}
+      {!isMinimized && (
+        <div className="p-4 h-[calc(100%-40px)] w-full overflow-y-auto scrollbar">
+          {children}
+        </div>
+      )}
       
       {/* Resize handles */}
-      {!isMaximized && (
+      {!isMaximized && !isMinimized && (
         <>
           {/* Edge resize handles */}
           <div 

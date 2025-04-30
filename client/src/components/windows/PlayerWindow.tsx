@@ -54,7 +54,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   return (
     <ResizableWindow
       id={`player-${playerId}`} // Unique ID per player
-      title="" // No title bar
+      title={playerInfo.username} // Show username in title/tab when minimized
       isOpen={isOpen}
       onClose={onClose}
       initialPosition={initialPosition}
