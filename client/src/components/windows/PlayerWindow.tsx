@@ -5,13 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import ResizableWindow from '@/components/layout/ResizableWindow';
 import { recentLookups } from '@/data/mockData';
 
+import { WindowPosition } from '@/lib/types';
+
 interface PlayerWindowProps {
   playerId: string;
   isOpen: boolean;
   onClose: () => void;
+  initialPosition?: WindowPosition;
 }
 
-const PlayerWindow = ({ playerId, isOpen, onClose }: PlayerWindowProps) => {
+const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWindowProps) => {
   const [playerInfo, setPlayerInfo] = useState({
     username: 'DragonSlayer123',
     status: 'Online',

@@ -225,8 +225,8 @@ const ResizableWindow = ({
         onMouseDown={handleMouseDown}
       />
       
-      {/* Close button in top-right corner */}
-      <div className="absolute top-2 right-2 z-20">
+      {/* Close button positioned more centrally */}
+      <div className="absolute top-2 right-1/3 z-20">
         <Button 
           variant="ghost" 
           size="icon" 

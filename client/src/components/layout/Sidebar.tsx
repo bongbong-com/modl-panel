@@ -27,15 +27,28 @@ const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isHoveringSearch, setIsHoveringSearch] = useState(false);
-  const [playerWindowOpen, setPlayerWindowOpen] = useState(false);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  // Track multiple windows with a map of id -> isOpen state
+  const [playerWindows, setPlayerWindows] = useState<Record<string, boolean>>({});
   const closeTimeoutRef = useRef<number | null>(null);
   
   // Function to open player window when clicked from search
   const openPlayerWindow = (playerId: string) => {
-    setSelectedPlayerId(playerId);
-    setPlayerWindowOpen(true);
+    // Add this window to our tracked windows
+    setPlayerWindows(prev => ({
+      ...prev,
+      [playerId]: true // Set this player's window to open
+    }));
     openDashboardLookupWindow(); // Also open at dashboard level for tracking
+  };
+  
+  // Function to close a specific player window
+  const closePlayerWindow = (playerId: string) => {
+    setPlayerWindows(prev => {
+      // Create a new object excluding this player 
+      const newWindows = { ...prev };
+      delete newWindows[playerId];
+      return newWindows;
+    });
   };
   
   const openLookup = () => {
@@ -97,8 +110,11 @@ const Sidebar = () => {
     const playerIdFromUrl = url.searchParams.get('player');
     
     if (playerIdFromUrl) {
-      setSelectedPlayerId(playerIdFromUrl);
-      setPlayerWindowOpen(true);
+      // Open this player's window
+      setPlayerWindows(prev => ({
+        ...prev,
+        [playerIdFromUrl]: true
+      }));
       openDashboardLookupWindow();
     }
   }, [openDashboardLookupWindow]);
@@ -338,22 +354,34 @@ const Sidebar = () => {
         </div>
       )}
       
-      {/* Player window that opens when a player is selected */}
-      {selectedPlayerId && (
+      {/* Render multiple player windows with offset positioning */}
+      {Object.entries(playerWindows).map(([playerId, isOpen], index) => (
         <PlayerWindow 
-          playerId={selectedPlayerId}
-          isOpen={playerWindowOpen}
+          key={playerId}
+          playerId={playerId}
+          isOpen={isOpen}
+          initialPosition={{ 
+            x: Math.max(100, window.innerWidth / 2 - 325) + index * 40, 
+            y: Math.max(100, window.innerHeight / 2 - 275) + index * 30 
+          }}
           onClose={() => {
-            setPlayerWindowOpen(false);
-            setSelectedPlayerId(null);
+            // Close this specific window
+            closePlayerWindow(playerId);
             
-            // Remove just the player parameter from URL
+            // Update URL parameters - we keep other players in the URL
             const url = new URL(window.location.href);
             url.searchParams.delete('player');
+            
+            // If we have other windows open, add the first one to the URL
+            const remainingPlayers = Object.keys(playerWindows).filter(id => id !== playerId);
+            if (remainingPlayers.length > 0) {
+              url.searchParams.set('player', remainingPlayers[0]);
+            }
+            
             window.history.pushState({}, '', url.toString());
           }}
         />
-      )}
+      ))}
     </div>
   );
 };
