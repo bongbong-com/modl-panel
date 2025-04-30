@@ -33,18 +33,22 @@ const Sidebar = () => {
   };
   
   const closeLookup = () => {
+    // Don't attempt to close if not open or if already hovering over search
+    if (!isLookupOpen || isHoveringSearch) return; 
+    
     // Clear any existing timeout
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
     }
     
-    // Don't close if hovering over search
-    if (!isLookupOpen || isHoveringSearch) return; 
-    
     // Set a 1000ms (1 second) delay before closing - allows user to move mouse to search panel
     closeTimeoutRef.current = window.setTimeout(() => {
-      if (isHoveringSearch) return; // Double-check if user moved to search during delay
+      // IMPORTANT: Check again if user moved to search during delay
+      if (isHoveringSearch) {
+        closeTimeoutRef.current = null;
+        return; 
+      }
       
       setIsLookupClosing(true);
       setTimeout(() => {
@@ -161,7 +165,14 @@ const Sidebar = () => {
                               isActive && "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20"
                             )}
                             onClick={() => isLookupOpen ? closeLookup() : openLookup()}
-                            onMouseEnter={openLookup}
+                            onMouseEnter={() => {
+                              // Clear any pending close operation when mouse enters icon
+                              if (closeTimeoutRef.current) {
+                                clearTimeout(closeTimeoutRef.current);
+                                closeTimeoutRef.current = null;
+                              }
+                              openLookup();
+                            }}
                             onMouseLeave={closeLookup}
                             data-lookup="true"
                           >
@@ -219,12 +230,18 @@ const Sidebar = () => {
           className={`bg-sidebar/90 h-auto min-h-[300px] ml-2 rounded-xl overflow-hidden ${isLookupClosing ? 'animate-slide-left' : 'animate-slide-right'}`}
           style={{ backdropFilter: 'blur(12px)' }}
           onMouseEnter={() => {
+            // Immediately cancel any pending close operations
+            if (closeTimeoutRef.current) {
+              clearTimeout(closeTimeoutRef.current);
+              closeTimeoutRef.current = null;
+            }
             setIsLookupClosing(false);
             setIsHoveringSearch(true);
           }}
           onMouseLeave={() => {
             setIsHoveringSearch(false);
-            closeLookup();
+            // Start the close sequence when mouse leaves
+            setTimeout(() => closeLookup(), 50);
           }}
         >
           <div className="p-3 pt-4 w-[240px]">
