@@ -8,6 +8,7 @@ import { DashboardProvider } from "@/contexts/DashboardContext";
 import Home from "@/pages/home";
 import Lookup from "@/pages/lookup";
 import Tickets from "@/pages/tickets";
+import TicketDetail from "@/pages/ticket-detail";
 import Audit from "@/pages/audit";
 import Settings from "@/pages/settings";
 
@@ -20,6 +21,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/lookup" component={Lookup} />
           <Route path="/tickets" component={Tickets} />
+          <Route path="/tickets/:id" component={TicketDetail} />
           <Route path="/audit" component={Audit} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />

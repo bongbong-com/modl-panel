@@ -125,6 +125,8 @@ const ResizableWindow = ({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging || !windowRef.current) return;
+
+      e.preventDefault();
       
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
