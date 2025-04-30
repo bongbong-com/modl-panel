@@ -251,7 +251,7 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
               variant={activeTab === 'conversation' ? 'default' : 'ghost'} 
               size="sm"
               onClick={() => setActiveTab('conversation')}
-              className="rounded-b-none border-b-0"
+              className="rounded-md"
             >
               <MessageSquare className="h-4 w-4 mr-1.5" />
               Conversation
@@ -260,7 +260,7 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
               variant={activeTab === 'notes' ? 'default' : 'ghost'} 
               size="sm"
               onClick={() => setActiveTab('notes')}
-              className="rounded-b-none border-b-0"
+              className="rounded-md"
             >
               <StickyNote className="h-4 w-4 mr-1.5" />
               Staff Notes
@@ -344,11 +344,7 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
                         Link Player
                       </Button>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        Close Ticket
-                      </Button>
-                    </div>
+                    {/* Close ticket button removed */}
                   </div>
                 </div>
               </div>
