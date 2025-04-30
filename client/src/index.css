@@ -134,8 +134,8 @@
   
   .resizable-window {
     @apply fixed rounded-lg shadow-lg overflow-hidden z-50 resize;
-    min-width: 300px;
-    min-height: 200px;
+    min-width: 600px;
+    min-height: 400px;
     max-width: 90vw;
     max-height: 80vh;
   }

@@ -323,7 +323,7 @@ const ResizableWindow = ({
       <div
         ref={windowRef}
         id={id}
-        className="resizable-window fixed"
+        className="fixed"
         style={{
           top: typeof position.y === 'number' ? `${position.y}px` : position.y,
           left: typeof position.x === 'number' ? `${position.x}px` : position.x,
