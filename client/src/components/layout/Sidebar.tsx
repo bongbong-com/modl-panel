@@ -23,7 +23,6 @@ const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isHoveringSearch, setIsHoveringSearch] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const closeTimeoutRef = useRef<number | null>(null);
   
   const openLookup = () => {
@@ -43,7 +42,7 @@ const Sidebar = () => {
     // Don't close if hovering over search
     if (!isLookupOpen || isHoveringSearch) return; 
     
-    // Set a 300ms delay before closing - allows user to move mouse to search panel
+    // Set a 1000ms (1 second) delay before closing - allows user to move mouse to search panel
     closeTimeoutRef.current = window.setTimeout(() => {
       if (isHoveringSearch) return; // Double-check if user moved to search during delay
       
@@ -56,23 +55,13 @@ const Sidebar = () => {
       }, 100);
       
       closeTimeoutRef.current = null;
-    }, 300);
+    }, 1000);
   };
 
   // Update search active state when search query changes
   useEffect(() => {
     setIsSearchActive(searchQuery.length > 0);
   }, [searchQuery, setIsSearchActive]);
-  
-  // Track window size for responsive design
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
   
   // Clean up any timeouts when component unmounts
   useEffect(() => {
@@ -238,7 +227,7 @@ const Sidebar = () => {
             closeLookup();
           }}
         >
-          <div className={`p-3 pt-4 ${windowWidth > 1200 ? 'w-[320px]' : windowWidth > 768 ? 'w-[280px]' : 'w-[240px]'}`}>
+          <div className="p-3 pt-4 w-[240px]">
             <Input
               placeholder="Search players..."
               className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-3"
