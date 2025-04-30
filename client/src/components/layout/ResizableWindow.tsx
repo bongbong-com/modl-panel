@@ -159,8 +159,8 @@ const ResizableWindow = ({
         },
         size: { width: size.width, height: size.height }
       });
-      // Set to minimized size (just the header)
-      setSize({ width: 250, height: 40 });
+      // Set to minimized size (just a very thin header)
+      setSize({ width: 250, height: 28 });
     }
   };
 
@@ -256,13 +256,13 @@ const ResizableWindow = ({
       <div 
         ref={headerRef}
         className={cn(
-          "px-3 py-2 flex items-center justify-between border-b border-border cursor-move z-30 bg-card",
+          "px-3 py-0.5 flex items-center justify-between border-b border-border cursor-move z-40 bg-card h-7",
           isMinimized && "border-b-0 rounded-lg"
         )}
         onMouseDown={handleMouseDown}
       >
         {/* Window title */}
-        <div className="text-sm font-medium truncate flex-1 mr-2">
+        <div className="text-xs font-medium truncate flex-1 mr-2">
           {title || id}
         </div>
         
@@ -273,7 +273,7 @@ const ResizableWindow = ({
             variant="ghost" 
             size="icon" 
             onClick={handleMinimize}
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-foreground z-50"
           >
             {isMinimized ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
@@ -283,7 +283,7 @@ const ResizableWindow = ({
             variant="ghost" 
             size="icon" 
             onClick={onClose}
-            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+            className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-destructive z-50"
           >
             <X className="h-3 w-3" />
           </Button>
@@ -292,7 +292,7 @@ const ResizableWindow = ({
       
       {/* Content area - hidden when minimized */}
       {!isMinimized && (
-        <div className="p-4 h-[calc(100%-40px)] w-full overflow-y-auto scrollbar">
+        <div className="p-4 h-[calc(100%-28px)] w-full overflow-y-auto scrollbar">
           {children}
         </div>
       )}
@@ -302,7 +302,7 @@ const ResizableWindow = ({
         <>
           {/* Edge resize handles */}
           <div 
-            className="absolute top-0 right-0 h-full w-3 cursor-e-resize z-20"
+            className="absolute top-8 right-0 h-[calc(100%-16px)] w-3 cursor-e-resize z-20"
             onMouseDown={(e) => handleResize(e, 'right')}
           />
           <div 
@@ -310,7 +310,7 @@ const ResizableWindow = ({
             onMouseDown={(e) => handleResize(e, 'bottom')}
           />
           <div 
-            className="absolute top-0 left-0 h-full w-3 cursor-w-resize z-20"
+            className="absolute top-8 left-0 h-[calc(100%-16px)] w-3 cursor-w-resize z-20"
             onMouseDown={(e) => handleResize(e, 'left')}
           />
           <div 
@@ -336,12 +336,12 @@ const ResizableWindow = ({
           />
           
           <div 
-            className="absolute top-0 right-0 w-8 h-8 cursor-ne-resize z-30"
+            className="absolute top-8 right-0 w-8 h-8 cursor-ne-resize z-30"
             onMouseDown={(e) => handleResize(e, 'right top')}
           />
           
           <div 
-            className="absolute top-0 left-0 w-8 h-8 cursor-nw-resize z-30"
+            className="absolute top-8 left-0 w-8 h-8 cursor-nw-resize z-30"
             onMouseDown={(e) => handleResize(e, 'left top')}
           />
         </>
