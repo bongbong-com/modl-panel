@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { tickets } from '@/data/mockData';
 import PageContainer from '@/components/layout/PageContainer';
+import PlayerWindow from '@/components/windows/PlayerWindow';
 
 export interface TicketMessage {
   id: string;

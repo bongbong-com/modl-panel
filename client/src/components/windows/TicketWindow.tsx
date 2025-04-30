@@ -21,6 +21,7 @@ import {
   StickyNote
 } from 'lucide-react';
 import { tickets } from '@/data/mockData';
+import PlayerWindow from './PlayerWindow';
 
 interface TicketWindowProps {
   ticketId: string;
@@ -38,6 +39,12 @@ export interface TicketMessage {
   attachments?: string[];
 }
 
+interface TicketNote {
+  content: string;
+  author: string;
+  date: string;
+}
+
 export interface TicketDetails {
   id: string;
   subject: string;
@@ -50,7 +57,7 @@ export interface TicketDetails {
   relatedPlayer?: string;
   relatedPlayerId?: string;
   messages: TicketMessage[];
-  notes: string[];
+  notes: TicketNote[];
   newNote?: string;
   isAddingNote?: boolean;
   newReply?: string;
@@ -58,6 +65,7 @@ export interface TicketDetails {
 
 const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWindowProps) => {
   const [activeTab, setActiveTab] = useState('conversation');
+  const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   const [ticketDetails, setTicketDetails] = useState<TicketDetails>({
     id: "T-12345",
     subject: "Player report: inappropriate behavior",
@@ -101,8 +109,8 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
       }
     ],
     notes: [
-      "Checked server logs - confirmed toxic behavior in chat",
-      "Previous warnings found for the reported player"
+      { content: "Checked server logs - confirmed toxic behavior in chat", author: "Admin", date: "2023-05-15 15:30" },
+      { content: "Previous warnings found for the reported player", author: "ModeratorBeta", date: "2023-05-15 16:15" }
     ]
   });
 
@@ -234,8 +242,16 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
                 {ticketDetails.relatedPlayer && (
                   <div className="flex items-center">
                     <span className="text-muted-foreground">Related Player:</span>
-                    <span className="ml-1">{ticketDetails.relatedPlayer}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-1">
+                    <span className="ml-1 cursor-pointer hover:underline" 
+                          onClick={() => setIsPlayerWindowOpen(true)}>
+                      {ticketDetails.relatedPlayer}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 ml-1"
+                      onClick={() => setIsPlayerWindowOpen(true)}
+                    >
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -353,11 +369,17 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
             {activeTab === 'notes' && (
               <div className="h-80">
                 <div className="bg-muted/30 p-3 rounded-lg">
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {ticketDetails.notes.map((note, idx) => (
-                      <li key={idx} className="text-sm flex items-start">
-                        <StickyNote className="h-3.5 w-3.5 mr-2 mt-0.5 text-muted-foreground" />
-                        <span>{note}</span>
+                      <li key={idx} className="text-sm bg-muted/10 p-3 rounded-md">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="font-medium flex items-center">
+                            <StickyNote className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                            {note.author}
+                          </div>
+                          <span className="text-xs text-muted-foreground">{note.date}</span>
+                        </div>
+                        <p className="pl-5">{note.content}</p>
                       </li>
                     ))}
                   </ul>
@@ -388,11 +410,16 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
                           onClick={() => {
                             const currentDate = new Date();
                             const formattedDate = `${currentDate.toLocaleDateString()} at ${currentDate.toLocaleTimeString()}`;
-                            const newNoteWithMetadata = `${ticketDetails.newNote} (Added by Admin on ${formattedDate})`;
+                            
+                            const newNote: TicketNote = {
+                              content: ticketDetails.newNote || '',
+                              author: 'Admin',
+                              date: formattedDate
+                            };
                             
                             setTicketDetails(prev => ({
                               ...prev,
-                              notes: [...prev.notes, newNoteWithMetadata],
+                              notes: [...prev.notes, newNote],
                               isAddingNote: false,
                               newNote: ''
                             }));
@@ -482,6 +509,14 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
           </div>
         </div>
       </div>
+      {ticketDetails.relatedPlayerId && (
+        <PlayerWindow
+          playerId={ticketDetails.relatedPlayerId}
+          isOpen={isPlayerWindowOpen}
+          onClose={() => setIsPlayerWindowOpen(false)}
+          initialPosition={{ x: 50, y: 50 }}
+        />
+      )}
     </ResizableWindow>
   );
 };
