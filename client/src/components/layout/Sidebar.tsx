@@ -33,8 +33,11 @@ const Sidebar = () => {
   };
   
   const closeLookup = () => {
-    // Don't attempt to close if not open or if already hovering over search
-    if (!isLookupOpen || isHoveringSearch) return; 
+    // Don't attempt to close if not open 
+    if (!isLookupOpen) return;
+    
+    // If already hovering over search area, don't try to close
+    if (isHoveringSearch) return; 
     
     // Clear any existing timeout
     if (closeTimeoutRef.current) {
@@ -44,18 +47,26 @@ const Sidebar = () => {
     
     // Set a 1000ms (1 second) delay before closing - allows user to move mouse to search panel
     closeTimeoutRef.current = window.setTimeout(() => {
-      // IMPORTANT: Check again if user moved to search during delay
+      // IMPORTANT: Check again if user is hovering over search during delay
       if (isHoveringSearch) {
         closeTimeoutRef.current = null;
         return; 
       }
       
+      // Start the close animation
       setIsLookupClosing(true);
+      
+      // Actually close the panel after animation completes
       setTimeout(() => {
-        setIsLookupOpen(false);
-        setIsLookupClosing(false);
-        setSearchQuery('');
-        setIsFocused(false);
+        if (!isHoveringSearch) { // Final check before closing
+          setIsLookupOpen(false);
+          setIsLookupClosing(false);
+          setSearchQuery('');
+          setIsFocused(false);
+        } else {
+          // If user somehow got back to the panel, cancel closing
+          setIsLookupClosing(false);
+        }
       }, 100);
       
       closeTimeoutRef.current = null;
@@ -240,8 +251,15 @@ const Sidebar = () => {
           }}
           onMouseLeave={() => {
             setIsHoveringSearch(false);
-            // Start the close sequence when mouse leaves
-            setTimeout(() => closeLookup(), 50);
+            
+            // Make sure we start the close process when mouse leaves
+            if (closeTimeoutRef.current) {
+              clearTimeout(closeTimeoutRef.current);
+              closeTimeoutRef.current = null;
+            }
+            
+            // Directly trigger the close process
+            closeLookup();
           }}
         >
           <div className="p-3 pt-4 w-[240px]">
