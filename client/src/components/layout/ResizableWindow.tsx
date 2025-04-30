@@ -34,6 +34,7 @@ const ResizableWindow = ({
 }: ResizableWindowProps) => {
   const windowRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const minimizedHeaderRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState(initialPosition);
   const [size, setSize] = useState(initialSize);
@@ -316,53 +317,58 @@ const ResizableWindow = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  // For minimized state, we'll just return the header directly 
+  // For minimized state, we use a completely separate component with only a header
   if (isMinimized) {
     return (
       <div
         ref={windowRef}
         id={id}
-        className="resizable-window fixed transition-colors duration-100"
+        className="resizable-window fixed"
         style={{
           top: typeof position.y === 'number' ? `${position.y}px` : position.y,
           left: typeof position.x === 'number' ? `${position.x}px` : position.x,
-          width: size.width,
           zIndex: 40
         }}
       >
-        {/* Just the header for minimized state */}
         <div 
-          ref={headerRef}
-          className="px-3 py-0.5 flex items-center justify-between rounded-lg shadow-md cursor-move z-40 bg-card h-7 w-full hover:bg-card/90"
+          ref={minimizedHeaderRef}
+          className="px-3 flex items-center justify-between rounded-lg shadow-md cursor-move bg-card h-7 hover:bg-card/90 border border-border/50"
+          style={{ width: '250px' }}
           onMouseDown={handleMouseDown}
         >
           {/* Window title with user icon for player windows */}
-          <div className="text-xs font-medium truncate flex-1 mr-2 flex items-center gap-1">
+          <div className="text-xs font-medium truncate flex-1 mr-2 flex items-center gap-1 text-left">
             {id.startsWith('player-') && <User className="h-3 w-3 text-muted-foreground" />}
             {title || id}
           </div>
           
           {/* Control buttons */}
-          <div className="flex space-x-2 ml-auto mr-1">
+          <div className="flex space-x-2 ml-auto">
             {/* Restore button */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleMinimize}
-              className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-foreground z-50"
+            <div 
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMinimize();
+              }}
+              className="h-5 w-5 flex items-center justify-center p-0 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <ChevronUp className="h-3 w-3" />
-            </Button>
+            </div>
             
             {/* Close button */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onClose}
-              className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-destructive z-50"
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="h-5 w-5 flex items-center justify-center p-0 text-muted-foreground hover:text-destructive cursor-pointer"
             >
               <X className="h-3 w-3" />
-            </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -387,34 +393,28 @@ const ResizableWindow = ({
         zIndex: 40
       }}
     >
-      {/* Header area that's always visible */}
+      {/* Header area */}
       <div 
         ref={headerRef}
-        className={cn(
-          "px-3 py-0.5 flex items-center justify-between border-b border-border cursor-move z-40 bg-card h-7",
-          isMinimized && "border-b-0 rounded-lg bg-card shadow-sm !h-7 w-full"
-        )}
+        className="px-3 py-0.5 flex items-center justify-between border-b border-border cursor-move z-40 bg-card h-7"
         onMouseDown={handleMouseDown}
       >
-        {/* Window title with user icon for player windows in minimized state */}
+        {/* Window title with user icon for player windows */}
         <div className="text-xs font-medium truncate flex-1 mr-2 flex items-center gap-1">
-          {isMinimized && id.startsWith('player-') && <User className="h-3 w-3 text-muted-foreground" />}
+          {id.startsWith('player-') && <User className="h-3 w-3 text-muted-foreground" />}
           {title || id}
         </div>
         
         {/* Control buttons */}
-        <div className={cn(
-          "flex space-x-1 ml-auto",
-          isMinimized && "space-x-2 mr-1"
-        )}>
-          {/* Minimize/restore button */}
+        <div className="flex space-x-1 ml-auto">
+          {/* Minimize button */}
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={handleMinimize}
             className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-foreground z-50"
           >
-            {isMinimized ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            <ChevronDown className="h-3 w-3" />
           </Button>
           
           {/* Close button */}
