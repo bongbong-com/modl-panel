@@ -7,6 +7,7 @@ import { useSidebar } from '@/hooks/use-sidebar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { auditLogs } from '@/data/mockData';
+import PageContainer from '@/components/layout/PageContainer'
 
 const AuditLog = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
@@ -21,6 +22,7 @@ const AuditLog = () => {
   });
 
   return (
+    <PageContainer>
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
@@ -89,6 +91,7 @@ const AuditLog = () => {
         </Card>
       </div>
     </section>
+    </PageContainer>
   );
 };
 

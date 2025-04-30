@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
+import PageContainer from '@/components/layout/PageContainer'
 
 const Settings = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
@@ -28,6 +29,7 @@ const Settings = () => {
   const [requireApproval, setRequireApproval] = useState(true);
 
   return (
+    <PageContainer>
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
@@ -253,6 +255,7 @@ const Settings = () => {
         </Card>
       </div>
     </section>
+      </PageContainer>
   );
 };
 

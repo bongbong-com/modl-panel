@@ -1,7 +1,7 @@
 import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Home, 
   Search, 
@@ -23,6 +23,8 @@ const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isHoveringSearch, setIsHoveringSearch] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const closeTimeoutRef = useRef<number | null>(null);
   
   const openLookup = () => {
     if (!isLookupOpen && !isLookupClosing) {
@@ -32,20 +34,54 @@ const Sidebar = () => {
   };
   
   const closeLookup = () => {
-    if (!isLookupOpen || isHoveringSearch) return; // Don't close if hovering over search
-    setIsLookupClosing(true);
-    setTimeout(() => {
-      setIsLookupOpen(false);
-      setIsLookupClosing(false);
-      setSearchQuery('');
-      setIsFocused(false);
-    }, 100); // Faster than before for immediate effect
+    // Clear any existing timeout
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    
+    // Don't close if hovering over search
+    if (!isLookupOpen || isHoveringSearch) return; 
+    
+    // Set a 300ms delay before closing - allows user to move mouse to search panel
+    closeTimeoutRef.current = window.setTimeout(() => {
+      if (isHoveringSearch) return; // Double-check if user moved to search during delay
+      
+      setIsLookupClosing(true);
+      setTimeout(() => {
+        setIsLookupOpen(false);
+        setIsLookupClosing(false);
+        setSearchQuery('');
+        setIsFocused(false);
+      }, 100);
+      
+      closeTimeoutRef.current = null;
+    }, 300);
   };
 
   // Update search active state when search query changes
   useEffect(() => {
     setIsSearchActive(searchQuery.length > 0);
   }, [searchQuery, setIsSearchActive]);
+  
+  // Track window size for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Clean up any timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Define nav items
   const navItems = [
@@ -104,7 +140,7 @@ const Sidebar = () => {
     : recentLookups;
 
   return (
-    <div className="fixed top-1/4 left-4 z-40 flex">
+    <div className="fixed ml-6 top-1/4 left-4 z-40 flex">
       {/* Fixed-width sidebar navigation (always visible) */}
       <aside 
         className="bg-sidebar/90 h-auto min-h-[300px] rounded-2xl w-16 overflow-hidden"
@@ -137,7 +173,7 @@ const Sidebar = () => {
                             )}
                             onClick={() => isLookupOpen ? closeLookup() : openLookup()}
                             onMouseEnter={openLookup}
-                            onMouseLeave={() => setTimeout(closeLookup, 50)}
+                            onMouseLeave={closeLookup}
                             data-lookup="true"
                           >
                             <div className="relative">
@@ -202,7 +238,7 @@ const Sidebar = () => {
             closeLookup();
           }}
         >
-          <div className="p-3 pt-4 w-[240px]">
+          <div className={`p-3 pt-4 ${windowWidth > 1200 ? 'w-[320px]' : windowWidth > 768 ? 'w-[280px]' : 'w-[240px]'}`}>
             <Input
               placeholder="Search players..."
               className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-3"
