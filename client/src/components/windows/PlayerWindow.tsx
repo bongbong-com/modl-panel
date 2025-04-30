@@ -53,10 +53,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
 
   return (
     <ResizableWindow
-      id="player-lookup"
+      id={`player-${playerId}`} // Unique ID per player
       title="" // No title bar
       isOpen={isOpen}
       onClose={onClose}
+      initialPosition={initialPosition}
       initialSize={{ width: 650, height: 550 }}
     >
       <div className="space-y-4">
