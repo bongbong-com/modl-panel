@@ -15,17 +15,28 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { recentLookups } from '@/data/mockData';
 import { useDashboard } from '@/contexts/DashboardContext';
-import PlayerWindow from '@/components/windows/PlayerWindow';
+// Fix import: using direct path relative to src directory
+import PlayerWindow from '../../components/windows/PlayerWindow';
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
+  const { openLookupWindow: openDashboardLookupWindow } = useDashboard();
   const [location, navigate] = useLocation();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isHoveringSearch, setIsHoveringSearch] = useState(false);
+  const [playerWindowOpen, setPlayerWindowOpen] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const closeTimeoutRef = useRef<number | null>(null);
+  
+  // Function to open player window when clicked from search
+  const openPlayerWindow = (playerId: string) => {
+    setSelectedPlayerId(playerId);
+    setPlayerWindowOpen(true);
+    openDashboardLookupWindow(); // Also open at dashboard level for tracking
+  };
   
   const openLookup = () => {
     if (!isLookupOpen && !isLookupClosing) {
@@ -304,6 +315,20 @@ const Sidebar = () => {
             )}
           </div>
         </div>
+      )}
+      
+      {/* Player window that opens when a player is selected */}
+      {selectedPlayerId && (
+        <PlayerWindow 
+          playerId={selectedPlayerId}
+          isOpen={playerWindowOpen}
+          onClose={() => {
+            setPlayerWindowOpen(false);
+            setSelectedPlayerId(null);
+            // Reset URL when window is closed
+            window.history.pushState({}, '', location === '/lookup' ? '/lookup' : '/');
+          }}
+        />
       )}
     </div>
   );
