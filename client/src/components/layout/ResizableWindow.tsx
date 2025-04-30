@@ -1,11 +1,14 @@
 import { useRef, useEffect, useState, ReactNode } from 'react';
-import { X, Maximize2, Minimize2, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Maximize2, Minimize2, ChevronUp, ChevronDown, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WindowPosition } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
 // Global static tracker for last player window state to share between instances
-const lastPlayerWindowConfig = {
+const lastPlayerWindowConfig: {
+  size: { width: number, height: number },
+  position: { x: number, y: number }
+} = {
   size: { width: 650, height: 550 },
   position: { x: 100, y: 100 }
 };
@@ -140,10 +143,12 @@ const ResizableWindow = ({
       
       // Save position for new windows
       if (id.startsWith('player-')) {
-        setLastKnownConfig({ 
-          size: size,
-          position: position
-        });
+        // Update the global window state
+        lastPlayerWindowConfig.size = size;
+        lastPlayerWindowConfig.position = {
+          x: typeof position.x === 'number' ? position.x : 0,
+          y: typeof position.y === 'number' ? position.y : 0
+        };
       }
     };
 
@@ -198,6 +203,15 @@ const ResizableWindow = ({
       setIsMinimized(false);
       setPosition(windowBeforeMinimize.position);
       setSize(windowBeforeMinimize.size);
+      
+      // Update global window config after restore if it's a player window
+      if (id.startsWith('player-')) {
+        lastPlayerWindowConfig.size = windowBeforeMinimize.size;
+        lastPlayerWindowConfig.position = {
+          x: typeof windowBeforeMinimize.position.x === 'number' ? windowBeforeMinimize.position.x : 0,
+          y: typeof windowBeforeMinimize.position.y === 'number' ? windowBeforeMinimize.position.y : 0
+        };
+      }
     } else {
       // Minimize
       setIsMinimized(true);
@@ -281,10 +295,12 @@ const ResizableWindow = ({
       
       // Save the current configuration for future windows
       if (id.startsWith('player-')) {
-        setLastKnownConfig({ 
-          size: size,
-          position: position
-        });
+        // Update the global state
+        lastPlayerWindowConfig.size = size;
+        lastPlayerWindowConfig.position = {
+          x: typeof position.x === 'number' ? position.x : 0,
+          y: typeof position.y === 'number' ? position.y : 0
+        };
       }
     };
     
@@ -297,9 +313,9 @@ const ResizableWindow = ({
       ref={windowRef}
       id={id}
       className={cn(
-        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden",
+        "resizable-window fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden transition-colors duration-100",
         isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50",
-        isMinimized && "!h-7 !overflow-hidden"
+        isMinimized && "!h-7 !overflow-hidden hover:border-primary/50"
       )}
       style={{
         top: typeof position.y === 'number' ? `${position.y}px` : position.y,
@@ -315,12 +331,13 @@ const ResizableWindow = ({
         ref={headerRef}
         className={cn(
           "px-3 py-0.5 flex items-center justify-between border-b border-border cursor-move z-40 bg-card h-7",
-          isMinimized && "border-b-0 rounded-lg"
+          isMinimized && "border-b-0 rounded-lg bg-card/80"
         )}
         onMouseDown={handleMouseDown}
       >
-        {/* Window title */}
-        <div className="text-xs font-medium truncate flex-1 mr-2">
+        {/* Window title with user icon for player windows in minimized state */}
+        <div className="text-xs font-medium truncate flex-1 mr-2 flex items-center gap-1">
+          {isMinimized && id.startsWith('player-') && <User className="h-3 w-3 text-muted-foreground" />}
           {title || id}
         </div>
         
