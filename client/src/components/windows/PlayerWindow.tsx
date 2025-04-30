@@ -34,6 +34,8 @@ interface PlayerInfo {
   warnings: Array<{ type: string; reason: string; date: string; by: string }>;
   linkedAccounts: string[];
   notes: string[];
+  newNote?: string;
+  isAddingNote?: boolean;
   selectedPunishmentCategory?: string;
   selectedSeverity?: 'Lenient' | 'Regular' | 'Aggravated';
   duration?: {
@@ -66,8 +68,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     lastOnline: '2 hours ago',
     lastServer: 'Survival (EU-3)',
     playtime: '342 hours',
-    social: 'HIGH',
-    gameplay: 'MED',
+    social: 'Low',
+    gameplay: 'Medium',
     punished: false,
     previousNames: ['Dragon55', 'SlayerXD'],
     warnings: [
@@ -140,21 +142,28 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               <div className="flex-1 min-w-0">
                 <h5 className="text-lg font-medium">{playerInfo.username}</h5>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                    {playerInfo.region}/{playerInfo.country}
+                  <Badge variant="outline" className={playerInfo.status === 'Online' ? 
+                    "bg-success/10 text-success border-success/20" : 
+                    "bg-muted/50 text-muted-foreground border-muted/30"
+                  }>
+                    {playerInfo.status}
                   </Badge>
-                  <Badge variant="outline" className={`
-                    ${playerInfo.social === 'LOW' ? 'bg-muted text-muted-foreground' : 
-                      playerInfo.social === 'MED' ? 'bg-warning/10 text-warning border-warning/20' : 
-                      'bg-destructive/10 text-destructive border-destructive/20'}
-                  `}>
+                  <Badge variant="outline" className={
+                    playerInfo.social.toLowerCase() === 'low' ? 
+                      "bg-success/10 text-success border-success/20" : 
+                    playerInfo.social.toLowerCase() === 'medium' ? 
+                      "bg-warning/10 text-warning border-warning/20" : 
+                      "bg-destructive/10 text-destructive border-destructive/20"
+                  }>
                     Social: {playerInfo.social}
                   </Badge>
-                  <Badge variant="outline" className={`
-                    ${playerInfo.gameplay === 'LOW' ? 'bg-muted text-muted-foreground' : 
-                      playerInfo.gameplay === 'MED' ? 'bg-warning/10 text-warning border-warning/20' : 
-                      'bg-destructive/10 text-destructive border-destructive/20'}
-                  `}>
+                  <Badge variant="outline" className={
+                    playerInfo.gameplay.toLowerCase() === 'low' ? 
+                      "bg-success/10 text-success border-success/20" : 
+                    playerInfo.gameplay.toLowerCase() === 'medium' ? 
+                      "bg-warning/10 text-warning border-warning/20" : 
+                      "bg-destructive/10 text-destructive border-destructive/20"
+                  }>
                     Gameplay: {playerInfo.gameplay}
                   </Badge>
                   {playerInfo.punished && (
@@ -275,10 +284,60 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   </li>
                 ))}
               </ul>
+              
+              {playerInfo.isAddingNote && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <textarea 
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-20"
+                    placeholder="Enter your note here..."
+                    value={playerInfo.newNote || ''}
+                    onChange={(e) => setPlayerInfo(prev => ({...prev, newNote: e.target.value}))}
+                  ></textarea>
+                  <div className="flex justify-end mt-2 gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setPlayerInfo(prev => ({
+                        ...prev, 
+                        isAddingNote: false,
+                        newNote: ''
+                      }))}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm"
+                      disabled={!playerInfo.newNote?.trim()}
+                      onClick={() => {
+                        const currentDate = new Date();
+                        const formattedDate = `${currentDate.toLocaleDateString()} at ${currentDate.toLocaleTimeString()}`;
+                        const newNoteWithMetadata = `${playerInfo.newNote} (Added by Admin on ${formattedDate})`;
+                        
+                        setPlayerInfo(prev => ({
+                          ...prev,
+                          notes: [...prev.notes, newNoteWithMetadata],
+                          isAddingNote: false,
+                          newNote: ''
+                        }));
+                      }}
+                    >
+                      Save Note
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-            <Button size="sm" variant="outline" className="mt-2">
-              <StickyNote className="h-3.5 w-3.5 mr-1" /> Add Note
-            </Button>
+            
+            {!playerInfo.isAddingNote && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="mt-2"
+                onClick={() => setPlayerInfo(prev => ({...prev, isAddingNote: true}))}
+              >
+                <StickyNote className="h-3.5 w-3.5 mr-1" /> Add Note
+              </Button>
+            )}
           </TabsContent>
           
           <TabsContent value="tickets" className="space-y-2 mx-1 mt-3">
