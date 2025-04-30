@@ -201,30 +201,38 @@ const ResizableWindow = ({
     if (isMinimized) {
       // Restore from minimized state
       setIsMinimized(false);
-      setPosition(windowBeforeMinimize.position);
-      setSize(windowBeforeMinimize.size);
       
-      // Update global window config after restore if it's a player window
-      if (id.startsWith('player-')) {
-        lastPlayerWindowConfig.size = windowBeforeMinimize.size;
-        lastPlayerWindowConfig.position = {
-          x: typeof windowBeforeMinimize.position.x === 'number' ? windowBeforeMinimize.position.x : 0,
-          y: typeof windowBeforeMinimize.position.y === 'number' ? windowBeforeMinimize.position.y : 0
-        };
+      // Make sure we restore to the previous size and position
+      if (windowBeforeMinimize.size.width > 0 && windowBeforeMinimize.size.height > 0) {
+        setSize(windowBeforeMinimize.size);
+        setPosition(windowBeforeMinimize.position);
+        
+        // Update global window config after restore if it's a player window
+        if (id.startsWith('player-')) {
+          lastPlayerWindowConfig.size = windowBeforeMinimize.size;
+          lastPlayerWindowConfig.position = {
+            x: typeof windowBeforeMinimize.position.x === 'number' ? windowBeforeMinimize.position.x : 0,
+            y: typeof windowBeforeMinimize.position.y === 'number' ? windowBeforeMinimize.position.y : 0
+          };
+        }
       }
     } else {
       // Minimize
       setIsMinimized(true);
-      // Store current window state to restore later
-      setWindowBeforeMinimize({
-        position: {
-          x: typeof position.x === 'number' ? position.x : 0,
-          y: typeof position.y === 'number' ? position.y : 0
-        },
-        size: { width: size.width, height: size.height }
-      });
-      // Set to minimized size (just a very thin header - exactly the height of the header)
-      setSize({ width: 250, height: 0 }); // Height will be controlled by header
+      
+      // Store current window state to restore later - only if we have valid dimensions
+      if (size.width > 0 && size.height > 0) {
+        setWindowBeforeMinimize({
+          position: {
+            x: typeof position.x === 'number' ? position.x : 0,
+            y: typeof position.y === 'number' ? position.y : 0
+          },
+          size: { width: size.width, height: size.height }
+        });
+      }
+      
+      // Just set the width for minimized state, height will be controlled by the header element
+      setSize({ width: 250, height: 28 });
     }
   };
 
@@ -308,20 +316,73 @@ const ResizableWindow = ({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // For minimized state, we'll just return the header directly 
+  if (isMinimized) {
+    return (
+      <div
+        ref={windowRef}
+        id={id}
+        className="resizable-window fixed transition-colors duration-100"
+        style={{
+          top: typeof position.y === 'number' ? `${position.y}px` : position.y,
+          left: typeof position.x === 'number' ? `${position.x}px` : position.x,
+          width: size.width,
+          zIndex: 40
+        }}
+      >
+        {/* Just the header for minimized state */}
+        <div 
+          ref={headerRef}
+          className="px-3 py-0.5 flex items-center justify-between rounded-lg shadow-md cursor-move z-40 bg-card h-7 w-full hover:bg-card/90"
+          onMouseDown={handleMouseDown}
+        >
+          {/* Window title with user icon for player windows */}
+          <div className="text-xs font-medium truncate flex-1 mr-2 flex items-center gap-1">
+            {id.startsWith('player-') && <User className="h-3 w-3 text-muted-foreground" />}
+            {title || id}
+          </div>
+          
+          {/* Control buttons */}
+          <div className="flex space-x-2 ml-auto mr-1">
+            {/* Restore button */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleMinimize}
+              className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-foreground z-50"
+            >
+              <ChevronUp className="h-3 w-3" />
+            </Button>
+            
+            {/* Close button */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClose}
+              className="h-5 w-5 min-w-0 p-0 text-muted-foreground hover:text-destructive z-50"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular (non-minimized) window
   return (
     <div
       ref={windowRef}
       id={id}
       className={cn(
         "resizable-window fixed bg-background border border-border rounded-lg shadow-lg transition-colors duration-100",
-        isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50",
-        isMinimized && "hover:border-primary/50 !h-7 !overflow-visible border-none" // Force the height to be exactly the header
+        isMaximized && "!top-0 !left-0 !w-full !h-full !max-w-none !max-h-none !resize-none z-50"
       )}
       style={{
         top: typeof position.y === 'number' ? `${position.y}px` : position.y,
         left: typeof position.x === 'number' ? `${position.x}px` : position.x,
         width: isMaximized ? '100%' : size.width,
-        height: isMaximized ? '100%' : (isMinimized ? 28 : size.height), 
+        height: isMaximized ? '100%' : size.height, 
         transform: transformStyle,
         zIndex: 40
       }}
