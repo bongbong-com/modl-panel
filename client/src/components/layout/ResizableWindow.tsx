@@ -139,8 +139,8 @@ const ResizableWindow = ({
     ? 'translate(-50%, -50%)' 
     : 'none';
 
-  // Function to handle resize
-  const handleResize = (e: React.MouseEvent, direction: 'right' | 'bottom' | 'corner') => {
+  // Function to handle resize from any direction
+  const handleResize = (e: React.MouseEvent, direction: string) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -150,16 +150,46 @@ const ResizableWindow = ({
     const startY = e.clientY;
     const startWidth = size.width;
     const startHeight = size.height;
+    const startPosition = { 
+      x: typeof position.x === 'number' ? position.x : 0,
+      y: typeof position.y === 'number' ? position.y : 0 
+    };
     
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (direction === 'right' || direction === 'corner') {
+      // Handle right side resizing
+      if (direction.includes('right')) {
         const newWidth = Math.max(300, startWidth + (moveEvent.clientX - startX));
         setSize(prev => ({ ...prev, width: newWidth }));
       }
       
-      if (direction === 'bottom' || direction === 'corner') {
+      // Handle left side resizing
+      if (direction.includes('left')) {
+        const deltaX = startX - moveEvent.clientX;
+        if (startWidth + deltaX >= 300) {
+          setSize(prev => ({ ...prev, width: startWidth + deltaX }));
+          setPosition(prev => ({ 
+            ...prev, 
+            x: typeof prev.x === 'number' ? startPosition.x - deltaX : prev.x 
+          }));
+        }
+      }
+      
+      // Handle bottom side resizing
+      if (direction.includes('bottom')) {
         const newHeight = Math.max(200, startHeight + (moveEvent.clientY - startY));
         setSize(prev => ({ ...prev, height: newHeight }));
+      }
+      
+      // Handle top side resizing
+      if (direction.includes('top')) {
+        const deltaY = startY - moveEvent.clientY;
+        if (startHeight + deltaY >= 200) {
+          setSize(prev => ({ ...prev, height: startHeight + deltaY }));
+          setPosition(prev => ({ 
+            ...prev, 
+            y: typeof prev.y === 'number' ? startPosition.y - deltaY : prev.y 
+          }));
+        }
       }
     };
     
@@ -191,52 +221,51 @@ const ResizableWindow = ({
     >
       <div 
         ref={headerRef}
-        className="window-header flex justify-between items-center p-4 border-b border-border bg-card rounded-t-lg cursor-move"
+        className="absolute top-0 left-0 right-0 h-10 cursor-move z-10"
         onMouseDown={handleMouseDown}
-      >
-        <h3 className="font-medium">{title}</h3>
-        <div className="flex space-x-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleMaximize}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onClose}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      />
+      
+      {/* Close button in top-right corner */}
+      <div className="absolute top-2 right-2 z-20">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onClose}
+          className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-full bg-background/70"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
-      <div className="p-4 h-[calc(100%-60px)] overflow-y-auto scrollbar">
+      
+      <div className="p-4 h-full w-full overflow-y-auto scrollbar">
         {children}
       </div>
       
       {/* Resize handles */}
       {!isMaximized && (
         <>
-          {/* Right resize handle */}
+          {/* Edge resize handles */}
           <div 
-            className="absolute top-0 right-0 h-full w-3 cursor-e-resize"
+            className="absolute top-0 right-0 h-full w-3 cursor-e-resize z-20"
             onMouseDown={(e) => handleResize(e, 'right')}
           />
-          
-          {/* Bottom resize handle */}
           <div 
-            className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize"
+            className="absolute bottom-0 left-0 w-full h-3 cursor-s-resize z-20"
             onMouseDown={(e) => handleResize(e, 'bottom')}
           />
-          
-          {/* Corner resize handle with visual indicator */}
           <div 
-            className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end pb-0.5 pr-0.5"
-            onMouseDown={(e) => handleResize(e, 'corner')}
+            className="absolute top-0 left-0 h-full w-3 cursor-w-resize z-20"
+            onMouseDown={(e) => handleResize(e, 'left')}
+          />
+          <div 
+            className="absolute top-0 left-0 w-full h-3 cursor-n-resize z-20"
+            onMouseDown={(e) => handleResize(e, 'top')}
+          />
+          
+          {/* Corner resize handles */}
+          <div 
+            className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize flex items-end justify-end pb-0.5 pr-0.5 z-30"
+            onMouseDown={(e) => handleResize(e, 'right bottom')}
           >
             <div className="w-3 h-3 flex flex-col items-end">
               <div className="h-[2px] w-[2px] bg-border mb-[1px]"></div>
@@ -244,6 +273,21 @@ const ResizableWindow = ({
               <div className="h-[2px] w-[8px] bg-border"></div>
             </div>
           </div>
+          
+          <div 
+            className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize z-30"
+            onMouseDown={(e) => handleResize(e, 'left bottom')}
+          />
+          
+          <div 
+            className="absolute top-0 right-0 w-8 h-8 cursor-ne-resize z-30"
+            onMouseDown={(e) => handleResize(e, 'right top')}
+          />
+          
+          <div 
+            className="absolute top-0 left-0 w-8 h-8 cursor-nw-resize z-30"
+            onMouseDown={(e) => handleResize(e, 'left top')}
+          />
         </>
       )}
     </div>

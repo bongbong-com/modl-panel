@@ -51,7 +51,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose }: PlayerWindowProps) => {
   return (
     <ResizableWindow
       id="player-lookup"
-      title={`Player Info: ${playerInfo.username}`}
+      title="" // No title bar
       isOpen={isOpen}
       onClose={onClose}
       initialSize={{ width: 650, height: 550 }}
