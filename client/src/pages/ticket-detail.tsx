@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   MessageSquare,
   User,
@@ -19,7 +20,9 @@ import {
   ThumbsDown,
   Bug,
   Shield,
-  Axe
+  Axe,
+  Tag,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +100,8 @@ export interface TicketDetails {
     unit: 'hours' | 'days' | 'weeks' | 'months';
   };
   isPermanent?: boolean;
+  tags?: string[];
+  newTag?: string;
 }
 
 const TicketDetail = () => {
@@ -118,6 +123,20 @@ const TicketDetail = () => {
   console.log('Path parts:', pathParts);
   console.log('Extracted ticket ID:', ticketId);
 
+  // Sample default tags based on category
+  const getDefaultTagsForCategory = (category: TicketCategory): string[] => {
+    switch(category) {
+      case 'Bug Report':
+        return ['UI Issue', 'Server'];
+      case 'Player Report':
+        return ['Harassment'];
+      case 'Punishment Appeal':
+        return ['Ban Appeal'];
+      default:
+        return [];
+    }
+  };
+
   const [ticketDetails, setTicketDetails] = useState<TicketDetails>({
     id: "T-12345",
     subject: "Player report: inappropriate behavior",
@@ -129,6 +148,7 @@ const TicketDetail = () => {
     category: "Player Report",
     relatedPlayer: "DragonSlayer123",
     relatedPlayerId: "98f7e654-3d21-321d-4c5b-6a7890123d4e",
+    tags: ['Harassment'],
     messages: [
       {
         id: "msg-1",
@@ -251,6 +271,23 @@ const TicketDetail = () => {
     setTicketDetails(prev => ({
       ...prev,
       status: newStatus
+    }));
+  };
+  
+  const handleAddTag = (tag: string) => {
+    if (tag.trim() && (!ticketDetails.tags || !ticketDetails.tags.includes(tag.trim()))) {
+      setTicketDetails(prev => ({
+        ...prev,
+        tags: [...(prev.tags || []), tag.trim()],
+        newTag: ''
+      }));
+    }
+  };
+  
+  const handleRemoveTag = (tag: string) => {
+    setTicketDetails(prev => ({
+      ...prev,
+      tags: (prev.tags || []).filter(t => t !== tag)
     }));
   };
 
@@ -401,16 +438,13 @@ const TicketDetail = () => {
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-xl font-medium">{ticketDetails.subject}</h2>
+                <h2 className="text-xl font-medium">{ticketDetails.category}: {ticketDetails.subject}</h2>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant="outline" className={statusColors[ticketDetails.status]}>
-                    {ticketDetails.status}
-                  </Badge>
-                  <Badge variant="outline" className={priorityColors[ticketDetails.priority]}>
-                    {ticketDetails.priority}
-                  </Badge>
-                  <Badge variant="outline" className="bg-muted/20 text-muted-foreground border-muted/20">
-                    {ticketDetails.category}
+                  <Badge variant="outline" className={
+                    ticketDetails.status === 'Open' ? 'bg-green-50 text-green-700 border-green-200' : 
+                    'bg-gray-50 text-gray-700 border-gray-200'
+                  }>
+                    {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
                   </Badge>
                 </div>
               </div>
