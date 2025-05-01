@@ -18,6 +18,12 @@ export async function connectToMongoDB() {
     // Connect to the real MongoDB instance
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB successfully');
+    
+    // Seed the database with initial data if needed
+    // Import dynamically to avoid circular dependencies
+    const { seedDatabase } = await import('../db/seed-data');
+    await seedDatabase();
+    
     return true;
   } catch (error) {
     console.error('MongoDB connection error:', error);
