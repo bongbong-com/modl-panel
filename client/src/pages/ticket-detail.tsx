@@ -43,6 +43,36 @@ interface TicketNote {
   date: string;
 }
 
+// Define types for ticket categories and actions
+type TicketCategory = 'Player Report' | 'Bug Report' | 'Punishment Appeal' | 'Other';
+type PlayerReportAction = 'Accepted' | 'Rejected' | 'Close';
+type BugReportAction = 'Completed' | 'Stale' | 'Duplicate' | 'Close';
+type PunishmentAppealAction = 'Pardon' | 'Reduce' | 'Reject' | 'Close';
+
+// Default responses for different ticket actions
+export const defaultReplies: Record<TicketCategory, Record<string, string>> = {
+  'Player Report': {
+    'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+    'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+    'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
+  },
+  'Bug Report': {
+    'Completed': 'Thank you for reporting this bug. We have fixed the issue and it will be included in our next update.',
+    'Stale': 'This bug report has been marked as stale due to inactivity or lack of information. Please feel free to reopen if you can provide additional details.',
+    'Duplicate': 'This bug has been identified as a duplicate of an existing issue that our team is already working on.',
+    'Close': 'This bug report has been closed. Thank you for your contribution to improving our game.'
+  },
+  'Punishment Appeal': {
+    'Pardon': 'After reviewing your appeal, we have decided to remove the punishment completely. Thank you for your patience during this process.',
+    'Reduce': 'We have reviewed your appeal and decided to reduce the duration of your punishment. The updated duration will be reflected in your account.',
+    'Reject': 'After careful consideration of your appeal, we have decided to uphold the original punishment. The decision remains final.',
+    'Close': 'This appeal has been closed. If you have additional information, please create a new appeal.'
+  },
+  'Other': {
+    'Close': 'This ticket has been closed. Thank you for your message.'
+  }
+};
+
 export interface TicketDetails {
   id: string;
   subject: string;
@@ -51,7 +81,7 @@ export interface TicketDetails {
   reportedBy: string;
   assignedTo?: string;
   date: string;
-  category: string;
+  category: TicketCategory;
   relatedPlayer?: string;
   relatedPlayerId?: string;
   messages: TicketMessage[];
@@ -218,6 +248,21 @@ const TicketDetail = () => {
     }));
   };
 
+  // Get placeholder text based on selected action
+  const getPlaceholderText = () => {
+    if (ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && 
+        defaultReplies[ticketDetails.category] && 
+        defaultReplies[ticketDetails.category][ticketDetails.selectedAction]) {
+      // Replace any placeholders in the default text
+      let text = defaultReplies[ticketDetails.category][ticketDetails.selectedAction];
+      if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
+        text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
+      }
+      return text;
+    }
+    return "Type your reply here...";
+  };
+
   const handleSendReply = () => {
     const now = new Date();
     const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
@@ -225,6 +270,11 @@ const TicketDetail = () => {
     // Determine the content and subject based on selected action
     let messageContent = ticketDetails.newReply?.trim() || '';
     let status: 'Open' | 'In Progress' | 'Resolved' | 'Closed' = ticketDetails.status;
+    
+    // If no message content but default text is available, use that
+    if (!messageContent && ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
+      messageContent = getPlaceholderText();
+    }
     
     // If an action is selected and it's not "Comment", format accordingly
     if (ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
@@ -270,11 +320,7 @@ const TicketDetail = () => {
       }
       
       // Combine the action message with any additional comments
-      if (messageContent) {
-        messageContent = `ModeratorAlpha ${actionDesc}\n\n${messageContent}`;
-      } else {
-        messageContent = `ModeratorAlpha ${actionDesc}`;
-      }
+      messageContent = `ModeratorAlpha ${actionDesc}\n\n${messageContent}`;
       
       // Update ticket status
       handleStatusChange(status);
@@ -463,72 +509,14 @@ const TicketDetail = () => {
               
               <div className="border-t pt-4">
                 {/* Ticket action buttons - moved above the reply box */}
-                <div className="mb-4">
-                  {/* Selected Action Label */}
-                  {ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && (
-                    <div className="flex items-center mb-3 p-2 bg-muted/10 rounded border">
-                      <span className="text-sm font-medium mr-2">Selected action:</span>
-                      <Badge variant="outline" className={
-                        ticketDetails.selectedAction === 'Accepted' || 
-                        ticketDetails.selectedAction === 'Completed' || 
-                        ticketDetails.selectedAction === 'Pardon' 
-                          ? 'bg-success/10 text-success border-success/20'
-                          : ticketDetails.selectedAction === 'Rejected' || 
-                            ticketDetails.selectedAction === 'Reject'
-                            ? 'bg-destructive/10 text-destructive border-destructive/20'
-                            : ticketDetails.selectedAction === 'Stale' ||
-                              ticketDetails.selectedAction === 'Reduce'
-                              ? 'bg-warning/10 text-warning border-warning/20'
-                              : ticketDetails.selectedAction === 'Duplicate'
-                                ? 'bg-info/10 text-info border-info/20'
-                                : 'bg-muted/30 text-muted-foreground'
-                      }>
-                        {ticketDetails.selectedAction}
-                      </Badge>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="ml-auto" 
-                        onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: undefined }))}
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                  
-                  {/* Show duration field for "Reduce" action in punishment appeals */}
-                  {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
-                    <div className="mb-3 p-3 border rounded-md bg-warning/5">
-                      <label className="block text-sm font-medium mb-1">New punishment duration:</label>
-                      <input
-                        type="text"
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                        placeholder="e.g., 7 days"
-                        value={ticketDetails.newDuration || ''}
-                        onChange={(e) => setTicketDetails(prev => ({ ...prev, newDuration: e.target.value }))}
-                      />
-                    </div>
-                  )}
-
-                  {/* Show punish button for "Accepted" action in player reports */}
-                  {ticketDetails.selectedAction === 'Accepted' && ticketDetails.category === 'Player Report' && ticketDetails.relatedPlayer && (
-                    <div className="mb-3 p-3 border rounded-md bg-success/5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Apply punishment to {ticketDetails.relatedPlayer}?</span>
-                        <Button size="sm" variant="outline" onClick={() => setIsPunishWindowOpen(true)} className="bg-success/10 text-success hover:bg-success/20">
-                          <Axe className="h-3.5 w-3.5 mr-1.5" /> Punish Player
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  
+                <div className="mb-4">                  
                   {/* Action buttons */}
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2">
                     {/* Player Report actions */}
                     {ticketDetails.category === 'Player Report' && (
                       <>
                         <Button 
-                          variant={!ticketDetails.selectedAction ? 'default' : 'outline'}
+                          variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
                           size="sm" 
                           onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
                         >
@@ -574,7 +562,7 @@ const TicketDetail = () => {
                     {ticketDetails.category === 'Bug Report' && (
                       <>
                         <Button 
-                          variant={!ticketDetails.selectedAction ? 'default' : 'outline'}
+                          variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
                         >
@@ -631,7 +619,7 @@ const TicketDetail = () => {
                     {ticketDetails.category === 'Punishment Appeal' && (
                       <>
                         <Button 
-                          variant={!ticketDetails.selectedAction ? 'default' : 'outline'}
+                          variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
                         >
@@ -684,13 +672,39 @@ const TicketDetail = () => {
                       </>
                     )}
                   </div>
+
+                  {/* Show action-specific controls under the buttons */}
+                  {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
+                    <div className="mt-3 p-3 border rounded-md bg-warning/5">
+                      <label className="block text-sm font-medium mb-1">New punishment duration:</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                        placeholder="e.g., 7 days"
+                        value={ticketDetails.newDuration || ''}
+                        onChange={(e) => setTicketDetails(prev => ({ ...prev, newDuration: e.target.value }))}
+                      />
+                    </div>
+                  )}
+
+                  {/* Show punish button for "Accepted" action in player reports */}
+                  {ticketDetails.selectedAction === 'Accepted' && ticketDetails.category === 'Player Report' && ticketDetails.relatedPlayer && (
+                    <div className="mt-3 p-3 border rounded-md bg-success/5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Apply punishment to {ticketDetails.relatedPlayer}?</span>
+                        <Button size="sm" variant="outline" onClick={() => setIsPunishWindowOpen(true)} className="bg-success/10 text-success hover:bg-success/20">
+                          <Axe className="h-3.5 w-3.5 mr-1.5" /> Punish Player
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Reply box */}
-                <div className="flex flex-col">
+                <div className="flex flex-col mt-4">
                   <textarea
                     className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-20 resize-none"
-                    placeholder="Type your reply here..."
+                    placeholder={getPlaceholderText()}
                     value={ticketDetails.newReply || ''}
                     onChange={(e) => setTicketDetails(prev => ({ ...prev, newReply: e.target.value }))}
                   ></textarea>
