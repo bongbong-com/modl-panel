@@ -50,6 +50,36 @@ interface TicketNote {
   date: string;
 }
 
+// Define types for ticket categories and actions
+type TicketCategory = 'Player Report' | 'Bug Report' | 'Punishment Appeal' | 'Other';
+type PlayerReportAction = 'Accepted' | 'Rejected' | 'Close';
+type BugReportAction = 'Completed' | 'Stale' | 'Duplicate' | 'Close';
+type PunishmentAppealAction = 'Pardon' | 'Reduce' | 'Reject' | 'Close';
+
+// Default responses for different ticket actions
+const defaultReplies: Record<TicketCategory, Record<string, string>> = {
+  'Player Report': {
+    'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+    'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+    'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
+  },
+  'Bug Report': {
+    'Completed': 'Thank you for reporting this bug. We have fixed the issue and it will be included in our next update.',
+    'Stale': 'This bug report has been marked as stale due to inactivity or lack of information. Please feel free to reopen if you can provide additional details.',
+    'Duplicate': 'This bug has been identified as a duplicate of an existing issue that our team is already working on.',
+    'Close': 'This bug report has been closed. Thank you for your contribution to improving our game.'
+  },
+  'Punishment Appeal': {
+    'Pardon': 'After reviewing your appeal, we have decided to remove the punishment completely. Thank you for your patience during this process.',
+    'Reduce': 'We have reviewed your appeal and decided to reduce the duration of your punishment. The updated duration will be reflected in your account.',
+    'Reject': 'After careful consideration of your appeal, we have decided to uphold the original punishment. The decision remains final.',
+    'Close': 'This appeal has been closed. If you have additional information, please create a new appeal.'
+  },
+  'Other': {
+    'Close': 'This ticket has been closed. Thank you for your message.'
+  }
+};
+
 export interface TicketDetails {
   id: string;
   subject: string;
@@ -58,7 +88,7 @@ export interface TicketDetails {
   reportedBy: string;
   assignedTo?: string;
   date: string;
-  category: string;
+  category: TicketCategory;
   relatedPlayer?: string;
   relatedPlayerId?: string;
   messages: TicketMessage[];
@@ -259,6 +289,20 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
       ...prev,
       priority: newPriority
     }));
+  };
+  
+  // Helper function to get placeholder text based on selected action
+  const getPlaceholderText = () => {
+    if (!ticketDetails.selectedAction || ticketDetails.selectedAction === 'Comment') {
+      return "Type your reply here...";
+    }
+    
+    // Return default templates for the selected action if available
+    if (ticketDetails.category && ticketDetails.selectedAction) {
+      return defaultReplies[ticketDetails.category][ticketDetails.selectedAction] || "Type your reply here...";
+    }
+    
+    return "Type your reply here...";
   };
 
   return (
