@@ -90,7 +90,12 @@ export interface TicketDetails {
   isAddingNote?: boolean;
   newReply?: string;
   selectedAction?: string;
-  newDuration?: string;
+  newDuration?: string; // For backward compatibility
+  duration?: {
+    value: number;
+    unit: 'hours' | 'days' | 'weeks' | 'months';
+  };
+  isPermanent?: boolean;
 }
 
 const TicketDetail = () => {
@@ -439,21 +444,21 @@ const TicketDetail = () => {
         </div>
 
         <div className="bg-background-lighter p-4 rounded-lg">
-          <div className="flex gap-2 border-b mb-4 pb-1">
+          <div className="flex gap-2 mb-4">
             <Button 
-              variant={activeTab === 'conversation' ? 'default' : 'ghost'} 
+              variant={activeTab === 'conversation' ? 'default' : 'outline'} 
               onClick={() => setActiveTab('conversation')}
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-2"
-              data-state={activeTab === 'conversation' ? 'active' : undefined}
+              className="rounded-md"
+              size="sm"
             >
               <MessageSquare className="h-4 w-4 mr-1.5" />
               Conversation
             </Button>
             <Button 
-              variant={activeTab === 'notes' ? 'default' : 'ghost'} 
+              variant={activeTab === 'notes' ? 'default' : 'outline'} 
               onClick={() => setActiveTab('notes')}
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary pb-2"
-              data-state={activeTab === 'notes' ? 'active' : undefined}
+              className="rounded-md"
+              size="sm"
             >
               <StickyNote className="h-4 w-4 mr-1.5" />
               Staff Notes
@@ -537,8 +542,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Rejected' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Rejected'
-                            ? 'bg-destructive'
-                            : 'bg-destructive/10 hover:bg-destructive/20 text-destructive'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Rejected')}
                         >
                           <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
