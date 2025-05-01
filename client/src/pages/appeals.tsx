@@ -417,14 +417,47 @@ const AppealsPage = () => {
       description: `Your appeal for ban ${values.banId} has been submitted and will be reviewed by our staff.`,
     });
     
-    // Get appeal reason based on form type
-    let appealReason = "";
+    // Format all form data into a structured message
+    let formattedContent = "Appeal Details:\n\n";
+    
+    // Add different fields based on form type
     if ('reason' in values) {
-      appealReason = values.reason;
-    } else if ('appealReason' in values) {
-      appealReason = values.appealReason;
-    } else if ('additionalInfo' in values) {
-      appealReason = values.additionalInfo;
+      formattedContent += `Appeal Reason: ${values.reason || "Not provided"}\n`;
+    }
+    
+    if ('appealReason' in values) {
+      formattedContent += `Appeal Reason: ${values.appealReason || "Not provided"}\n`;
+    }
+    
+    if ('additionalInfo' in values) {
+      formattedContent += `Additional Information: ${values.additionalInfo || "Not provided"}\n`;
+    }
+    
+    // Add checkbox values
+    if ('punishmentError' in values) {
+      formattedContent += `Issued in Error: ${values.punishmentError ? "Yes" : "No"}\n`;
+    }
+    
+    if ('accountSecured' in values) {
+      formattedContent += `Account Secured: ${values.accountSecured ? "Yes" : "No"}\n`;
+    }
+    
+    if ('accessedLinkedAccount' in values) {
+      formattedContent += `Accessed Linked Account: ${values.accessedLinkedAccount ? "Yes" : "No"}\n`;
+    }
+    
+    if ('understandAutoUnban' in values) {
+      formattedContent += `Understands Auto-Unban Process: ${values.understandAutoUnban ? "Yes" : "No"}\n`;
+    }
+    
+    // Add evidence links if provided
+    if ('evidence' in values && values.evidence) {
+      formattedContent += `\nEvidence: ${values.evidence}\n`;
+    }
+    
+    // Add email for contact
+    if ('email' in values) {
+      formattedContent += `\nContact Email: ${values.email}\n`;
     }
     
     // Create initial messages
@@ -433,7 +466,7 @@ const AppealsPage = () => {
         id: `m${Date.now()}-1`,
         sender: 'player',
         senderName: 'You',
-        content: appealReason || 'I would like to appeal this punishment.',
+        content: formattedContent,
         timestamp: new Date().toLocaleString(),
       },
       {
@@ -639,49 +672,41 @@ const AppealsPage = () => {
                     <Separator />
                     <h4 className="text-md font-semibold">Conversation</h4>
                     <div className="space-y-4 max-h-[400px] overflow-y-auto p-2">
-                      {appealInfo.messages.map((message) => (
-                        <div 
-                          key={message.id} 
-                          className={`flex flex-col ${
-                            message.sender === 'player' 
-                              ? 'items-end' 
-                              : message.sender === 'staff' 
-                                ? 'items-start' 
-                                : 'items-center'
-                          }`}
-                        >
+                      {/* Filter out staff-only messages in the public appeals route */}
+                      {appealInfo.messages
+                        .filter(message => !message.isStaffNote && message.sender !== 'staff')
+                        .map((message) => (
                           <div 
-                            className={`max-w-[85%] rounded-lg p-3 ${
+                            key={message.id} 
+                            className={`flex flex-col ${
                               message.sender === 'player' 
-                                ? 'bg-primary text-primary-foreground' 
-                                : message.sender === 'staff' 
-                                  ? 'bg-muted border' 
-                                  : 'bg-muted/50 text-xs w-full text-center'
-                            } ${message.isStaffNote ? 'border-yellow-500 border bg-yellow-50 dark:bg-yellow-950 dark:bg-opacity-20 text-sm italic' : ''}`}
+                                ? 'items-end' 
+                                : 'items-center'
+                            }`}
                           >
-                            {message.isStaffNote && (
-                              <div className="mb-1 text-xs font-medium text-yellow-600 dark:text-yellow-400">
-                                Staff Note (not visible to player)
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`text-xs font-medium ${
+                            <div 
+                              className={`max-w-[85%] rounded-lg p-3 ${
                                 message.sender === 'player' 
-                                  ? 'text-primary-foreground/80' 
-                                  : message.sender === 'staff' 
-                                    ? 'text-blue-600 dark:text-blue-400' 
+                                  ? 'bg-primary text-primary-foreground' 
+                                  : 'bg-muted/50 text-xs w-full text-center'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs font-medium ${
+                                  message.sender === 'player' 
+                                    ? 'text-primary-foreground/80' 
                                     : 'text-muted-foreground'
-                              }`}>
-                                {message.senderName}
-                              </span>
-                            </div>
-                            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                            <div className="text-xs opacity-70 mt-1 text-right">
-                              {message.timestamp}
+                                }`}>
+                                  {message.senderName}
+                                </span>
+                              </div>
+                              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                              <div className="text-xs opacity-70 mt-1 text-right">
+                                {message.timestamp}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                     
                     {/* Reply input */}
