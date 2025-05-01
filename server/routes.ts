@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { storage } from "./storage";
 import { connectToMongoDB } from "./db/mongodb";
-import apiRoutes, { createSystemLog } from "./api/routes";
+import { setupApiRoutes } from "./api/routes";
+import { createSystemLog } from "./routes/log-routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB or use in-memory fallback
@@ -22,7 +23,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Register all MongoDB routes
-  app.use(apiRoutes);
+  setupApiRoutes(app);
   
   // Legacy API routes - these will be removed once MongoDB routes are fully integrated
   

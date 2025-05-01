@@ -1,21 +1,43 @@
-import { createContext, ReactNode, useContext, useState, useEffect } from "react";
+import { createContext, ReactNode, useContext } from "react";
+import {
+  useQuery,
+  useMutation,
+  UseMutationResult,
+} from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "./use-toast";
+import { apiRequest, queryClient } from "../lib/queryClient";
 
-// Define the User type
+// Define the User type to match our MongoDB schema
 interface User {
-  id: number;
+  _id: string;
   email: string;
   username: string;
+  profilePicture?: string;
+  admin: boolean;
 }
+
+// Login data structure
+type LoginData = {
+  username: string;
+  password: string;
+};
+
+// Register data structure
+type RegisterData = {
+  username: string;
+  email: string;
+  password: string;
+};
 
 // Define the AuthContext type
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, authMethod: string, code?: string) => Promise<boolean>;
-  register: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  error: Error | null;
+  loginMutation: UseMutationResult<User, Error, LoginData>;
+  logoutMutation: UseMutationResult<void, Error, void>;
+  registerMutation: UseMutationResult<User, Error, RegisterData>;
 };
 
 // Create the Auth Context with default values
@@ -23,31 +45,32 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 // AuthProvider component
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  // Check for existing session on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      // Simulate checking localStorage or session cookies for existing auth
-      const storedUser = localStorage.getItem('user');
-      
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (error) {
-          // Invalid stored user data
-          localStorage.removeItem('user');
+  // Query to check current user
+  const {
+    data: user,
+    error,
+    isLoading,
+  } = useQuery<User | null, Error>({
+    queryKey: ['/api/user'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/user');
+        if (res.status === 401) {
+          return null; // Not authenticated
         }
+        if (!res.ok) {
+          throw new Error('Failed to fetch user');
+        }
+        return await res.json();
+      } catch (err) {
+        console.error('Error fetching user:', err);
+        return null;
       }
-      
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, []);
+    }
+  });
 
   // Login function
   const login = async (email: string, authMethod: string, code?: string): Promise<boolean> => {

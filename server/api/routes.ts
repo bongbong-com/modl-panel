@@ -1,477 +1,667 @@
-import express from 'express';
-import mongoose from 'mongoose';
+import { Express, Request, Response } from 'express';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
+import { createSystemLog } from '../routes/log-routes';
 
-const router = express.Router();
-
-// ========================= PLAYER ROUTES =========================
-
-// Get all players
-router.get('/api/players', async (req, res) => {
-  try {
-    const players = await Player.find({});
-    res.json(players);
-  } catch (error) {
-    console.error('Error fetching players:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get player by UUID
-router.get('/api/players/:uuid', async (req, res) => {
-  try {
-    const player = await Player.findOne({ minecraftUuid: req.params.uuid });
-    if (!player) {
-      return res.status(404).json({ error: 'Player not found' });
-    }
-    res.json(player);
-  } catch (error) {
-    console.error('Error fetching player:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create new player
-router.post('/api/players', async (req, res) => {
-  try {
-    const { minecraftUuid, username } = req.body;
-    
-    // Check if player already exists
-    const existingPlayer = await Player.findOne({ minecraftUuid });
-    if (existingPlayer) {
-      return res.status(400).json({ error: 'Player already exists' });
-    }
-    
-    // Create new player
-    const player = new Player({
-      _id: uuidv4(),
-      minecraftUuid,
-      usernames: [{ username, date: new Date() }],
-      notes: [],
-      ipList: [],
-      punishments: [],
-      pendingNotifications: []
-    });
-    
-    await player.save();
-    res.status(201).json(player);
-  } catch (error) {
-    console.error('Error creating player:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ========================= TICKET ROUTES =========================
-
-// Get all tickets
-router.get('/api/tickets', async (req, res) => {
-  try {
-    const tickets = await Ticket.find({});
-    res.json(tickets);
-  } catch (error) {
-    console.error('Error fetching tickets:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get ticket by ID
-router.get('/api/tickets/:id', async (req, res) => {
-  try {
-    const ticket = await Ticket.findById(req.params.id);
-    if (!ticket) {
-      return res.status(404).json({ error: 'Ticket not found' });
-    }
-    res.json(ticket);
-  } catch (error) {
-    console.error('Error fetching ticket:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create new ticket
-router.post('/api/tickets', async (req, res) => {
-  try {
-    const { category, creator, tags, data } = req.body;
-    
-    // Generate a unique ID with the format CATEGORY-[6 digit random numeric]
-    const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
-    const ticketId = `${category}-${randomDigits}`;
-    
-    const ticket = new Ticket({
-      _id: ticketId,
-      tags: tags || [],
-      created: new Date(),
-      creator,
-      notes: [],
-      replies: [],
-      data: data || {}
-    });
-    
-    await ticket.save();
-    res.status(201).json(ticket);
-  } catch (error) {
-    console.error('Error creating ticket:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ========================= APPEAL ROUTES =========================
-
-// Get appeals by punishment ID
-router.get('/api/appeals/punishment/:id', async (req, res) => {
-  try {
-    // Look for tickets with this punishment ID in data
-    const appeals = await Ticket.find({ 'data.punishmentId': req.params.id });
-    
-    if (!appeals || appeals.length === 0) {
-      return res.status(404).json({ error: 'No appeals found for this punishment' });
-    }
-    
-    res.json(appeals);
-  } catch (error) {
-    console.error('Error fetching appeals:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create new appeal
-router.post('/api/appeals', async (req, res) => {
-  try {
-    const { 
-      punishmentId, 
-      playerUuid, 
-      email,
-      reason,
-      evidence,
-      additionalData
-    } = req.body;
-    
-    // First check if the punishment exists
-    const player = await Player.findOne({ 'punishments.id': punishmentId });
-    
-    if (!player) {
-      return res.status(404).json({ error: 'Punishment not found' });
-    }
-    
-    // Find the punishment
-    const punishment = player.punishments.find(p => p.id === punishmentId);
-    
-    if (!punishment) {
-      return res.status(404).json({ error: 'Punishment not found' });
-    }
-    
-    // Check if an appeal already exists for this punishment
-    const existingAppeal = await Ticket.findOne({ 'data.punishmentId': punishmentId });
-    
-    if (existingAppeal) {
-      return res.status(400).json({ error: 'An appeal already exists for this punishment' });
-    }
-    
-    // Generate a unique ID with the format APPEAL-[6 digit random numeric]
-    const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
-    const appealId = `APPEAL-${randomDigits}`;
-    
-    // Create the appeal data map
-    const dataMap = new Map();
-    dataMap.set('punishmentId', punishmentId);
-    dataMap.set('playerUuid', playerUuid);
-    dataMap.set('email', email);
-    dataMap.set('status', 'Pending Review');
-    
-    // Add any additional data fields
-    if (additionalData) {
-      for (const [key, value] of Object.entries(additionalData)) {
-        dataMap.set(key, value);
-      }
-    }
-    
-    // Prepare the appeal ticket
-    const appeal = new Ticket({
-      _id: appealId,
-      tags: ['appeal', punishment.type],
-      created: new Date(),
-      creator: playerUuid,
-      notes: [],
-      data: dataMap
-    });
-    
-    // Format the initial message with all provided data
-    let formattedContent = 'Appeal Details:\n\n';
-    
-    if (reason) {
-      formattedContent += `Appeal Reason: ${reason}\n`;
-    }
-    
-    if (evidence) {
-      formattedContent += `Evidence: ${evidence}\n`;
-    }
-    
-    // Add any checkbox values or other fields from additionalData
-    if (additionalData) {
-      for (const [key, value] of Object.entries(additionalData)) {
-        // Format boolean values as Yes/No
-        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
-        formattedContent += `${key}: ${displayValue}\n`;
-      }
-    }
-    
-    formattedContent += `\nContact Email: ${email}`;
-    
-    // Create the appeal without replies first
-    await appeal.save();
-    
-    // Then add replies after saving
-    appeal.replies.push({
-      name: player.usernames[player.usernames.length - 1]?.username || 'Player',
-      content: formattedContent,
-      type: 'player',
-      created: new Date(),
-      staff: false
-    });
-    
-    appeal.replies.push({
-      name: 'System',
-      content: 'Your appeal has been received and will be reviewed by our moderation team.',
-      type: 'system',
-      created: new Date(),
-      staff: false
-    });
-    
-    // Add reference to the punishment
-    punishment.attachedTicketIds.push(appealId);
-    
-    // Save both the appeal and the updated player
-    await appeal.save();
-    await player.save();
-    
-    res.status(201).json(appeal);
-  } catch (error) {
-    console.error('Error creating appeal:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ========================= STAFF ROUTES =========================
-
-// Get all staff
-router.get('/api/staff', async (req, res) => {
-  try {
-    // Exclude sensitive fields like 2FA secret and passkey details
-    const staff = await Staff.find({}).select('-twoFaSecret -passkey.publicKey -passkey.credentialId -passkey.signCount');
-    res.json(staff);
-  } catch (error) {
-    console.error('Error fetching staff:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create new staff member
-router.post('/api/staff', async (req, res) => {
-  try {
-    const { email, username, profilePicture, admin } = req.body;
-    
-    // Check if staff member already exists
-    const existingStaff = await Staff.findOne({ 
-      $or: [{ email }, { username }] 
-    });
-    
-    if (existingStaff) {
-      return res.status(400).json({ error: 'Staff member with this email or username already exists' });
-    }
-    
-    // Generate a random 2FA secret (hex encoded for compatibility)
-    const twoFaSecret = crypto.randomBytes(10).toString('hex');
-    
-    const staff = new Staff({
-      email,
-      username,
-      profilePicture,
-      admin: admin || false,
-      twoFaSecret
-    });
-    
-    await staff.save();
-    
-    // Return everything except the 2FA secret
-    const safeStaff = staff.toObject();
-    delete safeStaff.twoFaSecret;
-    
-    res.status(201).json(safeStaff);
-  } catch (error) {
-    console.error('Error creating staff member:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ========================= LOG ROUTES =========================
-
-// Get all logs
-router.get('/api/logs', async (req, res) => {
-  try {
-    const logs = await Log.find({}).sort({ created: -1 });
-    res.json(logs);
-  } catch (error) {
-    console.error('Error fetching logs:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create new log
-router.post('/api/logs', async (req, res) => {
-  try {
-    const { description } = req.body;
-    
-    const log = new Log({
-      description,
-      created: new Date()
-    });
-    
-    await log.save();
-    res.status(201).json(log);
-  } catch (error) {
-    console.error('Error creating log:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ========================= SETTINGS ROUTES =========================
-
-// Get all settings
-router.get('/api/settings', async (req, res) => {
-  try {
-    // Get the settings document (there should only be one)
-    let settings = await Settings.findOne({});
-    
-    // If no settings document exists, create a default one
-    if (!settings) {
-      settings = await createDefaultSettings();
-    }
-    
-    res.json(settings);
-  } catch (error) {
-    console.error('Error fetching settings:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Helper function to create default settings
-async function createDefaultSettings() {
-  try {
-    const defaultSettings = new Map();
-    
-    // Default punishment durations (in milliseconds)
-    defaultSettings.set('defaultPunishmentDurations', {
-      'Chat Abuse': 7 * 24 * 60 * 60 * 1000, // 7 days
-      'Game Abuse': 14 * 24 * 60 * 60 * 1000, // 14 days
-      'Cheating': 30 * 24 * 60 * 60 * 1000, // 30 days
-      'Bad Name': 0, // Until fixed
-      'Bad Skin': 0, // Until fixed
-      'Security Ban': 3 * 24 * 60 * 60 * 1000 // 3 days
-    });
-    
-    // Create the settings document
-    const settings = new Settings({
-      settings: defaultSettings
-    });
-    
-    await settings.save();
-    return settings;
-  } catch (error) {
-    console.error('Error creating default settings:', error);
-    throw error;
-  }
-}
-
-// Create system log
-export async function createSystemLog(description: string) {
-  try {
-    const { Log } = await import('../models/mongodb-schemas');
-    
-    // Check if Log model is available (MongoDB is connected)
-    if (Log) {
-      const log = new Log({
-        description,
-        created: new Date(),
-        level: 'info',
-        source: 'system'
+// Player routes
+export function setupPlayerRoutes(app: Express) {
+  // Get all players
+  app.get('/api/players', async (req: Request, res: Response) => {
+    try {
+      const players = await Player.find({}, { 
+        minecraftUuid: 1, 
+        'usernames': { $slice: -1 }, // Get only the most recent username
+        'punishments.active': 1 
       });
       
-      await log.save();
-      console.log(`SYSTEM LOG: ${description}`);
-      return log;
-    } else {
-      // Fallback for when MongoDB is not connected
-      console.log(`SYSTEM LOG: ${description}`);
-      return { description, created: new Date() };
+      // Transform for client consumption
+      const transformedPlayers = players.map(player => {
+        const latestUsername = player.usernames && player.usernames.length > 0 
+          ? player.usernames[player.usernames.length - 1].username 
+          : 'Unknown';
+        
+        const status = player.punishments && player.punishments.some(p => p.active) 
+          ? 'Banned' 
+          : 'Active';
+        
+        return {
+          uuid: player.minecraftUuid,
+          username: latestUsername,
+          status
+        };
+      });
+      
+      res.json(transformedPlayers);
+    } catch (error) {
+      console.error('Error fetching players:', error);
+      res.status(500).json({ error: 'Failed to fetch players' });
     }
-  } catch (error) {
-    console.error('Error creating system log:', error);
-    console.log(`SYSTEM LOG: ${description}`);
-    return { description, created: new Date() };
-  }
+  });
+
+  // Get player by UUID
+  app.get('/api/players/:uuid', async (req: Request, res: Response) => {
+    try {
+      const uuid = req.params.uuid;
+      const player = await Player.findOne({ minecraftUuid: uuid });
+      
+      if (!player) {
+        return res.status(404).json({ error: 'Player not found' });
+      }
+      
+      res.json(player);
+    } catch (error) {
+      console.error('Error fetching player:', error);
+      res.status(500).json({ error: 'Failed to fetch player' });
+    }
+  });
+
+  // Create a new player
+  app.post('/api/players', async (req: Request, res: Response) => {
+    try {
+      const newPlayer = new Player(req.body);
+      await newPlayer.save();
+      
+      await createSystemLog(`Player ${req.body.usernames[0].username} created`);
+      res.status(201).json(newPlayer);
+    } catch (error) {
+      console.error('Error creating player:', error);
+      res.status(500).json({ error: 'Failed to create player' });
+    }
+  });
+
+  // Update player
+  app.patch('/api/players/:uuid', async (req: Request, res: Response) => {
+    try {
+      const uuid = req.params.uuid;
+      const player = await Player.findOneAndUpdate(
+        { minecraftUuid: uuid },
+        { $set: req.body },
+        { new: true }
+      );
+      
+      if (!player) {
+        return res.status(404).json({ error: 'Player not found' });
+      }
+      
+      await createSystemLog(`Player ${uuid} updated`);
+      res.json(player);
+    } catch (error) {
+      console.error('Error updating player:', error);
+      res.status(500).json({ error: 'Failed to update player' });
+    }
+  });
+  
+  // Add punishment to player
+  app.post('/api/players/:uuid/punishments', async (req: Request, res: Response) => {
+    try {
+      const uuid = req.params.uuid;
+      const punishment = req.body;
+      
+      const player = await Player.findOneAndUpdate(
+        { minecraftUuid: uuid },
+        { $push: { punishments: punishment } },
+        { new: true }
+      );
+      
+      if (!player) {
+        return res.status(404).json({ error: 'Player not found' });
+      }
+      
+      await createSystemLog(`Punishment added to player ${uuid}`);
+      res.json(player);
+    } catch (error) {
+      console.error('Error adding punishment:', error);
+      res.status(500).json({ error: 'Failed to add punishment' });
+    }
+  });
+
+  // Add note to player
+  app.post('/api/players/:uuid/notes', async (req: Request, res: Response) => {
+    try {
+      const uuid = req.params.uuid;
+      const note = req.body;
+      
+      const player = await Player.findOneAndUpdate(
+        { minecraftUuid: uuid },
+        { $push: { notes: note } },
+        { new: true }
+      );
+      
+      if (!player) {
+        return res.status(404).json({ error: 'Player not found' });
+      }
+      
+      await createSystemLog(`Note added to player ${uuid}`);
+      res.json(player);
+    } catch (error) {
+      console.error('Error adding note:', error);
+      res.status(500).json({ error: 'Failed to add note' });
+    }
+  });
 }
 
-// ========================= DATABASE SETTINGS ROUTES =========================
+// Ticket routes
+export function setupTicketRoutes(app: Express) {
+  // Get all tickets
+  app.get('/api/tickets', async (req: Request, res: Response) => {
+    try {
+      const tickets = await Ticket.find();
+      
+      // Transform for client consumption
+      const transformedTickets = tickets.map(ticket => {
+        const subject = ticket.data.get('subject') as string || 'No Subject';
+        const status = ticket.data.get('status') as string || 'Open';
+        const priority = ticket.data.get('priority') as string || 'Low';
+        const category = ticket.data.get('category') as string || 'Other';
+        
+        return {
+          id: ticket._id,
+          subject,
+          status,
+          priority,
+          reportedBy: ticket.creator,
+          date: ticket.created,
+          type: category.toLowerCase().includes('bug') ? 'bug' : 
+                category.toLowerCase().includes('appeal') ? 'appeal' :
+                category.toLowerCase().includes('player') ? 'player' : 'chat'
+        };
+      });
+      
+      res.json(transformedTickets);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      res.status(500).json({ error: 'Failed to fetch tickets' });
+    }
+  });
 
-// Check database connection status
-router.get('/api/settings/database-status', async (req, res) => {
-  try {
-    // Check if MongoDB is connected using the mongoose connection state
-    const connected = mongoose.connection.readyState === 1;
-    res.json({
-      connected,
-      message: connected 
-        ? 'Connected to MongoDB' 
-        : 'Not connected to MongoDB',
-    });
-  } catch (error) {
-    console.error('Error checking MongoDB status:', error);
-    res.status(500).json({ 
-      connected: false, 
-      message: 'Error checking MongoDB connection status' 
-    });
-  }
-});
+  // Get ticket by ID
+  app.get('/api/tickets/:id', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      const ticket = await Ticket.findById(id);
+      
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      // Transform for client consumption
+      const transformedTicket = {
+        id: ticket._id,
+        subject: ticket.data.get('subject') as string || 'No Subject',
+        status: ticket.data.get('status') as string || 'Open',
+        priority: ticket.data.get('priority') as string || 'Low',
+        category: ticket.data.get('category') as string || 'Other',
+        reportedBy: ticket.creator,
+        date: ticket.created,
+        assignedTo: ticket.data.get('assignedTo') as string,
+        relatedPlayer: ticket.data.get('relatedPlayer') as string,
+        relatedPlayerId: ticket.data.get('relatedPlayerId') as string,
+        messages: ticket.replies,
+        notes: ticket.notes,
+        tags: ticket.tags
+      };
+      
+      res.json(transformedTicket);
+    } catch (error) {
+      console.error('Error fetching ticket:', error);
+      res.status(500).json({ error: 'Failed to fetch ticket' });
+    }
+  });
 
-// Test database connection with provided URI
-router.post('/api/settings/test-database', async (req, res) => {
-  const { uri } = req.body;
-  
-  if (!uri) {
-    return res.status(400).json({ 
-      connected: false, 
-      message: 'MongoDB URI is required' 
-    });
-  }
-  
-  try {
-    // Create a new mongoose connection to test the URI without affecting the current connection
-    const testConnection = mongoose.createConnection();
-    await testConnection.openUri(uri, { 
-      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
-    });
-    
-    // If we get here, the connection was successful
-    await testConnection.close();
-    
-    // Update the .env file with the new URI
-    // This part would typically use a secure method to update environment variables
-    // For now, just log that we would set it
-    console.log('Would update MONGODB_URI in environment variables');
-    
-    res.json({ 
-      connected: true, 
-      message: 'Successfully connected to MongoDB'
-    });
-  } catch (error) {
-    console.error('Error testing MongoDB connection:', error);
-    res.status(500).json({ 
-      connected: false, 
-      message: `Failed to connect to MongoDB: ${error instanceof Error ? error.message : 'Unknown error'}` 
-    });
-  }
-});
+  // Create a new ticket
+  app.post('/api/tickets', async (req: Request, res: Response) => {
+    try {
+      const newTicket = new Ticket(req.body);
+      await newTicket.save();
+      
+      await createSystemLog(`Ticket ${newTicket._id} created by ${req.body.creator}`);
+      res.status(201).json(newTicket);
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      res.status(500).json({ error: 'Failed to create ticket' });
+    }
+  });
 
-export default router;
+  // Update ticket
+  app.patch('/api/tickets/:id', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      
+      // Handle special cases like adding replies or notes
+      if (req.body.newReply) {
+        const reply = req.body.newReply;
+        await Ticket.findByIdAndUpdate(
+          id,
+          { $push: { replies: reply } }
+        );
+      } 
+      
+      if (req.body.newNote) {
+        const note = {
+          content: req.body.newNote.content,
+          author: req.body.newNote.author,
+          date: new Date()
+        };
+        await Ticket.findByIdAndUpdate(
+          id,
+          { $push: { notes: note } }
+        );
+      }
+      
+      // Update data map
+      const dataUpdates = {};
+      if (req.body.status) dataUpdates['data.status'] = req.body.status;
+      if (req.body.priority) dataUpdates['data.priority'] = req.body.priority;
+      if (req.body.assignedTo) dataUpdates['data.assignedTo'] = req.body.assignedTo;
+      
+      // Handle tags
+      if (req.body.tags) {
+        await Ticket.findByIdAndUpdate(
+          id,
+          { $set: { tags: req.body.tags } }
+        );
+      }
+      
+      // Apply all updates and get updated ticket
+      const ticket = await Ticket.findByIdAndUpdate(
+        id,
+        { $set: dataUpdates },
+        { new: true }
+      );
+      
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      await createSystemLog(`Ticket ${id} updated`);
+      res.json(ticket);
+    } catch (error) {
+      console.error('Error updating ticket:', error);
+      res.status(500).json({ error: 'Failed to update ticket' });
+    }
+  });
+}
+
+// Appeal routes (appeals are a special type of ticket)
+export function setupAppealRoutes(app: Express) {
+  // Get all appeals
+  app.get('/api/appeals', async (req: Request, res: Response) => {
+    try {
+      const appeals = await Ticket.find({ tags: 'appeal' });
+      
+      // Transform for client consumption
+      const transformedAppeals = appeals.map(appeal => {
+        const status = appeal.data.get('status') as string || 'Pending Review';
+        const punishmentId = appeal.data.get('punishmentId') as string;
+        
+        return {
+          id: appeal._id,
+          banId: punishmentId,
+          submittedOn: appeal.created,
+          status,
+          lastUpdate: appeal.replies.length > 0 
+            ? appeal.replies[appeal.replies.length - 1].created 
+            : appeal.created,
+          messages: appeal.replies
+        };
+      });
+      
+      res.json(transformedAppeals);
+    } catch (error) {
+      console.error('Error fetching appeals:', error);
+      res.status(500).json({ error: 'Failed to fetch appeals' });
+    }
+  });
+
+  // Get appeal by ID
+  app.get('/api/appeals/:id', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      const appeal = await Ticket.findById(id);
+      
+      if (!appeal) {
+        return res.status(404).json({ error: 'Appeal not found' });
+      }
+      
+      // Check if this is actually an appeal
+      if (!appeal.tags.includes('appeal')) {
+        return res.status(400).json({ error: 'Ticket is not an appeal' });
+      }
+      
+      // Transform for client consumption
+      const transformedAppeal = {
+        id: appeal._id,
+        banId: appeal.data.get('punishmentId') as string,
+        submittedOn: appeal.created,
+        status: appeal.data.get('status') as string || 'Pending Review',
+        lastUpdate: appeal.replies.length > 0 
+          ? appeal.replies[appeal.replies.length - 1].created 
+          : appeal.created,
+        messages: appeal.replies.filter(reply => !reply.staff)
+      };
+      
+      res.json(transformedAppeal);
+    } catch (error) {
+      console.error('Error fetching appeal:', error);
+      res.status(500).json({ error: 'Failed to fetch appeal' });
+    }
+  });
+
+  // Get appeals for punishment
+  app.get('/api/appeals/punishment/:id', async (req: Request, res: Response) => {
+    try {
+      const punishmentId = req.params.id;
+      const appeals = await Ticket.find({ 
+        tags: 'appeal',
+        'data.punishmentId': punishmentId
+      });
+      
+      // Transform for client consumption
+      const transformedAppeals = appeals.map(appeal => {
+        return {
+          id: appeal._id,
+          banId: punishmentId,
+          submittedOn: appeal.created,
+          status: appeal.data.get('status') as string || 'Pending Review',
+          lastUpdate: appeal.replies.length > 0 
+            ? appeal.replies[appeal.replies.length - 1].created 
+            : appeal.created
+        };
+      });
+      
+      res.json(transformedAppeals);
+    } catch (error) {
+      console.error('Error fetching appeals for punishment:', error);
+      res.status(500).json({ error: 'Failed to fetch appeals' });
+    }
+  });
+
+  // Create a new appeal
+  app.post('/api/appeals', async (req: Request, res: Response) => {
+    try {
+      // Format appeal data as a ticket
+      const appealData = {
+        _id: `APPEAL-${Math.floor(100000 + Math.random() * 900000)}`,
+        tags: ['appeal', ...req.body.tags || []],
+        created: new Date(),
+        creator: req.body.username,
+        replies: [
+          {
+            name: req.body.username,
+            content: req.body.content,
+            type: 'player',
+            created: new Date(),
+            staff: false
+          },
+          {
+            name: 'System',
+            content: 'Your appeal has been received and will be reviewed by our moderation team.',
+            type: 'system',
+            created: new Date(),
+            staff: false
+          }
+        ],
+        notes: [],
+        data: new Map([
+          ['status', 'Pending Review'],
+          ['punishmentId', req.body.punishmentId],
+          ['playerUuid', req.body.playerUuid],
+          ['email', req.body.email]
+        ])
+      };
+      
+      const newAppeal = new Ticket(appealData);
+      await newAppeal.save();
+      
+      // Update the punishment to link to this appeal
+      await Player.updateOne(
+        { 
+          minecraftUuid: req.body.playerUuid,
+          'punishments.id': req.body.punishmentId
+        },
+        { 
+          $push: { 
+            'punishments.$.attachedTicketIds': newAppeal._id 
+          } 
+        }
+      );
+      
+      await createSystemLog(`Appeal ${newAppeal._id} submitted for punishment ${req.body.punishmentId}`);
+      res.status(201).json(newAppeal);
+    } catch (error) {
+      console.error('Error creating appeal:', error);
+      res.status(500).json({ error: 'Failed to create appeal' });
+    }
+  });
+
+  // Add reply to appeal
+  app.post('/api/appeals/:id/reply', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      const reply = {
+        name: req.body.name,
+        content: req.body.content,
+        type: req.body.type || 'player',
+        created: new Date(),
+        staff: req.body.staff || false
+      };
+      
+      const appeal = await Ticket.findByIdAndUpdate(
+        id,
+        { $push: { replies: reply } },
+        { new: true }
+      );
+      
+      if (!appeal) {
+        return res.status(404).json({ error: 'Appeal not found' });
+      }
+      
+      await createSystemLog(`Reply added to appeal ${id}`);
+      res.json(appeal);
+    } catch (error) {
+      console.error('Error adding reply to appeal:', error);
+      res.status(500).json({ error: 'Failed to add reply' });
+    }
+  });
+
+  // Update appeal status
+  app.patch('/api/appeals/:id/status', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      const status = req.body.status;
+      
+      // Update the ticket data map
+      const appeal = await Ticket.findById(id);
+      if (!appeal) {
+        return res.status(404).json({ error: 'Appeal not found' });
+      }
+      
+      // Update status
+      appeal.data.set('status', status);
+      await appeal.save();
+      
+      // Add system message
+      const systemMessage = {
+        name: 'System',
+        content: `Appeal status changed to ${status}`,
+        type: 'system',
+        created: new Date(),
+        staff: false
+      };
+      
+      appeal.replies.push(systemMessage);
+      await appeal.save();
+      
+      await createSystemLog(`Appeal ${id} status changed to ${status}`);
+      res.json(appeal);
+    } catch (error) {
+      console.error('Error updating appeal status:', error);
+      res.status(500).json({ error: 'Failed to update appeal status' });
+    }
+  });
+}
+
+// Log routes
+export function setupLogRoutes(app: Express) {
+  // Get all logs
+  app.get('/api/logs', async (req: Request, res: Response) => {
+    try {
+      const logs = await Log.find().sort({ created: -1 }).limit(100);
+      res.json(logs);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+      res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+  });
+
+  // Create a log 
+  app.post('/api/logs', async (req: Request, res: Response) => {
+    try {
+      const newLog = new Log(req.body);
+      await newLog.save();
+      res.status(201).json(newLog);
+    } catch (error) {
+      console.error('Error creating log:', error);
+      res.status(500).json({ error: 'Failed to create log' });
+    }
+  });
+}
+
+// Settings routes
+export function setupSettingsRoutes(app: Express) {
+  // Get settings
+  app.get('/api/settings', async (req: Request, res: Response) => {
+    try {
+      const settings = await Settings.findOne();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+  });
+
+  // Update settings
+  app.patch('/api/settings', async (req: Request, res: Response) => {
+    try {
+      const settings = await Settings.findOne();
+      
+      if (!settings) {
+        // Create settings if they don't exist
+        const newSettings = new Settings({ settings: new Map() });
+        
+        // Update with request data
+        Object.entries(req.body).forEach(([key, value]) => {
+          newSettings.settings.set(key, value);
+        });
+        
+        await newSettings.save();
+        return res.json(newSettings);
+      }
+      
+      // Update existing settings
+      Object.entries(req.body).forEach(([key, value]) => {
+        settings.settings.set(key, value);
+      });
+      
+      await settings.save();
+      await createSystemLog('Settings updated');
+      res.json(settings);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      res.status(500).json({ error: 'Failed to update settings' });
+    }
+  });
+}
+
+// Stats routes
+export function setupStatsRoutes(app: Express) {
+  app.get('/api/stats', async (req: Request, res: Response) => {
+    try {
+      // Get overall statistics
+      const playerCount = await Player.countDocuments();
+      const ticketCount = await Ticket.countDocuments();
+      const openTicketCount = await Ticket.countDocuments({ 'data.status': 'Open' });
+      const appealCount = await Ticket.countDocuments({ tags: 'appeal' });
+      const staffCount = await Staff.countDocuments();
+      
+      // Get recent activity for display
+      const recentTickets = await Ticket.find()
+        .sort({ created: -1 })
+        .limit(5);
+      
+      const recentAppeals = await Ticket.find({ tags: 'appeal' })
+        .sort({ created: -1 })
+        .limit(5);
+      
+      // Transform tickets for display
+      const transformedTickets = recentTickets.map(ticket => {
+        const subject = ticket.data.get('subject') as string || 'No Subject';
+        return {
+          id: ticket._id,
+          type: ticket.tags.includes('appeal') ? 'appeal' : 'ticket',
+          title: subject,
+          date: ticket.created,
+          status: ticket.data.get('status') as string || 'Open'
+        };
+      });
+      
+      res.json({
+        counts: {
+          players: playerCount,
+          tickets: ticketCount,
+          openTickets: openTicketCount,
+          appeals: appealCount,
+          staff: staffCount
+        },
+        recent: {
+          tickets: transformedTickets,
+          appeals: recentAppeals
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+}
+
+// Staff routes
+export function setupStaffRoutes(app: Express) {
+  // Get all staff
+  app.get('/api/staff', async (req: Request, res: Response) => {
+    try {
+      const staff = await Staff.find({}, { password: 0, twoFaSecret: 0 });
+      res.json(staff);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+      res.status(500).json({ error: 'Failed to fetch staff' });
+    }
+  });
+
+  // Get staff by ID
+  app.get('/api/staff/:id', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      const staff = await Staff.findById(id, { password: 0, twoFaSecret: 0 });
+      
+      if (!staff) {
+        return res.status(404).json({ error: 'Staff member not found' });
+      }
+      
+      res.json(staff);
+    } catch (error) {
+      console.error('Error fetching staff member:', error);
+      res.status(500).json({ error: 'Failed to fetch staff member' });
+    }
+  });
+}
+
+// Setup all routes
+export function setupApiRoutes(app: Express) {
+  setupPlayerRoutes(app);
+  setupTicketRoutes(app);
+  setupAppealRoutes(app);
+  setupLogRoutes(app);
+  setupSettingsRoutes(app);
+  setupStatsRoutes(app);
+  setupStaffRoutes(app);
+}
