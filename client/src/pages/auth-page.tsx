@@ -155,181 +155,30 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 p-4 md:p-10">
+      <div className="max-w-md w-full p-4 md:p-10">
         {/* Auth form section */}
         <div className="flex flex-col justify-center">
-          <div className="flex flex-col space-y-2 mb-8">
+          <div className="flex flex-col space-y-2 mb-8 text-center">
             <h1 className="text-3xl font-bold">Game Moderation Panel</h1>
             <p className="text-muted-foreground">
               Access the administrative tools to manage player support tickets and server issues
             </p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="login">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Login to your account</CardTitle>
-                  <CardDescription>
-                    Enter your credentials to access the moderation panel
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...loginForm}>
-                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                      {loginStep === 'email' ? (
-                        <>
-                          <FormField
-                            control={loginForm.control}
-                            name="email"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      {...field}
-                                      placeholder="name@example.com"
-                                      className="pl-10"
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={loginForm.control}
-                            name="methodType"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Verification Method</FormLabel>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  <Badge 
-                                    variant={field.value === "email" ? "default" : "outline"}
-                                    className="cursor-pointer py-1 px-3 hover:bg-primary/90"
-                                    onClick={() => field.onChange("email")}
-                                  >
-                                    <Mail className="h-3.5 w-3.5 mr-1.5" />
-                                    Email Code
-                                  </Badge>
-                                  <Badge 
-                                    variant={field.value === "2fa" ? "default" : "outline"}
-                                    className="cursor-pointer py-1 px-3 hover:bg-primary/90"
-                                    onClick={() => field.onChange("2fa")}
-                                  >
-                                    <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-                                    2FA Code
-                                  </Badge>
-                                  <Badge 
-                                    variant={field.value === "passkey" ? "default" : "outline"}
-                                    className="cursor-pointer py-1 px-3 hover:bg-primary/90"
-                                    onClick={() => field.onChange("passkey")}
-                                  >
-                                    <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
-                                    Passkey
-                                  </Badge>
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <Button type="submit" className="w-full mt-6">
-                            Continue
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="mb-4 flex items-center gap-2">
-                            <Badge>{loginForm.getValues().email}</Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              type="button"
-                              onClick={() => setLoginStep('email')}
-                              className="h-7 px-2 text-xs"
-                            >
-                              Change
-                            </Button>
-                          </div>
-
-                          {verificationMethod === 'passkey' ? (
-                            <div className="py-6 flex flex-col items-center justify-center space-y-4">
-                              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                                <Fingerprint className="h-8 w-8 text-primary" />
-                              </div>
-                              <p className="text-center text-sm text-muted-foreground max-w-[250px]">
-                                Press the button below to authenticate using your passkey
-                              </p>
-                              <Button type="submit" className="mt-2">
-                                Authenticate with Passkey
-                              </Button>
-                            </div>
-                          ) : (
-                            <>
-                              <FormField
-                                control={loginForm.control}
-                                name="code"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>
-                                      {verificationMethod === '2fa' ? '2FA Code' : 'Verification Code'}
-                                    </FormLabel>
-                                    <FormControl>
-                                      <div className="relative">
-                                        <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                          {...field}
-                                          placeholder="Enter your 6-digit code"
-                                          className="pl-10"
-                                          inputMode="numeric"
-                                          pattern="[0-9]*"
-                                          maxLength={6}
-                                        />
-                                      </div>
-                                    </FormControl>
-                                    <FormDescription>
-                                      Enter the {verificationMethod === '2fa' ? '2FA code from your authenticator app' : 'verification code sent to your email'}
-                                    </FormDescription>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-
-                              <Button type="submit" className="w-full mt-6">
-                                Verify & Login
-                              </Button>
-                            </>
-                          )}
-                        </>
-                      )}
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="register">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create an account</CardTitle>
-                  <CardDescription>
-                    Register to gain access to the moderation panel
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...registerForm}>
-                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Login to your account</CardTitle>
+              <CardDescription>
+                Enter your credentials to access the moderation panel
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                  {loginStep === 'email' ? (
+                    <>
                       <FormField
-                        control={registerForm.control}
+                        control={loginForm.control}
                         name="email"
                         render={({ field }) => (
                           <FormItem>
@@ -350,133 +199,137 @@ const AuthPage = () => {
                       />
 
                       <FormField
-                        control={registerForm.control}
-                        name="password"
+                        control={loginForm.control}
+                        name="methodType"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  {...field}
-                                  type={showPassword ? "text" : "password"}
-                                  placeholder="********"
-                                  className="pl-10 pr-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute right-1 top-1 h-8 w-8"
-                                  onClick={() => setShowPassword(!showPassword)}
-                                >
-                                  {showPassword ? (
-                                    <EyeOff className="h-4 w-4" />
-                                  ) : (
-                                    <Eye className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Password must be at least 8 characters
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={registerForm.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Confirm Password</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  {...field}
-                                  type={showConfirmPassword ? "text" : "password"}
-                                  placeholder="********"
-                                  className="pl-10 pr-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="absolute right-1 top-1 h-8 w-8"
-                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                >
-                                  {showConfirmPassword ? (
-                                    <EyeOff className="h-4 w-4" />
-                                  ) : (
-                                    <Eye className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </FormControl>
+                            <FormLabel>Verification Method</FormLabel>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <Badge 
+                                variant={field.value === "email" ? "default" : "outline"}
+                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
+                                onClick={() => field.onChange("email")}
+                              >
+                                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                                Email Code
+                              </Badge>
+                              <Badge 
+                                variant={field.value === "2fa" ? "default" : "outline"}
+                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
+                                onClick={() => field.onChange("2fa")}
+                              >
+                                <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+                                2FA Code
+                              </Badge>
+                              <Badge 
+                                variant={field.value === "passkey" ? "default" : "outline"}
+                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
+                                onClick={() => field.onChange("passkey")}
+                              >
+                                <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
+                                Passkey
+                              </Badge>
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
                       <Button type="submit" className="w-full mt-6">
-                        Create Account
+                        Continue
                       </Button>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center gap-2">
+                        <Badge>{loginForm.getValues().email}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setLoginStep('email')}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Change
+                        </Button>
+                      </div>
 
-        {/* Hero section */}
-        <div className="hidden md:flex flex-col justify-center">
-          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-10 h-full flex flex-col justify-center">
-            <div className="mb-6">
-              <Badge className="mb-4" variant="outline">Staff Only Access</Badge>
-              <h2 className="text-3xl font-bold mb-3">Game Server Moderation Panel</h2>
-              <p className="text-muted-foreground mb-6">
-                Empowering administrators with powerful tools for efficient player interaction and ticket management.
+                      {verificationMethod === 'passkey' ? (
+                        <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Fingerprint className="h-8 w-8 text-primary" />
+                          </div>
+                          <p className="text-center text-sm text-muted-foreground max-w-[250px]">
+                            Use your FIDO2 security key or built-in authenticator (Windows Hello, Touch ID, etc.)
+                          </p>
+                          <div className="mt-2 bg-primary/5 rounded-md p-4 w-full flex flex-col items-center">
+                            <p className="text-xs text-center text-muted-foreground mb-3">Your browser will prompt you to use your passkey</p>
+                            <Button 
+                              type="button" 
+                              onClick={() => {
+                                // Simulate browser's WebAuthn API calling
+                                toast({
+                                  title: "Passkey prompt",
+                                  description: "Your browser would prompt for biometric verification here",
+                                });
+                                // Wait a moment then submit the form
+                                setTimeout(() => {
+                                  loginForm.handleSubmit(onLoginSubmit)();
+                                }, 1500);
+                              }}
+                              className="w-full"
+                            >
+                              Verify with Passkey
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <FormField
+                            control={loginForm.control}
+                            name="code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  {verificationMethod === '2fa' ? '2FA Code' : 'Verification Code'}
+                                </FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                      {...field}
+                                      placeholder="Enter your 6-digit code"
+                                      className="pl-10"
+                                      inputMode="numeric"
+                                      pattern="[0-9]*"
+                                      maxLength={6}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormDescription>
+                                  Enter the {verificationMethod === '2fa' ? '2FA code from your authenticator app' : 'verification code sent to your email'}
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <Button type="submit" className="w-full mt-6">
+                            Verify & Login
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </form>
+              </Form>
+            </CardContent>
+            <CardFooter className="flex justify-center border-t pt-4">
+              <p className="text-xs text-muted-foreground">
+                Contact an administrator if you need access to this panel
               </p>
-              <Separator className="my-6" />
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="mt-1 p-1.5 rounded-full bg-primary/10">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Multi-factor Authentication</h3>
-                  <p className="text-sm text-muted-foreground">Secure your account with email verification, 2FA, or passkey authentication.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="mt-1 p-1.5 rounded-full bg-primary/10">
-                  <Mail className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Manage Tickets Efficiently</h3>
-                  <p className="text-sm text-muted-foreground">Handle player support requests, bug reports, and appeals from a central dashboard.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="mt-1 p-1.5 rounded-full bg-primary/10">
-                  <LockKeyhole className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Admin-Only Features</h3>
-                  <p className="text-sm text-muted-foreground">Access powerful moderation tools with role-based permissions.</p>
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardFooter>
+          </Card>
         </div>
       </div>
     </div>
