@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX } from 'lucide-react';
+import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Link2, UploadCloud } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +32,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Define the search form schema
 const searchSchema = z.object({
@@ -40,14 +48,64 @@ const searchSchema = z.object({
 
 type SearchFormValues = z.infer<typeof searchSchema>;
 
-// Define the appeal form schema
-const appealSchema = z.object({
+// Define base appeal schema with common fields
+const baseAppealSchema = z.object({
   banId: z.string().min(6, { message: "Ban ID must be at least 6 characters" }),
   playerName: z.string().min(3, { message: "Player name must be at least 3 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
-  reason: z.string().min(20, { message: "Please provide a detailed explanation (min 20 characters)" }),
 });
 
+// Extended schemas for each punishment type
+const securityBanSchema = baseAppealSchema.extend({
+  accountSecured: z.boolean({
+    required_error: "Please indicate if you've secured your account",
+  }),
+  additionalInfo: z.string().optional(),
+});
+
+const linkedBanSchema = baseAppealSchema.extend({
+  accessedLinkedAccount: z.boolean({
+    required_error: "Please indicate if you've logged into the linked account",
+  }),
+  appealReason: z.string().min(20, {
+    message: "Please provide a detailed reason for your appeal (at least 20 characters)",
+  }),
+  evidence: z.string().optional(),
+});
+
+const badNameSkinSchema = baseAppealSchema.extend({
+  understandAutoUnban: z.boolean({
+    required_error: "Please confirm your understanding",
+  }),
+  appealReason: z.string().min(20, {
+    message: "Please provide a detailed reason for your appeal (at least 20 characters)",
+  }),
+  evidence: z.string().optional(),
+});
+
+const generalViolationSchema = baseAppealSchema.extend({
+  punishmentError: z.boolean({
+    required_error: "Please indicate if you believe this punishment was made in error",
+  }),
+  appealReason: z.string().min(20, {
+    message: "Please provide a detailed reason for your appeal (at least 20 characters)",
+  }),
+  evidence: z.string().optional(),
+});
+
+// Default schema for standard appeals
+const appealSchema = baseAppealSchema.extend({
+  reason: z.string().min(20, {
+    message: "Please provide a detailed explanation (min 20 characters)",
+  }),
+});
+
+// Define types for our forms
+type BaseAppealFormValues = z.infer<typeof baseAppealSchema>;
+type SecurityBanAppealValues = z.infer<typeof securityBanSchema>;
+type LinkedBanAppealValues = z.infer<typeof linkedBanSchema>;
+type BadNameSkinAppealValues = z.infer<typeof badNameSkinSchema>;
+type GeneralViolationAppealValues = z.infer<typeof generalViolationSchema>;
 type AppealFormValues = z.infer<typeof appealSchema>;
 
 // Mock data for demonstration
@@ -59,7 +117,17 @@ interface BanInfo {
   staffMember: string;
   status: 'Active' | 'Expired' | 'Pardoned';
   expiresIn?: string;
+  type: PunishmentType;
 }
+
+type PunishmentType = 
+  | 'Kick' | 'Blacklist' 
+  | 'Security Ban'
+  | 'Linked Ban'
+  | 'Bad Skin' | 'Bad Name'
+  | 'Chat Abuse' | 'Anti Social' | 'Targeting' | 'Bad Content' 
+  | 'Team Abuse' | 'Game Abuse' | 'Cheating' | 'Game Trading'
+  | 'Account Abuse' | 'Scamming' | 'Manual Mute' | 'Manual Ban';
 
 interface AppealInfo {
   id: string;
@@ -80,6 +148,7 @@ const MockBans: Record<string, BanInfo> = {
     staffMember: 'AdminUser42',
     status: 'Active',
     expiresIn: '28 days',
+    type: 'Cheating'
   },
   'BAN654321': {
     id: 'BAN654321',
@@ -89,6 +158,7 @@ const MockBans: Record<string, BanInfo> = {
     staffMember: 'ModeratorX',
     status: 'Active',
     expiresIn: '7 days',
+    type: 'Chat Abuse'
   },
   'BAN789012': {
     id: 'BAN789012',
@@ -97,7 +167,46 @@ const MockBans: Record<string, BanInfo> = {
     date: '2023-12-01',
     staffMember: 'SeniorMod',
     status: 'Pardoned',
+    type: 'Game Abuse'
   },
+  'BAN234567': {
+    id: 'BAN234567',
+    playerName: 'GamePlayer456',
+    reason: 'Inappropriate username',
+    date: '2024-01-15',
+    staffMember: 'AdminUser42',
+    status: 'Active',
+    expiresIn: '30 days',
+    type: 'Bad Name'
+  },
+  'BAN345678': {
+    id: 'BAN345678',
+    playerName: 'SecurePlayer789',
+    reason: 'Suspicious login patterns detected',
+    date: '2024-02-01',
+    staffMember: 'SecurityTeam',
+    status: 'Active',
+    expiresIn: '14 days',
+    type: 'Security Ban'
+  },
+  'BAN456789': {
+    id: 'BAN456789',
+    playerName: 'AltAccount123',
+    reason: 'Alt account of banned user',
+    date: '2024-02-15',
+    staffMember: 'ModeratorY',
+    status: 'Active',
+    type: 'Linked Ban'
+  },
+  'BAN567890': {
+    id: 'BAN567890',
+    playerName: 'TempUser123',
+    reason: 'Disruptive behavior',
+    date: '2024-02-20',
+    staffMember: 'AdminZ',
+    status: 'Active',
+    type: 'Kick'
+  }
 };
 
 const MockAppeals: Record<string, AppealInfo> = {
@@ -118,16 +227,56 @@ const AppealsPage = () => {
   const [banInfo, setBanInfo] = useState<BanInfo | null>(null);
   const [appealInfo, setAppealInfo] = useState<AppealInfo | null>(null);
   const [showAppealForm, setShowAppealForm] = useState(false);
-
-  // Search form
-  const searchForm = useForm<SearchFormValues>({
-    resolver: zodResolver(searchSchema),
+  
+  // Create forms for different punishment types
+  const securityBanForm = useForm<SecurityBanAppealValues>({
+    resolver: zodResolver(securityBanSchema),
     defaultValues: {
       banId: "",
+      playerName: "",
+      email: "",
+      accountSecured: false,
+      additionalInfo: "",
+    },
+  });
+  
+  const linkedBanForm = useForm<LinkedBanAppealValues>({
+    resolver: zodResolver(linkedBanSchema),
+    defaultValues: {
+      banId: "",
+      playerName: "",
+      email: "",
+      accessedLinkedAccount: false,
+      appealReason: "",
+      evidence: "",
+    },
+  });
+  
+  const badNameSkinForm = useForm<BadNameSkinAppealValues>({
+    resolver: zodResolver(badNameSkinSchema),
+    defaultValues: {
+      banId: "",
+      playerName: "",
+      email: "",
+      understandAutoUnban: false,
+      appealReason: "",
+      evidence: "",
+    },
+  });
+  
+  const generalViolationForm = useForm<GeneralViolationAppealValues>({
+    resolver: zodResolver(generalViolationSchema),
+    defaultValues: {
+      banId: "",
+      playerName: "",
+      email: "",
+      punishmentError: false,
+      appealReason: "",
+      evidence: "",
     },
   });
 
-  // Appeal form
+  // Standard appeal form for fallback
   const appealForm = useForm<AppealFormValues>({
     resolver: zodResolver(appealSchema),
     defaultValues: {
@@ -135,6 +284,14 @@ const AppealsPage = () => {
       playerName: "",
       email: "",
       reason: "",
+    },
+  });
+
+  // Search form
+  const searchForm = useForm<SearchFormValues>({
+    resolver: zodResolver(searchSchema),
+    defaultValues: {
+      banId: "",
     },
   });
 
@@ -162,18 +319,70 @@ const AppealsPage = () => {
       return;
     }
     
-    // Prefill the appeal form if ban was found
+    // Prefill the appeal forms based on punishment type
     if (foundBan) {
+      // Common fields for all forms
+      const commonFields = {
+        banId: normalizedBanId,
+        playerName: foundBan.playerName
+      };
+      
+      // Update all forms with common data
       appealForm.setValue('banId', normalizedBanId);
       appealForm.setValue('playerName', foundBan.playerName);
+      
+      securityBanForm.setValue('banId', normalizedBanId);
+      securityBanForm.setValue('playerName', foundBan.playerName);
+      
+      linkedBanForm.setValue('banId', normalizedBanId);
+      linkedBanForm.setValue('playerName', foundBan.playerName);
+      
+      badNameSkinForm.setValue('banId', normalizedBanId);
+      badNameSkinForm.setValue('playerName', foundBan.playerName);
+      
+      generalViolationForm.setValue('banId', normalizedBanId);
+      generalViolationForm.setValue('playerName', foundBan.playerName);
     }
     
-    // Show/hide appeal form based on whether an appeal already exists
-    setShowAppealForm(!foundAppeal && foundBan?.status === 'Active');
+    // Show/hide appeal form based on whether an appeal already exists and ban type
+    const canAppeal = !foundAppeal && foundBan?.status === 'Active' && 
+                      !['Kick', 'Blacklist'].includes(foundBan.type);
+    
+    setShowAppealForm(canAppeal);
   };
 
-  // Handle appeal form submission
-  const onAppealSubmit = (values: AppealFormValues) => {
+  // Get the active form based on punishment type
+  const getActiveForm = () => {
+    if (!banInfo) return appealForm;
+    
+    switch (banInfo.type) {
+      case 'Security Ban':
+        return securityBanForm;
+      case 'Linked Ban':
+        return linkedBanForm;
+      case 'Bad Name':
+      case 'Bad Skin':
+        return badNameSkinForm;
+      case 'Chat Abuse':
+      case 'Anti Social':
+      case 'Targeting':
+      case 'Bad Content':
+      case 'Team Abuse':
+      case 'Game Abuse':
+      case 'Cheating':
+      case 'Game Trading':
+      case 'Account Abuse':
+      case 'Scamming':
+      case 'Manual Mute':
+      case 'Manual Ban':
+        return generalViolationForm;
+      default:
+        return appealForm;
+    }
+  };
+
+  // Generic appeal form submission handler
+  const onAppealSubmit = (values: any) => {
     // In a real application, this would submit to backend and create an appeal
     toast({
       title: "Appeal Submitted",
@@ -199,19 +408,14 @@ const AppealsPage = () => {
       <div className="max-w-md w-full">
         {/* Header section */}
         <div className="flex flex-col space-y-2 mb-8 text-center">
-          <h1 className="text-3xl font-bold">Ban Appeal System</h1>
+          <h1 className="text-3xl font-bold">Punishment Appeal</h1>
           <p className="text-muted-foreground">
-            Check the status of your ban or submit an appeal for review
+            Check the status of or submit an appeal for review
           </p>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Check Ban Status</CardTitle>
-            <CardDescription>
-              Enter your Ban ID to check its status or submit an appeal
-            </CardDescription>
-          </CardHeader>
+          <br></br>
           <CardContent>
             <Form {...searchForm}>
               <form onSubmit={searchForm.handleSubmit(onSearchSubmit)} className="space-y-4">
@@ -220,7 +424,7 @@ const AppealsPage = () => {
                   name="banId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ban ID</FormLabel>
+                      <FormLabel>Punishment ID</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -232,7 +436,7 @@ const AppealsPage = () => {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Enter the Ban ID you received in the ban notification
+                        Enter the Punishment ID you received with your ban/mute
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -432,11 +636,6 @@ const AppealsPage = () => {
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-center border-t pt-4">
-            <Button variant="link" onClick={() => setLocation('/auth')}>
-              Return to login
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     </div>
