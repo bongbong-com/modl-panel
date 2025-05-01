@@ -455,11 +455,6 @@ const AppealsPage = () => {
       formattedContent += `\nEvidence: ${values.evidence}\n`;
     }
     
-    // Add email for contact
-    if ('email' in values) {
-      formattedContent += `\nContact Email: ${values.email}\n`;
-    }
-    
     // Create initial messages
     const initialMessages: AppealMessage[] = [
       {

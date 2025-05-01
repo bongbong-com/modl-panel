@@ -54,7 +54,7 @@ const Tickets = () => {
       <div className="flex flex-col space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Tickets</h2>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             <Button variant="outline" size="sm">
               <Filter className="h-4 w-4 mr-2" /> Filter
             </Button>
