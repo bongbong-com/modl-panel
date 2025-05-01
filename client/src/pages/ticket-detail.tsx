@@ -591,7 +591,7 @@ const TicketDetail = () => {
                           className="bg-info/10 hover:bg-info/20 text-info"
                           onClick={() => handleTicketAction('Duplicate')}
                         >
-                          <BugPlay className="h-3.5 w-3.5 mr-1.5" />
+                          <Bug className="h-3.5 w-3.5 mr-1.5" />
                           Duplicate
                         </Button>
                         <Button 
