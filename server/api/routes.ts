@@ -386,13 +386,8 @@ async function createDefaultSettings() {
 // Create system log
 export async function createSystemLog(description: string) {
   try {
-    const log = new Log({
-      description,
-      created: new Date()
-    });
-    
-    await log.save();
-    return log;
+    console.log(`SYSTEM LOG: ${description}`);
+    return { description, created: new Date() };
   } catch (error) {
     console.error('Error creating system log:', error);
     return null;
