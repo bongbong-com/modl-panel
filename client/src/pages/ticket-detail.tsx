@@ -22,7 +22,8 @@ import {
   Shield,
   Axe,
   Tag,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -242,6 +243,13 @@ const TicketDetail = () => {
       
       if (ticket) {
         console.log('Found matching ticket:', ticket);
+        const category = ticket.type === 'bug' ? 'Bug Report' : 
+                       ticket.type === 'player' ? 'Player Report' : 
+                       ticket.type === 'appeal' ? 'Punishment Appeal' : 'Other';
+        
+        // Get default tags for this category
+        const defaultTags = getDefaultTagsForCategory(category);
+        
         setTicketDetails(prev => ({
           ...prev,
           id: ticket.id,
@@ -250,9 +258,9 @@ const TicketDetail = () => {
           date: ticket.date,
           status: ticket.status as any,
           priority: ticket.priority,
-          category: ticket.type === 'bug' ? 'Bug Report' : 
-                   ticket.type === 'player' ? 'Player Report' : 
-                   ticket.type === 'appeal' ? 'Punishment Appeal' : 'Other'
+          category,
+          // Add default tags for this category
+          tags: defaultTags
         }));
       } else {
         console.error('No tickets available');
@@ -446,6 +454,87 @@ const TicketDetail = () => {
                   }>
                     {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
                   </Badge>
+                  
+                  {/* Display the tags */}
+                  {ticketDetails.tags && ticketDetails.tags.map((tag, index) => (
+                    <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 py-1">
+                      {tag}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-4 w-4 rounded-full hover:bg-blue-100 ml-1 p-0" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveTag(tag);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                  
+                  {/* Tag add button */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-6 px-2 py-1 text-xs rounded-full gap-1 bg-background">
+                        <Tag className="h-3 w-3" />
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-3" align="start">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Add Tag</h4>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="New tag"
+                            value={ticketDetails.newTag || ''}
+                            onChange={(e) => 
+                              setTicketDetails(prev => ({
+                                ...prev,
+                                newTag: e.target.value
+                              }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && ticketDetails.newTag?.trim()) {
+                                handleAddTag(ticketDetails.newTag);
+                              }
+                            }}
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              if (ticketDetails.newTag?.trim()) {
+                                handleAddTag(ticketDetails.newTag);
+                              }
+                            }}
+                            disabled={!ticketDetails.newTag?.trim()}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                        <div className="mt-2">
+                          <h5 className="text-xs text-muted-foreground mb-1">Suggested tags:</h5>
+                          <div className="flex flex-wrap gap-1">
+                            {getDefaultTagsForCategory(ticketDetails.category).map((tag, idx) => (
+                              <Badge 
+                                key={idx} 
+                                variant="outline" 
+                                className="cursor-pointer bg-muted/20 hover:bg-muted/40"
+                                onClick={() => {
+                                  if (!ticketDetails.tags?.includes(tag)) {
+                                    handleAddTag(tag);
+                                  }
+                                }}
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
