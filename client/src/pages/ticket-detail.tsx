@@ -276,10 +276,12 @@ const TicketDetail = () => {
     }));
   };
 
-  const handleStatusChange = (newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed') => {
+  const handleStatusChange = (newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed', lockTicket = false) => {
     setTicketDetails(prev => ({
       ...prev,
-      status: newStatus
+      status: newStatus,
+      // Auto-lock the ticket when it's closed or explicitly requested
+      locked: lockTicket || newStatus === 'Closed' ? true : prev.locked
     }));
   };
   
@@ -374,19 +376,19 @@ const TicketDetail = () => {
       }
       
       // Format the message differently for non-comment actions
-      // Create a line that says "ModeratorAlpha closed this as X" then include any additional text
-      const actionText = `ModeratorAlpha closed this as ${ticketDetails.selectedAction}`;
+      // Create a line that says "ModeratorAlpha closed as X [staff]" then include any additional text on a new line
+      const actionText = `ModeratorAlpha closed as ${ticketDetails.selectedAction}`;
       
       if (ticketDetails.newReply?.trim()) {
         // If there are additional comments, include them after the action description
-        messageContent = `${actionText}\n\n${ticketDetails.newReply.trim()}`;
+        messageContent = ticketDetails.newReply.trim();
       } else {
-        // If no additional comments, just use the action description
-        messageContent = actionText;
+        // If no additional comments, just use the default reply template
+        messageContent = "Thank you for reporting this.";
       }
       
-      // Update ticket status
-      handleStatusChange(status);
+      // Update ticket status and lock the ticket
+      handleStatusChange(status, true);
     }
     
     // Only send if there's content or an action selected
@@ -651,20 +653,13 @@ const TicketDetail = () => {
               </div>
               
               <div className="border-t pt-4">
-                {/* Lock ticket checkbox */}
-                <div className="flex items-center mb-4">
-                  <Checkbox
-                    id="lockTicket"
-                    checked={!!ticketDetails.locked}
-                    onCheckedChange={(checked) => 
-                      setTicketDetails(prev => ({ ...prev, locked: !!checked }))
-                    }
-                    className="mr-2"
-                  />
-                  <label htmlFor="lockTicket" className="text-sm cursor-pointer">
-                    Lock ticket (prevents further actions or replies)
-                  </label>
-                </div>
+                {/* Status info - shows if ticket is locked */}
+                {ticketDetails.locked && (
+                  <div className="mb-4 text-sm text-muted-foreground">
+                    <LockIcon className="h-3.5 w-3.5 inline-block mr-1" /> 
+                    This ticket is locked. Reply to reopen it.
+                  </div>
+                )}
                 
                 {/* Ticket action buttons - moved above the reply box */}
                 <div className="mb-5">                  
