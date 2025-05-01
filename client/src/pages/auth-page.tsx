@@ -159,19 +159,14 @@ const AuthPage = () => {
         {/* Auth form section */}
         <div className="flex flex-col justify-center">
           <div className="flex flex-col space-y-2 mb-8 text-center">
-            <h1 className="text-3xl font-bold">Game Moderation Panel</h1>
+            <h1 className="text-3xl font-bold">cobl.gg staff panel</h1>
             <p className="text-muted-foreground">
-              Access the administrative tools to manage player support tickets and server issues
+              Authorized access only
             </p>
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Login to your account</CardTitle>
-              <CardDescription>
-                Enter your credentials to access the moderation panel
-              </CardDescription>
-            </CardHeader>
+            <br></br>
             <CardContent>
               <Form {...loginForm}>
                 <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
@@ -326,7 +321,7 @@ const AuthPage = () => {
             </CardContent>
             <CardFooter className="flex justify-center border-t pt-4">
               <p className="text-xs text-muted-foreground">
-                Contact an administrator if you need access to this panel
+                Administrator contact: <a href="mailto:admin@cobl.gg" className="text-primary hover:underline">admin@cobl.gg</a>
               </p>
             </CardFooter>
           </Card>
