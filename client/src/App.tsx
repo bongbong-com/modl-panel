@@ -24,7 +24,7 @@ function Router() {
     return (
       <main className="h-full">
         <Switch>
-          <Route path="/auth" component={AuthPage} />
+          <AuthRoute path="/auth" component={AuthPage} />
         </Switch>
       </main>
     );
@@ -35,13 +35,13 @@ function Router() {
       <Sidebar />
       <main className="flex-1 overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar">
         <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/lookup" component={Lookup} />
-          <Route path="/tickets" component={Tickets} />
-          <Route path="/tickets/:id" component={TicketDetail} />
-          <Route path="/audit" component={Audit} />
-          <Route path="/settings" component={Settings} />
-          <Route path="/auth" component={AuthPage} />
+          <ProtectedRoute path="/" component={Home} />
+          <ProtectedRoute path="/lookup" component={Lookup} />
+          <ProtectedRoute path="/tickets" component={Tickets} />
+          <ProtectedRoute path="/tickets/:id" component={TicketDetail} />
+          <ProtectedRoute path="/audit" component={Audit} />
+          <ProtectedRoute path="/settings" component={Settings} />
+          <AuthRoute path="/auth" component={AuthPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
