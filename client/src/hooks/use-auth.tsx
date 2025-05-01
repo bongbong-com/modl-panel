@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "./use-toast";
-import { apiRequest, queryClient } from "../lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "../lib/queryClient";
 
 // Define the User type to match our MongoDB schema
 interface User {
@@ -21,13 +21,8 @@ interface User {
 type LoginData = {
   username: string;
   password: string;
-};
-
-// Register data structure
-type RegisterData = {
-  username: string;
-  email: string;
-  password: string;
+  verificationCode?: string;
+  verificationMethod?: 'email' | '2fa' | 'passkey';
 };
 
 // Define the AuthContext type
@@ -37,7 +32,9 @@ type AuthContextType = {
   error: Error | null;
   loginMutation: UseMutationResult<User, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<User, Error, RegisterData>;
+  requestEmailVerification: (email: string) => Promise<boolean>;
+  request2FAVerification: (email: string) => Promise<boolean>;
+  requestPasskeyAuthentication: (email: string) => Promise<boolean>;
 };
 
 // Create the Auth Context with default values
@@ -55,31 +52,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
   } = useQuery<User | null, Error>({
     queryKey: ['/api/user'],
-    queryFn: async () => {
-      try {
-        const res = await fetch('/api/user');
-        if (res.status === 401) {
-          return null; // Not authenticated
-        }
-        if (!res.ok) {
-          throw new Error('Failed to fetch user');
-        }
-        return await res.json();
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        return null;
-      }
-    }
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
+
+  // Request email verification code
+  const requestEmailVerification = async (email: string): Promise<boolean> => {
+    try {
+      // In a real implementation, this would call an API to send an email
+      // For now, we'll just simulate success
+      console.log(`Email verification requested for: ${email}`);
+      return true;
+    } catch (error) {
+      console.error("Error requesting email verification:", error);
+      return false;
+    }
+  };
+
+  // Request 2FA verification
+  const request2FAVerification = async (email: string): Promise<boolean> => {
+    try {
+      // In a real implementation, this would verify the user has 2FA set up
+      console.log(`2FA verification requested for: ${email}`);
+      return true;
+    } catch (error) {
+      console.error("Error requesting 2FA verification:", error);
+      return false;
+    }
+  };
+
+  // Request passkey authentication
+  const requestPasskeyAuthentication = async (email: string): Promise<boolean> => {
+    try {
+      // In a real implementation, this would start the WebAuthn flow
+      console.log(`Passkey authentication requested for: ${email}`);
+      return true;
+    } catch (error) {
+      console.error("Error requesting passkey authentication:", error);
+      return false;
+    }
+  };
 
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
+      // For now we're just handling username/password login through the existing API
+      const res = await apiRequest("POST", "/api/login", {
+        username: credentials.username,
+        password: credentials.password
+      });
+      
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || "Login failed");
       }
+      
       return await res.json();
     },
     onSuccess: (user: User) => {
@@ -94,33 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({
         title: "Login failed",
         description: error.message || "Invalid credentials",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Register mutation
-  const registerMutation = useMutation({
-    mutationFn: async (userData: RegisterData) => {
-      const res = await apiRequest("POST", "/api/register", userData);
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Registration failed");
-      }
-      return await res.json();
-    },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(['/api/user'], user);
-      toast({
-        title: "Registration successful",
-        description: "Your account has been created successfully!",
-      });
-      navigate('/');
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Registration failed",
-        description: error.message || "An error occurred during registration",
         variant: "destructive",
       });
     },
@@ -158,8 +157,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         loginMutation,
-        registerMutation,
-        logoutMutation
+        logoutMutation,
+        requestEmailVerification,
+        request2FAVerification,
+        requestPasskeyAuthentication
       }}
     >
       {children}

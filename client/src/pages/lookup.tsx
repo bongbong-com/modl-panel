@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen } from 'lucide-react';
+import { Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,45 +8,141 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import ResizableWindow from '@/components/layout/ResizableWindow';
 import { Input } from '@/components/ui/input';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { recentLookups } from '@/data/mockData';
 import { useLocation } from 'wouter';
+import { usePlayers, usePlayer } from '@/hooks/use-data';
+
+interface Warning {
+  type: string;
+  reason: string;
+  date: string;
+  by: string;
+}
+
+interface PlayerDetailInfo {
+  username: string;
+  status: string;
+  vip?: boolean;
+  level?: number;
+  uuid: string;
+  firstJoined: string;
+  lastOnline: string;
+  playtime?: string;
+  ip?: string;
+  previousNames?: string;
+  warnings: Warning[];
+}
 
 const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; isOpen: boolean; onClose: () => void }) => {
-  const [playerInfo, setPlayerInfo] = useState({
-    username: 'DragonSlayer123',
-    status: 'Online',
-    vip: true,
-    level: 42,
-    uuid: '12a3b456-7c89...',
-    firstJoined: '2023-01-15',
-    lastOnline: '2 hours ago',
-    playtime: '342 hours',
-    ip: '192.168.x.x',
-    previousNames: 'Dragon55, SlayerXD',
-    warnings: [
-      { type: 'Warning', reason: 'Excessive caps in chat', date: '2023-04-12', by: 'Moderator2' },
-      { type: 'Mute', reason: 'Inappropriate language in global chat', date: '2023-03-28', by: 'ServerAI (30 minutes)' },
-    ]
+  const [playerInfo, setPlayerInfo] = useState<PlayerDetailInfo>({
+    username: 'Loading...',
+    status: 'Unknown',
+    uuid: '',
+    firstJoined: '',
+    lastOnline: '',
+    warnings: []
   });
 
+  const { data: player, isLoading, error } = usePlayer(playerId || '');
+
   useEffect(() => {
-    if (playerId && isOpen) {
-      // In a real app, fetch player data using the playerId
-      console.log('Fetching data for player:', playerId);
+    if (player && isOpen) {
+      // Format the player data from MongoDB for display
+      const currentUsername = player.usernames && player.usernames.length > 0 
+        ? player.usernames[player.usernames.length - 1].username 
+        : 'Unknown';
       
-      // Find the player in our mock data
-      const player = recentLookups.find(p => p.uuid === playerId);
-      if (player) {
-        setPlayerInfo(prev => ({
-          ...prev,
-          username: player.username,
-          uuid: player.uuid,
-          lastOnline: player.lastOnline,
-          status: player.status === 'Active' ? 'Online' : player.status
-        }));
+      const firstJoined = player.usernames && player.usernames.length > 0 
+        ? new Date(player.usernames[0].date).toLocaleDateString() 
+        : 'Unknown';
+      
+      // Get previous usernames
+      const previousNames = player.usernames && player.usernames.length > 1
+        ? player.usernames
+            .slice(0, -1) // All except the most recent
+            .map(u => u.username)
+            .join(', ')
+        : 'None';
+      
+      // Format IP
+      const lastIP = player.ipList && player.ipList.length > 0 
+        ? player.ipList[player.ipList.length - 1].ipAddress.replace(/\d+$/, 'x.x') 
+        : 'Unknown';
+        
+      // Determine player status
+      const status = player.punishments && player.punishments.some(p => p.active && !p.expires) 
+        ? 'Banned' 
+        : player.punishments && player.punishments.some(p => p.active) 
+        ? 'Restricted' 
+        : 'Active';
+      
+      // Format warnings from notes
+      const warnings: Warning[] = player.notes ? player.notes.map(note => ({
+        type: 'Warning',
+        reason: note.text,
+        date: new Date(note.date).toLocaleDateString(),
+        by: note.issuerName
+      })) : [];
+      
+      // Add punishments to warnings
+      if (player.punishments) {
+        player.punishments.forEach(punishment => {
+          warnings.push({
+            type: punishment.type,
+            reason: punishment.reason,
+            date: new Date(punishment.date).toLocaleDateString(),
+            by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : '')
+          });
+        });
       }
+      
+      setPlayerInfo({
+        username: currentUsername,
+        status: status === 'Active' ? 'Online' : status,
+        vip: false, // Not tracked in our schema yet
+        level: 0,    // Not tracked in our schema yet
+        uuid: player.minecraftUuid,
+        firstJoined,
+        lastOnline: 'Recent', // This data isn't available in our current schema
+        playtime: 'Not tracked', // This data isn't available in our current schema 
+        ip: lastIP,
+        previousNames,
+        warnings
+      });
     }
-  }, [playerId, isOpen]);
+  }, [player, isOpen]);
+
+  if (isLoading) {
+    return (
+      <ResizableWindow
+        id="player-lookup"
+        title="Loading Player Info..."
+        isOpen={isOpen}
+        onClose={onClose}
+        initialSize={{ width: 650, height: 550 }}
+      >
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </ResizableWindow>
+    );
+  }
+
+  if (error || !player) {
+    return (
+      <ResizableWindow
+        id="player-lookup"
+        title="Player Not Found"
+        isOpen={isOpen}
+        onClose={onClose}
+        initialSize={{ width: 650, height: 550 }}
+      >
+        <div className="flex flex-col items-center justify-center h-full">
+          <p className="text-destructive">Could not find player data.</p>
+          <Button onClick={onClose} className="mt-4">Close</Button>
+        </div>
+      </ResizableWindow>
+    );
+  }
 
   return (
     <ResizableWindow
@@ -66,7 +162,15 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
               <div className="flex-1 min-w-0">
                 <h5 className="text-lg font-medium">{playerInfo.username}</h5>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                  <Badge 
+                    variant="outline" 
+                    className={`
+                      ${playerInfo.status === 'Online' ? 'bg-success/10 text-success border-success/20' : 
+                        playerInfo.status === 'Restricted' ? 'bg-warning/10 text-warning border-warning/20' : 
+                        'bg-destructive/10 text-destructive border-destructive/20'
+                      }
+                    `}
+                  >
                     {playerInfo.status}
                   </Badge>
                   {playerInfo.vip && (
@@ -74,9 +178,11 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
                       VIP
                     </Badge>
                   )}
-                  <Badge variant="outline" className="bg-muted text-muted-foreground">
-                    Level {playerInfo.level}
-                  </Badge>
+                  {playerInfo.level && (
+                    <Badge variant="outline" className="bg-muted text-muted-foreground">
+                      Level {playerInfo.level}
+                    </Badge>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
@@ -92,18 +198,24 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
                     <span className="text-muted-foreground">Last Online:</span>
                     <span className="ml-1">{playerInfo.lastOnline}</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Playtime:</span>
-                    <span className="ml-1">{playerInfo.playtime}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">IP (masked):</span>
-                    <span className="ml-1">{playerInfo.ip}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Previous Names:</span>
-                    <span className="ml-1">{playerInfo.previousNames}</span>
-                  </div>
+                  {playerInfo.playtime && (
+                    <div>
+                      <span className="text-muted-foreground">Playtime:</span>
+                      <span className="ml-1">{playerInfo.playtime}</span>
+                    </div>
+                  )}
+                  {playerInfo.ip && (
+                    <div>
+                      <span className="text-muted-foreground">IP (masked):</span>
+                      <span className="ml-1">{playerInfo.ip}</span>
+                    </div>
+                  )}
+                  {playerInfo.previousNames && (
+                    <div>
+                      <span className="text-muted-foreground">Previous Names:</span>
+                      <span className="ml-1">{playerInfo.previousNames}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -112,23 +224,39 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
         
         <div className="space-y-2">
           <h4 className="font-medium">Moderation History</h4>
-          {playerInfo.warnings.map((warning, index) => (
-            <div 
-              key={index} 
-              className={`bg-${warning.type === 'Warning' ? 'warning' : 'info'}/10 border-l-4 border-${warning.type === 'Warning' ? 'warning' : 'info'} p-3 rounded-r-lg`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <Badge variant="outline" className={`bg-${warning.type === 'Warning' ? 'warning' : 'info'}/10 text-${warning.type === 'Warning' ? 'warning' : 'info'} border-${warning.type === 'Warning' ? 'warning' : 'info'}/20`}>
-                    {warning.type}
-                  </Badge>
-                  <p className="text-sm mt-1">{warning.reason}</p>
+          {playerInfo.warnings.length > 0 ? (
+            playerInfo.warnings.map((warning, index) => (
+              <div 
+                key={index} 
+                className={`
+                  ${warning.type === 'Warning' ? 'bg-warning/10 border-warning' : 
+                   warning.type === 'Mute' ? 'bg-info/10 border-info' :
+                   'bg-destructive/10 border-destructive'} 
+                  border-l-4 p-3 rounded-r-lg
+                `}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <Badge 
+                      variant="outline" 
+                      className={`
+                        ${warning.type === 'Warning' ? 'bg-warning/10 text-warning border-warning/20' : 
+                         warning.type === 'Mute' ? 'bg-info/10 text-info border-info/20' :
+                         'bg-destructive/10 text-destructive border-destructive/20'}
+                      `}
+                    >
+                      {warning.type}
+                    </Badge>
+                    <p className="text-sm mt-1">{warning.reason}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{warning.date}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">{warning.date}</span>
+                <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No moderation history found for this player.</p>
+          )}
         </div>
         
         <div className="pt-4 flex justify-end space-x-2">
@@ -148,12 +276,12 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
 };
 
 const Lookup = () => {
-  const { } = useSidebar(); // We're not using sidebar context in this component
   const [searchParams] = useLocation();
   const queryParams = new URLSearchParams(searchParams);
   const playerId = queryParams.get('id') || undefined;
   
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
+  const { data: players, isLoading: isLoadingPlayers } = usePlayers();
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
@@ -174,67 +302,71 @@ const Lookup = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-md font-medium">Recent Lookups</CardTitle>
+            <CardTitle className="text-md font-medium">Recent Players</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="rounded-l-lg">Player</TableHead>
-                  <TableHead>UUID</TableHead>
-                  <TableHead>Last Online</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="rounded-r-lg">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentLookups.map((player, index) => (
-                  <TableRow key={index} className="border-b border-border">
-                    <TableCell className="font-medium">{player.username}</TableCell>
-                    <TableCell className="text-muted-foreground">{player.uuid}</TableCell>
-                    <TableCell>{player.lastOnline}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={`
-                          ${player.status === 'Active' ? 'bg-success/10 text-success border-success/20' : 
-                            player.status === 'Warned' ? 'bg-warning/10 text-warning border-warning/20' : 
-                            'bg-destructive/10 text-destructive border-destructive/20'
-                          }
-                        `}
-                      >
-                        {player.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-primary" 
-                          title="View Details"
-                          onClick={() => window.location.href = `/lookup?id=${player.uuid}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="View Warnings">
-                          <TriangleAlert className="h-4 w-4" />
-                        </Button>
-                        {player.status === 'Banned' ? (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Unban">
-                            <LockOpen className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Ban">
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+            {isLoadingPlayers ? (
+              <div className="py-4 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead className="rounded-l-lg">Player</TableHead>
+                    <TableHead>UUID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="rounded-r-lg">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {players && players.map((player, index) => (
+                    <TableRow key={index} className="border-b border-border">
+                      <TableCell className="font-medium">{player.username}</TableCell>
+                      <TableCell className="text-muted-foreground">{player.uuid}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={`
+                            ${player.status === 'Active' ? 'bg-success/10 text-success border-success/20' : 
+                              player.status === 'Warned' ? 'bg-warning/10 text-warning border-warning/20' : 
+                              'bg-destructive/10 text-destructive border-destructive/20'
+                            }
+                          `}
+                        >
+                          {player.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-primary" 
+                            title="View Details"
+                            onClick={() => window.location.href = `/lookup?id=${player.uuid}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="View Warnings">
+                            <TriangleAlert className="h-4 w-4" />
+                          </Button>
+                          {player.status === 'Banned' ? (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Unban">
+                              <LockOpen className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Ban">
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
