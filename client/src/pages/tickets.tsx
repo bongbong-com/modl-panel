@@ -6,11 +6,7 @@ import {
   MessageSquare, 
   LockKeyhole, 
   Filter, 
-  Eye, 
-  UserPlus, 
-  Check,
-  RefreshCcw,
-  Trash2
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -123,7 +119,7 @@ const Tickets = () => {
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -154,25 +150,6 @@ const Tickets = () => {
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                {ticket.status !== 'Fixed' ? (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-info" title="Assign">
-                                      <UserPlus className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Mark Resolved">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Re-open">
-                                      <RefreshCcw className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Delete">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -221,7 +198,7 @@ const Tickets = () => {
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -252,25 +229,6 @@ const Tickets = () => {
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                {ticket.status !== 'Fixed' ? (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-info" title="Assign">
-                                      <UserPlus className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Mark Resolved">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Re-open">
-                                      <RefreshCcw className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Delete">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -296,7 +254,7 @@ const Tickets = () => {
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -327,25 +285,6 @@ const Tickets = () => {
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                {ticket.status !== 'Fixed' ? (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-info" title="Assign">
-                                      <UserPlus className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Mark Resolved">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Re-open">
-                                      <RefreshCcw className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Delete">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -371,7 +310,7 @@ const Tickets = () => {
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -402,25 +341,6 @@ const Tickets = () => {
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                {ticket.status !== 'Fixed' ? (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-info" title="Assign">
-                                      <UserPlus className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Mark Resolved">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Re-open">
-                                      <RefreshCcw className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" title="Delete">
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
                               </div>
                             </TableCell>
                           </TableRow>
