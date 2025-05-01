@@ -552,87 +552,623 @@ const AppealsPage = () => {
             )}
             
             {/* Appeal Form */}
-            {showAppealForm && (
+            {showAppealForm && banInfo && (
               <div className="mt-8 space-y-4">
                 <Separator />
                 <h3 className="text-lg font-semibold mt-6">Submit Appeal</h3>
-                <p className="text-sm text-muted-foreground">
-                  Please provide a clear explanation of why you believe this ban should be reviewed.
-                </p>
                 
-                <Form {...appealForm}>
-                  <form onSubmit={appealForm.handleSubmit(onAppealSubmit)} className="space-y-4">
-                    <FormField
-                      control={appealForm.control}
-                      name="banId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ban ID</FormLabel>
-                          <FormControl>
-                            <Input {...field} readOnly disabled />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                {/* Unavailable ban type notice */}
+                {['Kick', 'Blacklist'].includes(banInfo.type) && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Appeal Not Available</AlertTitle>
+                    <AlertDescription>
+                      {banInfo.type === 'Kick' ? 
+                        "Kicks are temporary actions and cannot be appealed. Please rejoin the server."
+                        : 
+                        "This type of punishment cannot be appealed. If you believe this is in error, please contact support directly."
+                      }
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {/* Security Ban Appeal Form */}
+                {banInfo.type === 'Security Ban' && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Your account has been flagged for security concerns. Please confirm you've secured your account.
+                    </p>
                     
-                    <FormField
-                      control={appealForm.control}
-                      name="playerName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Player Name</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <Form {...securityBanForm}>
+                      <form onSubmit={securityBanForm.handleSubmit(onAppealSubmit)} className="space-y-4">
+                        {/* Common Fields */}
+                        <FormField
+                          control={securityBanForm.control}
+                          name="banId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ban ID</FormLabel>
+                              <FormControl>
+                                <Input {...field} readOnly disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={securityBanForm.control}
+                          name="playerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Player Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={securityBanForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" placeholder="Your email for notifications" />
+                              </FormControl>
+                              <FormDescription>
+                                We'll notify you when your appeal is processed
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Security-specific Fields */}
+                        <FormField
+                          control={securityBanForm.control}
+                          name="accountSecured"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                  I have secured my account
+                                </FormLabel>
+                                <FormDescription>
+                                  I've changed my password, enabled 2FA, and secured my email account
+                                </FormDescription>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={securityBanForm.control}
+                          name="additionalInfo"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Additional Information (Optional)</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="Any additional details about your account security"
+                                  className="min-h-[80px]"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <Button type="submit" className="w-full mt-6">
+                          Submit Appeal
+                        </Button>
+                      </form>
+                    </Form>
+                  </>
+                )}
+                
+                {/* Linked Ban Appeal Form */}
+                {banInfo.type === 'Linked Ban' && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Your account has been linked to another banned account. Please provide information below.
+                    </p>
                     
-                    <FormField
-                      control={appealForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="email" placeholder="Your email for notifications" />
-                          </FormControl>
-                          <FormDescription>
-                            We'll notify you when your appeal is processed
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <Form {...linkedBanForm}>
+                      <form onSubmit={linkedBanForm.handleSubmit(onAppealSubmit)} className="space-y-4">
+                        {/* Common Fields */}
+                        <FormField
+                          control={linkedBanForm.control}
+                          name="banId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ban ID</FormLabel>
+                              <FormControl>
+                                <Input {...field} readOnly disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={linkedBanForm.control}
+                          name="playerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Player Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={linkedBanForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" placeholder="Your email for notifications" />
+                              </FormControl>
+                              <FormDescription>
+                                We'll notify you when your appeal is processed
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Linked Ban-specific Fields */}
+                        <FormField
+                          control={linkedBanForm.control}
+                          name="accessedLinkedAccount"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                  I confirm I have access to the linked account
+                                </FormLabel>
+                                <FormDescription>
+                                  I can log into both accounts mentioned in the ban reason
+                                </FormDescription>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={linkedBanForm.control}
+                          name="appealReason"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Appeal Reason</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="Explain why you believe this ban should be reviewed"
+                                  className="min-h-[120px]"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Be honest and provide as much detail as possible
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={linkedBanForm.control}
+                          name="evidence"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Evidence (Optional)</FormLabel>
+                              <FormControl>
+                                <div className="flex gap-2">
+                                  <Input
+                                    {...field}
+                                    placeholder="Link to screenshots or evidence"
+                                  />
+                                  <Button type="button" size="icon" variant="outline">
+                                    <Link2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Provide a link to any evidence supporting your appeal
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <Button type="submit" className="w-full mt-6">
+                          Submit Appeal
+                        </Button>
+                      </form>
+                    </Form>
+                  </>
+                )}
+                
+                {/* Bad Name/Skin Appeal Form */}
+                {(banInfo.type === 'Bad Name' || banInfo.type === 'Bad Skin') && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      {banInfo.type === 'Bad Name' 
+                        ? "Your username has been deemed inappropriate. Changing your name will automatically lift this restriction." 
+                        : "Your skin has been deemed inappropriate. Changing your skin will automatically lift this restriction."}
+                    </p>
                     
-                    <FormField
-                      control={appealForm.control}
-                      name="reason"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Appeal Reason</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              {...field} 
-                              placeholder="Explain why you believe this ban should be reviewed..."
-                              className="min-h-[120px]"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Be honest and provide as much detail as possible
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <Form {...badNameSkinForm}>
+                      <form onSubmit={badNameSkinForm.handleSubmit(onAppealSubmit)} className="space-y-4">
+                        {/* Common Fields */}
+                        <FormField
+                          control={badNameSkinForm.control}
+                          name="banId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ban ID</FormLabel>
+                              <FormControl>
+                                <Input {...field} readOnly disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={badNameSkinForm.control}
+                          name="playerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Player Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={badNameSkinForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" placeholder="Your email for notifications" />
+                              </FormControl>
+                              <FormDescription>
+                                We'll notify you when your appeal is processed
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Bad Name/Skin-specific Fields */}
+                        <FormField
+                          control={badNameSkinForm.control}
+                          name="understandAutoUnban"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                  I understand changing my {banInfo.type === 'Bad Name' ? 'username' : 'skin'} will lift this ban
+                                </FormLabel>
+                                <FormDescription>
+                                  Instead of waiting for an appeal, you can simply change your {banInfo.type === 'Bad Name' ? 'username' : 'skin'} to resolve this immediately
+                                </FormDescription>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={badNameSkinForm.control}
+                          name="appealReason"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Appeal Reason</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="Explain why you believe this ban should be reviewed"
+                                  className="min-h-[120px]"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Be honest and provide as much detail as possible
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={badNameSkinForm.control}
+                          name="evidence"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Evidence (Optional)</FormLabel>
+                              <FormControl>
+                                <div className="flex gap-2">
+                                  <Input
+                                    {...field}
+                                    placeholder="Link to screenshots or evidence"
+                                  />
+                                  <Button type="button" size="icon" variant="outline">
+                                    <Link2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Provide a link to any evidence supporting your appeal
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <Button type="submit" className="w-full mt-6">
+                          Submit Appeal
+                        </Button>
+                      </form>
+                    </Form>
+                  </>
+                )}
+                
+                {/* General Violation Appeal Form */}
+                {['Chat Abuse', 'Anti Social', 'Targeting', 'Bad Content', 
+                   'Team Abuse', 'Game Abuse', 'Cheating', 'Game Trading',
+                   'Account Abuse', 'Scamming', 'Manual Mute', 'Manual Ban'].includes(banInfo.type) && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Please provide a clear explanation of why you believe this ban should be reviewed.
+                    </p>
                     
-                    <Button type="submit" className="w-full mt-6">
-                      Submit Appeal
-                    </Button>
-                  </form>
-                </Form>
+                    <Form {...generalViolationForm}>
+                      <form onSubmit={generalViolationForm.handleSubmit(onAppealSubmit)} className="space-y-4">
+                        {/* Common Fields */}
+                        <FormField
+                          control={generalViolationForm.control}
+                          name="banId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ban ID</FormLabel>
+                              <FormControl>
+                                <Input {...field} readOnly disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={generalViolationForm.control}
+                          name="playerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Player Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={generalViolationForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" placeholder="Your email for notifications" />
+                              </FormControl>
+                              <FormDescription>
+                                We'll notify you when your appeal is processed
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {/* Violation-specific Fields */}
+                        <FormField
+                          control={generalViolationForm.control}
+                          name="punishmentError"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                  I believe this punishment was issued in error
+                                </FormLabel>
+                                <FormDescription>
+                                  Check this if you believe you were wrongfully punished
+                                </FormDescription>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={generalViolationForm.control}
+                          name="appealReason"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Appeal Reason</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="Explain why you believe this ban should be reviewed"
+                                  className="min-h-[120px]"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Be honest and provide as much detail as possible
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={generalViolationForm.control}
+                          name="evidence"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Evidence (Optional)</FormLabel>
+                              <FormControl>
+                                <div className="flex gap-2">
+                                  <Input
+                                    {...field}
+                                    placeholder="Link to screenshots or evidence"
+                                  />
+                                  <Button type="button" size="icon" variant="outline">
+                                    <Link2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Provide a link to any evidence supporting your appeal
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <Button type="submit" className="w-full mt-6">
+                          Submit Appeal
+                        </Button>
+                      </form>
+                    </Form>
+                  </>
+                )}
+                
+                {/* Default Appeal Form (fallback) */}
+                {!['Security Ban', 'Linked Ban', 'Bad Name', 'Bad Skin', 'Kick', 'Blacklist',
+                   'Chat Abuse', 'Anti Social', 'Targeting', 'Bad Content', 
+                   'Team Abuse', 'Game Abuse', 'Cheating', 'Game Trading',
+                   'Account Abuse', 'Scamming', 'Manual Mute', 'Manual Ban'].includes(banInfo.type) && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Please provide a clear explanation of why you believe this ban should be reviewed.
+                    </p>
+                    
+                    <Form {...appealForm}>
+                      <form onSubmit={appealForm.handleSubmit(onAppealSubmit)} className="space-y-4">
+                        <FormField
+                          control={appealForm.control}
+                          name="banId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ban ID</FormLabel>
+                              <FormControl>
+                                <Input {...field} readOnly disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={appealForm.control}
+                          name="playerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Player Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={appealForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email Address</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="email" placeholder="Your email for notifications" />
+                              </FormControl>
+                              <FormDescription>
+                                We'll notify you when your appeal is processed
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={appealForm.control}
+                          name="reason"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Appeal Reason</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="Explain why you believe this ban should be reviewed..."
+                                  className="min-h-[120px]"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Be honest and provide as much detail as possible
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <Button type="submit" className="w-full mt-6">
+                          Submit Appeal
+                        </Button>
+                      </form>
+                    </Form>
+                  </>
+                )}
               </div>
             )}
           </CardContent>
