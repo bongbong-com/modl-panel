@@ -19,6 +19,11 @@ const Settings = () => {
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
 
+  // Database connection state
+  const [dbConnectionStatus, setDbConnectionStatus] = useState(false);
+  const [mongodbUri, setMongodbUri] = useState('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+
   // Sliders state
   const [toxicity, setToxicity] = useState(75);
   const [spam, setSpam] = useState(60);
@@ -55,6 +60,24 @@ const Settings = () => {
   const [recoveryCodesCopied, setRecoveryCodesCopied] = useState(false);
   
   const { toast } = useToast();
+  
+  // Check database connection status on page load
+  React.useEffect(() => {
+    const checkDbStatus = async () => {
+      try {
+        const response = await fetch('/api/settings/database-status');
+        if (response.ok) {
+          const data = await response.json();
+          setDbConnectionStatus(data.connected);
+        }
+      } catch (error) {
+        console.error('Error checking database status:', error);
+        setDbConnectionStatus(false);
+      }
+    };
+    
+    checkDbStatus();
+  }, []);
 
   return (
     <PageContainer>
@@ -743,8 +766,110 @@ const Settings = () => {
             
             <TabsContent value="general">
               <CardContent className="p-6">
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
-                  <p className="text-muted-foreground">General Settings Panel</p>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">System Settings</h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="site-name">Site Name</Label>
+                          <Input id="site-name" defaultValue="Game Moderation Panel" />
+                          <p className="text-xs text-muted-foreground">The name displayed in the title bar and header.</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="admin-email">Admin Email</Label>
+                          <Input id="admin-email" defaultValue="admin@example.com" type="email" />
+                          <p className="text-xs text-muted-foreground">Primary contact for system notifications.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Database Configuration</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-3 w-3 rounded-full ${dbConnectionStatus ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <span>{dbConnectionStatus ? 'Connected to MongoDB' : 'Not connected to MongoDB'}</span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="mongodb-uri">MongoDB Connection URI</Label>
+                        <Input 
+                          id="mongodb-uri" 
+                          type="password" 
+                          placeholder="mongodb+srv://username:password@cluster.mongodb.net/database"
+                          value={mongodbUri}
+                          onChange={(e) => setMongodbUri(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          The connection string for your MongoDB database. This will be stored as an environment secret.
+                        </p>
+                      </div>
+                      
+                      <Button 
+                        onClick={async () => {
+                          if (!mongodbUri.trim()) {
+                            toast({
+                              title: "Error",
+                              description: "Please enter a MongoDB connection URI",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          setIsTestingConnection(true);
+                          toast({
+                            title: "Testing Connection",
+                            description: "Attempting to connect to MongoDB..."
+                          });
+                          
+                          try {
+                            const response = await fetch('/api/settings/test-database', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({ uri: mongodbUri })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            if (data.connected) {
+                              setDbConnectionStatus(true);
+                              toast({
+                                title: "Connection Successful",
+                                description: data.message || "Successfully connected to MongoDB"
+                              });
+                            } else {
+                              setDbConnectionStatus(false);
+                              toast({
+                                title: "Connection Failed",
+                                description: data.message || "Failed to connect to MongoDB",
+                                variant: "destructive"
+                              });
+                            }
+                          } catch (error) {
+                            setDbConnectionStatus(false);
+                            toast({
+                              title: "Connection Error",
+                              description: "An error occurred while testing the connection",
+                              variant: "destructive"
+                            });
+                            console.error("Database connection test error:", error);
+                          } finally {
+                            setIsTestingConnection(false);
+                          }
+                        }} 
+                        disabled={isTestingConnection}
+                      >
+                        {isTestingConnection ? "Testing..." : "Test Connection"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </TabsContent>

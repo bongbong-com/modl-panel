@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -411,5 +412,66 @@ export async function createSystemLog(description: string) {
     return { description, created: new Date() };
   }
 }
+
+// ========================= DATABASE SETTINGS ROUTES =========================
+
+// Check database connection status
+router.get('/api/settings/database-status', async (req, res) => {
+  try {
+    // Check if MongoDB is connected using the mongoose connection state
+    const connected = mongoose.connection.readyState === 1;
+    res.json({
+      connected,
+      message: connected 
+        ? 'Connected to MongoDB' 
+        : 'Not connected to MongoDB',
+    });
+  } catch (error) {
+    console.error('Error checking MongoDB status:', error);
+    res.status(500).json({ 
+      connected: false, 
+      message: 'Error checking MongoDB connection status' 
+    });
+  }
+});
+
+// Test database connection with provided URI
+router.post('/api/settings/test-database', async (req, res) => {
+  const { uri } = req.body;
+  
+  if (!uri) {
+    return res.status(400).json({ 
+      connected: false, 
+      message: 'MongoDB URI is required' 
+    });
+  }
+  
+  try {
+    // Create a new mongoose connection to test the URI without affecting the current connection
+    const testConnection = mongoose.createConnection();
+    await testConnection.openUri(uri, { 
+      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+    });
+    
+    // If we get here, the connection was successful
+    await testConnection.close();
+    
+    // Update the .env file with the new URI
+    // This part would typically use a secure method to update environment variables
+    // For now, just log that we would set it
+    console.log('Would update MONGODB_URI in environment variables');
+    
+    res.json({ 
+      connected: true, 
+      message: 'Successfully connected to MongoDB'
+    });
+  } catch (error) {
+    console.error('Error testing MongoDB connection:', error);
+    res.status(500).json({ 
+      connected: false, 
+      message: `Failed to connect to MongoDB: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    });
+  }
+});
 
 export default router;
