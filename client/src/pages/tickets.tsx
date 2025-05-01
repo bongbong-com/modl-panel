@@ -75,10 +75,10 @@ const Tickets = () => {
         <Card>
           <CardHeader className="p-0">
             <Tabs defaultValue="bug" className="w-full" onValueChange={setActiveTab}>
-              <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border">
+              <TabsList className="w-full flex-wrap rounded-none bg-transparent border-b border-border">
                 <TabsTrigger 
                   value="bug" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-3"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
                 >
                   <Bug className="h-4 w-4 mr-2" />
                   Bug Reports
@@ -86,7 +86,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="player" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-3"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Player Reports
@@ -94,7 +94,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chat" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-3"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat Reports
@@ -102,7 +102,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="appeal" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-3"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
                 >
                   <LockKeyhole className="h-4 w-4 mr-2" />
                   Ban Appeals
@@ -118,8 +118,8 @@ const Tickets = () => {
                         <TableHead className="rounded-l-lg">ID</TableHead>
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Priority</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Last Reply</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -131,20 +131,7 @@ const Tickets = () => {
                             <TableCell className="font-medium">{ticket.subject}</TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant="outline" 
-                                className={`
-                                  ${ticket.priority === 'Critical' ? 'bg-destructive/10 text-destructive border-destructive/20' : 
-                                    ticket.priority === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' : 
-                                    ticket.priority === 'Low' ? 'bg-info/10 text-info border-info/20' :
-                                    'bg-success/10 text-success border-success/20'
-                                  }
-                                `}
-                              >
-                                {ticket.status === 'Fixed' ? ticket.status : ticket.priority}
-                              </Badge>
-                            </TableCell>
+                            <TableCell>2 hours ago</TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
@@ -197,8 +184,8 @@ const Tickets = () => {
                         <TableHead className="rounded-l-lg">ID</TableHead>
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Priority</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Last Reply</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -210,20 +197,7 @@ const Tickets = () => {
                             <TableCell className="font-medium">{ticket.subject}</TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant="outline" 
-                                className={`
-                                  ${ticket.priority === 'Critical' ? 'bg-destructive/10 text-destructive border-destructive/20' : 
-                                    ticket.priority === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' : 
-                                    ticket.priority === 'Low' ? 'bg-info/10 text-info border-info/20' :
-                                    'bg-success/10 text-success border-success/20'
-                                  }
-                                `}
-                              >
-                                {ticket.status === 'Fixed' ? ticket.status : ticket.priority}
-                              </Badge>
-                            </TableCell>
+                            <TableCell>1 day ago</TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
@@ -253,8 +227,8 @@ const Tickets = () => {
                         <TableHead className="rounded-l-lg">ID</TableHead>
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Priority</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Last Reply</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -266,20 +240,7 @@ const Tickets = () => {
                             <TableCell className="font-medium">{ticket.subject}</TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant="outline" 
-                                className={`
-                                  ${ticket.priority === 'Critical' ? 'bg-destructive/10 text-destructive border-destructive/20' : 
-                                    ticket.priority === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' : 
-                                    ticket.priority === 'Low' ? 'bg-info/10 text-info border-info/20' :
-                                    'bg-success/10 text-success border-success/20'
-                                  }
-                                `}
-                              >
-                                {ticket.status === 'Fixed' ? ticket.status : ticket.priority}
-                              </Badge>
-                            </TableCell>
+                            <TableCell>3 days ago</TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
@@ -309,8 +270,8 @@ const Tickets = () => {
                         <TableHead className="rounded-l-lg">ID</TableHead>
                         <TableHead>Subject</TableHead>
                         <TableHead>Reported By</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Priority</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Last Reply</TableHead>
                         <TableHead className="rounded-r-lg">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -322,20 +283,7 @@ const Tickets = () => {
                             <TableCell className="font-medium">{ticket.subject}</TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant="outline" 
-                                className={`
-                                  ${ticket.priority === 'Critical' ? 'bg-destructive/10 text-destructive border-destructive/20' : 
-                                    ticket.priority === 'Medium' ? 'bg-warning/10 text-warning border-warning/20' : 
-                                    ticket.priority === 'Low' ? 'bg-info/10 text-info border-info/20' :
-                                    'bg-success/10 text-success border-success/20'
-                                  }
-                                `}
-                              >
-                                {ticket.status === 'Fixed' ? ticket.status : ticket.priority}
-                              </Badge>
-                            </TableCell>
+                            <TableCell>1 week ago</TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
