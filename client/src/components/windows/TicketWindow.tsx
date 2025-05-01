@@ -475,37 +475,7 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
                 <div className="border-t pt-3">
                   {/* Action buttons - moved above reply box */}
                   <div className="mb-4">
-                    {/* Selected Action Label */}
-                    {ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && (
-                      <div className="flex items-center mb-3 p-2 bg-muted/10 rounded border">
-                        <span className="text-sm font-medium mr-2">Selected action:</span>
-                        <Badge variant="outline" className={
-                          ticketDetails.selectedAction === 'Accepted' || 
-                          ticketDetails.selectedAction === 'Completed' || 
-                          ticketDetails.selectedAction === 'Pardon' 
-                            ? 'bg-success/10 text-success border-success/20'
-                            : ticketDetails.selectedAction === 'Rejected' || 
-                              ticketDetails.selectedAction === 'Reject'
-                              ? 'bg-destructive/10 text-destructive border-destructive/20'
-                              : ticketDetails.selectedAction === 'Stale' ||
-                                ticketDetails.selectedAction === 'Reduce'
-                                ? 'bg-warning/10 text-warning border-warning/20'
-                                : ticketDetails.selectedAction === 'Duplicate'
-                                  ? 'bg-info/10 text-info border-info/20'
-                                  : 'bg-muted/30 text-muted-foreground'
-                        }>
-                          {ticketDetails.selectedAction}
-                        </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="ml-auto" 
-                          onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: undefined }))}
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
+                    {/* We've removed the selected action div display as the buttons now show highlight state */}
                     
                     {/* Show duration field for "Reduce" action in punishment appeals */}
                     {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
@@ -701,9 +671,14 @@ const TicketWindow = ({ ticketId, isOpen, onClose, initialPosition }: TicketWind
                   <div className="flex flex-col">
                     <textarea
                       className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
-                      placeholder="Type your reply here..."
+                      placeholder={getPlaceholderText()}
                       value={ticketDetails.newReply || ''}
                       onChange={(e) => setTicketDetails(prev => ({ ...prev, newReply: e.target.value }))}
+                      style={{
+                        color: !ticketDetails.newReply && ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' 
+                          ? 'var(--muted-foreground)' 
+                          : 'inherit'
+                      }}
                     ></textarea>
                     
                     <div className="flex justify-between mt-2">
