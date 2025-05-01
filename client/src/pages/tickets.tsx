@@ -79,7 +79,7 @@ const Tickets = () => {
         <Card>
           <CardHeader className="p-0">
             <Tabs defaultValue="bug" className="w-full" onValueChange={setActiveTab}>
-              <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border overflow-x-auto">
+              <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border">
                 <TabsTrigger 
                   value="bug" 
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-3"

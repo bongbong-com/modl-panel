@@ -374,19 +374,12 @@ const TicketDetail = () => {
           actionDesc = "closed this ticket";
           status = 'Closed';
           break;
+        case 'Reopen':
+          actionDesc = "reopened this ticket";
+          status = 'Open';
+          break;
       }
       
-      // Format the message differently for non-comment actions
-      // Create a line that says "ModeratorAlpha closed as X [staff]" then include any additional text on a new line
-      const actionText = `ModeratorAlpha closed as ${ticketDetails.selectedAction}`;
-      
-      if (ticketDetails.newReply?.trim()) {
-        // If there are additional comments, include them after the action description
-        messageContent = ticketDetails.newReply.trim();
-      } else {
-        // If no additional comments, just use the default reply template
-        messageContent = "Thank you for reporting this.";
-      }
       
       // Update ticket status and lock the ticket
       handleStatusChange(status, true);
@@ -394,23 +387,62 @@ const TicketDetail = () => {
     
     // Only send if there's content or an action selected
     if (messageContent) {
-      const newMessage: TicketMessage = {
-        id: `msg-${ticketDetails.messages.length + 1}`,
-        sender: "ModeratorAlpha",
-        senderType: "staff",
-        content: messageContent,
-        timestamp
-      };
-  
-      setTicketDetails(prev => ({
-        ...prev,
-        messages: [...prev.messages, newMessage],
-        newReply: '',
-        selectedAction: undefined,
-        newDuration: undefined,
-        isPermanent: undefined,
-        duration: undefined
-      }));
+      if (ticketDetails.selectedAction === 'Comment') {
+        const newMessage: TicketMessage = {
+          id: `msg-${ticketDetails.messages.length + 1}`,
+          sender: `ModeratorAlpha`,
+          senderType: "staff",
+          content: messageContent,
+          timestamp
+        };
+        
+        setTicketDetails(prev => ({
+          ...prev,
+          messages: [...prev.messages, newMessage],
+          newReply: '',
+          selectedAction: undefined,
+          newDuration: undefined,
+          isPermanent: undefined,
+          duration: undefined
+        }));
+        
+      } else if(ticketDetails.selectedAction === 'Reopen') {
+          const newMessage: TicketMessage = {
+            id: `msg-${ticketDetails.messages.length + 1}`,
+            sender: `ModeratorAlpha reopened`,
+            senderType: "staff",
+            content: messageContent,
+            timestamp
+          };
+
+          setTicketDetails(prev => ({
+            ...prev,
+            messages: [...prev.messages, newMessage],
+            newReply: '',
+            selectedAction: undefined,
+            newDuration: undefined,
+            isPermanent: undefined,
+            duration: undefined
+          }));
+        } else {
+        const newMessage: TicketMessage = {
+          id: `msg-${ticketDetails.messages.length + 1}`,
+          sender: `ModeratorAlpha closed as ${ticketDetails.selectedAction}`,
+          senderType: "staff",
+          content: messageContent,
+          timestamp
+        };
+
+        setTicketDetails(prev => ({
+          ...prev,
+          messages: [...prev.messages, newMessage],
+          newReply: '',
+          selectedAction: undefined,
+          newDuration: undefined,
+          isPermanent: undefined,
+          duration: undefined
+        }));
+      }
     }
   };
 
@@ -943,6 +975,10 @@ const TicketDetail = () => {
                     </Button>
                     <Button 
                       onClick={() => {
+                        if (ticketDetails.locked) {
+                          ticketDetails.selectedAction = "Reopen"
+                        }
+                        
                         handleSendReply();
                         // If ticket was locked, unlock it after sending reply
                         if (ticketDetails.locked) {
