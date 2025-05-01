@@ -24,7 +24,7 @@ jobs:
       run: |
         ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
           cd /home/modl/modl-panel
-          git pull origin main
+          git pull origin master
           npm install
           npm run build
           pm2 restart modl-panel
