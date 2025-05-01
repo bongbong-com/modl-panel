@@ -424,7 +424,7 @@ const TicketDetail = () => {
             isPermanent: undefined,
             duration: undefined
           }));
-        } else {
+      } else {
         const newMessage: TicketMessage = {
           id: `msg-${ticketDetails.messages.length + 1}`,
           sender: `ModeratorAlpha closed as ${ticketDetails.selectedAction}`,
@@ -677,7 +677,7 @@ const TicketDetail = () => {
                               message.content.includes('Stale') ? 'Stale' :
                               message.content.includes('Duplicate') ? 'Duplicate' :
                               message.content.includes('Pardon') ? 'Pardon' :
-                              message.content.includes('Reduce') ? 'Reduce' : 'Closed'}
+                              message.content.includes('Reduce') ? 'Reduce' : 'Closed'}'
                             <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                               Staff
                             </Badge>
@@ -975,14 +975,11 @@ const TicketDetail = () => {
                     </Button>
                     <Button 
                       onClick={() => {
-                        if (ticketDetails.locked) {
-                          ticketDetails.selectedAction = "Reopen"
-                        }
                         
                         handleSendReply();
                         // If ticket was locked, unlock it after sending reply
                         if (ticketDetails.locked) {
-                          setTicketDetails(prev => ({ ...prev, locked: false }));
+                          setTicketDetails(prev => ({ ...prev, locked: false, selectedAction: "Reopen" }));
                         }
                       }}
                       disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}

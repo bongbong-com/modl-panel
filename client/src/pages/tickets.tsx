@@ -78,7 +78,7 @@ const Tickets = () => {
               <TabsList className="w-full flex-wrap rounded-none bg-transparent border-b border-border">
                 <TabsTrigger 
                   value="bug" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
                 >
                   <Bug className="h-4 w-4 mr-2" />
                   Bug Reports
@@ -86,7 +86,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="player" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Player Reports
@@ -94,7 +94,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chat" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat Reports
@@ -102,7 +102,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="appeal" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-4 py-2 flex-shrink-0"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
                 >
                   <LockKeyhole className="h-4 w-4 mr-2" />
                   Ban Appeals
@@ -128,7 +128,15 @@ const Tickets = () => {
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">{ticket.subject}</TableCell>
+                            <TableCell className="font-medium">
+                              {ticket.subject}
+                              <Badge 
+                                variant="outline" 
+                                className="ml-2 bg-primary/20 text-primary border-primary/20"
+                              >
+                                Bug
+                              </Badge>
+                            </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
                             <TableCell>2 hours ago</TableCell>
@@ -194,7 +202,15 @@ const Tickets = () => {
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">{ticket.subject}</TableCell>
+                            <TableCell className="font-medium">
+                              {ticket.subject}
+                              <Badge 
+                                variant="outline" 
+                                className="ml-2 bg-destructive/20 text-destructive border-destructive/20"
+                              >
+                                Player
+                              </Badge>
+                            </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
                             <TableCell>1 day ago</TableCell>
@@ -237,7 +253,15 @@ const Tickets = () => {
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">{ticket.subject}</TableCell>
+                            <TableCell className="font-medium">
+                              {ticket.subject}
+                              <Badge 
+                                variant="outline" 
+                                className="ml-2 bg-warning/20 text-warning border-warning/20"
+                              >
+                                Chat
+                              </Badge>
+                            </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
                             <TableCell>3 days ago</TableCell>
@@ -280,7 +304,15 @@ const Tickets = () => {
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">{ticket.subject}</TableCell>
+                            <TableCell className="font-medium">
+                              {ticket.subject}
+                              <Badge 
+                                variant="outline" 
+                                className="ml-2 bg-info/20 text-info border-info/20"
+                              >
+                                Appeal
+                              </Badge>
+                            </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
                             <TableCell>1 week ago</TableCell>
