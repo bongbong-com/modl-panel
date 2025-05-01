@@ -357,9 +357,9 @@ const TicketDetail = () => {
   };
 
   return (
-    <PageContainer title={`Ticket: ${ticketDetails.subject}`}>
-      <div className="flex flex-col space-y-6">
-        <div className="flex items-center mb-2">
+    <PageContainer>
+      <div className="flex flex-col space-y-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -471,8 +471,8 @@ const TicketDetail = () => {
           </div>
           
           {activeTab === 'conversation' && (
-            <div>
-              <div className="space-y-4 mb-4 max-h-[500px] overflow-y-auto p-1">
+            <div className="space-y-4">
+              <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
                 {ticketDetails.messages.map((message) => (
                   <div 
                     key={message.id} 
@@ -492,7 +492,11 @@ const TicketDetail = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between">
                         <div className="font-medium text-sm flex items-center">
-                          {message.sender}
+                          {message.senderType === 'staff' && message.content.includes('closed this as') ? (
+                            <>{message.content}</>
+                          ) : (
+                            <>{message.sender}</>
+                          )}
                           {message.senderType === 'staff' && (
                             <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                               Staff
@@ -501,7 +505,9 @@ const TicketDetail = () => {
                         </div>
                         <span className="text-xs text-muted-foreground">{message.timestamp}</span>
                       </div>
-                      <p className="text-sm mt-1">{message.content}</p>
+                      {message.senderType === 'staff' && message.content.includes('closed this as') ? null : (
+                        <p className="text-sm mt-1">{message.content}</p>
+                      )}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {message.attachments.map((attachment, idx) => (
@@ -519,9 +525,9 @@ const TicketDetail = () => {
               
               <div className="border-t pt-4">
                 {/* Ticket action buttons - moved above the reply box */}
-                <div className="mb-4">                  
+                <div className="mb-5">                  
                   {/* Action buttons */}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2.5">
                     {/* Player Report actions */}
                     {ticketDetails.category === 'Player Report' && (
                       <>
@@ -763,24 +769,25 @@ const TicketDetail = () => {
                 </div>
 
                 {/* Reply box */}
-                <div className="flex flex-col mt-4">
+                <div className="flex flex-col mt-5">
                   <textarea
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-20 resize-none"
+                    className="w-full rounded-md border border-border bg-background px-4 py-3 text-sm h-24 resize-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
                     placeholder={getPlaceholderText()}
                     value={ticketDetails.newReply || ''}
                     onChange={(e) => setTicketDetails(prev => ({ ...prev, newReply: e.target.value }))}
                   ></textarea>
                   
-                  <div className="flex justify-between mt-3">
-                    <Button variant="outline" size="sm" className="gap-1">
+                  <div className="flex justify-between mt-4">
+                    <Button variant="outline" size="sm" className="gap-1.5">
                       <FileText className="h-3.5 w-3.5" />
                       Attach
                     </Button>
                     <Button 
                       onClick={handleSendReply}
                       disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}
+                      className="px-4"
                     >
-                      <Send className="h-4 w-4 mr-1.5" />
+                      <Send className="h-4 w-4 mr-2" />
                       Send
                     </Button>
                   </div>
@@ -790,11 +797,11 @@ const TicketDetail = () => {
           )}
           
           {activeTab === 'notes' && (
-            <div>
-              <div className="space-y-3">
+            <div className="space-y-4">
+              <div className="space-y-4 max-h-[480px] overflow-y-auto p-2">
                 {ticketDetails.notes.map((note, idx) => (
-                  <div key={idx} className="bg-muted/30 p-3 rounded-lg">
-                    <div className="flex justify-between items-start mb-1">
+                  <div key={idx} className="bg-muted/30 p-4 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
                       <div className="font-medium flex items-center">
                         <StickyNote className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
                         {note.author}
