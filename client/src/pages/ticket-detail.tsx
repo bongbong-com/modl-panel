@@ -41,6 +41,7 @@ export interface TicketMessage {
   content: string;
   timestamp: string;
   attachments?: string[];
+  closedAs?: string; // Optional field to track if this message closed the ticket
 }
 
 interface TicketNote {
@@ -387,62 +388,31 @@ const TicketDetail = () => {
     
     // Only send if there's content or an action selected
     if (messageContent) {
-      if (ticketDetails.selectedAction === 'Comment') {
-        const newMessage: TicketMessage = {
-          id: `msg-${ticketDetails.messages.length + 1}`,
-          sender: `ModeratorAlpha`,
-          senderType: "staff",
-          content: messageContent,
-          timestamp
-        };
-        
-        setTicketDetails(prev => ({
-          ...prev,
-          messages: [...prev.messages, newMessage],
-          newReply: '',
-          selectedAction: undefined,
-          newDuration: undefined,
-          isPermanent: undefined,
-          duration: undefined
-        }));
-        
-      } else if(ticketDetails.selectedAction === 'Reopen') {
-          const newMessage: TicketMessage = {
-            id: `msg-${ticketDetails.messages.length + 1}`,
-            sender: `ModeratorAlpha reopened`,
-            senderType: "staff",
-            content: messageContent,
-            timestamp
-          };
+      // Determine if this is a closing message
+      const isClosing = ticketDetails.selectedAction && 
+                       ticketDetails.selectedAction !== 'Comment' && 
+                       ticketDetails.selectedAction !== 'Reopen';
+      
+      // Create the new message with proper structure
+      const newMessage: TicketMessage = {
+        id: `msg-${ticketDetails.messages.length + 1}`,
+        sender: "ModeratorAlpha",
+        senderType: "staff",
+        content: messageContent,
+        timestamp,
+        // Only add closedAs if it's a closing action
+        closedAs: isClosing ? ticketDetails.selectedAction : undefined
+      };
 
-          setTicketDetails(prev => ({
-            ...prev,
-            messages: [...prev.messages, newMessage],
-            newReply: '',
-            selectedAction: undefined,
-            newDuration: undefined,
-            isPermanent: undefined,
-            duration: undefined
-          }));
-      } else {
-        const newMessage: TicketMessage = {
-          id: `msg-${ticketDetails.messages.length + 1}`,
-          sender: `ModeratorAlpha ${ticketDetails.selectedAction ? `closed as ${ticketDetails.selectedAction}` : ''}`,
-          senderType: "staff",
-          content: messageContent,
-          timestamp
-        };
-
-        setTicketDetails(prev => ({
-          ...prev,
-          messages: [...prev.messages, newMessage],
-          newReply: '',
-          selectedAction: undefined,
-          newDuration: undefined,
-          isPermanent: undefined,
-          duration: undefined
-        }));
-      }
+      setTicketDetails(prev => ({
+        ...prev,
+        messages: [...prev.messages, newMessage],
+        newReply: '',
+        selectedAction: undefined,
+        newDuration: undefined,
+        isPermanent: undefined,
+        duration: undefined
+      }));
     }
   };
 
@@ -669,16 +639,17 @@ const TicketDetail = () => {
                         </div>
                         <span className="text-xs text-muted-foreground">{message.timestamp}</span>
                       </div>
-                      {message.sender.includes('closed as') ? (
+                      {/* If this message has a closedAs status, show the ticket closing info */}
+                      {message.closedAs ? (
                         <>
-                          <div className="font-medium text-sm mt-1">
-                            {message.sender}
-                            <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
-                              Staff
+                          <div className="text-sm mt-1 flex items-center">
+                            <span className="font-medium text-muted-foreground">Ticket closed as </span>
+                            <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              {message.closedAs}
                             </Badge>
                           </div>
                           <p className="text-sm mt-1">
-                            {message.content.startsWith("Thank you") ? message.content : "Thank you for reporting this."}
+                            {message.content}
                           </p>
                         </>
                       ) : (
@@ -970,11 +941,14 @@ const TicketDetail = () => {
                     </Button>
                     <Button 
                       onClick={() => {
+                        if (ticketDetails.locked) {
+                          ticketDetails.selectedAction = 'Reopen'
+                        }
                         
                         handleSendReply();
                         // If ticket was locked, unlock it after sending reply
                         if (ticketDetails.locked) {
-                          setTicketDetails(prev => ({ ...prev, locked: false, selectedAction: "Reopen" }));
+                          setTicketDetails(prev => ({ ...prev, locked: false }));
                         }
                       }}
                       disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}

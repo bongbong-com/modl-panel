@@ -65,7 +65,6 @@ const Tickets = () => {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="in progress">In Progress</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
             </Select>
@@ -78,7 +77,7 @@ const Tickets = () => {
               <TabsList className="w-full flex-wrap rounded-none bg-transparent border-b border-border">
                 <TabsTrigger 
                   value="bug" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-2 py-0.5 flex-shrink-0 text-sm"
                 >
                   <Bug className="h-4 w-4 mr-2" />
                   Bug Reports
@@ -86,7 +85,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="player" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-0.5 flex-shrink-0 text-sm"
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Player Reports
@@ -94,7 +93,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chat" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-0.5 flex-shrink-0 text-sm"
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat Reports
@@ -102,7 +101,7 @@ const Tickets = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="appeal" 
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-2 flex-shrink-0 text-sm"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-0.5 flex-shrink-0 text-sm"
                 >
                   <LockKeyhole className="h-4 w-4 mr-2" />
                   Ban Appeals
@@ -130,12 +129,22 @@ const Tickets = () => {
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
                               {ticket.subject}
-                              <Badge 
-                                variant="outline" 
-                                className="ml-2 bg-primary/20 text-primary border-primary/20"
-                              >
-                                Bug
-                              </Badge>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                >
+                                  {ticket.status}
+                                </Badge>
+                                {ticket.type === 'bug' && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200"
+                                  >
+                                    UI Issue
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
@@ -204,12 +213,20 @@ const Tickets = () => {
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
                               {ticket.subject}
-                              <Badge 
-                                variant="outline" 
-                                className="ml-2 bg-destructive/20 text-destructive border-destructive/20"
-                              >
-                                Player
-                              </Badge>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                >
+                                  {ticket.status}
+                                </Badge>
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-red-50 text-red-700 border-red-200"
+                                >
+                                  Harassment
+                                </Badge>
+                              </div>
                             </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
@@ -255,12 +272,20 @@ const Tickets = () => {
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
                               {ticket.subject}
-                              <Badge 
-                                variant="outline" 
-                                className="ml-2 bg-warning/20 text-warning border-warning/20"
-                              >
-                                Chat
-                              </Badge>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                >
+                                  {ticket.status}
+                                </Badge>
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-orange-50 text-orange-700 border-orange-200"
+                                >
+                                  Chat Abuse
+                                </Badge>
+                              </div>
                             </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
@@ -306,12 +331,20 @@ const Tickets = () => {
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
                               {ticket.subject}
-                              <Badge 
-                                variant="outline" 
-                                className="ml-2 bg-info/20 text-info border-info/20"
-                              >
-                                Appeal
-                              </Badge>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                >
+                                  {ticket.status}
+                                </Badge>
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs px-1.5 py-0 h-5 bg-indigo-50 text-indigo-700 border-indigo-200"
+                                >
+                                  Ban Appeal
+                                </Badge>
+                              </div>
                             </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
                             <TableCell>{ticket.date}</TableCell>
