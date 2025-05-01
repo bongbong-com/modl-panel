@@ -312,7 +312,9 @@ const TicketDetail = () => {
           status = 'Resolved';
           break;
         case 'Reduce':
-          actionDesc = `reduced the punishment to ${ticketDetails.newDuration || 'a shorter duration'}`;
+          actionDesc = ticketDetails.isPermanent 
+            ? 'changed the punishment to permanent' 
+            : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
           status = 'Resolved';
           break;
         case 'Reject':
@@ -347,7 +349,9 @@ const TicketDetail = () => {
         messages: [...prev.messages, newMessage],
         newReply: '',
         selectedAction: undefined,
-        newDuration: undefined
+        newDuration: undefined,
+        isPermanent: undefined,
+        duration: undefined
       }));
     }
   };
@@ -589,8 +593,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Stale' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Stale'
-                            ? 'bg-warning'
-                            : 'bg-warning/10 hover:bg-warning/20 text-warning'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Stale')}
                         >
                           <Clock className="h-3.5 w-3.5 mr-1.5" />
@@ -600,8 +604,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Duplicate' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Duplicate'
-                            ? 'bg-info'
-                            : 'bg-info/10 hover:bg-info/20 text-info'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Duplicate')}
                         >
                           <Bug className="h-3.5 w-3.5 mr-1.5" />
@@ -686,9 +690,9 @@ const TicketDetail = () => {
                         <div className="flex items-center">
                           <Checkbox
                             id="isPermanent"
-                            checked={ticketDetails.isPermanent}
-                            onCheckedChange={(checked) => 
-                              setTicketDetails(prev => ({ ...prev, isPermanent: checked === true }))
+                            checked={!!ticketDetails.isPermanent}
+                            onCheckedChange={(checked: boolean) => 
+                              setTicketDetails(prev => ({ ...prev, isPermanent: checked }))
                             }
                             className="mr-2"
                           />
