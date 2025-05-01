@@ -103,6 +103,7 @@ export interface TicketDetails {
   isPermanent?: boolean;
   tags?: string[];
   newTag?: string;
+  locked?: boolean;
 }
 
 const TicketDetail = () => {
@@ -373,12 +374,15 @@ const TicketDetail = () => {
       }
       
       // Format the message differently for non-comment actions
+      // Create a line that says "ModeratorAlpha closed this as X" then include any additional text
+      const actionText = `ModeratorAlpha closed this as ${ticketDetails.selectedAction}`;
+      
       if (ticketDetails.newReply?.trim()) {
         // If there are additional comments, include them after the action description
-        messageContent = `ModeratorAlpha closed this as ${ticketDetails.selectedAction}\n\n${ticketDetails.newReply.trim()}`;
+        messageContent = `${actionText}\n\n${ticketDetails.newReply.trim()}`;
       } else {
         // If no additional comments, just use the action description
-        messageContent = `ModeratorAlpha closed this as ${ticketDetails.selectedAction}`;
+        messageContent = actionText;
       }
       
       // Update ticket status
@@ -621,11 +625,7 @@ const TicketDetail = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between">
                         <div className="font-medium text-sm flex items-center">
-                          {message.senderType === 'staff' && message.content.includes('closed this as') ? (
-                            <>{message.content}</>
-                          ) : (
-                            <>{message.sender}</>
-                          )}
+                          <>{message.sender}</>
                           {message.senderType === 'staff' && (
                             <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                               Staff
@@ -634,9 +634,7 @@ const TicketDetail = () => {
                         </div>
                         <span className="text-xs text-muted-foreground">{message.timestamp}</span>
                       </div>
-                      {message.senderType === 'staff' && message.content.includes('closed this as') ? null : (
-                        <p className="text-sm mt-1">{message.content}</p>
-                      )}
+                      <p className="text-sm mt-1">{message.content}</p>
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {message.attachments.map((attachment, idx) => (
@@ -653,249 +651,266 @@ const TicketDetail = () => {
               </div>
               
               <div className="border-t pt-4">
+                {/* Lock ticket checkbox */}
+                <div className="flex items-center mb-4">
+                  <Checkbox
+                    id="lockTicket"
+                    checked={!!ticketDetails.locked}
+                    onCheckedChange={(checked) => 
+                      setTicketDetails(prev => ({ ...prev, locked: !!checked }))
+                    }
+                    className="mr-2"
+                  />
+                  <label htmlFor="lockTicket" className="text-sm cursor-pointer">
+                    Lock ticket (prevents further actions or replies)
+                  </label>
+                </div>
+                
                 {/* Ticket action buttons - moved above the reply box */}
                 <div className="mb-5">                  
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap gap-2.5">
-                    {/* Player Report actions */}
-                    {ticketDetails.category === 'Player Report' && (
-                      <>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
-                          size="sm" 
-                          onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
-                        >
-                          Comment
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Accepted' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Accepted' 
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Accepted')}
-                        >
-                          <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                          Accepted
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Rejected' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Rejected'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Rejected')}
-                        >
-                          <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                          Rejected
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Close'
-                            ? 'bg-muted'
-                            : 'bg-muted/20 hover:bg-muted/30'}
-                          onClick={() => handleTicketAction('Close')}
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                          Close (other)
-                        </Button>
-                      </>
-                    )}
-                    
-                    {/* Bug Report actions */}
-                    {ticketDetails.category === 'Bug Report' && (
-                      <>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
-                        >
-                          Comment
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Completed' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Completed'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Completed')}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                          Completed
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Stale' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Stale'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Stale')}
-                        >
-                          <Clock className="h-3.5 w-3.5 mr-1.5" />
-                          Stale
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Duplicate' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Duplicate'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Duplicate')}
-                        >
-                          <Bug className="h-3.5 w-3.5 mr-1.5" />
-                          Duplicate
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Close'
-                            ? 'bg-muted'
-                            : 'bg-muted/20 hover:bg-muted/30'}
-                          onClick={() => handleTicketAction('Close')}
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                          Close (other)
-                        </Button>
-                      </>
-                    )}
-                    
-                    {/* Punishment Appeal actions */}
-                    {ticketDetails.category === 'Punishment Appeal' && (
-                      <>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
-                        >
-                          Comment
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Pardon' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Pardon'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Pardon')}
-                        >
-                          <Shield className="h-3.5 w-3.5 mr-1.5" />
-                          Pardon
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Reduce' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Reduce'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Reduce')}
-                        >
-                          <Clock className="h-3.5 w-3.5 mr-1.5" />
-                          Reduce
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Reject' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Reject'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-primary/10'}
-                          onClick={() => handleTicketAction('Reject')}
-                        >
-                          <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                          Reject
-                        </Button>
-                        <Button 
-                          variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
-                          size="sm" 
-                          className={ticketDetails.selectedAction === 'Close'
-                            ? 'bg-muted'
-                            : 'bg-muted/20 hover:bg-muted/30'}
-                          onClick={() => handleTicketAction('Close')}
-                        >
-                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                          Close (other)
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Show action-specific controls under the buttons */}
-                  {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
-                    <div className="mt-3 p-3 border rounded-md bg-muted/5">
-                      <div className="space-y-3">
-                        <div className="flex items-center">
-                          <Checkbox
-                            id="isPermanent"
-                            checked={!!ticketDetails.isPermanent}
-                            onCheckedChange={(checked: boolean) => 
-                              setTicketDetails(prev => ({ ...prev, isPermanent: checked }))
-                            }
-                            className="mr-2"
-                          />
-                          <label htmlFor="isPermanent" className="text-sm cursor-pointer">Permanent</label>
-                        </div>
-                        
-                        {!ticketDetails.isPermanent && (
-                          <div className="flex gap-2 items-center">
-                            <div className="flex-1">
-                              <label className="block text-sm font-medium mb-1">Duration:</label>
-                              <input
-                                type="number"
-                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                placeholder="e.g., 7"
-                                min="1"
-                                value={ticketDetails.duration?.value || ''}
-                                onChange={(e) => {
-                                  const value = parseInt(e.target.value) || 0;
-                                  setTicketDetails(prev => ({ 
-                                    ...prev, 
-                                    duration: { 
-                                      value, 
-                                      unit: prev.duration?.unit || 'days' 
-                                    } 
-                                  }));
-                                }}
-                              />
-                            </div>
-                            <div className="w-40">
-                              <label className="block text-sm font-medium mb-1">Unit:</label>
-                              <select 
-                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                                value={ticketDetails.duration?.unit || 'days'}
-                                onChange={(e) => {
-                                  const unit = e.target.value as 'hours' | 'days' | 'weeks' | 'months';
-                                  setTicketDetails(prev => ({ 
-                                    ...prev, 
-                                    duration: { 
-                                      value: prev.duration?.value || 1, 
-                                      unit
-                                    } 
-                                  }));
-                                }}
-                              >
-                                <option value="hours">Hours</option>
-                                <option value="days">Days</option>
-                                <option value="weeks">Weeks</option>
-                                <option value="months">Months</option>
-                              </select>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Show punish button for "Accepted" action in player reports */}
-                  {ticketDetails.selectedAction === 'Accepted' && ticketDetails.category === 'Player Report' && ticketDetails.relatedPlayer && (
-                    <div className="mt-3 p-3 border rounded-md bg-success/5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Apply punishment to {ticketDetails.relatedPlayer}?</span>
-                        <Button size="sm" variant="outline" onClick={() => setIsPunishWindowOpen(true)} className="bg-success/10 text-success hover:bg-success/20">
-                          <Axe className="h-3.5 w-3.5 mr-1.5" /> Punish Player
-                        </Button>
-                      </div>
+                  {/* Action buttons - only show if ticket is not locked */}
+                  {!ticketDetails.locked && (
+                    <div className="flex flex-wrap gap-2.5">
+                      {/* Player Report actions */}
+                      {ticketDetails.category === 'Player Report' && (
+                        <>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
+                            size="sm" 
+                            onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
+                          >
+                            Comment
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Accepted' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Accepted' 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Accepted')}
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
+                            Accepted
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Rejected' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Rejected'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Rejected')}
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
+                            Rejected
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Close'
+                              ? 'bg-muted'
+                              : 'bg-muted/20 hover:bg-muted/30'}
+                            onClick={() => handleTicketAction('Close')}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Close (other)
+                          </Button>
+                        </>
+                      )}
+                      
+                      {/* Bug Report actions */}
+                      {ticketDetails.category === 'Bug Report' && (
+                        <>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
+                          >
+                            Comment
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Completed' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Completed'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Completed')}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                            Completed
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Stale' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Stale'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Stale')}
+                          >
+                            <Clock className="h-3.5 w-3.5 mr-1.5" />
+                            Stale
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Duplicate' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Duplicate'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Duplicate')}
+                          >
+                            <Bug className="h-3.5 w-3.5 mr-1.5" />
+                            Duplicate
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Close'
+                              ? 'bg-muted'
+                              : 'bg-muted/20 hover:bg-muted/30'}
+                            onClick={() => handleTicketAction('Close')}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Close (other)
+                          </Button>
+                        </>
+                      )}
+                      
+                      {/* Punishment Appeal actions */}
+                      {ticketDetails.category === 'Punishment Appeal' && (
+                        <>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
+                          >
+                            Comment
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Pardon' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Pardon'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Pardon')}
+                          >
+                            <Shield className="h-3.5 w-3.5 mr-1.5" />
+                            Pardon
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Reduce' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Reduce'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Reduce')}
+                          >
+                            <Clock className="h-3.5 w-3.5 mr-1.5" />
+                            Reduce
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Reject' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Reject'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-primary/10'}
+                            onClick={() => handleTicketAction('Reject')}
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
+                            Reject
+                          </Button>
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
+                            size="sm" 
+                            className={ticketDetails.selectedAction === 'Close'
+                              ? 'bg-muted'
+                              : 'bg-muted/20 hover:bg-muted/30'}
+                            onClick={() => handleTicketAction('Close')}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Close (other)
+                          </Button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
+
+                {/* Show action-specific controls under the buttons */}
+                {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
+                  <div className="mt-3 p-3 border rounded-md bg-muted/5">
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <Checkbox
+                          id="isPermanent"
+                          checked={!!ticketDetails.isPermanent}
+                          onCheckedChange={(checked: boolean) => 
+                            setTicketDetails(prev => ({ ...prev, isPermanent: checked }))
+                          }
+                          className="mr-2"
+                        />
+                        <label htmlFor="isPermanent" className="text-sm cursor-pointer">Permanent</label>
+                      </div>
+                      
+                      {!ticketDetails.isPermanent && (
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium mb-1">Duration:</label>
+                            <input
+                              type="number"
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                              placeholder="e.g., 7"
+                              min="1"
+                              value={ticketDetails.duration?.value || ''}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 0;
+                                setTicketDetails(prev => ({ 
+                                  ...prev, 
+                                  duration: { 
+                                    value, 
+                                    unit: prev.duration?.unit || 'days' 
+                                  } 
+                                }));
+                              }}
+                            />
+                          </div>
+                          <div className="w-40">
+                            <label className="block text-sm font-medium mb-1">Unit:</label>
+                            <select 
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                              value={ticketDetails.duration?.unit || 'days'}
+                              onChange={(e) => {
+                                const unit = e.target.value as 'hours' | 'days' | 'weeks' | 'months';
+                                setTicketDetails(prev => ({ 
+                                  ...prev, 
+                                  duration: { 
+                                    value: prev.duration?.value || 1, 
+                                    unit
+                                  } 
+                                }));
+                              }}
+                            >
+                              <option value="hours">Hours</option>
+                              <option value="days">Days</option>
+                              <option value="weeks">Weeks</option>
+                              <option value="months">Months</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Show punish button for "Accepted" action in player reports */}
+                {ticketDetails.selectedAction === 'Accepted' && ticketDetails.category === 'Player Report' && ticketDetails.relatedPlayer && (
+                  <div className="mt-3 p-3 border rounded-md bg-success/5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Apply punishment to {ticketDetails.relatedPlayer}?</span>
+                      <Button size="sm" variant="outline" onClick={() => setIsPunishWindowOpen(true)} className="bg-success/10 text-success hover:bg-success/20">
+                        <Axe className="h-3.5 w-3.5 mr-1.5" /> Punish Player
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Reply box */}
                 <div className="flex flex-col mt-5">
@@ -912,12 +927,18 @@ const TicketDetail = () => {
                       Attach
                     </Button>
                     <Button 
-                      onClick={handleSendReply}
+                      onClick={() => {
+                        handleSendReply();
+                        // If ticket was locked, unlock it after sending reply
+                        if (ticketDetails.locked) {
+                          setTicketDetails(prev => ({ ...prev, locked: false }));
+                        }
+                      }}
                       disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}
                       className="px-4"
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      Send
+                      {ticketDetails.locked ? 'Reply and Unlock' : 'Send'}
                     </Button>
                   </div>
                 </div>
