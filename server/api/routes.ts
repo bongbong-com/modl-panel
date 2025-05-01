@@ -386,11 +386,29 @@ async function createDefaultSettings() {
 // Create system log
 export async function createSystemLog(description: string) {
   try {
-    console.log(`SYSTEM LOG: ${description}`);
-    return { description, created: new Date() };
+    const { Log } = await import('../models/mongodb-schemas');
+    
+    // Check if Log model is available (MongoDB is connected)
+    if (Log) {
+      const log = new Log({
+        description,
+        created: new Date(),
+        level: 'info',
+        source: 'system'
+      });
+      
+      await log.save();
+      console.log(`SYSTEM LOG: ${description}`);
+      return log;
+    } else {
+      // Fallback for when MongoDB is not connected
+      console.log(`SYSTEM LOG: ${description}`);
+      return { description, created: new Date() };
+    }
   } catch (error) {
     console.error('Error creating system log:', error);
-    return null;
+    console.log(`SYSTEM LOG: ${description}`);
+    return { description, created: new Date() };
   }
 }
 

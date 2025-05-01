@@ -6,10 +6,16 @@ import { connectToMongoDB } from "./db/mongodb";
 import apiRoutes, { createSystemLog } from "./api/routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Connect to MongoDB or use simulated in-memory database
+  // Connect to MongoDB or use in-memory fallback
   try {
-    await connectToMongoDB();
-    console.log('Server started successfully with in-memory database');
+    const connected = await connectToMongoDB();
+    if (connected) {
+      try {
+        await createSystemLog('Server started successfully');
+      } catch (error) {
+        console.log('Unable to create system log, but server started');
+      }
+    }
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
     console.log('Falling back to in-memory storage');
