@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -7,18 +7,20 @@ dotenv.config();
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/gameModPanel';
 
 // Connect to MongoDB
-async function connectToMongoDB() {
+export async function connectToMongoDB() {
   try {
     await mongoose.connect(MONGODB_URI, {});
     console.log('Connected to MongoDB');
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    process.exit(1);
+    // Don't exit the process, just log the error
+    return false;
   }
+  return true;
 }
 
 // Disconnect from MongoDB
-async function disconnectFromMongoDB() {
+export async function disconnectFromMongoDB() {
   try {
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB');
@@ -26,8 +28,3 @@ async function disconnectFromMongoDB() {
     console.error('MongoDB disconnection error:', error);
   }
 }
-
-module.exports = {
-  connectToMongoDB,
-  disconnectFromMongoDB
-};

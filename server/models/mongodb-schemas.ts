@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 // ========================= OBJECT SCHEMAS =========================
@@ -118,7 +118,7 @@ const Ticket = mongoose.model('Ticket', ticketSchema);
 const Log = mongoose.model('Log', logSchema);
 const Settings = mongoose.model('Settings', settingsSchema);
 
-module.exports = {
+export {
   Player,
   Staff,
   Ticket,
