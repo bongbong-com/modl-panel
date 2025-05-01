@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { tickets } from '@/data/mockData';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';
@@ -531,8 +532,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Accepted' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Accepted' 
-                            ? 'bg-success' 
-                            : 'bg-success/10 hover:bg-success/20 text-success'}
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Accepted')}
                         >
                           <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
@@ -577,8 +578,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Completed' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Completed'
-                            ? 'bg-success'
-                            : 'bg-success/10 hover:bg-success/20 text-success'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Completed')}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
@@ -634,8 +635,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Pardon' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Pardon'
-                            ? 'bg-success'
-                            : 'bg-success/10 hover:bg-success/20 text-success'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Pardon')}
                         >
                           <Shield className="h-3.5 w-3.5 mr-1.5" />
@@ -645,8 +646,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Reduce' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Reduce'
-                            ? 'bg-warning'
-                            : 'bg-warning/10 hover:bg-warning/20 text-warning'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Reduce')}
                         >
                           <Clock className="h-3.5 w-3.5 mr-1.5" />
@@ -656,8 +657,8 @@ const TicketDetail = () => {
                           variant={ticketDetails.selectedAction === 'Reject' ? 'default' : 'outline'}
                           size="sm" 
                           className={ticketDetails.selectedAction === 'Reject'
-                            ? 'bg-destructive'
-                            : 'bg-destructive/10 hover:bg-destructive/20 text-destructive'}
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-primary/10'}
                           onClick={() => handleTicketAction('Reject')}
                         >
                           <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
@@ -680,15 +681,67 @@ const TicketDetail = () => {
 
                   {/* Show action-specific controls under the buttons */}
                   {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
-                    <div className="mt-3 p-3 border rounded-md bg-warning/5">
-                      <label className="block text-sm font-medium mb-1">New punishment duration:</label>
-                      <input
-                        type="text"
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                        placeholder="e.g., 7 days"
-                        value={ticketDetails.newDuration || ''}
-                        onChange={(e) => setTicketDetails(prev => ({ ...prev, newDuration: e.target.value }))}
-                      />
+                    <div className="mt-3 p-3 border rounded-md bg-muted/5">
+                      <div className="space-y-3">
+                        <div className="flex items-center">
+                          <Checkbox
+                            id="isPermanent"
+                            checked={ticketDetails.isPermanent}
+                            onCheckedChange={(checked) => 
+                              setTicketDetails(prev => ({ ...prev, isPermanent: checked === true }))
+                            }
+                            className="mr-2"
+                          />
+                          <label htmlFor="isPermanent" className="text-sm cursor-pointer">Permanent</label>
+                        </div>
+                        
+                        {!ticketDetails.isPermanent && (
+                          <div className="flex gap-2 items-center">
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium mb-1">Duration:</label>
+                              <input
+                                type="number"
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                placeholder="e.g., 7"
+                                min="1"
+                                value={ticketDetails.duration?.value || ''}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  setTicketDetails(prev => ({ 
+                                    ...prev, 
+                                    duration: { 
+                                      value, 
+                                      unit: prev.duration?.unit || 'days' 
+                                    } 
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <div className="w-40">
+                              <label className="block text-sm font-medium mb-1">Unit:</label>
+                              <select 
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                value={ticketDetails.duration?.unit || 'days'}
+                                onChange={(e) => {
+                                  const unit = e.target.value as 'hours' | 'days' | 'weeks' | 'months';
+                                  setTicketDetails(prev => ({ 
+                                    ...prev, 
+                                    duration: { 
+                                      value: prev.duration?.value || 1, 
+                                      unit
+                                    } 
+                                  }));
+                                }}
+                              >
+                                <option value="hours">Hours</option>
+                                <option value="days">Days</option>
+                                <option value="weeks">Weeks</option>
+                                <option value="months">Months</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
