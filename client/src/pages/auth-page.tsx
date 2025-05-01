@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Fingerprint, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Mail } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -32,22 +31,20 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 // Define the login form schema
 const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-  methodType: z.enum(["2fa", "email", "passkey"]),
-  code: z.string().optional(),
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 // Define the registration form schema
 const registerSchema = z.object({
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -62,15 +59,13 @@ const AuthPage = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loginStep, setLoginStep] = useState<'email' | 'verification'>('email');
-  const [verificationMethod, setVerificationMethod] = useState<'2fa' | 'email' | 'passkey'>('email');
-
+  
   // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      methodType: "email",
+      username: "",
+      password: "",
     },
   });
 
@@ -78,13 +73,14 @@ const AuthPage = () => {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      username: "",
       email: "",
       password: "",
       confirmPassword: "",
     },
   });
 
-  const { login, register: authRegister, user } = useAuth();
+  const { user, loginMutation, registerMutation, error } = useAuth();
 
   // Redirect to home page if already authenticated
   useEffect(() => {
@@ -95,62 +91,24 @@ const AuthPage = () => {
 
   // Handle login form submission
   const onLoginSubmit = async (values: LoginFormValues) => {
-    if (loginStep === 'email') {
-      // First step - show verification methods
-      toast({
-        title: "Email verification sent",
-        description: `A verification code has been sent to ${values.email}`,
-      });
-      
-      setVerificationMethod(values.methodType);
-      setLoginStep('verification');
-      return;
-    }
-    
-    // Second step - verify code or passkey
-    try {
-      const success = await login(
-        values.email, 
-        verificationMethod, 
-        verificationMethod !== 'passkey' ? values.code : undefined
-      );
-      
-      if (success) {
-        // Redirect is handled by the auth hook on success
-      }
-    } catch (error) {
-      toast({
-        title: "Authentication failed",
-        description: "An error occurred during authentication",
-        variant: "destructive"
-      });
-    }
+    loginMutation.mutate({
+      username: values.username,
+      password: values.password
+    });
   };
 
   // Handle registration form submission
   const onRegisterSubmit = async (values: RegisterFormValues) => {
-    try {
-      const success = await authRegister(values.email, values.password);
-      
-      if (success) {
-        // Switch to login tab
-        setActiveTab("login");
-      }
-    } catch (error) {
-      toast({
-        title: "Registration failed",
-        description: "An error occurred during registration",
-        variant: "destructive"
-      });
-    }
+    registerMutation.mutate({
+      username: values.username,
+      email: values.email,
+      password: values.password
+    });
   };
 
   // Reset the login flow if the user changes tabs
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    if (value === "login") {
-      setLoginStep('email');
-    }
   };
 
   return (
@@ -166,24 +124,28 @@ const AuthPage = () => {
           </div>
 
           <Card>
-            <br></br>
-            <CardContent>
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                  {loginStep === 'email' ? (
-                    <>
+            <CardHeader>
+              <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="login">Login</TabsTrigger>
+                  <TabsTrigger value="register">Register</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="login" className="mt-4">
+                  <Form {...loginForm}>
+                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                       <FormField
                         control={loginForm.control}
-                        name="email"
+                        name="username"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>Username</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                 <Input
                                   {...field}
-                                  placeholder="name@example.com"
+                                  placeholder="Enter your username"
                                   className="pl-10"
                                 />
                               </div>
@@ -195,130 +157,172 @@ const AuthPage = () => {
 
                       <FormField
                         control={loginForm.control}
-                        name="methodType"
+                        name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Verification Method</FormLabel>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              <Badge 
-                                variant={field.value === "email" ? "default" : "outline"}
-                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
-                                onClick={() => field.onChange("email")}
-                              >
-                                <Mail className="h-3.5 w-3.5 mr-1.5" />
-                                Email Code
-                              </Badge>
-                              <Badge 
-                                variant={field.value === "2fa" ? "default" : "outline"}
-                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
-                                onClick={() => field.onChange("2fa")}
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-                                2FA Code
-                              </Badge>
-                              <Badge 
-                                variant={field.value === "passkey" ? "default" : "outline"}
-                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
-                                onClick={() => field.onChange("passkey")}
-                              >
-                                <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
-                                Passkey
-                              </Badge>
-                            </div>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Enter your password"
+                                  className="pl-10 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute right-3 top-3"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <Button type="submit" className="w-full mt-6">
-                        Continue
+                      <Button 
+                        type="submit" 
+                        className="w-full mt-6"
+                        disabled={loginMutation.isPending}
+                      >
+                        {loginMutation.isPending ? "Logging in..." : "Login"}
                       </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mb-4 flex items-center gap-2">
-                        <Badge>{loginForm.getValues().email}</Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          type="button"
-                          onClick={() => setLoginStep('email')}
-                          className="h-7 px-2 text-xs"
-                        >
-                          Change
-                        </Button>
-                      </div>
+                    </form>
+                  </Form>
+                </TabsContent>
+                
+                <TabsContent value="register" className="mt-4">
+                  <Form {...registerForm}>
+                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  placeholder="Choose a username"
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={registerForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type="email"
+                                  placeholder="Enter your email"
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                      {verificationMethod === 'passkey' ? (
-                        <div className="py-6 flex flex-col items-center justify-center space-y-4">
-                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                            <Fingerprint className="h-8 w-8 text-primary" />
-                          </div>
-                          <p className="text-center text-sm text-muted-foreground max-w-[250px]">
-                            Use your FIDO2 security key or built-in authenticator (Windows Hello, Touch ID, etc.)
-                          </p>
-                          <div className="mt-2 bg-primary/5 rounded-md p-4 w-full flex flex-col items-center">
-                            <p className="text-xs text-center text-muted-foreground mb-3">Your browser will prompt you to use your passkey</p>
-                            <Button 
-                              type="button" 
-                              onClick={() => {
-                                // Simulate browser's WebAuthn API calling
-                                toast({
-                                  title: "Passkey prompt",
-                                  description: "Your browser would prompt for biometric verification here",
-                                });
-                                // Wait a moment then submit the form
-                                setTimeout(() => {
-                                  loginForm.handleSubmit(onLoginSubmit)();
-                                }, 1500);
-                              }}
-                              className="w-full"
-                            >
-                              Verify with Passkey
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <FormField
-                            control={loginForm.control}
-                            name="code"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>
-                                  {verificationMethod === '2fa' ? '2FA Code' : 'Verification Code'}
-                                </FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      {...field}
-                                      placeholder="Enter your 6-digit code"
-                                      className="pl-10"
-                                      inputMode="numeric"
-                                      pattern="[0-9]*"
-                                      maxLength={6}
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormDescription>
-                                  Enter the {verificationMethod === '2fa' ? '2FA code from your authenticator app' : 'verification code sent to your email'}
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      <FormField
+                        control={registerForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Choose a password"
+                                  className="pl-10 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute right-3 top-3"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                          <Button type="submit" className="w-full mt-6">
-                            Verify & Login
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </form>
-              </Form>
-            </CardContent>
+                      <FormField
+                        control={registerForm.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirm Password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  placeholder="Confirm your password"
+                                  className="pl-10 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  className="absolute right-3 top-3"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button 
+                        type="submit" 
+                        className="w-full mt-6"
+                        disabled={registerMutation.isPending}
+                      >
+                        {registerMutation.isPending ? "Creating Account..." : "Create Account"}
+                      </Button>
+                    </form>
+                  </Form>
+                </TabsContent>
+              </Tabs>
+            </CardHeader>
             <CardFooter className="flex justify-center border-t pt-4">
               <p className="text-xs text-muted-foreground">
                 Administrator contact: <a href="mailto:admin@cobl.gg" className="text-primary hover:underline">admin@cobl.gg</a>

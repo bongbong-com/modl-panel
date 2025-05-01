@@ -6,9 +6,12 @@ import crypto from 'crypto';
 // Helper to hash password for staff accounts
 async function hashPassword(password: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Use a simple hash for development purposes
-    const hash = crypto.createHash('sha256').update(password).digest('hex');
-    resolve(hash);
+    // Create a salt and hash using scrypt
+    const salt = crypto.randomBytes(16).toString('hex');
+    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+      if (err) reject(err);
+      resolve(`${derivedKey.toString('hex')}.${salt}`);
+    });
   });
 }
 
