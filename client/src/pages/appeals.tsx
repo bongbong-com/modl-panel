@@ -3,7 +3,8 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Link2, UploadCloud } from 'lucide-react';
+import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Link2, UploadCloud, Send } from 'lucide-react';
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,7 +52,6 @@ type SearchFormValues = z.infer<typeof searchSchema>;
 // Define base appeal schema with common fields
 const baseAppealSchema = z.object({
   banId: z.string().min(6, { message: "Ban ID must be at least 6 characters" }),
-  playerName: z.string().min(3, { message: "Player name must be at least 3 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
 });
 
@@ -111,7 +111,6 @@ type AppealFormValues = z.infer<typeof appealSchema>;
 // Mock data for demonstration
 interface BanInfo {
   id: string;
-  playerName: string;
   reason: string;
   date: string;
   staffMember: string;
@@ -129,20 +128,27 @@ type PunishmentType =
   | 'Team Abuse' | 'Game Abuse' | 'Cheating' | 'Game Trading'
   | 'Account Abuse' | 'Scamming' | 'Manual Mute' | 'Manual Ban';
 
+interface AppealMessage {
+  id: string;
+  sender: 'player' | 'staff' | 'system';
+  senderName: string;
+  content: string;
+  timestamp: string;
+  isStaffNote?: boolean;
+}
+
 interface AppealInfo {
   id: string;
   banId: string;
-  playerName: string;
   submittedOn: string;
   status: 'Pending Review' | 'Under Review' | 'Rejected' | 'Approved';
   lastUpdate?: string;
-  staffNotes?: string;
+  messages: AppealMessage[];
 }
 
 const MockBans: Record<string, BanInfo> = {
   'BAN123456': {
     id: 'BAN123456',
-    playerName: 'MinecraftPlayer123',
     reason: 'Using cheats/hacks (Movement)',
     date: '2023-12-15',
     staffMember: 'AdminUser42',
@@ -152,7 +158,6 @@ const MockBans: Record<string, BanInfo> = {
   },
   'BAN654321': {
     id: 'BAN654321',
-    playerName: 'GameMaster99',
     reason: 'Harassment and abusive language',
     date: '2023-11-30',
     staffMember: 'ModeratorX',
@@ -162,7 +167,6 @@ const MockBans: Record<string, BanInfo> = {
   },
   'BAN789012': {
     id: 'BAN789012',
-    playerName: 'ProGamer2000',
     reason: 'Griefing protected builds',
     date: '2023-12-01',
     staffMember: 'SeniorMod',
@@ -171,7 +175,6 @@ const MockBans: Record<string, BanInfo> = {
   },
   'BAN234567': {
     id: 'BAN234567',
-    playerName: 'GamePlayer456',
     reason: 'Inappropriate username',
     date: '2024-01-15',
     staffMember: 'AdminUser42',
@@ -181,7 +184,6 @@ const MockBans: Record<string, BanInfo> = {
   },
   'BAN345678': {
     id: 'BAN345678',
-    playerName: 'SecurePlayer789',
     reason: 'Suspicious login patterns detected',
     date: '2024-02-01',
     staffMember: 'SecurityTeam',
@@ -191,7 +193,6 @@ const MockBans: Record<string, BanInfo> = {
   },
   'BAN456789': {
     id: 'BAN456789',
-    playerName: 'AltAccount123',
     reason: 'Alt account of banned user',
     date: '2024-02-15',
     staffMember: 'ModeratorY',
@@ -200,7 +201,6 @@ const MockBans: Record<string, BanInfo> = {
   },
   'BAN567890': {
     id: 'BAN567890',
-    playerName: 'TempUser123',
     reason: 'Disruptive behavior',
     date: '2024-02-20',
     staffMember: 'AdminZ',
@@ -213,11 +213,47 @@ const MockAppeals: Record<string, AppealInfo> = {
   'APP123456': {
     id: 'APP123456',
     banId: 'BAN654321',
-    playerName: 'GameMaster99',
     submittedOn: '2023-12-01',
     status: 'Under Review',
     lastUpdate: '2023-12-05',
-    staffNotes: 'Player has a history of similar behavior. Checking previous records.',
+    messages: [
+      {
+        id: 'm1',
+        sender: 'player',
+        senderName: 'PlayerUser123',
+        content: 'I believe this ban was unfair as I was only responding to harassment from another player. I have screenshots showing they started the argument.',
+        timestamp: '2023-12-01 14:23',
+      },
+      {
+        id: 'm2',
+        sender: 'system',
+        senderName: 'System',
+        content: 'Your appeal has been received and will be reviewed by our moderation team.',
+        timestamp: '2023-12-01 14:23',
+      },
+      {
+        id: 'm3',
+        sender: 'staff',
+        senderName: 'ModeratorX',
+        content: 'I\'ve reviewed your case and can see the chat logs. Can you provide the screenshots you mentioned showing the other player\'s harassment?',
+        timestamp: '2023-12-03 09:15',
+      },
+      {
+        id: 'm4',
+        sender: 'player',
+        senderName: 'PlayerUser123',
+        content: 'Here are the screenshots showing the conversation before my messages: https://example.com/screenshots',
+        timestamp: '2023-12-03 15:42',
+      },
+      {
+        id: 'm5',
+        sender: 'staff',
+        senderName: 'AdminUser42',
+        content: 'Player has a history of similar behavior. Checking previous records.',
+        timestamp: '2023-12-05 11:30',
+        isStaffNote: true,
+      },
+    ],
   },
 };
 
@@ -233,7 +269,6 @@ const AppealsPage = () => {
     resolver: zodResolver(securityBanSchema),
     defaultValues: {
       banId: "",
-      playerName: "",
       email: "",
       accountSecured: false,
       additionalInfo: "",
@@ -244,7 +279,6 @@ const AppealsPage = () => {
     resolver: zodResolver(linkedBanSchema),
     defaultValues: {
       banId: "",
-      playerName: "",
       email: "",
       accessedLinkedAccount: false,
       appealReason: "",
@@ -256,7 +290,6 @@ const AppealsPage = () => {
     resolver: zodResolver(badNameSkinSchema),
     defaultValues: {
       banId: "",
-      playerName: "",
       email: "",
       understandAutoUnban: false,
       appealReason: "",
@@ -268,7 +301,6 @@ const AppealsPage = () => {
     resolver: zodResolver(generalViolationSchema),
     defaultValues: {
       banId: "",
-      playerName: "",
       email: "",
       punishmentError: false,
       appealReason: "",
@@ -281,7 +313,6 @@ const AppealsPage = () => {
     resolver: zodResolver(appealSchema),
     defaultValues: {
       banId: "",
-      playerName: "",
       email: "",
       reason: "",
     },
@@ -323,25 +354,19 @@ const AppealsPage = () => {
     if (foundBan) {
       // Common fields for all forms
       const commonFields = {
-        banId: normalizedBanId,
-        playerName: foundBan.playerName
+        banId: normalizedBanId
       };
       
       // Update all forms with common data
       appealForm.setValue('banId', normalizedBanId);
-      appealForm.setValue('playerName', foundBan.playerName);
       
       securityBanForm.setValue('banId', normalizedBanId);
-      securityBanForm.setValue('playerName', foundBan.playerName);
       
       linkedBanForm.setValue('banId', normalizedBanId);
-      linkedBanForm.setValue('playerName', foundBan.playerName);
       
       badNameSkinForm.setValue('banId', normalizedBanId);
-      badNameSkinForm.setValue('playerName', foundBan.playerName);
       
       generalViolationForm.setValue('banId', normalizedBanId);
-      generalViolationForm.setValue('playerName', foundBan.playerName);
     }
     
     // Show/hide appeal form based on whether an appeal already exists and ban type
@@ -381,6 +406,9 @@ const AppealsPage = () => {
     }
   };
 
+  // Reply message state and form
+  const [newReply, setNewReply] = useState("");
+  
   // Generic appeal form submission handler
   const onAppealSubmit = (values: any) => {
     // In a real application, this would submit to backend and create an appeal
@@ -389,18 +417,78 @@ const AppealsPage = () => {
       description: `Your appeal for ban ${values.banId} has been submitted and will be reviewed by our staff.`,
     });
     
-    // Create mock appeal
+    // Get appeal reason based on form type
+    let appealReason = "";
+    if ('reason' in values) {
+      appealReason = values.reason;
+    } else if ('appealReason' in values) {
+      appealReason = values.appealReason;
+    } else if ('additionalInfo' in values) {
+      appealReason = values.additionalInfo;
+    }
+    
+    // Create initial messages
+    const initialMessages: AppealMessage[] = [
+      {
+        id: `m${Date.now()}-1`,
+        sender: 'player',
+        senderName: 'You',
+        content: appealReason || 'I would like to appeal this punishment.',
+        timestamp: new Date().toLocaleString(),
+      },
+      {
+        id: `m${Date.now()}-2`,
+        sender: 'system',
+        senderName: 'System',
+        content: 'Your appeal has been received and will be reviewed by our moderation team.',
+        timestamp: new Date().toLocaleString(),
+      }
+    ];
+    
+    // Create mock appeal with messages
     const newAppeal: AppealInfo = {
       id: `APP${Math.floor(100000 + Math.random() * 900000)}`,
       banId: values.banId,
-      playerName: values.playerName,
       submittedOn: new Date().toISOString().split('T')[0],
       status: 'Pending Review',
+      lastUpdate: new Date().toISOString().split('T')[0],
+      messages: initialMessages,
     };
     
     // Update UI to show the new appeal
     setAppealInfo(newAppeal);
     setShowAppealForm(false);
+  };
+  
+  // Handle sending a reply to an existing appeal
+  const handleSendReply = () => {
+    if (!newReply.trim() || !appealInfo) return;
+    
+    // Create new message
+    const newMessage: AppealMessage = {
+      id: `m${Date.now()}`,
+      sender: 'player',
+      senderName: 'You',
+      content: newReply,
+      timestamp: new Date().toLocaleString(),
+    };
+    
+    // Create updated appeal with the new message
+    const updatedAppeal: AppealInfo = {
+      ...appealInfo,
+      lastUpdate: new Date().toISOString().split('T')[0],
+      messages: [...(appealInfo.messages || []), newMessage],
+    };
+    
+    // Update UI and clear input
+    setAppealInfo(updatedAppeal);
+    setNewReply("");
+    
+    // Show confirmation toast
+    toast({
+      title: "Reply Sent",
+      description: "Your reply has been added to the appeal.",
+    });
   };
 
   return (
@@ -455,16 +543,12 @@ const AppealsPage = () => {
                 <h3 className="text-lg font-semibold">Ban Information</h3>
                 <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Ban ID:</span>
+                    <span className="text-sm font-medium">Punishment ID:</span>
                     <Badge variant="outline">{banInfo.id}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Player:</span>
-                    <span className="text-sm">{banInfo.playerName}</span>
-                  </div>
-                  <div className="flex items-start justify-between">
-                    <span className="text-sm font-medium">Reason:</span>
-                    <span className="text-sm text-right max-w-[250px]">{banInfo.reason}</span>
+                    <span className="text-sm font-medium">Type:</span>
+                    <Badge variant="outline">{banInfo.type}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Date:</span>
@@ -548,6 +632,90 @@ const AppealsPage = () => {
                     </AlertDescription>
                   </Alert>
                 )}
+                
+                {/* Messages Section */}
+                {appealInfo.messages && appealInfo.messages.length > 0 && (
+                  <div className="mt-6 space-y-4">
+                    <Separator />
+                    <h4 className="text-md font-semibold">Conversation</h4>
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto p-2">
+                      {appealInfo.messages.map((message) => (
+                        <div 
+                          key={message.id} 
+                          className={`flex flex-col ${
+                            message.sender === 'player' 
+                              ? 'items-end' 
+                              : message.sender === 'staff' 
+                                ? 'items-start' 
+                                : 'items-center'
+                          }`}
+                        >
+                          <div 
+                            className={`max-w-[85%] rounded-lg p-3 ${
+                              message.sender === 'player' 
+                                ? 'bg-primary text-primary-foreground' 
+                                : message.sender === 'staff' 
+                                  ? 'bg-muted border' 
+                                  : 'bg-muted/50 text-xs w-full text-center'
+                            } ${message.isStaffNote ? 'border-yellow-500 border bg-yellow-50 dark:bg-yellow-950 dark:bg-opacity-20 text-sm italic' : ''}`}
+                          >
+                            {message.isStaffNote && (
+                              <div className="mb-1 text-xs font-medium text-yellow-600 dark:text-yellow-400">
+                                Staff Note (not visible to player)
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`text-xs font-medium ${
+                                message.sender === 'player' 
+                                  ? 'text-primary-foreground/80' 
+                                  : message.sender === 'staff' 
+                                    ? 'text-blue-600 dark:text-blue-400' 
+                                    : 'text-muted-foreground'
+                              }`}>
+                                {message.senderName}
+                              </span>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                            <div className="text-xs opacity-70 mt-1 text-right">
+                              {message.timestamp}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Reply input */}
+                    {appealInfo.status !== 'Approved' && appealInfo.status !== 'Rejected' && (
+                      <div className="mt-4">
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="reply">Add a reply</Label>
+                            <div className="text-xs text-muted-foreground">
+                              Your reply will be visible to staff
+                            </div>
+                          </div>
+                          <Textarea
+                            id="reply"
+                            placeholder="Type your message here..."
+                            rows={3}
+                            value={newReply}
+                            onChange={(e) => setNewReply(e.target.value)}
+                          />
+                          <div className="flex justify-end">
+                            <Button 
+                              onClick={handleSendReply}
+                              disabled={!newReply.trim()}
+                              size="sm"
+                            >
+                              <Send className="h-4 w-4 mr-2" />
+                              Send Reply
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             
@@ -590,20 +758,6 @@ const AppealsPage = () => {
                               <FormLabel>Ban ID</FormLabel>
                               <FormControl>
                                 <Input {...field} readOnly disabled />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={securityBanForm.control}
-                          name="playerName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Player Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -701,21 +855,6 @@ const AppealsPage = () => {
                             </FormItem>
                           )}
                         />
-                        
-                        <FormField
-                          control={linkedBanForm.control}
-                          name="playerName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Player Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
                         <FormField
                           control={linkedBanForm.control}
                           name="email"
@@ -747,10 +886,10 @@ const AppealsPage = () => {
                               </FormControl>
                               <div className="space-y-1 leading-none">
                                 <FormLabel>
-                                  I confirm I have access to the linked account
+                                  I have logged into the linked account in question
                                 </FormLabel>
                                 <FormDescription>
-                                  I can log into both accounts mentioned in the ban reason
+                                  Please tell us if you have ever logged into the account you are linked to. Even if it was for 5 seconds 2 years ago.
                                 </FormDescription>
                               </div>
                               <FormMessage />
@@ -832,20 +971,6 @@ const AppealsPage = () => {
                               <FormLabel>Ban ID</FormLabel>
                               <FormControl>
                                 <Input {...field} readOnly disabled />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={badNameSkinForm.control}
-                          name="playerName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Player Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -976,20 +1101,6 @@ const AppealsPage = () => {
                         
                         <FormField
                           control={generalViolationForm.control}
-                          name="playerName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Player Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={generalViolationForm.control}
                           name="email"
                           render={({ field }) => (
                             <FormItem>
@@ -1104,20 +1215,6 @@ const AppealsPage = () => {
                               <FormLabel>Ban ID</FormLabel>
                               <FormControl>
                                 <Input {...field} readOnly disabled />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={appealForm.control}
-                          name="playerName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Player Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
