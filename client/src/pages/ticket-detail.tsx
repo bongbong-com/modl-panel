@@ -427,7 +427,7 @@ const TicketDetail = () => {
       } else {
         const newMessage: TicketMessage = {
           id: `msg-${ticketDetails.messages.length + 1}`,
-          sender: `ModeratorAlpha closed as ${ticketDetails.selectedAction}`,
+          sender: `ModeratorAlpha ${ticketDetails.selectedAction ? `closed as ${ticketDetails.selectedAction}` : ''}`,
           senderType: "staff",
           content: messageContent,
           timestamp
@@ -669,15 +669,10 @@ const TicketDetail = () => {
                         </div>
                         <span className="text-xs text-muted-foreground">{message.timestamp}</span>
                       </div>
-                      {message.content.includes('closed as') ? (
+                      {message.sender.includes('closed as') ? (
                         <>
                           <div className="font-medium text-sm mt-1">
-                            ModeratorAlpha closed as {message.content.includes('Completed') ? 'Completed' : 
-                              message.content.includes('Rejected') ? 'Rejected' :
-                              message.content.includes('Stale') ? 'Stale' :
-                              message.content.includes('Duplicate') ? 'Duplicate' :
-                              message.content.includes('Pardon') ? 'Pardon' :
-                              message.content.includes('Reduce') ? 'Reduce' : 'Closed'}'
+                            {message.sender}
                             <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                               Staff
                             </Badge>
