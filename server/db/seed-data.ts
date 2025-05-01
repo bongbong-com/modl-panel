@@ -45,8 +45,8 @@ export async function seedDatabase() {
           }
         ],
         ipList: [
-          { ip: '192.168.1.1', date: new Date('2023-01-15') },
-          { ip: '192.168.1.2', date: new Date('2023-08-20') }
+          { ipAddress: '192.168.1.1', country: 'US', region: 'CA', asn: 'AS123', firstLogin: new Date('2023-01-15') },
+          { ipAddress: '192.168.1.2', country: 'US', region: 'CA', asn: 'AS123', firstLogin: new Date('2023-08-20') }
         ],
         punishments: [
           {
@@ -75,7 +75,7 @@ export async function seedDatabase() {
         ],
         notes: [],
         ipList: [
-          { ip: '192.168.2.1', date: new Date('2022-11-10') }
+          { ipAddress: '192.168.2.1', country: 'US', region: 'NY', asn: 'AS456', firstLogin: new Date('2022-11-10') }
         ],
         punishments: [
           {
@@ -112,7 +112,7 @@ export async function seedDatabase() {
           }
         ],
         ipList: [
-          { ip: '192.168.3.1', date: new Date('2023-02-05') }
+          { ipAddress: '192.168.3.1', country: 'UK', region: 'London', asn: 'AS789', firstLogin: new Date('2023-02-05') }
         ],
         punishments: [],
         pendingNotifications: []

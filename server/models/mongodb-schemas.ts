@@ -10,11 +10,19 @@ const usernameSchema = new Schema({
   date: { type: Date, default: Date.now } // first login
 });
 
-// Note Schema
+// Note Schema (generic)
 const noteSchema = new Schema({
   text: { type: String, required: true },
   date: { type: Date, default: Date.now }, // issued date
-  issuerName: { type: String, required: true }
+  issuerName: { type: String, required: true },
+  issuerId: { type: String }
+});
+
+// Ticket Note Schema (specific for tickets)
+const ticketNoteSchema = new Schema({
+  content: { type: String, required: true },
+  author: { type: String, required: true },
+  date: { type: Date, default: Date.now }
 });
 
 // IP Address Schema
@@ -38,12 +46,13 @@ const modificationSchema = new Schema({
 // Punishment Schema
 const punishmentSchema = new Schema({
   id: { type: String, required: true }, // 8-char alphanumeric
+  issuerId: { type: String },
   issuerName: { type: String, required: true },
-  issued: { type: Date, default: Date.now },
-  started: { type: Date },
   type: { type: String, required: true },
-  modifications: [modificationSchema],
-  notes: [{ type: String }],
+  reason: { type: String, required: true },
+  date: { type: Date, default: Date.now },
+  expires: { type: Date, default: null },
+  active: { type: Boolean, default: true },
   attachedTicketIds: [{ type: String }],
   data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible data
 });
@@ -81,12 +90,14 @@ const playerSchema = new Schema({
 
 // Staff Collection
 const staffSchema = new Schema({
+  _id: { type: String }, // Custom staff ID
   email: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
-  profilePicture: { type: String }, // base64 encoded
+  password: { type: String, required: true },
+  profilePicture: { type: String }, // URL or base64 encoded
   admin: { type: Boolean, default: false },
   twoFaSecret: { type: String },
-  passkey: passkeySchema
+  passkey: { type: passkeySchema, required: false }
 });
 
 // Tickets Collection
@@ -94,8 +105,8 @@ const ticketSchema = new Schema({
   _id: { type: String }, // Custom ID format: CATEGORY-[6 digit random numeric]
   tags: [{ type: String }],
   created: { type: Date, default: Date.now },
-  creator: { type: String, required: true }, // UUID of creator
-  notes: [noteSchema],
+  creator: { type: String, required: true }, // Username of creator
+  notes: [ticketNoteSchema],
   replies: [replySchema],
   data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible data
 });
@@ -103,7 +114,9 @@ const ticketSchema = new Schema({
 // Logs Collection
 const logSchema = new Schema({
   created: { type: Date, default: Date.now },
-  description: { type: String, required: true }
+  description: { type: String, required: true },
+  level: { type: String, enum: ['info', 'warning', 'error', 'moderation'], default: 'info' },
+  source: { type: String, default: 'system' }
 });
 
 // Settings Collection
