@@ -23,7 +23,8 @@ import {
   Axe,
   Tag,
   Plus,
-  X
+  X,
+  Lock as LockIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -636,7 +637,26 @@ const TicketDetail = () => {
                         </div>
                         <span className="text-xs text-muted-foreground">{message.timestamp}</span>
                       </div>
-                      <p className="text-sm mt-1">{message.content}</p>
+                      {message.content.includes('closed as') ? (
+                        <>
+                          <div className="font-medium text-sm mt-1">
+                            ModeratorAlpha closed as {message.content.includes('Completed') ? 'Completed' : 
+                              message.content.includes('Rejected') ? 'Rejected' :
+                              message.content.includes('Stale') ? 'Stale' :
+                              message.content.includes('Duplicate') ? 'Duplicate' :
+                              message.content.includes('Pardon') ? 'Pardon' :
+                              message.content.includes('Reduce') ? 'Reduce' : 'Closed'}
+                            <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
+                              Staff
+                            </Badge>
+                          </div>
+                          <p className="text-sm mt-1">
+                            {message.content.startsWith("Thank you") ? message.content : "Thank you for reporting this."}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm mt-1">{message.content}</p>
+                      )}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {message.attachments.map((attachment, idx) => (
@@ -933,7 +953,7 @@ const TicketDetail = () => {
                       className="px-4"
                     >
                       <Send className="h-4 w-4 mr-2" />
-                      {ticketDetails.locked ? 'Reply and Unlock' : 'Send'}
+                      {ticketDetails.locked ? 'Reply and Reopen' : 'Send'}
                     </Button>
                   </div>
                 </div>
