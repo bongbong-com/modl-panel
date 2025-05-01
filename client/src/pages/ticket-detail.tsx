@@ -327,8 +327,14 @@ const TicketDetail = () => {
           break;
       }
       
-      // Combine the action message with any additional comments
-      messageContent = `ModeratorAlpha ${actionDesc}\n\n${messageContent}`;
+      // Format the message differently for non-comment actions
+      if (ticketDetails.newReply?.trim()) {
+        // If there are additional comments, include them after the action description
+        messageContent = `ModeratorAlpha closed this as ${ticketDetails.selectedAction}\n\n${ticketDetails.newReply.trim()}`;
+      } else {
+        // If no additional comments, just use the action description
+        messageContent = `ModeratorAlpha closed this as ${ticketDetails.selectedAction}`;
+      }
       
       // Update ticket status
       handleStatusChange(status);
