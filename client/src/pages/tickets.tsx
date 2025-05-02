@@ -19,6 +19,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useTickets } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 
+// Define the Ticket interface to match the MongoDB schema
+interface Ticket {
+  _id?: string;
+  id: string;
+  type: 'bug' | 'player' | 'chat' | 'appeal';
+  subject: string;
+  reportedBy: string;
+  date: string;
+  status: string;
+  priority: 'Critical' | 'Medium' | 'Low' | 'Fixed';
+  description?: string;
+  notes?: Array<{
+    author: string;
+    content: string;
+    timestamp: string;
+    isStaffOnly: boolean;
+  }>;
+}
+
 const Tickets = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
@@ -30,7 +49,7 @@ const Tickets = () => {
   const mainContentClass = "ml-[32px] pl-8";
 
   // Filter tickets by type and status
-  const filteredTickets = tickets ? tickets.filter(ticket => {
+  const filteredTickets = tickets ? tickets.filter((ticket: Ticket) => {
     const typeMatch = ticket.type === activeTab;
     const statusMatch = statusFilter === "all" || ticket.status.toLowerCase() === statusFilter;
     return typeMatch && statusMatch;
@@ -83,7 +102,7 @@ const Tickets = () => {
                 >
                   <Bug className="h-4 w-4 mr-2" />
                   Bug Reports
-                  <Badge className="ml-2 bg-primary text-white">{tickets ? tickets.filter(t => t.type === 'bug').length : 0}</Badge>
+                  <Badge className="ml-2 bg-primary text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'bug').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="player" 
@@ -91,7 +110,7 @@ const Tickets = () => {
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Player Reports
-                  <Badge className="ml-2 bg-destructive text-white">{tickets ? tickets.filter(t => t.type === 'player').length : 0}</Badge>
+                  <Badge className="ml-2 bg-destructive text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'player').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chat" 
@@ -99,7 +118,7 @@ const Tickets = () => {
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat Reports
-                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter(t => t.type === 'chat').length : 0}</Badge>
+                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'chat').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="appeal" 
@@ -107,7 +126,7 @@ const Tickets = () => {
                 >
                   <LockKeyhole className="h-4 w-4 mr-2" />
                   Ban Appeals
-                  <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter(t => t.type === 'appeal').length : 0}</Badge>
+                  <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'appeal').length : 0}</Badge>
                 </TabsTrigger>
               </TabsList>
               
@@ -135,7 +154,7 @@ const Tickets = () => {
                           </TableCell>
                         </TableRow>
                       ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket, index) => (
+                        filteredTickets.map((ticket: Ticket, index: number) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
@@ -181,7 +200,7 @@ const Tickets = () => {
                   
                   <div className="flex justify-between items-center pt-4">
                     <div className="text-sm text-muted-foreground">
-                      Showing {filteredTickets.length} of {tickets ? tickets.filter(t => t.type === activeTab).length : 0} entries
+                      Showing {filteredTickets.length} of {tickets ? tickets.filter((t: Ticket) => t.type === activeTab).length : 0} entries
                     </div>
                     <div className="flex space-x-1">
                       <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
@@ -228,7 +247,7 @@ const Tickets = () => {
                           </TableCell>
                         </TableRow>
                       ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket, index) => (
+                        filteredTickets.map((ticket: Ticket, index: number) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
@@ -296,7 +315,7 @@ const Tickets = () => {
                           </TableCell>
                         </TableRow>
                       ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket, index) => (
+                        filteredTickets.map((ticket: Ticket, index: number) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
@@ -364,7 +383,7 @@ const Tickets = () => {
                           </TableCell>
                         </TableRow>
                       ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket, index) => (
+                        filteredTickets.map((ticket: Ticket, index: number) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
                             <TableCell className="font-medium">
