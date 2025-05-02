@@ -279,6 +279,12 @@ export function setupTicketRoutes(app: Express) {
       // Handle special cases like adding replies or notes
       if (req.body.newReply) {
         const reply = req.body.newReply;
+        
+        // Ensure staff replies are marked correctly
+        if (reply.senderType === 'staff') {
+          reply.staff = true;
+        }
+        
         await Ticket.findByIdAndUpdate(
           id,
           { $push: { replies: reply } }

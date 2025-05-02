@@ -134,9 +134,9 @@ const TicketDetail = () => {
   const getDefaultTagsForCategory = (category: TicketCategory): string[] => {
     switch(category) {
       case 'Bug Report':
-        return ['UI Issue', 'Server'];
+        return ['Bug Report'];
       case 'Player Report':
-        return ['Harassment'];
+        return ['Player Report'];
       case 'Punishment Appeal':
         return ['Ban Appeal'];
       default:
@@ -185,6 +185,13 @@ const TicketDetail = () => {
       console.log('Received ticket data from MongoDB:', ticketData);
       
       // Convert ticket type to category
+
+
+      ticketData.id.startsWith("BUG") ? ticketData.type = 'bug' :
+        ticketData.id.startsWith("PLAYER") ? ticketData.type = 'player' :
+        ticketData.id.startsWith("APPEAL") ? ticketData.type = 'appeal' :
+        ticketData.type = 'other'
+      
       const category = (ticketData.type === 'bug' ? 'Bug Report' : 
                       ticketData.type === 'player' ? 'Player Report' : 
                       ticketData.type === 'appeal' ? 'Punishment Appeal' : 'Other') as TicketCategory;
