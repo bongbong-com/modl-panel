@@ -561,13 +561,36 @@ const TicketDetail = () => {
               <div className="flex flex-col gap-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-xl font-medium">{ticketDetails.category}: {ticketDetails.subject}</h2>
+                    <h2 className="text-xl font-medium">{ticketDetails.subject}</h2>
                     <div className="flex flex-wrap gap-2 mt-1">
+                      {/* Ticket Category Badge with distinct styling based on type */}
+                      <Badge variant="outline" className={
+                        ticketDetails.category === 'Bug Report' ? 'bg-red-50 text-red-700 border-red-200' : 
+                        ticketDetails.category === 'Player Report' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                        ticketDetails.category === 'Punishment Appeal' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                        'bg-blue-50 text-blue-700 border-blue-200'
+                      }>
+                        {ticketDetails.category}
+                      </Badge>
+                      
+                      {/* Status Badge */}
                       <Badge variant="outline" className={
                         ticketDetails.status === 'Open' ? 'bg-green-50 text-green-700 border-green-200' : 
+                        ticketDetails.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        ticketDetails.status === 'Resolved' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                         'bg-gray-50 text-gray-700 border-gray-200'
                       }>
-                        {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
+                        {ticketDetails.status}
+                      </Badge>
+                      
+                      {/* Priority Badge */}
+                      <Badge variant="outline" className={
+                        ticketDetails.priority === 'Critical' ? 'bg-red-50 text-red-700 border-red-200' : 
+                        ticketDetails.priority === 'Medium' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                        ticketDetails.priority === 'Low' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-green-50 text-green-700 border-green-200'
+                      }>
+                        Priority: {ticketDetails.priority}
                       </Badge>
                       
                       {/* Display the tags */}
@@ -731,14 +754,14 @@ const TicketDetail = () => {
                                 : 'bg-muted text-muted-foreground'
                           }>
                             {message.senderType === 'system' ? 'SYS' : 
-                              message.sender ? message.sender.substring(0, 2).toUpperCase() : 
+                              message.sender && typeof message.sender === 'string' ? message.sender.substring(0, 2).toUpperCase() : 
                               message.senderType === 'staff' ? 'ST' : 'US'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">
-                              <>{message.sender || (message.senderType === 'staff' ? 'Staff' : 'User')}</>
+                              <>{message.sender && typeof message.sender === 'string' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}</>
                               {message.senderType === 'staff' && (
                                 <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                                   Staff
