@@ -327,12 +327,19 @@ const Lookup = () => {
             console.log('Found player:', playerData);
             window.location.href = `/lookup?id=${playerData.uuid}`;
           } else {
-            console.error('Player not found or invalid data returned');
-            alert('Player not found. Please check the username and try again.');
+            console.error('Player found but UUID is missing in data');
+            alert('Invalid player data returned. Please try a different username.');
           }
         } else {
-          console.error('Failed to search for player:', response.statusText);
-          alert('Error searching for player. Please try again.');
+          // Try to parse error message
+          try {
+            const errorData = await response.json();
+            console.error('Failed to search for player:', errorData);
+            alert(errorData.message || 'Player not found. Please check the username and try again.');
+          } catch (e) {
+            console.error('Failed to search for player:', response.statusText);
+            alert(`Error searching for player: ${response.statusText}`);
+          }
         }
       } catch (error) {
         console.error('Error during player search:', error);

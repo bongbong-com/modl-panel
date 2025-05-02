@@ -66,14 +66,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (type === 'uuid') {
         query = { minecraftUuid: identifier };
       } else {
-        // Using a more forgiving approach - search by direct comparison first
-        // If that fails, fall back to regex for partial matching
+        // Using a more forgiving approach
+        // Search for usernames that contain the identifier
+        // This will match "CraftMaster" with "CraftMaster123" and similar variants
         const escapedIdentifier = identifier.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         query = { 
-          $or: [
-            { 'usernames.username': identifier },
-            { 'usernames.username': { $regex: new RegExp(escapedIdentifier, 'i') } }
-          ]
+          'usernames.username': { $regex: new RegExp(escapedIdentifier, 'i') }
         };
       }
       
@@ -136,42 +134,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.status(500).json({ error: 'Error processing player data' });
         }
       } else {
-        // Fall back to mock data if player not found
-        res.json({
-          username: 'DragonSlayer123',
-          uuid: '12a3b456-7c89-123a-4b5c-6d7890123e4f',
-          firstJoined: '2023-01-15',
-          lastOnline: '2 hours ago',
-          playtime: '342 hours',
-          status: 'Active',
-          warnings: [
-            {
-              type: 'Warning',
-              reason: 'Excessive caps in chat',
-              date: '2023-04-12',
-              by: 'Moderator2'
-            }
-          ]
+        // Return a 404 status with error message for better error handling
+        res.status(404).json({
+          error: 'Player not found',
+          message: `No player found with username containing "${identifier}"`
         });
       }
     } catch (error) {
       console.error('Error looking up player:', error);
-      // Fall back to mock data if error occurs
-      res.json({
-        username: 'DragonSlayer123',
-        uuid: '12a3b456-7c89-123a-4b5c-6d7890123e4f',
-        firstJoined: '2023-01-15',
-        lastOnline: '2 hours ago',
-        playtime: '342 hours',
-        status: 'Active',
-        warnings: [
-          {
-            type: 'Warning',
-            reason: 'Excessive caps in chat',
-            date: '2023-04-12',
-            by: 'Moderator2'
-          }
-        ]
+      // Return error message
+      res.status(500).json({
+        error: 'Server error',
+        message: 'An error occurred while searching for the player'
       });
     }
   });
