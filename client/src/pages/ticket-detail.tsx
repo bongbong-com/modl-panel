@@ -751,10 +751,8 @@ const TicketDetail = () => {
                           {message.closedAs ? (
                             <>
                               <div className="text-sm mt-1 flex items-center">
-                                <span className="font-medium text-muted-foreground">Ticket closed as </span>
-                                <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                  {message.closedAs}
-                                </Badge>
+                                <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
+                                
                               </div>
                               <p className="text-sm mt-1">
                                 {message.content}

@@ -209,6 +209,7 @@ export function setupTicketRoutes(app: Express) {
           priority,
           reportedBy: ticket.creator,
           date: ticket.created,
+          category, // Explicitly add category to response
           type: category.toLowerCase().includes('bug') ? 'bug' : 
                 category.toLowerCase().includes('appeal') ? 'appeal' :
                 category.toLowerCase().includes('player') ? 'player' : 'chat'
