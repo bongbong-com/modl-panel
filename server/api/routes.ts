@@ -4,6 +4,39 @@ import { createSystemLog } from '../routes/log-routes';
 
 // Player routes
 export function setupPlayerRoutes(app: Express) {
+  // Search player by username
+  app.get('/api/player/:username', async (req: Request, res: Response) => {
+    try {
+      const username = req.params.username;
+      
+      // Create a case-insensitive regex for partial matching
+      const regex = new RegExp(username, 'i');
+      
+      // Search for players with a matching username in their history
+      const player = await Player.findOne({
+        'usernames.username': { $regex: regex }
+      });
+      
+      if (!player) {
+        return res.status(404).json({ message: 'Player not found' });
+      }
+      
+      // Get the latest username
+      const latestUsername = player.usernames && player.usernames.length > 0
+        ? player.usernames[player.usernames.length - 1].username
+        : 'Unknown';
+      
+      // Return minimal player info with UUID for lookup
+      res.json({
+        uuid: player.minecraftUuid,
+        username: latestUsername
+      });
+    } catch (error) {
+      console.error('Error searching for player:', error);
+      res.status(500).json({ error: 'Failed to search for player' });
+    }
+  });
+
   // Get all players
   app.get('/api/players', async (req: Request, res: Response) => {
     try {
