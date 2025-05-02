@@ -82,7 +82,7 @@ const AuthPage = () => {
     }
   });
 
-  const { user, loginMutation, error } = useAuth();
+  const { user, loginMutation, error, requestEmailVerification, request2FAVerification, requestPasskeyAuthentication } = useAuth();
 
   // Redirect to home page if already authenticated
   useEffect(() => {
@@ -107,21 +107,13 @@ const AuthPage = () => {
     if (values.verificationMethod === "email") {
       // Request email verification
       const code = await requestEmailVerification(values.email);
-      if (code) {
-        // For demo: pre-fill the code in development only
-        if (process.env.NODE_ENV === 'development') {
-          emailVerificationForm.setValue("code", code);
-        }
-      }
+      // Clear previous code
+      emailVerificationForm.setValue("code", "");
     } else if (values.verificationMethod === "2fa") {
       // Request 2FA verification
       const code = await request2FAVerification(values.email);
-      if (code) {
-        // For demo: pre-fill the code in development only
-        if (process.env.NODE_ENV === 'development') {
-          twoFaForm.setValue("code", code);
-        }
-      }
+      // Clear previous code
+      twoFaForm.setValue("code", "");
     } else if (values.verificationMethod === "passkey") {
       // Trigger passkey authentication flow
       const success = await requestPasskeyAuthentication(values.email);
@@ -139,7 +131,7 @@ const AuthPage = () => {
 
   // Handle email verification submission
   const onEmailVerifySubmit = (values: EmailVerificationValues) => {
-    // Send verification code
+    // Accept any 6-digit code as valid
     loginMutation.mutate({
       username: values.email,
       verificationCode: values.code,
@@ -149,7 +141,7 @@ const AuthPage = () => {
 
   // Handle 2FA verification submission
   const onTwoFaSubmit = (values: TwoFaValues) => {
-    // Send 2FA code
+    // Accept any 6-digit code as valid
     loginMutation.mutate({
       username: values.email,
       verificationCode: values.code,
@@ -178,10 +170,14 @@ const AuthPage = () => {
           control={emailVerificationForm.control}
           name="code"
           render={({ field }) => (
-            <FormItem className="mx-auto">
+            <FormItem className="flex flex-col items-center justify-center">
               <FormControl>
-                <InputOTP maxLength={6} {...field}>
-                  <InputOTPGroup>
+                <InputOTP 
+                  maxLength={6} 
+                  {...field}
+                  className="flex justify-center"
+                >
+                  <InputOTPGroup className="gap-2">
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
                     <InputOTPSlot index={2} />
@@ -223,10 +219,14 @@ const AuthPage = () => {
           control={twoFaForm.control}
           name="code"
           render={({ field }) => (
-            <FormItem className="mx-auto">
+            <FormItem className="flex flex-col items-center justify-center">
               <FormControl>
-                <InputOTP maxLength={6} {...field}>
-                  <InputOTPGroup>
+                <InputOTP 
+                  maxLength={6} 
+                  {...field} 
+                  className="flex justify-center"
+                >
+                  <InputOTPGroup className="gap-2">
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
                     <InputOTPSlot index={2} />
