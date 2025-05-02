@@ -655,13 +655,13 @@ const TicketDetail = () => {
                                 ? 'bg-success/10 text-success' 
                                 : 'bg-muted text-muted-foreground'
                           }>
-                            {message.senderType === 'system' ? 'SYS' : message.sender.substring(0, 2).toUpperCase()}
+                            {message.senderType === 'system' ? 'SYS' : (message.sender ? message.sender.substring(0, 2).toUpperCase() : 'UK')}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">
-                              <>{message.sender}</>
+                              <>{message.sender || 'Unknown'}</>
                               {message.senderType === 'staff' && (
                                 <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                                   Staff
