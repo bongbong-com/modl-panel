@@ -72,7 +72,8 @@ const replySchema = new Schema({
   content: { type: String, required: true },
   type: { type: String, required: true },
   created: { type: Date, default: Date.now },
-  staff: { type: Boolean, default: false }
+  staff: { type: Boolean, default: false },
+  action: { type: String } // Add action field for tracking ticket action status
 });
 
 // ========================= COLLECTION SCHEMAS =========================

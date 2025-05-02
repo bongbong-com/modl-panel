@@ -245,7 +245,15 @@ export function setupTicketRoutes(app: Express) {
         assignedTo: ticket.data.get('assignedTo') as string,
         relatedPlayer: ticket.data.get('relatedPlayer') as string,
         relatedPlayerId: ticket.data.get('relatedPlayerId') as string,
-        messages: ticket.replies,
+        messages: ticket.replies.map(reply => ({
+          id: reply._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          sender: reply.name,
+          senderType: reply.type,
+          content: reply.content,
+          timestamp: reply.created,
+          staff: reply.staff,
+          closedAs: reply.action // This will be undefined for now, we'll add it below
+        })),
         notes: ticket.notes,
         tags: ticket.tags
       };
