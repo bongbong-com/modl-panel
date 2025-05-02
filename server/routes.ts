@@ -66,8 +66,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (type === 'uuid') {
         query = { minecraftUuid: identifier };
       } else {
-        query = { 'usernames.username': identifier };
+        // More flexible matching by using regex for case-insensitive matching
+        query = { 'usernames.username': { $regex: new RegExp('^' + identifier + '$', 'i') } };
       }
+      
+      // Log our search query for debugging
+      console.log(`Searching for player with query:`, JSON.stringify(query));
       
       const player = await Player.findOne(query);
       

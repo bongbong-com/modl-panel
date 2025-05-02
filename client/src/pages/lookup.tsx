@@ -281,10 +281,38 @@ const Lookup = () => {
   const playerId = queryParams.get('id') || undefined;
   
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { data: players, isLoading: isLoadingPlayers } = usePlayers();
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
+  
+  // Function to handle player search
+  const handlePlayerSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      try {
+        // First fetch the player data to get their UUID
+        const response = await fetch(`/api/player/${searchQuery}`);
+        if (response.ok) {
+          const playerData = await response.json();
+          if (playerData && playerData.uuid) {
+            // Redirect to the player lookup window with the UUID
+            window.location.href = `/lookup?id=${playerData.uuid}`;
+          } else {
+            console.error('Player not found or invalid data returned');
+            alert('Player not found. Please check the username and try again.');
+          }
+        } else {
+          console.error('Failed to search for player:', response.statusText);
+          alert('Error searching for player. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error during player search:', error);
+        alert('An error occurred during search. Please try again.');
+      }
+    }
+  };
 
   // Open the player window if an ID is provided in URL
   useEffect(() => {
@@ -299,6 +327,26 @@ const Lookup = () => {
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Player Lookup</h2>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-md font-medium">Search Player</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePlayerSearch} className="flex gap-2">
+              <Input 
+                type="text"
+                placeholder="Search by username..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={!searchQuery.trim()}>
+                <Search className="h-4 w-4 mr-1" /> Search
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
         
         <Card>
           <CardHeader>
