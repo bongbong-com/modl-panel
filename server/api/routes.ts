@@ -245,6 +245,7 @@ export function setupTicketRoutes(app: Express) {
         assignedTo: ticket.data.get('assignedTo') as string,
         relatedPlayer: ticket.data.get('relatedPlayer') as string,
         relatedPlayerId: ticket.data.get('relatedPlayerId') as string,
+        locked: ticket.data.get('locked') === true || ticket.data.get('locked') === 'true',
         messages: ticket.replies.map(reply => ({
           id: reply._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           sender: reply.name,

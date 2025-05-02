@@ -162,9 +162,13 @@ const Tickets = () => {
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                  className={`text-xs px-1.5 py-0 h-5 ${
+                                    ticket.status === 'Open' || ticket.status === 'In Progress'
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-gray-50 text-gray-700 border-gray-200'
+                                  }`}
                                 >
-                                  {ticket.status}
+                                  {ticket.status === 'Open' || ticket.status === 'In Progress' ? 'Open' : 'Closed'}
                                 </Badge>
                                 {ticket.type === 'bug' && (
                                   <Badge 

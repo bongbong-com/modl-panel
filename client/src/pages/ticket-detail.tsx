@@ -614,24 +614,13 @@ const TicketDetail = () => {
                         {ticketDetails.category}
                       </Badge>
                       
-                      {/* Status Badge */}
+                      {/* Simple Status Badge - Only Open or Closed */}
                       <Badge variant="outline" className={
-                        ticketDetails.status === 'Open' ? 'bg-green-50 text-green-700 border-green-200' : 
-                        ticketDetails.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        ticketDetails.status === 'Resolved' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                        'bg-gray-50 text-gray-700 border-gray-200'
+                        ticketDetails.status === 'Open' || ticketDetails.status === 'In Progress' ? 
+                          'bg-green-50 text-green-700 border-green-200' : 
+                          'bg-gray-50 text-gray-700 border-gray-200'
                       }>
-                        {ticketDetails.status}
-                      </Badge>
-                      
-                      {/* Priority Badge */}
-                      <Badge variant="outline" className={
-                        ticketDetails.priority === 'Critical' ? 'bg-red-50 text-red-700 border-red-200' : 
-                        ticketDetails.priority === 'Medium' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                        ticketDetails.priority === 'Low' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        'bg-green-50 text-green-700 border-green-200'
-                      }>
-                        Priority: {ticketDetails.priority}
+                        {ticketDetails.status === 'Open' || ticketDetails.status === 'In Progress' ? 'Open' : 'Closed'}
                       </Badge>
                       
                       {/* Display the tags */}
@@ -1064,8 +1053,8 @@ const TicketDetail = () => {
                         <label className="text-sm font-medium">Reopening message:</label>
                         <textarea
                           className="min-h-[80px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          placeholder="Enter message for reopening this ticket..."
-                          value={ticketDetails.newReply || 'This ticket has been reopened for further review.'}
+                          placeholder="Type your reply/reason for reopening this ticket..."
+                          value={ticketDetails.newReply}
                           onChange={(e) => {
                             setTicketDetails(prev => ({
                               ...prev,
