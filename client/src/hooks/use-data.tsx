@@ -68,7 +68,7 @@ export function useTicket(id: string) {
     enabled: !!id,
     // Disable caching to always get fresh data
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0, // This is the v5 replacement for cacheTime
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });

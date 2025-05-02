@@ -358,7 +358,9 @@ const TicketDetail = () => {
         newDuration: undefined,
         isPermanent: undefined,
         duration: undefined,
-        status
+        status,
+        // Make sure to lock the ticket if it's closed
+        locked: isClosing || status === 'Closed' ? true : prev.locked
       }));
       
       // Server update
@@ -367,7 +369,7 @@ const TicketDetail = () => {
         data: {
           status,
           newReply: newMessage,
-          locked: isClosing ? true : ticketDetails.locked
+          locked: isClosing || status === 'Closed' ? true : ticketDetails.locked
         }
       });
     }
@@ -455,7 +457,11 @@ const TicketDetail = () => {
     if (newStatus !== ticketDetails.status) {
       setTicketDetails(prev => ({
         ...prev,
-        status: newStatus
+        status: newStatus,
+        // Make sure to lock/unlock the ticket based on status
+        locked: newStatus === 'Closed' ? true : 
+                action === 'Reopen' ? false : 
+                prev.locked
       }));
     }
     
