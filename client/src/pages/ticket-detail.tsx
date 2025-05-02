@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useAuth } from '@/hooks/use-auth';
 import {
   MessageSquare,
   User,
@@ -24,13 +25,14 @@ import {
   Tag,
   Plus,
   X,
-  Lock as LockIcon
+  Lock as LockIcon,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { tickets } from '@/data/mockData';
+import { useTicket, useUpdateTicket } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';
 
@@ -114,6 +116,7 @@ const TicketDetail = () => {
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   const [isPunishWindowOpen, setIsPunishWindowOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
   
   // More robust parsing of ticket ID from URL
   const path = location[0];
@@ -142,52 +145,19 @@ const TicketDetail = () => {
   };
 
   const [ticketDetails, setTicketDetails] = useState<TicketDetails>({
-    id: "T-12345",
-    subject: "Player report: inappropriate behavior",
+    id: "",
+    subject: "",
     status: "Open",
     priority: "Medium",
-    reportedBy: "GamePlayer123",
+    reportedBy: "",
     assignedTo: undefined,
-    date: "2023-05-15",
+    date: "",
     category: "Player Report",
-    relatedPlayer: "DragonSlayer123",
-    relatedPlayerId: "98f7e654-3d21-321d-4c5b-6a7890123d4e",
-    tags: ['Harassment'],
-    messages: [
-      {
-        id: "msg-1",
-        sender: "GamePlayer123",
-        senderType: "user",
-        content: "I want to report a player who was being very toxic in chat. They were saying inappropriate things and harassing other players. I have attached screenshots of the chat logs.",
-        timestamp: "2023-05-15 14:23",
-        attachments: ["screenshot1.png", "screenshot2.png"]
-      },
-      {
-        id: "msg-2",
-        sender: "System",
-        senderType: "system",
-        content: "Ticket #T-12345 has been created and will be reviewed by a staff member shortly.",
-        timestamp: "2023-05-15 14:24"
-      },
-      {
-        id: "msg-3",
-        sender: "ModeratorAlpha",
-        senderType: "staff",
-        content: "Thank you for your report. I've reviewed the screenshots and will take appropriate action. Could you provide any additional information about when this occurred?",
-        timestamp: "2023-05-15 15:10"
-      },
-      {
-        id: "msg-4",
-        sender: "GamePlayer123",
-        senderType: "user",
-        content: "It happened around 2:00 PM today on the Survival server. There were about 5-6 other players who witnessed it as well.",
-        timestamp: "2023-05-15 15:17"
-      }
-    ],
-    notes: [
-      { content: "Checked server logs - confirmed toxic behavior in chat", author: "Admin", date: "2023-05-15 15:30" },
-      { content: "Previous warnings found for the reported player", author: "ModeratorBeta", date: "2023-05-15 16:15" }
-    ]
+    relatedPlayer: "",
+    relatedPlayerId: "",
+    tags: [],
+    messages: [],
+    notes: []
   });
 
   const statusColors = {
@@ -204,104 +174,73 @@ const TicketDetail = () => {
     'Fixed': 'bg-success/10 text-success border-success/20'
   };
 
+  // Use React Query to fetch ticket data
+  const { data: ticketData, isLoading, isError } = useTicket(ticketId);
+  
+  // Mutation hook for updating tickets
+  const updateTicketMutation = useUpdateTicket();
+
   useEffect(() => {
-    if (ticketId) {
-      // In a real app, fetch ticket data using the ticketId
-      console.log('Fetching data for ticket:', ticketId);
+    if (ticketData) {
+      console.log('Received ticket data from MongoDB:', ticketData);
       
-      // Convert from URL safe format back to original format if needed
-      // For example, if ID-BUG-1234 was used instead of #BUG-1234
-      const originalTicketId = ticketId.startsWith('ID-') 
-        ? '#' + ticketId.substring(3) 
-        : ticketId;
+      // Convert ticket type to category
+      const category = (ticketData.type === 'bug' ? 'Bug Report' : 
+                      ticketData.type === 'player' ? 'Player Report' : 
+                      ticketData.type === 'appeal' ? 'Punishment Appeal' : 'Other') as TicketCategory;
       
-      console.log('Looking for ticket with ID:', originalTicketId);
+      // Get default tags for this category if no tags are provided
+      const tags = ticketData.tags || getDefaultTagsForCategory(category);
       
-      // Find the ticket in our mock data - try direct match first
-      let ticket = tickets.find(t => t.id === originalTicketId);
-      
-      // If no match, try with case insensitive comparison
-      if (!ticket) {
-        console.log('No exact match, trying case insensitive...');
-        ticket = tickets.find(t => 
-          t.id.toLowerCase() === originalTicketId.toLowerCase() || 
-          t.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === originalTicketId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
-        );
-      }
-      
-      // If still no match, try without the ID- prefix
-      if (!ticket) {
-        console.log('Trying without any special handling');
-        ticket = tickets.find(t => 
-          t.id === ticketId || 
-          t.id.toLowerCase() === ticketId.toLowerCase()
-        );
-      }
-      
-      // If still no match, just use first ticket
-      if (!ticket && tickets.length > 0) {
-        console.log('No match found, using first ticket as fallback');
-        ticket = tickets[0];
-      }
-      
-      if (ticket) {
-        console.log('Found matching ticket:', ticket);
-        const category = ticket.type === 'bug' ? 'Bug Report' : 
-                       ticket.type === 'player' ? 'Player Report' : 
-                       ticket.type === 'appeal' ? 'Punishment Appeal' : 'Other';
-        
-        // Get default tags for this category
-        const defaultTags = getDefaultTagsForCategory(category);
-        
-        setTicketDetails(prev => ({
-          ...prev,
-          id: ticket.id,
-          subject: ticket.subject,
-          reportedBy: ticket.reportedBy,
-          date: ticket.date,
-          status: ticket.status as any,
-          priority: ticket.priority,
-          category,
-          // Add default tags for this category
-          tags: defaultTags
-        }));
-      } else {
-        console.error('No tickets available');
-      }
+      // Map MongoDB data to our TicketDetails interface
+      setTicketDetails({
+        id: ticketData.id || ticketData._id,
+        subject: ticketData.subject || 'No Subject',
+        status: (ticketData.status || 'Open') as 'Open' | 'In Progress' | 'Resolved' | 'Closed',
+        priority: (ticketData.priority || 'Medium') as 'Critical' | 'Medium' | 'Low' | 'Fixed',
+        reportedBy: ticketData.reportedBy || 'Unknown',
+        assignedTo: ticketData.assignedTo,
+        date: ticketData.date || new Date().toLocaleDateString(),
+        category,
+        relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
+        relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
+        messages: ticketData.messages || ticketData.replies || [],
+        notes: ticketData.notes || [],
+        tags,
+        locked: ticketData.locked || false
+      });
     }
-  }, [ticketId]);
+  }, [ticketData]);
 
-  const handleTicketAction = (action: string) => {
+  // Define updated handlers that save changes to MongoDB
+  const handleAddNote = () => {
+    if (!ticketDetails.newNote?.trim()) return;
+    
+    const now = new Date();
+    const timestamp = now.toLocaleDateString() + ' ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    
+    // Create the new note with proper structure
+    const newNote: TicketNote = {
+      content: ticketDetails.newNote.trim(),
+      author: user?.username || 'Staff',
+      date: timestamp
+    };
+    
+    // First update local state for immediate UI feedback
     setTicketDetails(prev => ({
       ...prev,
-      selectedAction: action
+      notes: [...prev.notes, newNote],
+      newNote: '',
+      isAddingNote: false
     }));
-  };
-
-  const handleStatusChange = (newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed', lockTicket = false) => {
-    setTicketDetails(prev => ({
-      ...prev,
-      status: newStatus,
-      // Auto-lock the ticket when it's closed or explicitly requested
-      locked: lockTicket || newStatus === 'Closed' ? true : prev.locked
-    }));
-  };
-  
-  const handleAddTag = (tag: string) => {
-    if (tag.trim() && (!ticketDetails.tags || !ticketDetails.tags.includes(tag.trim()))) {
-      setTicketDetails(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), tag.trim()],
-        newTag: ''
-      }));
-    }
-  };
-  
-  const handleRemoveTag = (tag: string) => {
-    setTicketDetails(prev => ({
-      ...prev,
-      tags: (prev.tags || []).filter(t => t !== tag)
-    }));
+    
+    // Then send update to server
+    updateTicketMutation.mutate({
+      id: ticketDetails.id,
+      data: {
+        newNote: newNote
+      }
+    });
   };
 
   // Get placeholder text based on selected action
@@ -380,10 +319,6 @@ const TicketDetail = () => {
           status = 'Open';
           break;
       }
-      
-      
-      // Update ticket status and lock the ticket
-      handleStatusChange(status, true);
     }
     
     // Only send if there's content or an action selected
@@ -395,15 +330,16 @@ const TicketDetail = () => {
       
       // Create the new message with proper structure
       const newMessage: TicketMessage = {
-        id: `msg-${ticketDetails.messages.length + 1}`,
-        sender: "ModeratorAlpha",
+        id: `msg-${Date.now()}`,
+        sender: user?.username || "Staff",
         senderType: "staff",
         content: messageContent,
         timestamp,
         // Only add closedAs if it's a closing action
         closedAs: isClosing ? ticketDetails.selectedAction : undefined
       };
-
+      
+      // Local state update
       setTicketDetails(prev => ({
         ...prev,
         messages: [...prev.messages, newMessage],
@@ -411,9 +347,73 @@ const TicketDetail = () => {
         selectedAction: undefined,
         newDuration: undefined,
         isPermanent: undefined,
-        duration: undefined
+        duration: undefined,
+        status
       }));
+      
+      // Server update
+      updateTicketMutation.mutate({
+        id: ticketDetails.id,
+        data: {
+          status,
+          newReply: newMessage,
+          locked: isClosing ? true : ticketDetails.locked
+        }
+      });
     }
+  };
+  
+  const handleUpdateTagsWithPersistence = (tags: string[]) => {
+    // Update local state for immediate UI feedback
+    setTicketDetails(prev => ({
+      ...prev,
+      tags,
+      newTag: ''
+    }));
+    
+    // Update in database
+    updateTicketMutation.mutate({
+      id: ticketDetails.id,
+      data: { tags }
+    });
+  };
+  
+  const handleAddTag = (tag: string) => {
+    if (tag.trim() && (!ticketDetails.tags || !ticketDetails.tags.includes(tag.trim()))) {
+      const newTags = [...(ticketDetails.tags || []), tag.trim()];
+      handleUpdateTagsWithPersistence(newTags);
+    }
+  };
+  
+  const handleRemoveTag = (tag: string) => {
+    const newTags = (ticketDetails.tags || []).filter(t => t !== tag);
+    handleUpdateTagsWithPersistence(newTags);
+  };
+  
+  const handleStatusChange = (newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed', lockTicket = false) => {
+    // First update local state for immediate UI feedback
+    setTicketDetails(prev => ({
+      ...prev,
+      status: newStatus,
+      // Auto-lock the ticket when it's closed or explicitly requested
+      locked: lockTicket || newStatus === 'Closed' ? true : prev.locked
+    }));
+    
+    // Then update in database
+    updateTicketMutation.mutate({
+      id: ticketDetails.id,
+      data: {
+        status: newStatus,
+        locked: lockTicket || newStatus === 'Closed' ? true : ticketDetails.locked
+      }
+    });
+  };
+  
+  const handleTicketAction = (action: string) => {
+    setTicketDetails(prev => ({
+      ...prev,
+      selectedAction: action
+    }));
   };
 
   return (
@@ -431,614 +431,591 @@ const TicketDetail = () => {
           </Button>
         </div>
         
-        {/* Player window for viewing related player */}
-        {ticketDetails.relatedPlayerId && (
-          <PlayerWindow
-            playerId={ticketDetails.relatedPlayerId}
-            isOpen={isPlayerWindowOpen}
-            onClose={() => setIsPlayerWindowOpen(false)}
-            initialPosition={{ x: 50, y: 50 }}
-          />
+        {isLoading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-2 text-sm text-muted-foreground">Loading ticket details...</p>
+            </div>
+          </div>
         )}
         
-        {/* Punish window for reported player */}
-        {ticketDetails.relatedPlayerId && (
-          <PlayerWindow
-            playerId={ticketDetails.relatedPlayerId}
-            isOpen={isPunishWindowOpen}
-            onClose={() => setIsPunishWindowOpen(false)}
-            initialPosition={{ x: 100, y: 100 }}
-          />
+        {isError && (
+          <div className="flex justify-center items-center py-20">
+            <div className="flex flex-col items-center">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+              <h3 className="mt-2 text-lg font-medium">Failed to load ticket</h3>
+              <p className="text-sm text-muted-foreground">
+                We couldn't load the ticket details. Please try again later.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
+                Try Again
+              </Button>
+            </div>
+          </div>
         )}
+        
+        {!isLoading && !isError && ticketData && (
+          <>
+            {/* Player window for viewing related player */}
+            {ticketDetails.relatedPlayerId && (
+              <PlayerWindow
+                playerId={ticketDetails.relatedPlayerId}
+                isOpen={isPlayerWindowOpen}
+                onClose={() => setIsPlayerWindowOpen(false)}
+                initialPosition={{ x: 50, y: 50 }}
+              />
+            )}
+            
+            {/* Punish window for reported player */}
+            {ticketDetails.relatedPlayerId && (
+              <PlayerWindow
+                playerId={ticketDetails.relatedPlayerId}
+                isOpen={isPunishWindowOpen}
+                onClose={() => setIsPunishWindowOpen(false)}
+                initialPosition={{ x: 100, y: 100 }}
+              />
+            )}
 
-        <div className="bg-background-lighter p-6 rounded-lg">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h2 className="text-xl font-medium">{ticketDetails.category}: {ticketDetails.subject}</h2>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant="outline" className={
-                    ticketDetails.status === 'Open' ? 'bg-green-50 text-green-700 border-green-200' : 
-                    'bg-gray-50 text-gray-700 border-gray-200'
-                  }>
-                    {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
-                  </Badge>
-                  
-                  {/* Display the tags */}
-                  {ticketDetails.tags && ticketDetails.tags.map((tag, index) => (
-                    <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 py-1">
-                      {tag}
+            <div className="bg-background-lighter p-6 rounded-lg">
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h2 className="text-xl font-medium">{ticketDetails.category}: {ticketDetails.subject}</h2>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <Badge variant="outline" className={
+                        ticketDetails.status === 'Open' ? 'bg-green-50 text-green-700 border-green-200' : 
+                        'bg-gray-50 text-gray-700 border-gray-200'
+                      }>
+                        {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
+                      </Badge>
+                      
+                      {/* Display the tags */}
+                      {ticketDetails.tags && ticketDetails.tags.map((tag, index) => (
+                        <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 py-1">
+                          {tag}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-4 w-4 rounded-full hover:bg-blue-100 ml-1 p-0" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveTag(tag);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                      
+                      {/* Tag add button */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-6 px-2 py-1 text-xs rounded-full gap-1 bg-background">
+                            <Tag className="h-3 w-3" />
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-3" align="start">
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium">Add Tag</h4>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="New tag"
+                                value={ticketDetails.newTag || ''}
+                                onChange={(e) => 
+                                  setTicketDetails(prev => ({
+                                    ...prev,
+                                    newTag: e.target.value
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && ticketDetails.newTag?.trim()) {
+                                    handleAddTag(ticketDetails.newTag);
+                                  }
+                                }}
+                              />
+                              <Button 
+                                size="sm"
+                                onClick={() => {
+                                  if (ticketDetails.newTag?.trim()) {
+                                    handleAddTag(ticketDetails.newTag);
+                                  }
+                                }}
+                                disabled={!ticketDetails.newTag?.trim()}
+                              >
+                                Add
+                              </Button>
+                            </div>
+                            <div className="mt-2">
+                              <h5 className="text-xs text-muted-foreground mb-1">Suggested tags:</h5>
+                              <div className="flex flex-wrap gap-1">
+                                {getDefaultTagsForCategory(ticketDetails.category).map((tag, idx) => (
+                                  <Badge 
+                                    key={idx} 
+                                    variant="outline" 
+                                    className="cursor-pointer bg-muted/20 hover:bg-muted/40"
+                                    onClick={() => {
+                                      if (!ticketDetails.tags?.includes(tag)) {
+                                        handleAddTag(tag);
+                                      }
+                                    }}
+                                  >
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Reported By:</span>
+                    <span className="ml-1">{ticketDetails.reportedBy}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="ml-1">{ticketDetails.date}</span>
+                  </div>
+                  {ticketDetails.assignedTo && (
+                    <div>
+                      <span className="text-muted-foreground">Assigned To:</span>
+                      <span className="ml-1">{ticketDetails.assignedTo}</span>
+                    </div>
+                  )}
+                  {ticketDetails.relatedPlayer && (
+                    <div className="flex items-center">
+                      <span className="text-muted-foreground">Related Player:</span>
+                      <span 
+                        className="ml-1 cursor-pointer hover:underline"
+                        onClick={() => setIsPlayerWindowOpen(true)}
+                      >
+                        {ticketDetails.relatedPlayer}
+                      </span>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-4 w-4 rounded-full hover:bg-blue-100 ml-1 p-0" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveTag(tag);
-                        }}
+                        className="h-6 w-6 ml-1"
+                        onClick={() => setIsPlayerWindowOpen(true)}
                       >
-                        <X className="h-3 w-3" />
+                        <ArrowUpRight className="h-3.5 w-3.5" />
                       </Button>
-                    </Badge>
-                  ))}
-                  
-                  {/* Tag add button */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-6 px-2 py-1 text-xs rounded-full gap-1 bg-background">
-                        <Tag className="h-3 w-3" />
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-3" align="start">
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">Add Tag</h4>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            placeholder="New tag"
-                            value={ticketDetails.newTag || ''}
-                            onChange={(e) => 
-                              setTicketDetails(prev => ({
-                                ...prev,
-                                newTag: e.target.value
-                              }))
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && ticketDetails.newTag?.trim()) {
-                                handleAddTag(ticketDetails.newTag);
-                              }
-                            }}
-                          />
-                          <Button 
-                            size="sm"
-                            onClick={() => {
-                              if (ticketDetails.newTag?.trim()) {
-                                handleAddTag(ticketDetails.newTag);
-                              }
-                            }}
-                            disabled={!ticketDetails.newTag?.trim()}
-                          >
-                            Add
-                          </Button>
-                        </div>
-                        <div className="mt-2">
-                          <h5 className="text-xs text-muted-foreground mb-1">Suggested tags:</h5>
-                          <div className="flex flex-wrap gap-1">
-                            {getDefaultTagsForCategory(ticketDetails.category).map((tag, idx) => (
-                              <Badge 
-                                key={idx} 
-                                variant="outline" 
-                                className="cursor-pointer bg-muted/20 hover:bg-muted/40"
-                                onClick={() => {
-                                  if (!ticketDetails.tags?.includes(tag)) {
-                                    handleAddTag(tag);
-                                  }
-                                }}
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-2 text-sm">
-              <div>
-                <span className="text-muted-foreground">Reported By:</span>
-                <span className="ml-1">{ticketDetails.reportedBy}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Date:</span>
-                <span className="ml-1">{ticketDetails.date}</span>
-              </div>
-              {ticketDetails.assignedTo && (
-                <div>
-                  <span className="text-muted-foreground">Assigned To:</span>
-                  <span className="ml-1">{ticketDetails.assignedTo}</span>
-                </div>
-              )}
-              {ticketDetails.relatedPlayer && (
-                <div className="flex items-center">
-                  <span className="text-muted-foreground">Related Player:</span>
-                  <span 
-                    className="ml-1 cursor-pointer hover:underline"
-                    onClick={() => setIsPlayerWindowOpen(true)}
-                  >
-                    {ticketDetails.relatedPlayer}
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 ml-1"
-                    onClick={() => setIsPlayerWindowOpen(true)}
-                  >
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-background-lighter p-4 rounded-lg">
-          <div className="flex gap-2 mb-4">
-            <Button 
-              variant={activeTab === 'conversation' ? 'default' : 'outline'} 
-              onClick={() => setActiveTab('conversation')}
-              className="rounded-md"
-              size="sm"
-            >
-              <MessageSquare className="h-4 w-4 mr-1.5" />
-              Conversation
-            </Button>
-            <Button 
-              variant={activeTab === 'notes' ? 'default' : 'outline'} 
-              onClick={() => setActiveTab('notes')}
-              className="rounded-md"
-              size="sm"
-            >
-              <StickyNote className="h-4 w-4 mr-1.5" />
-              Staff Notes
-            </Button>
-          </div>
-          
-          {activeTab === 'conversation' && (
-            <div className="space-y-4">
-              <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
-                {ticketDetails.messages.map((message) => (
-                  <div 
-                    key={message.id} 
-                    className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className={
-                        message.senderType === 'user' 
-                          ? 'bg-primary/10 text-primary' 
-                          : message.senderType === 'staff' 
-                            ? 'bg-success/10 text-success' 
-                            : 'bg-muted text-muted-foreground'
-                      }>
-                        {message.senderType === 'system' ? 'SYS' : message.sender.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between">
-                        <div className="font-medium text-sm flex items-center">
-                          <>{message.sender}</>
-                          {message.senderType === 'staff' && (
-                            <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
-                              Staff
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{message.timestamp}</span>
-                      </div>
-                      {/* If this message has a closedAs status, show the ticket closing info */}
-                      {message.closedAs ? (
-                        <>
-                          <div className="text-sm mt-1 flex items-center">
-                            <span className="font-medium text-muted-foreground">Ticket closed as </span>
-                            <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
-                              {message.closedAs}
-                            </Badge>
-                          </div>
-                          <p className="text-sm mt-1">
-                            {message.content}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-sm mt-1">{message.content}</p>
-                      )}
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {message.attachments.map((attachment, idx) => (
-                            <div key={idx} className="text-xs flex items-center bg-muted/20 text-muted-foreground px-2 py-1 rounded">
-                              <FileText className="h-3 w-3 mr-1" />
-                              {attachment}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="border-t pt-4">
-                {/* Status info - shows if ticket is locked */}
-                {ticketDetails.locked && (
-                  <div className="mb-4 text-sm text-muted-foreground">
-                    <LockIcon className="h-3.5 w-3.5 inline-block mr-1" /> 
-                    This ticket is locked. Reply to reopen it.
-                  </div>
-                )}
-                
-                {/* Ticket action buttons - moved above the reply box */}
-                <div className="mb-5">                  
-                  {/* Action buttons - only show if ticket is not locked */}
-                  {!ticketDetails.locked && (
-                    <div className="flex flex-wrap gap-2.5">
-                      {/* Player Report actions */}
-                      {ticketDetails.category === 'Player Report' && (
-                        <>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
-                            size="sm" 
-                            onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
-                          >
-                            Comment
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Accepted' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Accepted' 
-                              ? 'bg-primary text-primary-foreground' 
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Accepted')}
-                          >
-                            <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                            Accepted
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Rejected' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Rejected'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Rejected')}
-                          >
-                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                            Rejected
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Close'
-                              ? 'bg-muted'
-                              : 'bg-muted/20 hover:bg-muted/30'}
-                            onClick={() => handleTicketAction('Close')}
-                          >
-                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                            Close (other)
-                          </Button>
-                        </>
-                      )}
-                      
-                      {/* Bug Report actions */}
-                      {ticketDetails.category === 'Bug Report' && (
-                        <>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
-                          >
-                            Comment
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Completed' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Completed'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Completed')}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                            Completed
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Stale' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Stale'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Stale')}
-                          >
-                            <Clock className="h-3.5 w-3.5 mr-1.5" />
-                            Stale
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Duplicate' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Duplicate'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Duplicate')}
-                          >
-                            <Bug className="h-3.5 w-3.5 mr-1.5" />
-                            Duplicate
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Close'
-                              ? 'bg-muted'
-                              : 'bg-muted/20 hover:bg-muted/30'}
-                            onClick={() => handleTicketAction('Close')}
-                          >
-                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                            Close (other)
-                          </Button>
-                        </>
-                      )}
-                      
-                      {/* Punishment Appeal actions */}
-                      {ticketDetails.category === 'Punishment Appeal' && (
-                        <>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Comment' || !ticketDetails.selectedAction ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setTicketDetails(prev => ({ ...prev, selectedAction: 'Comment' }))}
-                          >
-                            Comment
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Pardon' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Pardon'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Pardon')}
-                          >
-                            <Shield className="h-3.5 w-3.5 mr-1.5" />
-                            Pardon
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Reduce' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Reduce'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Reduce')}
-                          >
-                            <Clock className="h-3.5 w-3.5 mr-1.5" />
-                            Reduce
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Reject' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Reject'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-primary/10'}
-                            onClick={() => handleTicketAction('Reject')}
-                          >
-                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                            Reject
-                          </Button>
-                          <Button 
-                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'}
-                            size="sm" 
-                            className={ticketDetails.selectedAction === 'Close'
-                              ? 'bg-muted'
-                              : 'bg-muted/20 hover:bg-muted/30'}
-                            onClick={() => handleTicketAction('Close')}
-                          >
-                            <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                            Close (other)
-                          </Button>
-                        </>
-                      )}
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
 
-                {/* Show action-specific controls under the buttons */}
-                {ticketDetails.selectedAction === 'Reduce' && ticketDetails.category === 'Punishment Appeal' && (
-                  <div className="mt-3 p-3 border rounded-md bg-muted/5">
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <Checkbox
-                          id="isPermanent"
-                          checked={!!ticketDetails.isPermanent}
-                          onCheckedChange={(checked: boolean) => 
-                            setTicketDetails(prev => ({ ...prev, isPermanent: checked }))
-                          }
-                          className="mr-2"
-                        />
-                        <label htmlFor="isPermanent" className="text-sm cursor-pointer">Permanent</label>
+            <div className="bg-background-lighter p-4 rounded-lg">
+              <div className="flex gap-2 mb-4">
+                <Button 
+                  variant={activeTab === 'conversation' ? 'default' : 'outline'} 
+                  onClick={() => setActiveTab('conversation')}
+                  className="rounded-md"
+                  size="sm"
+                >
+                  <MessageSquare className="h-4 w-4 mr-1.5" />
+                  Conversation
+                </Button>
+                <Button 
+                  variant={activeTab === 'notes' ? 'default' : 'outline'} 
+                  onClick={() => setActiveTab('notes')}
+                  className="rounded-md"
+                  size="sm"
+                >
+                  <StickyNote className="h-4 w-4 mr-1.5" />
+                  Staff Notes
+                </Button>
+              </div>
+              
+              {activeTab === 'conversation' && (
+                <div className="space-y-4">
+                  <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
+                    {ticketDetails.messages.map((message) => (
+                      <div 
+                        key={message.id} 
+                        className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className={
+                            message.senderType === 'user' 
+                              ? 'bg-primary/10 text-primary' 
+                              : message.senderType === 'staff' 
+                                ? 'bg-success/10 text-success' 
+                                : 'bg-muted text-muted-foreground'
+                          }>
+                            {message.senderType === 'system' ? 'SYS' : message.sender.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between">
+                            <div className="font-medium text-sm flex items-center">
+                              <>{message.sender}</>
+                              {message.senderType === 'staff' && (
+                                <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
+                                  Staff
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{message.timestamp}</span>
+                          </div>
+                          {/* If this message has a closedAs status, show the ticket closing info */}
+                          {message.closedAs ? (
+                            <>
+                              <div className="text-sm mt-1 flex items-center">
+                                <span className="font-medium text-muted-foreground">Ticket closed as </span>
+                                <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {message.closedAs}
+                                </Badge>
+                              </div>
+                              <p className="text-sm mt-1">
+                                {message.content}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm mt-1">
+                              {message.content}
+                            </p>
+                          )}
+
+                          {/* Show attachments if any */}
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {message.attachments.map((attachment, idx) => (
+                                <div key={idx} className="border rounded-md p-1 flex items-center gap-1.5 text-xs bg-muted/30">
+                                  <Link2 className="h-3 w-3" />
+                                  <span className="text-blue-600">{attachment}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Reply section - only shown if ticket is not locked */}
+                  {!ticketDetails.locked ? (
+                    <div className="border rounded-md p-3">
+                      <div className="flex justify-between mb-3">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Comment' ? 'default' : 'outline'} 
+                            size="sm"
+                            onClick={() => handleTicketAction('Comment')}
+                            className="rounded-md"
+                          >
+                            Comment
+                          </Button>
+                          
+                          {/* Actions based on ticket category */}
+                          {ticketDetails.category === 'Player Report' && (
+                            <>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Accepted' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Accepted')}
+                                className="rounded-md"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                Accept
+                              </Button>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Rejected' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Rejected')}
+                                className="rounded-md"
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          
+                          {ticketDetails.category === 'Bug Report' && (
+                            <>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Completed' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Completed')}
+                                className="rounded-md"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                Completed
+                              </Button>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Stale' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Stale')}
+                                className="rounded-md"
+                              >
+                                <Clock className="h-3.5 w-3.5 mr-1.5" />
+                                Stale
+                              </Button>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Duplicate' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Duplicate')}
+                                className="rounded-md"
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                Duplicate
+                              </Button>
+                            </>
+                          )}
+                          
+                          {ticketDetails.category === 'Punishment Appeal' && (
+                            <>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Pardon' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Pardon')}
+                                className="rounded-md"
+                              >
+                                <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
+                                Pardon
+                              </Button>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Reduce' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Reduce')}
+                                className="rounded-md"
+                              >
+                                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                                Reduce
+                              </Button>
+                              <Button 
+                                variant={ticketDetails.selectedAction === 'Reject' ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => handleTicketAction('Reject')}
+                                className="rounded-md"
+                              >
+                                <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          
+                          {/* Close button for all types */}
+                          <Button 
+                            variant={ticketDetails.selectedAction === 'Close' ? 'default' : 'outline'} 
+                            size="sm"
+                            onClick={() => handleTicketAction('Close')}
+                            className="rounded-md"
+                          >
+                            <LockIcon className="h-3.5 w-3.5 mr-1.5" />
+                            Close
+                          </Button>
+                        </div>
                       </div>
                       
-                      {!ticketDetails.isPermanent && (
-                        <div className="flex gap-2 items-center">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium mb-1">Duration:</label>
-                            <input
-                              type="number"
-                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                              placeholder="e.g., 7"
-                              min="1"
-                              value={ticketDetails.duration?.value || ''}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value) || 0;
-                                setTicketDetails(prev => ({ 
-                                  ...prev, 
-                                  duration: { 
-                                    value, 
-                                    unit: prev.duration?.unit || 'days' 
-                                  } 
+                      {/* Additional options for Reduce action */}
+                      {ticketDetails.selectedAction === 'Reduce' && (
+                        <div className="mb-3 p-3 border rounded-md bg-muted/10">
+                          <div className="flex items-center mb-2">
+                            <Checkbox 
+                              id="permanent"
+                              checked={ticketDetails.isPermanent}
+                              onCheckedChange={(checked) => {
+                                setTicketDetails(prev => ({
+                                  ...prev,
+                                  isPermanent: checked === true
                                 }));
                               }}
                             />
+                            <label htmlFor="permanent" className="ml-2 text-sm font-medium">
+                              Permanent Ban
+                            </label>
                           </div>
-                          <div className="w-40">
-                            <label className="block text-sm font-medium mb-1">Unit:</label>
-                            <select 
-                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                              value={ticketDetails.duration?.unit || 'days'}
-                              onChange={(e) => {
-                                const unit = e.target.value as 'hours' | 'days' | 'weeks' | 'months';
-                                setTicketDetails(prev => ({ 
-                                  ...prev, 
-                                  duration: { 
-                                    value: prev.duration?.value || 1, 
-                                    unit
-                                  } 
-                                }));
-                              }}
-                            >
-                              <option value="hours">Hours</option>
-                              <option value="days">Days</option>
-                              <option value="weeks">Weeks</option>
-                              <option value="months">Months</option>
-                            </select>
-                          </div>
+                          
+                          {!ticketDetails.isPermanent && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-muted-foreground">Duration</label>
+                                <input 
+                                  type="number" 
+                                  className="w-full mt-1 h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                  value={ticketDetails.duration?.value || ''}
+                                  onChange={(e) => {
+                                    const value = parseInt(e.target.value) || 0;
+                                    setTicketDetails(prev => ({
+                                      ...prev,
+                                      duration: {
+                                        ...prev.duration,
+                                        value
+                                      }
+                                    }));
+                                  }}
+                                  min={1}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground">Unit</label>
+                                <select 
+                                  className="w-full mt-1 h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                  value={ticketDetails.duration?.unit || 'days'}
+                                  onChange={(e) => {
+                                    setTicketDetails(prev => ({
+                                      ...prev,
+                                      duration: {
+                                        ...prev.duration,
+                                        unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                      }
+                                    }));
+                                  }}
+                                >
+                                  <option value="hours">Hours</option>
+                                  <option value="days">Days</option>
+                                  <option value="weeks">Weeks</option>
+                                  <option value="months">Months</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
+                      
+                      <div className="relative">
+                        <textarea
+                          className="min-h-[120px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          placeholder={getPlaceholderText()}
+                          value={ticketDetails.newReply || ''}
+                          onChange={(e) => {
+                            setTicketDetails(prev => ({
+                              ...prev,
+                              newReply: e.target.value
+                            }));
+                          }}
+                        />
+                        <Button 
+                          size="sm" 
+                          className="absolute bottom-3 right-3" 
+                          onClick={handleSendReply}
+                          disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}
+                        >
+                          <Send className="h-4 w-4 mr-1.5" />
+                          Send
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Show punish button for "Accepted" action in player reports */}
-                {ticketDetails.selectedAction === 'Accepted' && ticketDetails.category === 'Player Report' && ticketDetails.relatedPlayer && (
-                  <div className="mt-3 p-3 border rounded-md bg-success/5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Apply punishment to {ticketDetails.relatedPlayer}?</span>
-                      <Button size="sm" variant="outline" onClick={() => setIsPunishWindowOpen(true)} className="bg-success/10 text-success hover:bg-success/20">
-                        <Axe className="h-3.5 w-3.5 mr-1.5" /> Punish Player
+                  ) : (
+                    <div className="border rounded-md p-4 bg-muted/10 flex justify-between items-center">
+                      <div className="flex items-center">
+                        <LockIcon className="h-4 w-4 text-muted-foreground mr-2" />
+                        <span className="text-sm text-muted-foreground">This ticket is locked and cannot be replied to.</span>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          handleTicketAction('Reopen');
+                          setTicketDetails(prev => ({
+                            ...prev,
+                            locked: false
+                          }));
+                          updateTicketMutation.mutate({
+                            id: ticketDetails.id,
+                            data: {
+                              locked: false
+                            }
+                          });
+                        }}
+                      >
+                        Unlock
                       </Button>
                     </div>
-                  </div>
-                )}
-
-                {/* Reply box */}
-                <div className="flex flex-col mt-5">
-                  <textarea
-                    className="w-full rounded-md border border-border bg-background px-4 py-3 text-sm h-24 resize-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-                    placeholder={getPlaceholderText()}
-                    value={ticketDetails.newReply || ''}
-                    onChange={(e) => setTicketDetails(prev => ({ ...prev, newReply: e.target.value }))}
-                  ></textarea>
-                  
-                  <div className="flex justify-between mt-4">
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <FileText className="h-3.5 w-3.5" />
-                      Attach
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        if (ticketDetails.locked) {
-                          ticketDetails.selectedAction = 'Reopen'
-                        }
-                        
-                        handleSendReply();
-                        // If ticket was locked, unlock it after sending reply
-                        if (ticketDetails.locked) {
-                          setTicketDetails(prev => ({ ...prev, locked: false }));
-                        }
-                      }}
-                      disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}
-                      className="px-4"
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      {ticketDetails.locked ? 'Reply and Reopen' : 'Send'}
-                    </Button>
-                  </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'notes' && (
-            <div className="space-y-4">
-              <div className="space-y-4 max-h-[480px] overflow-y-auto p-2">
-                {ticketDetails.notes.map((note, idx) => (
-                  <div key={idx} className="bg-muted/30 p-4 rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-medium flex items-center">
-                        <StickyNote className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                        {note.author}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{note.date}</span>
-                    </div>
-                    <p className="pl-5 text-sm">{note.content}</p>
-                  </div>
-                ))}
-              </div>
+              )}
               
-              {ticketDetails.isAddingNote && (
-                <div className="mt-4 bg-muted/10 p-4 rounded-lg border">
-                  <textarea 
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-20"
-                    placeholder="Enter your note here..."
-                    value={ticketDetails.newNote || ''}
-                    onChange={(e) => setTicketDetails(prev => ({...prev, newNote: e.target.value}))}
-                  ></textarea>
-                  <div className="flex justify-end mt-2 gap-2">
+              {activeTab === 'notes' && (
+                <div className="space-y-4">
+                  <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
+                    {ticketDetails.notes.map((note, idx) => (
+                      <div key={idx} className="bg-muted/20 p-3 rounded-md">
+                        <div className="flex justify-between">
+                          <span className="font-medium text-sm">{note.author}</span>
+                          <span className="text-xs text-muted-foreground">{note.date}</span>
+                        </div>
+                        <p className="text-sm mt-1.5">{note.content}</p>
+                      </div>
+                    ))}
+
+                    {ticketDetails.notes.length === 0 && (
+                      <div className="text-center py-8">
+                        <StickyNote className="h-8 w-8 mx-auto text-muted-foreground opacity-50" />
+                        <p className="mt-2 text-sm text-muted-foreground">No staff notes yet</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {ticketDetails.isAddingNote ? (
+                    <div className="border rounded-md p-3">
+                      <textarea
+                        className="min-h-[120px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-3"
+                        placeholder="Add a private staff note here..."
+                        value={ticketDetails.newNote || ''}
+                        onChange={(e) => {
+                          setTicketDetails(prev => ({
+                            ...prev,
+                            newNote: e.target.value
+                          }));
+                        }}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setTicketDetails(prev => ({
+                              ...prev,
+                              isAddingNote: false,
+                              newNote: ''
+                            }));
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={handleAddNote}
+                          disabled={!ticketDetails.newNote?.trim()}
+                        >
+                          <StickyNote className="h-4 w-4 mr-1.5" />
+                          Add Note
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
                     <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setTicketDetails(prev => ({
-                        ...prev, 
-                        isAddingNote: false,
-                        newNote: ''
-                      }))}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      size="sm"
-                      disabled={!ticketDetails.newNote?.trim()}
+                      variant="outline" 
                       onClick={() => {
-                        const currentDate = new Date();
-                        const formattedDate = `${currentDate.toLocaleDateString()} at ${currentDate.toLocaleTimeString()}`;
-                        
-                        const newNote: TicketNote = {
-                          content: ticketDetails.newNote || '',
-                          author: 'Admin',
-                          date: formattedDate
-                        };
-                        
                         setTicketDetails(prev => ({
                           ...prev,
-                          notes: [...prev.notes, newNote],
-                          isAddingNote: false,
-                          newNote: ''
+                          isAddingNote: true
                         }));
                       }}
                     >
-                      Save Note
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      Add Staff Note
                     </Button>
-                  </div>
+                  )}
                 </div>
               )}
-              
-              {!ticketDetails.isAddingNote && (
-                <Button 
-                  variant="outline" 
-                  className="mt-3"
-                  onClick={() => setTicketDetails(prev => ({...prev, isAddingNote: true}))}
-                >
-                  <StickyNote className="h-3.5 w-3.5 mr-1" /> Add Note
-                </Button>
-              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </PageContainer>
   );
