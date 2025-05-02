@@ -214,7 +214,9 @@ const TicketDetail = () => {
         messages: ticketData.messages || ticketData.replies || [],
         notes: ticketData.notes || [],
         tags,
-        locked: ticketData.locked || false
+        locked: ticketData.locked || false,
+        // Set default action to "Comment" to highlight the Comment button
+        selectedAction: 'Comment' 
       });
     }
   }, [ticketData]);
@@ -1021,23 +1023,31 @@ const TicketDetail = () => {
                         <span className="text-sm text-muted-foreground">This ticket is locked and cannot be replied to.</span>
                       </div>
                       <Button 
-                        variant="outline" 
+                        variant="default" 
                         size="sm"
                         onClick={() => {
+                          // Set action to Reopen with default message
                           handleTicketAction('Reopen');
+                          
+                          // Update local state
                           setTicketDetails(prev => ({
                             ...prev,
-                            locked: false
+                            locked: false,
+                            status: 'Open'
                           }));
+                          
+                          // Update in database
                           updateTicketMutation.mutate({
                             id: ticketDetails.id,
                             data: {
-                              locked: false
+                              locked: false,
+                              status: 'Open'
                             }
                           });
                         }}
                       >
-                        Unlock
+                        <UnlockIcon className="h-4 w-4 mr-2" />
+                        Reopen & Reply
                       </Button>
                     </div>
                   )}

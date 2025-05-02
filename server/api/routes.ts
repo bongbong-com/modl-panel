@@ -308,6 +308,8 @@ export function setupTicketRoutes(app: Express) {
       if (req.body.status) dataUpdates['data.status'] = req.body.status;
       if (req.body.priority) dataUpdates['data.priority'] = req.body.priority;
       if (req.body.assignedTo) dataUpdates['data.assignedTo'] = req.body.assignedTo;
+      // Handle locked status
+      if (req.body.locked !== undefined) dataUpdates['data.locked'] = req.body.locked;
       
       // Handle tags
       if (req.body.tags) {
