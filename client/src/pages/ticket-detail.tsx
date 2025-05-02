@@ -331,7 +331,7 @@ const TicketDetail = () => {
       // Create the new message with proper structure
       const newMessage: TicketMessage = {
         id: `msg-${Date.now()}`,
-        sender: user?.username || "Staff",
+        sender: user?.username || "Admin", // Use Admin as fallback instead of Unknown
         senderType: "staff",
         content: messageContent,
         timestamp,
@@ -410,10 +410,85 @@ const TicketDetail = () => {
   };
   
   const handleTicketAction = (action: string) => {
+    // Set selected action
     setTicketDetails(prev => ({
       ...prev,
       selectedAction: action
     }));
+    
+    // Update status based on action
+    let newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed' = ticketDetails.status;
+    
+    switch(action) {
+      case 'Accepted':
+      case 'Completed':
+      case 'Pardon':
+      case 'Reduce':
+        newStatus = 'Resolved';
+        break;
+      case 'Rejected':
+      case 'Stale': 
+      case 'Duplicate':
+      case 'Reject':
+      case 'Close':
+        newStatus = 'Closed';
+        break;
+      case 'Reopen':
+        newStatus = 'Open';
+        break;
+      case 'Comment':
+        // No status change for simple comments
+        break;
+    }
+    
+    // If the status changed, update local state
+    if (newStatus !== ticketDetails.status) {
+      setTicketDetails(prev => ({
+        ...prev,
+        status: newStatus
+      }));
+    }
+    
+    // Set a default reply based on the action
+    if (action && action !== 'Comment') {
+      let text = '';
+      
+      if (action === 'Accepted') {
+        text = `This report has been accepted and the player will be dealt with. Thank you for your report.`;
+      } else if (action === 'Rejected') {
+        text = `After reviewing this report, we have determined that no action is necessary at this time. Thank you for your report.`;
+      } else if (action === 'Completed') {
+        text = `This bug has been fixed and will be included in the next update. Thank you for your report.`;
+      } else if (action === 'Stale') {
+        text = `We haven't been able to reproduce this issue. Please provide more details if this persists.`;
+      } else if (action === 'Duplicate') {
+        text = `This is a duplicate of an existing bug report. We'll keep you updated on the progress.`;
+      } else if (action === 'Pardon') {
+        text = `After reviewing your appeal, we have decided to pardon your punishment. Thank you for your patience.`;
+      } else if (action === 'Reduce') {
+        const duration = ticketDetails.isPermanent 
+          ? 'permanent' 
+          : `${ticketDetails.duration?.value || 14} ${ticketDetails.duration?.unit || 'days'}`;
+        text = `After reviewing your appeal, we have decided to reduce your punishment to ${duration}. Thank you for your patience.`;
+      } else if (action === 'Reject') {
+        text = `After reviewing your appeal, we have decided to uphold the original punishment. Thank you for your understanding.`;
+      } else if (action === 'Close') {
+        text = `This ticket has been closed. Please create a new ticket if you need further assistance.`;
+      } else if (action === 'Reopen') {
+        text = `This ticket has been reopened.`;
+      }
+      
+      if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
+        text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
+      }
+      
+      if (text) {
+        setTicketDetails(prev => ({
+          ...prev,
+          newReply: text
+        }));
+      }
+    }
   };
 
   return (
@@ -655,13 +730,15 @@ const TicketDetail = () => {
                                 ? 'bg-success/10 text-success' 
                                 : 'bg-muted text-muted-foreground'
                           }>
-                            {message.senderType === 'system' ? 'SYS' : (message.sender ? message.sender.substring(0, 2).toUpperCase() : 'UK')}
+                            {message.senderType === 'system' ? 'SYS' : 
+                              message.sender ? message.sender.substring(0, 2).toUpperCase() : 
+                              message.senderType === 'staff' ? 'ST' : 'US'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">
-                              <>{message.sender || 'Unknown'}</>
+                              <>{message.sender || (message.senderType === 'staff' ? 'Staff' : 'User')}</>
                               {message.senderType === 'staff' && (
                                 <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                                   Staff
