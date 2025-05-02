@@ -65,7 +65,12 @@ export function useTicket(id: string) {
       }
       return res.json();
     },
-    enabled: !!id
+    enabled: !!id,
+    // Disable caching to always get fresh data
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 }
 

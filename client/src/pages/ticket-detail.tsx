@@ -771,7 +771,7 @@ const TicketDetail = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">
-                              <>{message.sender && typeof message.sender === 'string' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}</>
+                              <>{message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}</>
                               {message.senderType === 'staff' && (
                                 <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                                   Staff
