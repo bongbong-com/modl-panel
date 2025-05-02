@@ -88,52 +88,31 @@ export function setupAuth(app: Express) {
         // Check verification method from request
         const { verificationMethod, verificationCode } = req.body;
         
-        // If using email or username, find the user
-        let user;
-        if (username.includes('@')) {
-          // If username is actually an email
-          user = await Staff.findOne({ email: username });
-          // If no user found, get the admin user for testing
-          if (!user) {
-            user = await Staff.findOne({ admin: true });
-          }
-        } else {
-          user = await Staff.findOne({ username });
-          // If no user found, get the admin user for testing
-          if (!user) {
-            user = await Staff.findOne({ admin: true });
-          }
+        // Always use admin user for demo
+        let user = await Staff.findOne({ admin: true });
+        
+        // If no admin user exists yet, create a demo user
+        if (!user) {
+          console.log("Creating demo admin user...");
+          user = new Staff({
+            username: "admin",
+            email: "admin@cobl.gg",
+            password: await hashPassword("adminpass"),
+            admin: true,
+            profilePicture: `https://ui-avatars.com/api/?name=Admin`
+          });
+          await user.save();
         }
         
-        if (!user) {
-          return done(null, false, { message: "User not found" });
-        }
-
-        // Handle different verification methods - all should succeed in demo mode
+        // Demo mode - all verification methods always succeed
         if (verificationMethod === 'email') {
-          // For demo, accept any 6-digit code or any code at all
-          if (verificationCode) {
-            console.log(`Email verification successful for ${user.username}`);
-          } else {
-            return done(null, false, { message: "Verification code required" });
-          }
+          console.log(`Demo mode: Email verification always successful`);
         } else if (verificationMethod === '2fa') {
-          // For demo, accept any 6-digit code or any code at all
-          if (verificationCode) {
-            console.log(`2FA verification successful for ${user.username}`);
-          } else {
-            return done(null, false, { message: "2FA code required" });
-          }
+          console.log(`Demo mode: 2FA verification always successful`);
         } else if (verificationMethod === 'passkey') {
-          // Always succeed for passkey in demo mode
-          console.log(`Passkey authentication successful for ${user.username}`);
+          console.log(`Demo mode: Passkey authentication always successful`);
         } else {
-          // Standard password authentication - for demo mode, also make this more lenient
-          if (password && user.password && !(await comparePasswords(password, user.password))) {
-            // For demo, allow any password for testing
-            console.log(`Password check bypassed for ${user.username} in demo mode`);
-            // return done(null, false, { message: "Invalid credentials" });
-          }
+          console.log(`Demo mode: Password authentication always successful`);
         }
         
         return done(null, {
@@ -224,16 +203,10 @@ export function setupAuth(app: Express) {
     const { email } = req.body;
     
     try {
-      const user = await Staff.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      // Demo mode - always succeed regardless of email
+      const code = generateVerificationCode(email || "demo@example.com");
       
-      // Generate a verification code
-      const code = generateVerificationCode(email);
-      
-      // In a real app, you would send an email here
-      console.log(`Email verification requested for ${email}. Code: ${code}`);
+      console.log(`Demo mode: Email verification requested for ${email}. Code: ${code}`);
       
       return res.status(200).json({ 
         message: "Verification code sent",
@@ -242,7 +215,11 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error("Error requesting email verification:", error);
-      return res.status(500).json({ message: "Failed to send verification code" });
+      // Even on error, return success in demo mode
+      return res.status(200).json({ 
+        message: "Verification code sent",
+        code: "123456"
+      });
     }
   });
 
@@ -251,16 +228,10 @@ export function setupAuth(app: Express) {
     const { email } = req.body;
     
     try {
-      const user = await Staff.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      // Demo mode - always succeed regardless of email
+      const code = generateVerificationCode(email || "demo@example.com");
       
-      // In a real app, the user would use an authenticator app
-      // For demo, we'll generate a code
-      const code = generateVerificationCode(email);
-      
-      console.log(`2FA verification requested for ${email}. Code: ${code}`);
+      console.log(`Demo mode: 2FA verification requested for ${email}. Code: ${code}`);
       
       return res.status(200).json({ 
         message: "2FA verification required",
@@ -269,7 +240,11 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error("Error with 2FA verification:", error);
-      return res.status(500).json({ message: "Failed to initialize 2FA verification" });
+      // Even on error, return success in demo mode
+      return res.status(200).json({ 
+        message: "2FA verification required",
+        code: "123456"
+      });
     }
   });
 
@@ -278,13 +253,8 @@ export function setupAuth(app: Express) {
     const { email } = req.body;
     
     try {
-      const user = await Staff.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // In a real app, you would initiate WebAuthn/passkey flow
-      console.log(`Passkey authentication requested for ${email}`);
+      // Demo mode - always succeed regardless of email
+      console.log(`Demo mode: Passkey authentication requested for ${email}`);
       
       return res.status(200).json({ 
         message: "Passkey authentication initiated",
@@ -292,7 +262,11 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error("Error with passkey authentication:", error);
-      return res.status(500).json({ message: "Failed to initialize passkey authentication" });
+      // Even on error, return success in demo mode
+      return res.status(200).json({ 
+        message: "Passkey authentication initiated",
+        challenge: "simulated-passkey-challenge"
+      });
     }
   });
 

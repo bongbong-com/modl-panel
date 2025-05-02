@@ -3,15 +3,15 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mail, KeyRound, Fingerprint } from 'lucide-react';
+import { Eye, EyeOff, Fingerprint, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,64 +25,66 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
-// Define the initial login form schema
+// Define the login form schema
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  verificationMethod: z.enum(["email", "2fa", "passkey"]).default("email")
-});
-
-// Define schema for email verification
-const emailVerificationSchema = z.object({
-  email: z.string().email(),
-  code: z.string().length(6, { message: "Verification code must be 6 digits" })
-});
-
-// Define schema for 2FA verification
-const twoFaSchema = z.object({
-  email: z.string().email(),
-  code: z.string().length(6, { message: "2FA code must be 6 digits" })
+  methodType: z.enum(["2fa", "email", "passkey"]),
+  code: z.string().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-type EmailVerificationValues = z.infer<typeof emailVerificationSchema>;
-type TwoFaValues = z.infer<typeof twoFaSchema>;
+
+// Define the registration form schema
+const registerSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const AuthPage = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [verificationMethod, setVerificationMethod] = useState<"email" | "2fa" | "passkey">("email");
-  const [isAwaitingVerification, setIsAwaitingVerification] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState("login");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loginStep, setLoginStep] = useState<'email' | 'verification'>('email');
+  const [verificationMethod, setVerificationMethod] = useState<'2fa' | 'email' | 'passkey'>('email');
+
   // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
-      verificationMethod: "email"
+      methodType: "email",
     },
   });
 
-  // Email verification form
-  const emailVerificationForm = useForm<EmailVerificationValues>({
-    resolver: zodResolver(emailVerificationSchema),
+  // Registration form
+  const registerForm = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
-      code: ""
-    }
+      password: "",
+      confirmPassword: "",
+    },
   });
 
-  // 2FA verification form
-  const twoFaForm = useForm<TwoFaValues>({
-    resolver: zodResolver(twoFaSchema),
-    defaultValues: {
-      email: "",
-      code: ""
-    }
-  });
-
-  const { user, loginMutation, error, requestEmailVerification, request2FAVerification, requestPasskeyAuthentication } = useAuth();
+  const { login, register: authRegister, user } = useAuth();
 
   // Redirect to home page if already authenticated
   useEffect(() => {
@@ -91,266 +93,65 @@ const AuthPage = () => {
     }
   }, [user, setLocation]);
 
-  // Update verification form emails when main form email changes
-  useEffect(() => {
-    const email = loginForm.watch("email");
-    emailVerificationForm.setValue("email", email);
-    twoFaForm.setValue("email", email);
-  }, [loginForm.watch("email")]);
-
   // Handle login form submission
   const onLoginSubmit = async (values: LoginFormValues) => {
-    setVerificationMethod(values.verificationMethod);
-    setIsAwaitingVerification(true);
-    
-    // Process based on verification method
-    if (values.verificationMethod === "email") {
-      // Request email verification
-      const code = await requestEmailVerification(values.email);
-      // Clear previous code
-      emailVerificationForm.setValue("code", "");
-    } else if (values.verificationMethod === "2fa") {
-      // Request 2FA verification
-      const code = await request2FAVerification(values.email);
-      // Clear previous code
-      twoFaForm.setValue("code", "");
-    } else if (values.verificationMethod === "passkey") {
-      // Trigger passkey authentication flow
-      const success = await requestPasskeyAuthentication(values.email);
+    if (loginStep === 'email') {
+      // First step - show verification methods
+      toast({
+        title: "Email verification sent",
+        description: `A verification code has been sent to ${values.email}`,
+      });
+
+      setVerificationMethod(values.methodType);
+      setLoginStep('verification');
+      return;
+    }
+
+    // Second step - verify code or passkey
+    try {
+      const success = await login(
+        values.email, 
+        verificationMethod, 
+        verificationMethod !== 'passkey' ? values.code : undefined
+      );
+
       if (success) {
-        // For demo, simulate successful passkey auth after short delay
-        setTimeout(() => {
-          loginMutation.mutate({
-            username: values.email,
-            verificationMethod: 'passkey'
-          });
-        }, 1500);
+        // Redirect is handled by the auth hook on success
       }
+    } catch (error) {
+      toast({
+        title: "Authentication failed",
+        description: "An error occurred during authentication",
+        variant: "destructive"
+      });
     }
   };
 
-  // Handle email verification submission
-  const onEmailVerifySubmit = (values: EmailVerificationValues) => {
-    // Accept any 6-digit code as valid
-    loginMutation.mutate({
-      username: values.email,
-      verificationCode: values.code,
-      verificationMethod: 'email'
-    });
+  // Handle registration form submission
+  const onRegisterSubmit = async (values: RegisterFormValues) => {
+    try {
+      const success = await authRegister(values.email, values.password);
+
+      if (success) {
+        // Switch to login tab
+        setActiveTab("login");
+      }
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: "An error occurred during registration",
+        variant: "destructive"
+      });
+    }
   };
 
-  // Handle 2FA verification submission
-  const onTwoFaSubmit = (values: TwoFaValues) => {
-    // Accept any 6-digit code as valid
-    loginMutation.mutate({
-      username: values.email,
-      verificationCode: values.code,
-      verificationMethod: '2fa'
-    });
+  // Reset the login flow if the user changes tabs
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === "login") {
+      setLoginStep('email');
+    }
   };
-
-  // Reset verification state
-  const handleBackToLogin = () => {
-    setVerificationMethod("email");
-    setIsAwaitingVerification(false);
-  };
-
-  // Render email verification step
-  const renderEmailVerification = () => (
-    <Form {...emailVerificationForm}>
-      <form onSubmit={emailVerificationForm.handleSubmit(onEmailVerifySubmit)} className="space-y-4">
-        <div className="text-center mb-4">
-          <h3 className="text-lg font-medium">Email Verification</h3>
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code sent to {emailVerificationForm.getValues().email}
-          </p>
-        </div>
-        
-        <FormField
-          control={emailVerificationForm.control}
-          name="code"
-          render={({ field }) => (
-            <FormItem className="flex flex-col items-center justify-center">
-              <FormControl>
-                <div className="flex justify-center space-x-2">
-                  <Input
-                    type="text"
-                    className="w-full text-center"
-                    placeholder="Enter 6-digit code"
-                    maxLength={6}
-                    value={field.value}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      if (val.length <= 6) {
-                        field.onChange(val);
-                      }
-                    }}
-                  />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex flex-col space-y-2 mt-6">
-          <Button type="submit" disabled={emailVerificationForm.formState.isSubmitting}>
-            Verify Email
-          </Button>
-          <Button type="button" variant="ghost" onClick={handleBackToLogin}>
-            Back to Login
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-
-  // Render 2FA verification step
-  const renderTwoFaVerification = () => (
-    <Form {...twoFaForm}>
-      <form onSubmit={twoFaForm.handleSubmit(onTwoFaSubmit)} className="space-y-4">
-        <div className="text-center mb-4">
-          <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code from your authenticator app
-          </p>
-        </div>
-        
-        <FormField
-          control={twoFaForm.control}
-          name="code"
-          render={({ field }) => (
-            <FormItem className="flex flex-col items-center justify-center">
-              <FormControl>
-                <div className="flex justify-center space-x-2">
-                  <Input
-                    type="text"
-                    className="w-full text-center"
-                    placeholder="Enter 6-digit code"
-                    maxLength={6}
-                    value={field.value}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      if (val.length <= 6) {
-                        field.onChange(val);
-                      }
-                    }}
-                  />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex flex-col space-y-2 mt-6">
-          <Button type="submit" disabled={twoFaForm.formState.isSubmitting}>
-            Verify Code
-          </Button>
-          <Button type="button" variant="ghost" onClick={handleBackToLogin}>
-            Back to Login
-          </Button>
-        </div>
-      </form>
-    </Form>
-  );
-
-  // Render passkey verification step
-  const renderPasskeyAuthentication = () => (
-    <div className="space-y-4 text-center">
-      <div className="py-8">
-        <Fingerprint className="mx-auto h-16 w-16 text-primary animate-pulse" />
-        <h3 className="text-lg font-medium mt-4">Passkey Authentication</h3>
-        <p className="text-sm text-muted-foreground mt-2">
-          Verify your identity using your passkey
-        </p>
-      </div>
-
-      <div className="flex flex-col space-y-2 mt-6">
-        <Button type="button" onClick={handleBackToLogin} variant="ghost">
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Render main login form
-  const renderLoginForm = () => (
-    <Form {...loginForm}>
-      <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-        <FormField
-          control={loginForm.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    {...field}
-                    type="email"
-                    placeholder="Enter your email"
-                    className="pl-10"
-                  />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={loginForm.control}
-          name="verificationMethod"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Authentication Method</FormLabel>
-              <FormControl>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    type="button"
-                    variant={field.value === "email" ? "default" : "outline"}
-                    className="flex flex-col h-auto py-2 px-3"
-                    onClick={() => field.onChange("email")}
-                  >
-                    <Mail className="h-4 w-4 mb-1" />
-                    <span className="text-xs">Email</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={field.value === "2fa" ? "default" : "outline"}
-                    className="flex flex-col h-auto py-2 px-3"
-                    onClick={() => field.onChange("2fa")}
-                  >
-                    <KeyRound className="h-4 w-4 mb-1" />
-                    <span className="text-xs">2FA</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={field.value === "passkey" ? "default" : "outline"}
-                    className="flex flex-col h-auto py-2 px-3"
-                    onClick={() => field.onChange("passkey")}
-                  >
-                    <Fingerprint className="h-4 w-4 mb-1" />
-                    <span className="text-xs">Passkey</span>
-                  </Button>
-                </div>
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
-        <Button 
-          type="submit" 
-          className="w-full mt-6"
-          disabled={loginMutation.isPending}
-        >
-          {loginMutation.isPending ? "Verifying..." : "Continue"}
-        </Button>
-      </form>
-    </Form>
-  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -365,23 +166,162 @@ const AuthPage = () => {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Login</CardTitle>
-              <CardDescription>Enter your email and choose a verification method</CardDescription>
-            </CardHeader>
+            <br></br>
             <CardContent>
-              {isAwaitingVerification ? (
-                verificationMethod === "email" ? renderEmailVerification() :
-                verificationMethod === "2fa" ? renderTwoFaVerification() :
-                verificationMethod === "passkey" ? renderPasskeyAuthentication() :
-                renderLoginForm()
-              ) : (
-                renderLoginForm()
-              )}
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                  {loginStep === 'email' ? (
+                    <>
+                      <FormField
+                        control={loginForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  placeholder="name@example.com"
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={loginForm.control}
+                        name="methodType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Verification Method</FormLabel>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <Badge 
+                                variant={field.value === "email" ? "default" : "outline"}
+                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
+                                onClick={() => field.onChange("email")}
+                              >
+                                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                                Email Code
+                              </Badge>
+                              <Badge 
+                                variant={field.value === "2fa" ? "default" : "outline"}
+                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
+                                onClick={() => field.onChange("2fa")}
+                              >
+                                <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+                                2FA Code
+                              </Badge>
+                              <Badge 
+                                variant={field.value === "passkey" ? "default" : "outline"}
+                                className="cursor-pointer py-1 px-3 hover:bg-primary/90"
+                                onClick={() => field.onChange("passkey")}
+                              >
+                                <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
+                                Passkey
+                              </Badge>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button type="submit" className="w-full mt-6">
+                        Continue
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-4 flex items-center gap-2">
+                        <Badge>{loginForm.getValues().email}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setLoginStep('email')}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Change
+                        </Button>
+                      </div>
+
+                      {verificationMethod === 'passkey' ? (
+                        <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Fingerprint className="h-8 w-8 text-primary" />
+                          </div>
+                          <p className="text-center text-sm text-muted-foreground max-w-[250px]">
+                            Use your FIDO2 security key or built-in authenticator (Windows Hello, Touch ID, etc.)
+                          </p>
+                          <div className="mt-2 bg-primary/5 rounded-md p-4 w-full flex flex-col items-center">
+                            <p className="text-xs text-center text-muted-foreground mb-3">Your browser will prompt you to use your passkey</p>
+                            <Button 
+                              type="button" 
+                              onClick={() => {
+                                // Simulate browser's WebAuthn API calling
+                                toast({
+                                  title: "Passkey prompt",
+                                  description: "Your browser would prompt for biometric verification here",
+                                });
+                                // Wait a moment then submit the form
+                                setTimeout(() => {
+                                  loginForm.handleSubmit(onLoginSubmit)();
+                                }, 1500);
+                              }}
+                              className="w-full"
+                            >
+                              Verify with Passkey
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <FormField
+                            control={loginForm.control}
+                            name="code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  {verificationMethod === '2fa' ? '2FA Code' : 'Verification Code'}
+                                </FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                      {...field}
+                                      placeholder="Enter your 6-digit code"
+                                      className="pl-10"
+                                      inputMode="numeric"
+                                      pattern="[0-9]*"
+                                      maxLength={6}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormDescription>
+                                  Enter the {verificationMethod === '2fa' ? '2FA code from your authenticator app' : 'verification code sent to your email'}
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <Button type="submit" className="w-full mt-6">
+                            Verify & Login
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </form>
+              </Form>
             </CardContent>
             <CardFooter className="flex justify-center border-t pt-4">
               <p className="text-xs text-muted-foreground">
-                Need help? Contact <a href="mailto:admin@cobl.gg" className="text-primary hover:underline">admin@cobl.gg</a>
+                Administrator contact: <a href="mailto:admin@cobl.gg" className="text-primary hover:underline">admin@cobl.gg</a>
               </p>
             </CardFooter>
           </Card>
