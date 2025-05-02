@@ -19,10 +19,20 @@ export async function connectToMongoDB() {
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB successfully');
     
-    // Seed the database with initial data if needed
-    // Import dynamically to avoid circular dependencies
-    const { seedDatabase } = await import('../db/seed-data');
-    await seedDatabase();
+    // Check if SEED_ENHANCED_DATA environment variable is set
+    const seedEnhanced = process.env.SEED_ENHANCED_DATA === 'true';
+    
+    if (seedEnhanced) {
+      // Import and run enhanced seeding with 20 players and 15 tickets
+      console.log('Seeding database with enhanced mock data (20 players, 15 tickets)...');
+      const { seedEnhancedDatabase } = await import('../db/enhanced-seed-data');
+      await seedEnhancedDatabase();
+    } else {
+      // Regular seed with minimal data
+      console.log('Checking if regular database seeding is needed...');
+      const { seedDatabase } = await import('../db/seed-data');
+      await seedDatabase();
+    }
     
     return true;
   } catch (error) {
