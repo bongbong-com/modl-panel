@@ -5,7 +5,6 @@ import { storage } from "./storage";
 import { connectToMongoDB } from "./db/mongodb";
 import { setupApiRoutes } from "./api/routes";
 import { createSystemLog } from "./routes/log-routes";
-import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB or use in-memory fallback
@@ -23,8 +22,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Falling back to in-memory storage');
   }
 
-  // Setup authentication
-  setupAuth(app);
   
   // Register all MongoDB routes
   setupApiRoutes(app);

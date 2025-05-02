@@ -44,24 +44,11 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// Define the registration form schema
-const registerSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
+// No registration in this app
 
 const AuthPage = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("login");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginStep, setLoginStep] = useState<'email' | 'verification'>('email');
   const [verificationMethod, setVerificationMethod] = useState<'2fa' | 'email' | 'passkey'>('email');
 
@@ -74,17 +61,7 @@ const AuthPage = () => {
     },
   });
 
-  // Registration form
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
-  });
-
-  const { login, register: authRegister, user } = useAuth();
+  const { login, user, requestEmailVerification, request2FAVerification, requestPasskeyAuthentication } = useAuth();
 
   // Redirect to home page if already authenticated
   useEffect(() => {
@@ -97,12 +74,17 @@ const AuthPage = () => {
   const onLoginSubmit = async (values: LoginFormValues) => {
     if (loginStep === 'email') {
       // First step - show verification methods
-      toast({
-        title: "Email verification sent",
-        description: `A verification code has been sent to ${values.email}`,
-      });
-
       setVerificationMethod(values.methodType);
+      
+      // Request verification based on selected method
+      if (values.methodType === 'email') {
+        await requestEmailVerification(values.email);
+      } else if (values.methodType === '2fa') {
+        await request2FAVerification(values.email);
+      } else if (values.methodType === 'passkey') {
+        await requestPasskeyAuthentication(values.email);
+      }
+      
       setLoginStep('verification');
       return;
     }
@@ -127,31 +109,7 @@ const AuthPage = () => {
     }
   };
 
-  // Handle registration form submission
-  const onRegisterSubmit = async (values: RegisterFormValues) => {
-    try {
-      const success = await authRegister(values.email, values.password);
-
-      if (success) {
-        // Switch to login tab
-        setActiveTab("login");
-      }
-    } catch (error) {
-      toast({
-        title: "Registration failed",
-        description: "An error occurred during registration",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Reset the login flow if the user changes tabs
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    if (value === "login") {
-      setLoginStep('email');
-    }
-  };
+  // No registration in this app
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">

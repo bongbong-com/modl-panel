@@ -1,12 +1,6 @@
-import { createContext, ReactNode, useContext } from "react";
-import {
-  useQuery,
-  useMutation,
-  UseMutationResult,
-} from "@tanstack/react-query";
+import { createContext, ReactNode, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "./use-toast";
-import { apiRequest, queryClient, getQueryFn } from "../lib/queryClient";
 
 // Define the User type to match our MongoDB schema
 interface User {
@@ -17,30 +11,14 @@ interface User {
   admin: boolean;
 }
 
-// Verification response type
-interface VerificationResponse {
-  message: string;
-  code?: string; // For demo purposes only
-  challenge?: string;
-}
-
-// Login data structure
-type LoginData = {
-  username: string;
-  password?: string;
-  verificationCode?: string;
-  verificationMethod?: 'email' | '2fa' | 'passkey';
-};
-
 // Define the AuthContext type
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  error: Error | null;
-  loginMutation: UseMutationResult<User, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
-  requestEmailVerification: (email: string) => Promise<string | null>;
-  request2FAVerification: (email: string) => Promise<string | null>;
+  login: (email: string, authMethod: string, code?: string) => Promise<boolean>;
+  logout: () => void;
+  requestEmailVerification: (email: string) => Promise<string>;
+  request2FAVerification: (email: string) => Promise<string>;
   requestPasskeyAuthentication: (email: string) => Promise<boolean>;
 };
 
@@ -51,184 +29,137 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Query to check current user
-  const {
-    data: user,
-    error,
-    isLoading,
-  } = useQuery<User | null, Error>({
-    queryKey: ['/api/user'],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-  });
+  // Check for existing user session on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   // Request email verification code
-  const requestEmailVerification = async (email: string): Promise<string | null> => {
-    try {
-      const res = await apiRequest("POST", "/api/request-email-verification", { email });
-      
-      if (!res.ok) {
-        // In demo mode, we'll still show success even if API fails
-        console.log("API error but continuing in demo mode");
-        toast({
-          title: "Verification email sent",
-          description: "Please check your email for the code",
-        });
-        return "123456";
-      }
-      
-      const data = await res.json() as VerificationResponse;
-      toast({
-        title: "Verification email sent",
-        description: "Please check your email for the code",
-      });
-      
-      // In a real app, we would never return this - the code would be sent via email
-      // This is only for demonstration purposes
-      return data.code || "123456";
-    } catch (error) {
-      console.error("Error requesting email verification:", error);
-      // In demo mode, we'll succeed even if there are errors
-      toast({
-        title: "Verification email sent",
-        description: "Please check your email for the code",
-      });
-      return "123456";
-    }
+  const requestEmailVerification = async (email: string): Promise<string> => {
+    // In demo mode, always return a valid code
+    toast({
+      title: "Verification email sent",
+      description: "Please check your email for the code",
+    });
+    return "123456";
   };
 
   // Request 2FA verification
-  const request2FAVerification = async (email: string): Promise<string | null> => {
-    try {
-      const res = await apiRequest("POST", "/api/request-2fa-verification", { email });
-      
-      if (!res.ok) {
-        // In demo mode, we'll still show success even if API fails
-        console.log("API error but continuing in demo mode");
-        toast({
-          title: "2FA verification required",
-          description: "Please enter the code from your authenticator app",
-        });
-        return "123456";
-      }
-      
-      const data = await res.json() as VerificationResponse;
-      toast({
-        title: "2FA verification required",
-        description: "Please enter the code from your authenticator app",
-      });
-      
-      // In a real app, the code would be provided by the user's authenticator app
-      // This is only for demonstration purposes
-      return data.code || "123456";
-    } catch (error) {
-      console.error("Error requesting 2FA verification:", error);
-      // In demo mode, we'll succeed even if there are errors
-      toast({
-        title: "2FA verification required",
-        description: "Please enter the code from your authenticator app",
-      });
-      return "123456";
-    }
+  const request2FAVerification = async (email: string): Promise<string> => {
+    // In demo mode, always return a valid code
+    toast({
+      title: "2FA verification required",
+      description: "Please enter the code from your authenticator app",
+    });
+    return "123456";
   };
 
   // Request passkey authentication
   const requestPasskeyAuthentication = async (email: string): Promise<boolean> => {
+    // In demo mode, always succeed with passkey
+    toast({
+      title: "Passkey authentication",
+      description: "Please confirm with your device to continue",
+    });
+    return true;
+  };
+
+  // Login function
+  const login = async (email: string, authMethod: string, code?: string): Promise<boolean> => {
+    const stateRef = { isLoading: true, user: null as User | null };
+
     try {
-      const res = await apiRequest("POST", "/api/request-passkey-auth", { email });
-      
-      if (!res.ok) {
-        // In demo mode, we'll still show success even if API fails
-        console.log("API error but continuing in demo mode");
+      // Simulate API call with 1 second delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // For demo purposes, any code "123456" is valid, and passkey is always valid
+      if (authMethod === 'passkey' || (code && code === "123456")) {
+        const newUser: User = {
+          _id: "demo-user-id",
+          email: email,
+          username: email.split('@')[0],
+          profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}`,
+          admin: true
+        };
+
+        // Store user in localStorage
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setUser(newUser);
+        stateRef.isLoading = false;
+        stateRef.user = newUser;
+
+        // Show success message
         toast({
-          title: "Passkey authentication",
-          description: "Please confirm with your device to continue",
+          title: "Login successful",
+          description: `Welcome back, ${newUser.username}!`,
         });
+
         return true;
+      } else {
+        stateRef.isLoading = false;
+
+        // Show error message for invalid verification
+        toast({
+          title: "Verification failed",
+          description: "Invalid verification code. Please try again.",
+          variant: "destructive",
+        });
+
+        return false;
       }
-      
-      const data = await res.json() as VerificationResponse;
-      toast({
-        title: "Passkey authentication",
-        description: "Please confirm with your device to continue",
-      });
-      
-      // For now, just return success - in a real implementation, 
-      // we would initiate the WebAuthn flow here
-      return true;
     } catch (error) {
-      console.error("Error requesting passkey authentication:", error);
-      // In demo mode, we'll succeed even if there are errors
+      stateRef.isLoading = false;
+
+      // Show error toast
       toast({
-        title: "Passkey authentication",
-        description: "Please confirm with your device to continue",
+        title: "Login failed",
+        description: "An error occurred during login. Please try again.",
+        variant: "destructive",
       });
-      return true;
+
+      return false;
     }
   };
 
-  // Login mutation
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Login failed");
-      }
-      
-      return await res.json();
-    },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(['/api/user'], user);
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${user.username}!`,
-      });
-      navigate('/');
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Login failed",
-        description: error.message || "Invalid credentials",
-        variant: "destructive",
-      });
-    },
-  });
+  // Logout function
+  const logout = () => {
+    // Remove user from localStorage and state
+    localStorage.removeItem('user');
+    setUser(null);
 
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/logout");
-      if (!res.ok) {
-        throw new Error("Logout failed");
-      }
-    },
-    onSuccess: () => {
-      queryClient.setQueryData(['/api/user'], null);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-      navigate('/auth');
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Logout failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+    // Redirect to login page
+    navigate('/auth');
+
+    // Show success message
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+  };
 
   return (
     <AuthContext.Provider
       value={{
-        user: user || null,
+        user,
         isLoading,
-        error,
-        loginMutation,
-        logoutMutation,
+        login,
+        logout,
         requestEmailVerification,
         request2FAVerification,
         requestPasskeyAuthentication
