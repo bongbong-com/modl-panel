@@ -422,17 +422,47 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <Button 
                       size="sm"
                       disabled={!playerInfo.newNote?.trim()}
-                      onClick={() => {
+                      onClick={async () => {
+                        if (!playerInfo.newNote?.trim()) return;
+                        
                         const currentDate = new Date();
                         const formattedDate = `${currentDate.toLocaleDateString()} at ${currentDate.toLocaleTimeString()}`;
                         const newNoteWithMetadata = `${playerInfo.newNote} (Added by Admin on ${formattedDate})`;
                         
-                        setPlayerInfo(prev => ({
-                          ...prev,
-                          notes: [...prev.notes, newNoteWithMetadata],
-                          isAddingNote: false,
-                          newNote: ''
-                        }));
+                        // Create the note in the format expected by the API
+                        const noteObject = {
+                          text: playerInfo.newNote.trim(),
+                          issuerName: 'Admin', // Use actual admin name if available
+                          date: new Date().toISOString()
+                        };
+                        
+                        try {
+                          // Send note to the server
+                          const response = await fetch(`/api/players/${playerId}/notes`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(noteObject)
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error('Failed to add note to player');
+                          }
+                          
+                          // Update local state
+                          setPlayerInfo(prev => ({
+                            ...prev,
+                            notes: [...prev.notes, newNoteWithMetadata],
+                            isAddingNote: false,
+                            newNote: ''
+                          }));
+                          
+                          console.log('Note added successfully to player:', playerId);
+                        } catch (error) {
+                          console.error('Error adding note:', error);
+                          alert('Failed to add note. Please try again.');
+                        }
                       }}
                     >
                       Save Note
