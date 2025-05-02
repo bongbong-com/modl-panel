@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Login function
   const login = async (email: string, authMethod: string, code?: string): Promise<boolean> => {
-    const stateRef = { isLoading: true, user: null as User | null };
+    setIsLoading(true);
 
     try {
       // Simulate API call with 1 second delay
@@ -101,8 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Store user in localStorage
         localStorage.setItem('user', JSON.stringify(newUser));
         setUser(newUser);
-        stateRef.isLoading = false;
-        stateRef.user = newUser;
+        setIsLoading(false);
 
         // Show success message
         toast({
@@ -112,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         return true;
       } else {
-        stateRef.isLoading = false;
+        setIsLoading(false);
 
         // Show error message for invalid verification
         toast({
@@ -124,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
     } catch (error) {
-      stateRef.isLoading = false;
+      setIsLoading(false);
 
       // Show error toast
       toast({
