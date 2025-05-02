@@ -153,16 +153,32 @@ export function setupPlayerRoutes(app: Express) {
       const uuid = req.params.uuid;
       const note = req.body;
       
-      const player = await Player.findOneAndUpdate(
-        { minecraftUuid: uuid },
+      console.log('Adding note to player:', uuid, 'Note data:', note);
+      
+      // Try to find the player by either UUID or minecraftUuid
+      let player = await Player.findOne({
+        $or: [
+          { _id: uuid },
+          { uuid: uuid },
+          { minecraftUuid: uuid }
+        ]
+      });
+      
+      if (!player) {
+        console.log('Player not found with UUID:', uuid);
+        return res.status(404).json({ error: 'Player not found' });
+      }
+      
+      console.log('Found player:', player.usernames && player.usernames.length ? player.usernames[player.usernames.length - 1].username : 'Unknown');
+      
+      // Add the note
+      player = await Player.findByIdAndUpdate(
+        player._id,
         { $push: { notes: note } },
         { new: true }
       );
       
-      if (!player) {
-        return res.status(404).json({ error: 'Player not found' });
-      }
-      
+      console.log('Note added successfully');
       await createSystemLog(`Note added to player ${uuid}`);
       res.json(player);
     } catch (error) {

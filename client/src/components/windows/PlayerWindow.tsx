@@ -437,6 +437,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         };
                         
                         try {
+                          console.log(`Saving note for player ID: ${playerId}`);
+                          console.log('Note data:', noteObject);
+                          
                           // Send note to the server
                           const response = await fetch(`/api/players/${playerId}/notes`, {
                             method: 'POST',
