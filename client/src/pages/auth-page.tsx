@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+// import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   Form,
   FormControl,
@@ -172,20 +172,21 @@ const AuthPage = () => {
           render={({ field }) => (
             <FormItem className="flex flex-col items-center justify-center">
               <FormControl>
-                <InputOTP 
-                  maxLength={6} 
-                  {...field}
-                  className="flex justify-center"
-                >
-                  <InputOTPGroup className="gap-2">
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
+                <div className="flex justify-center space-x-2">
+                  <Input
+                    type="text"
+                    className="w-full text-center"
+                    placeholder="Enter 6-digit code"
+                    maxLength={6}
+                    value={field.value}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length <= 6) {
+                        field.onChange(val);
+                      }
+                    }}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -221,20 +222,21 @@ const AuthPage = () => {
           render={({ field }) => (
             <FormItem className="flex flex-col items-center justify-center">
               <FormControl>
-                <InputOTP 
-                  maxLength={6} 
-                  {...field} 
-                  className="flex justify-center"
-                >
-                  <InputOTPGroup className="gap-2">
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
+                <div className="flex justify-center space-x-2">
+                  <Input
+                    type="text"
+                    className="w-full text-center"
+                    placeholder="Enter 6-digit code"
+                    maxLength={6}
+                    value={field.value}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length <= 6) {
+                        field.onChange(val);
+                      }
+                    }}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
