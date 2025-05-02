@@ -7,13 +7,14 @@ import {
   Search, 
   Ticket, 
   FileText, 
-  Settings
+  Settings,
+  Loader2
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { recentLookups } from '@/data/mockData';
+import { usePlayers } from '@/hooks/use-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 // Fix import: using direct path relative to src directory
 import PlayerWindow from '../../components/windows/PlayerWindow';
@@ -182,13 +183,24 @@ const Sidebar = () => {
     },
   ];
 
+  // Fetch players from API using React Query
+  const { data: players, isLoading } = usePlayers();
+  
+  // Define player type to avoid 'implicitly has an any type' errors
+  interface Player {
+    uuid: string;
+    username: string;
+    status: string;
+    lastOnline?: string;
+  }
+
   // Filter lookup results
-  const filteredLookups = searchQuery 
-    ? recentLookups.filter(player => 
+  const filteredLookups = searchQuery && players
+    ? players.filter((player: Player) => 
         player.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
         player.uuid.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : recentLookups;
+    : players || [];
 
   return (
     <div className="fixed ml-4 top-1/4 left-4 z-40 flex">
@@ -324,32 +336,67 @@ const Sidebar = () => {
               onBlur={() => setIsFocused(false)}
             />
             
-            {filteredLookups.length > 0 && searchQuery && (
+            {isLoading ? (
+              <div className="py-8 flex justify-center items-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : searchQuery ? (
               <div className="max-h-[220px] overflow-y-auto pr-1">
-                {filteredLookups.map((player, index) => (
+                {filteredLookups.length > 0 ? (
+                  filteredLookups.map((player: Player, index: number) => (
+                    <Button
+                      key={index}
+                      variant="ghost"
+                      className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
+                      onClick={() => {
+                        // Set the URL parameter without changing the page
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('player', player.uuid);
+                        window.history.pushState({}, '', url.toString());
+                        
+                        // Open the player window
+                        openPlayerWindow(player.uuid);
+                        closeLookup();
+                      }}
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{player.username}</span>
+                        <span className="text-muted-foreground text-[10px]">{player.status}</span>
+                      </div>
+                    </Button>
+                  ))
+                ) : (
+                  <div className="py-3 text-center text-xs text-muted-foreground">
+                    No players found matching '{searchQuery}'
+                  </div>
+                )}
+              </div>
+            ) : players && players.length > 0 ? (
+              <div className="max-h-[220px] overflow-y-auto pr-1">
+                <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
+                  Recent Players
+                </div>
+                {players.slice(0, 5).map((player: Player, index: number) => (
                   <Button
                     key={index}
                     variant="ghost"
                     className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
                     onClick={() => {
-                      // Set the URL parameter without changing the page
                       const url = new URL(window.location.href);
                       url.searchParams.set('player', player.uuid);
                       window.history.pushState({}, '', url.toString());
-                      
-                      // Open the player window
                       openPlayerWindow(player.uuid);
                       closeLookup();
                     }}
                   >
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{player.username}</span>
-                      <span className="text-muted-foreground text-[10px]">{player.lastOnline}</span>
+                      <span className="text-muted-foreground text-[10px]">{player.status}</span>
                     </div>
                   </Button>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}
