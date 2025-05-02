@@ -790,26 +790,29 @@ const TicketDetail = () => {
                           <AvatarFallback className={
                             message.senderType === 'user' 
                               ? 'bg-primary/10 text-primary' 
-                              : message.senderType === 'staff' 
+                              : message.senderType === 'staff' || message.staff
                                 ? 'bg-success/10 text-success' 
                                 : 'bg-muted text-muted-foreground'
                           }>
                             {message.senderType === 'system' ? 'SYS' : 
-                              message.sender && typeof message.sender === 'string' ? message.sender.substring(0, 2).toUpperCase() : 
-                              message.senderType === 'staff' ? 'ST' : 'US'}
+                              message.sender && typeof message.sender === 'string' && message.sender !== 'user' 
+                                ? message.sender.substring(0, 2).toUpperCase() 
+                                : message.senderType === 'staff' || message.staff 
+                                  ? 'ST' 
+                                  : 'US'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">
                               <>{message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}</>
-                              {message.senderType === 'staff' && (
+                              {(message.senderType === 'staff' || message.staff) && (
                                 <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
                                   Staff
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground">{message.timestamp}</span>
+                            <span className="text-xs text-muted-foreground">{message.timestamp || new Date().toLocaleString()}</span>
                           </div>
                           {/* If this message has a closedAs status, show the ticket closing info */}
                           {message.closedAs ? (
@@ -1084,13 +1087,25 @@ const TicketDetail = () => {
                                 }));
                               }
                               
-                              // Create the reopen message
-                              const newMessage: TicketMessage = {
-                                id: Date.now().toString(),
-                                sender: user?.username || 'Staff', // Use the current staff member's name
-                                senderType: 'staff',
+                              // Create the server-side reopen message
+                              const newMessage = {
+                                id: `msg-${Date.now()}`,
+                                name: user?.username || 'Staff', // Use the current staff member's name
+                                type: 'staff',
                                 content: ticketDetails.newReply || 'This ticket has been reopened for further review.',
-                                timestamp: new Date().toISOString()
+                                created: new Date(),
+                                staff: true,
+                                action: 'Reopen' // Add action field to track reopening
+                              };
+                              
+                              // Create the client-side message for immediate display
+                              const clientMessage: TicketMessage = {
+                                id: newMessage.id,
+                                sender: newMessage.name,
+                                senderType: 'staff',
+                                content: newMessage.content,
+                                timestamp: new Date().toLocaleString(),
+                                staff: true
                               };
                               
                               // Update local state
@@ -1098,7 +1113,7 @@ const TicketDetail = () => {
                                 ...prev,
                                 locked: false,
                                 status: 'Open',
-                                messages: [...prev.messages, newMessage],
+                                messages: [...prev.messages, clientMessage],
                                 newReply: ''
                               }));
                               
