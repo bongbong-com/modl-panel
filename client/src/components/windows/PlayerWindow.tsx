@@ -105,8 +105,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     }, 300);
   };
   
-  // Use React Query hook to fetch player data
-  const { data: player, isLoading, error } = usePlayer(playerId);
+  // Use React Query hook to fetch player data with refetch capability
+  const { data: player, isLoading, error, refetch } = usePlayer(playerId);
+  
+  // Refetch player data whenever the window is opened
+  useEffect(() => {
+    if (isOpen) {
+      // Refetch data to ensure we have the latest
+      refetch();
+    }
+  }, [isOpen, refetch]);
   
   useEffect(() => {
     if (player && isOpen) {
@@ -461,7 +469,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             newNote: ''
                           }));
                           
+                          // Force a refetch to get the latest data
                           console.log('Note added successfully to player:', playerId);
+                          refetch(); // Refetch player data after adding note
                         } catch (error) {
                           console.error('Error adding note:', error);
                           alert('Failed to add note. Please try again.');

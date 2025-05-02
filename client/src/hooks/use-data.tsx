@@ -30,7 +30,11 @@ export function usePlayer(uuid: string) {
       }
       return res.json();
     },
-    enabled: !!uuid // Only run the query if we have a uuid
+    enabled: !!uuid, // Only run the query if we have a uuid
+    // Don't cache this data for long, so new opens can see the latest data
+    staleTime: 1000, // 1 second
+    refetchOnWindowFocus: true, // Refetch when window gets focus
+    refetchOnMount: true // Refetch when component mounts
   });
 }
 
