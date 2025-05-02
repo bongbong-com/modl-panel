@@ -66,8 +66,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (type === 'uuid') {
         query = { minecraftUuid: identifier };
       } else {
-        // More flexible matching by using regex for case-insensitive matching
-        query = { 'usernames.username': { $regex: new RegExp('^' + identifier + '$', 'i') } };
+        // More flexible matching for usernames using a partial match approach
+        // This will search for usernames that start with the provided identifier
+        query = { 
+          'usernames.username': { 
+            $regex: new RegExp(identifier.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') 
+          }
+        };
       }
       
       // Log our search query for debugging

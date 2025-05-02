@@ -298,6 +298,7 @@ const Lookup = () => {
           const playerData = await response.json();
           if (playerData && playerData.uuid) {
             // Redirect to the player lookup window with the UUID
+            console.log('Found player:', playerData);
             window.location.href = `/lookup?id=${playerData.uuid}`;
           } else {
             console.error('Player not found or invalid data returned');
