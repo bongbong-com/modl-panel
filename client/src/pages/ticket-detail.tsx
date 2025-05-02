@@ -1024,38 +1024,75 @@ const TicketDetail = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="border rounded-md p-4 bg-muted/10 flex justify-between items-center">
-                      <div className="flex items-center">
-                        <LockIcon className="h-4 w-4 text-muted-foreground mr-2" />
-                        <span className="text-sm text-muted-foreground">This ticket is locked and cannot be replied to.</span>
+                    <div className="border rounded-md p-4 bg-muted/10 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <LockIcon className="h-4 w-4 text-muted-foreground mr-2" />
+                          <span className="text-sm text-muted-foreground">This ticket is locked and cannot be replied to.</span>
+                        </div>
                       </div>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => {
-                          // Set action to Reopen with default message
-                          handleTicketAction('Reopen');
-                          
-                          // Update local state
-                          setTicketDetails(prev => ({
-                            ...prev,
-                            locked: false,
-                            status: 'Open'
-                          }));
-                          
-                          // Update in database
-                          updateTicketMutation.mutate({
-                            id: ticketDetails.id,
-                            data: {
-                              locked: false,
-                              status: 'Open'
-                            }
-                          });
-                        }}
-                      >
-                        <UnlockIcon className="h-4 w-4 mr-2" />
-                        Reopen & Reply
-                      </Button>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Reopening message:</label>
+                        <textarea
+                          className="min-h-[80px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          placeholder="Enter message for reopening this ticket..."
+                          value={ticketDetails.newReply || 'This ticket has been reopened for further review.'}
+                          onChange={(e) => {
+                            setTicketDetails(prev => ({
+                              ...prev,
+                              newReply: e.target.value
+                            }));
+                          }}
+                        />
+                        
+                        <div className="flex justify-end">
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            onClick={() => {
+                              // Set action to Reopen
+                              if (!ticketDetails.newReply) {
+                                setTicketDetails(prev => ({
+                                  ...prev,
+                                  newReply: 'This ticket has been reopened for further review.'
+                                }));
+                              }
+                              
+                              // Create the reopen message
+                              const newMessage: TicketMessage = {
+                                id: Date.now().toString(),
+                                sender: user?.username || 'Staff', // Use the current staff member's name
+                                senderType: 'staff',
+                                content: ticketDetails.newReply || 'This ticket has been reopened for further review.',
+                                timestamp: new Date().toISOString()
+                              };
+                              
+                              // Update local state
+                              setTicketDetails(prev => ({
+                                ...prev,
+                                locked: false,
+                                status: 'Open',
+                                messages: [...prev.messages, newMessage],
+                                newReply: ''
+                              }));
+                              
+                              // Update in database
+                              updateTicketMutation.mutate({
+                                id: ticketDetails.id,
+                                data: {
+                                  locked: false,
+                                  status: 'Open',
+                                  newReply: newMessage
+                                }
+                              });
+                            }}
+                          >
+                            <UnlockIcon className="h-4 w-4 mr-2" />
+                            Reopen & Reply
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
