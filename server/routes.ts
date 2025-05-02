@@ -53,7 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Lookup player legacy endpoint
+  // Lookup player endpoint
   app.get('/api/player/:identifier', async (req, res) => {
     const { identifier } = req.params;
     const { type = 'username' } = req.query;
@@ -66,12 +66,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (type === 'uuid') {
         query = { minecraftUuid: identifier };
       } else {
-        // Using a more forgiving regex approach - find anywhere in the username
+        // Using a more forgiving approach - search by direct comparison first
+        // If that fails, fall back to regex for partial matching
         const escapedIdentifier = identifier.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         query = { 
-          'usernames.username': { 
-            $regex: new RegExp(escapedIdentifier, 'i') 
-          }
+          $or: [
+            { 'usernames.username': identifier },
+            { 'usernames.username': { $regex: new RegExp(escapedIdentifier, 'i') } }
+          ]
         };
       }
       
@@ -81,28 +83,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const player = await Player.findOne(query);
       
       if (player) {
-        // Get the current username (most recent one)
-        const currentUsername = player.usernames.length > 0 
-          ? player.usernames[player.usernames.length - 1].username 
-          : 'Unknown';
-        
-        // Format warnings and notes
-        const warnings = player.notes.map((note: any) => ({
-          type: 'Warning',
-          reason: note.text,
-          date: note.date.toISOString().split('T')[0],
-          by: note.issuerName
-        }));
-        
-        res.json({
-          username: currentUsername,
-          uuid: player.minecraftUuid,
-          firstJoined: player.usernames[0]?.date.toISOString().split('T')[0] || 'Unknown',
-          lastOnline: 'Unknown', // This would need to be tracked separately
-          playtime: 'Unknown', // This would need to be tracked separately
-          status: player.punishments.some((p: any) => p.type === 'Ban' && !p.data.get('expiry')) ? 'Banned' : 'Active',
-          warnings
-        });
+        try {
+          // Get the current username (most recent one)
+          const currentUsername = player.usernames && player.usernames.length > 0 
+            ? player.usernames[player.usernames.length - 1].username 
+            : 'Unknown';
+          
+          // Format warnings and notes
+          const warnings = player.notes && player.notes.length > 0 
+            ? player.notes.map((note: any) => ({
+                type: 'Warning',
+                reason: note.text,
+                date: note.date ? note.date.toISOString().split('T')[0] : 'Unknown',
+                by: note.issuerName || 'System'
+              }))
+            : [];
+          
+          // Determine player status safely
+          let status = 'Active';
+          try {
+            if (player.punishments && player.punishments.length > 0) {
+              // Check if any active bans exist
+              const hasPermanentBan = player.punishments.some((p: any) => 
+                p.type === 'Ban' && 
+                p.active && 
+                (!p.data || !p.data.get || !p.data.get('expiry'))
+              );
+              
+              if (hasPermanentBan) {
+                status = 'Banned';
+              } else if (player.punishments.some((p: any) => p.active)) {
+                status = 'Restricted';
+              }
+            }
+          } catch (error) {
+            console.error('Error determining player status:', error);
+          }
+          
+          res.json({
+            username: currentUsername,
+            uuid: player.minecraftUuid,
+            firstJoined: player.usernames && player.usernames[0]?.date 
+              ? player.usernames[0].date.toISOString().split('T')[0] 
+              : 'Unknown',
+            lastOnline: 'Unknown', // This would need to be tracked separately
+            playtime: 'Unknown', // This would need to be tracked separately
+            status,
+            warnings
+          });
+        } catch (error) {
+          console.error('Error formatting player data:', error);
+          res.status(500).json({ error: 'Error processing player data' });
+        }
       } else {
         // Fall back to mock data if player not found
         res.json({

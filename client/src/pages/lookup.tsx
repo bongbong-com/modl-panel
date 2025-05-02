@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useSidebar } from '@/hooks/use-sidebar';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import ResizableWindow from '@/components/layout/ResizableWindow';
-import { Input } from '@/components/ui/input';
-import { useDashboard } from '@/contexts/DashboardContext';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Ban, Eye, Search, TriangleAlert, Loader2, RefreshCcw 
+} from 'lucide-react';
 import { usePlayers, usePlayer } from '@/hooks/use-data';
+import ResizableWindow from '@/components/layout/ResizableWindow';
 
 interface Warning {
   type: string;
@@ -32,10 +34,19 @@ interface PlayerDetailInfo {
   warnings: Warning[];
 }
 
-const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; isOpen: boolean; onClose: () => void }) => {
+// Component for the detailed player view window
+const PlayerLookupWindow = ({ 
+  playerId, 
+  isOpen, 
+  onClose 
+}: { 
+  playerId?: string; 
+  isOpen: boolean; 
+  onClose: () => void;
+}) => {
   const [playerInfo, setPlayerInfo] = useState<PlayerDetailInfo>({
-    username: 'Loading...',
-    status: 'Unknown',
+    username: '',
+    status: '',
     uuid: '',
     firstJoined: '',
     lastOnline: '',
@@ -57,9 +68,8 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
           lastOnline: player.lastOnline,
           warnings: player.warnings || []
         });
-      } else {
+      } else if (player.usernames) {
         // This is MongoDB raw data that needs formatting
-        // Format the player data from MongoDB for display
         const currentUsername = player.usernames && player.usernames.length > 0 
           ? player.usernames[player.usernames.length - 1].username 
           : 'Unknown';
@@ -306,10 +316,12 @@ const Lookup = () => {
     e.preventDefault();
     if (searchQuery.trim()) {
       try {
-        // First fetch the player data to get their UUID
+        // Fetch the player data to get their UUID
+        console.log(`Searching for player: ${searchQuery}`);
         const response = await fetch(`/api/player/${searchQuery}`);
         if (response.ok) {
           const playerData = await response.json();
+          console.log('Search response:', playerData);
           if (playerData && playerData.uuid) {
             // Redirect to the player lookup window with the UUID
             console.log('Found player:', playerData);
@@ -383,7 +395,7 @@ const Lookup = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {players && players.map((player, index) => (
+                  {players && players.map((player: any, index: number) => (
                     <TableRow key={index} className="border-b border-border">
                       <TableCell className="font-medium">{player.username}</TableCell>
                       <TableCell className="text-muted-foreground">{player.uuid}</TableCell>
@@ -416,7 +428,7 @@ const Lookup = () => {
                           </Button>
                           {player.status === 'Banned' ? (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Unban">
-                              <LockOpen className="h-4 w-4" />
+                              <Ban className="h-4 w-4" />
                             </Button>
                           ) : (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Ban">
