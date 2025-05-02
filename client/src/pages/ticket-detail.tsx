@@ -454,7 +454,7 @@ const TicketDetail = () => {
     }));
     
     // Update status based on action
-    let newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed' = ticketDetails.status;
+    let newStatus: 'Open' | 'Resolved' | 'Closed' = ticketDetails.status;
     
     switch(action) {
       case 'Accepted':
@@ -477,18 +477,7 @@ const TicketDetail = () => {
         // No status change for simple comments
         break;
     }
-    
-    // If the status changed, update local state
-    if (newStatus !== ticketDetails.status) {
-      setTicketDetails(prev => ({
-        ...prev,
-        status: newStatus,
-        // Make sure to lock/unlock the ticket based on status
-        locked: newStatus === 'Closed' ? true : 
-                action === 'Reopen' ? false : 
-                prev.locked
-      }));
-    }
+  
     
     // Set a default reply based on the action
     if (action && action !== 'Comment') {
@@ -1113,6 +1102,11 @@ const TicketDetail = () => {
                                   locked: false,
                                   status: 'Open',
                                   newReply: newMessage
+                                }
+                              }, {
+                                onSuccess: () => {
+                                  // Force refresh of the ticket list
+                                  queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
                                 }
                               });
                             }}

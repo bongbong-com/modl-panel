@@ -48,7 +48,11 @@ export function useTickets() {
         throw new Error('Failed to fetch tickets');
       }
       return res.json();
-    }
+    },
+    // Disabled cache to ensure we always get fresh data
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 }
 
