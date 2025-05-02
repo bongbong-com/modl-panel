@@ -43,6 +43,7 @@ export interface TicketMessage {
   senderType: 'user' | 'staff' | 'system';
   content: string;
   timestamp: string;
+  staff?: boolean; // Indicates if the sender is a staff member
   attachments?: string[];
   closedAs?: string; // Optional field to track if this message closed the ticket
 }
@@ -212,7 +213,16 @@ const TicketDetail = () => {
         category,
         relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
         relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
-        messages: ticketData.messages || ticketData.replies || [],
+        messages: (ticketData.messages || (ticketData.replies && ticketData.replies.map(reply => ({
+          id: reply._id || reply.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          sender: reply.name,
+          senderType: reply.type === 'staff' ? 'staff' : 
+                     reply.type === 'system' ? 'system' : 'user',
+          content: reply.content,
+          timestamp: reply.created ? new Date(reply.created).toLocaleString() : new Date().toLocaleString(),
+          staff: reply.staff,
+          closedAs: reply.action
+        }))) || []),
         notes: ticketData.notes || [],
         tags,
         locked: ticketData.locked || false,
@@ -339,26 +349,41 @@ const TicketDetail = () => {
                        ticketDetails.selectedAction !== 'Reopen';
       
       // Create the new message with proper structure
-      const newMessage: TicketMessage = {
+      const newMessage = {
         id: `msg-${Date.now()}`,
-        sender: user?.username || "Admin", // Use Admin as fallback instead of Unknown
-        senderType: "staff",
+        // These map to the server-side schema fields
+        name: user?.username || "Admin", // Use Admin as fallback instead of Unknown
+        type: "staff",
         content: messageContent,
-        timestamp,
-        // Only add closedAs if it's a closing action
+        created: new Date(),
+        staff: true,
+        // Add action field to track closing/reopening status
+        action: ticketDetails.selectedAction
+      };
+      
+      // Create client-side message for rendering
+      const clientMessage: TicketMessage = {
+        id: newMessage.id,
+        sender: newMessage.name,
+        senderType: newMessage.type === 'staff' ? 'staff' : 
+                    newMessage.type === 'system' ? 'system' : 'user',
+        content: newMessage.content,
+        timestamp: timestamp,
+        staff: newMessage.staff,
         closedAs: isClosing ? ticketDetails.selectedAction : undefined
       };
       
       // Local state update
       setTicketDetails(prev => ({
         ...prev,
-        messages: [...prev.messages, newMessage],
+        messages: [...prev.messages, clientMessage],
         newReply: '',
         selectedAction: undefined,
         newDuration: undefined,
         isPermanent: undefined,
         duration: undefined,
-        status,
+        // Only update status if a closing action is sent (not just when clicking an action button)
+        status: isClosing ? status : prev.status,
         // Make sure to lock the ticket if it's closed
         locked: isClosing || status === 'Closed' ? true : prev.locked
       }));

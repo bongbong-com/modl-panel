@@ -289,14 +289,40 @@ export function setupTicketRoutes(app: Express) {
         const reply = req.body.newReply;
         
         // Ensure staff replies are marked correctly
-        if (reply.senderType === 'staff') {
+        if (reply.type === 'staff') {
           reply.staff = true;
         }
         
+        // Add the reply to the ticket
         await Ticket.findByIdAndUpdate(
           id,
           { $push: { replies: reply } }
         );
+        
+        // If the reply has an action that should close/reopen the ticket, update status
+        if (reply.action) {
+          const closingActions = ['Accepted', 'Completed', 'Pardon', 'Reduce', 'Rejected', 'Stale', 
+                                 'Duplicate', 'Reject', 'Close'];
+          const reopenAction = 'Reopen';
+          
+          // Update ticket status based on the action in the latest reply
+          if (closingActions.includes(reply.action)) {
+            // Closing actions
+            req.body.status = reply.action === 'Accepted' || 
+                             reply.action === 'Completed' || 
+                             reply.action === 'Pardon' || 
+                             reply.action === 'Reduce' 
+                             ? 'Resolved' : 'Closed';
+            
+            // Also lock the ticket
+            req.body.locked = true;
+          } else if (reply.action === reopenAction) {
+            // Reopening action
+            req.body.status = 'Open';
+            req.body.locked = false;
+          }
+          // Comment action doesn't change status or locked state
+        }
       } 
       
       if (req.body.newNote) {
