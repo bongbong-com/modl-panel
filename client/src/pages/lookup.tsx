@@ -311,10 +311,13 @@ const Lookup = () => {
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
   
+  const [isSearching, setIsSearching] = useState(false);
+
   // Function to handle player search
   const handlePlayerSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setIsSearching(true);
       try {
         // Fetch the player data to get their UUID
         console.log(`Searching for player: ${searchQuery}`);
@@ -344,6 +347,8 @@ const Lookup = () => {
       } catch (error) {
         console.error('Error during player search:', error);
         alert('An error occurred during search. Please try again.');
+      } finally {
+        setIsSearching(false);
       }
     }
   };
@@ -375,8 +380,16 @@ const Lookup = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
               />
-              <Button type="submit" disabled={!searchQuery.trim()}>
-                <Search className="h-4 w-4 mr-1" /> Search
+              <Button type="submit" disabled={!searchQuery.trim() || isSearching}>
+                {isSearching ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" /> Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-4 w-4 mr-1" /> Search
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>
@@ -402,50 +415,58 @@ const Lookup = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {players && players.map((player: any, index: number) => (
-                    <TableRow key={index} className="border-b border-border">
-                      <TableCell className="font-medium">{player.username}</TableCell>
-                      <TableCell className="text-muted-foreground">{player.uuid}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline" 
-                          className={`
-                            ${player.status === 'Active' ? 'bg-success/10 text-success border-success/20' : 
-                              player.status === 'Warned' ? 'bg-warning/10 text-warning border-warning/20' : 
-                              'bg-destructive/10 text-destructive border-destructive/20'
-                            }
-                          `}
-                        >
-                          {player.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-primary" 
-                            title="View Details"
-                            onClick={() => window.location.href = `/lookup?id=${player.uuid}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="View Warnings">
-                            <TriangleAlert className="h-4 w-4" />
-                          </Button>
-                          {player.status === 'Banned' ? (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Unban">
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Ban">
-                              <Ban className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                  {!players || players.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        No players found. Try searching for a specific username.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    players.map((player: any, index: number) => (
+                      <TableRow key={index} className="border-b border-border">
+                        <TableCell className="font-medium">{player.username}</TableCell>
+                        <TableCell className="text-muted-foreground">{player.uuid}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="outline" 
+                            className={`
+                              ${player.status === 'Active' ? 'bg-success/10 text-success border-success/20' : 
+                                player.status === 'Warned' ? 'bg-warning/10 text-warning border-warning/20' : 
+                                'bg-destructive/10 text-destructive border-destructive/20'
+                              }
+                            `}
+                          >
+                            {player.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-primary" 
+                              title="View Details"
+                              onClick={() => window.location.href = `/lookup?id=${player.uuid}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="View Warnings">
+                              <TriangleAlert className="h-4 w-4" />
+                            </Button>
+                            {player.status === 'Banned' ? (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Unban">
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Ban">
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             )}

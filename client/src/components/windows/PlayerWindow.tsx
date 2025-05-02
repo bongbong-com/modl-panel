@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { 
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
-  Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload 
+  Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { recentLookups } from '@/data/mockData';
+import { usePlayer } from '@/hooks/use-data';
 
 import { WindowPosition } from '@/lib/types';
 
@@ -105,24 +105,135 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     }, 300);
   };
   
+  // Use React Query hook to fetch player data
+  const { data: player, isLoading, error } = usePlayer(playerId);
+  
   useEffect(() => {
-    if (playerId && isOpen) {
-      // In a real app, fetch player data using the playerId
-      console.log('Fetching data for player:', playerId);
+    if (player && isOpen) {
+      console.log('Player data received:', player);
       
-      // Find the player in our mock data
-      const player = recentLookups.find(p => p.uuid === playerId);
-      if (player) {
+      // Check if we're dealing with MongoDB data or the API response format
+      if (player.usernames) {
+        // This is MongoDB raw data that needs formatting
+        const currentUsername = player.usernames && player.usernames.length > 0 
+          ? player.usernames[player.usernames.length - 1].username 
+          : 'Unknown';
+        
+        const firstJoined = player.usernames && player.usernames.length > 0 
+          ? new Date(player.usernames[0].date).toLocaleDateString() 
+          : 'Unknown';
+        
+        // Get previous usernames
+        const previousNames = player.usernames && player.usernames.length > 1
+          ? player.usernames
+              .slice(0, -1) // All except the most recent
+              .map((u: any) => u.username)
+          : [];
+        
+        // Determine player status
+        const status = player.punishments && player.punishments.some((p: any) => p.active && !p.expires) 
+          ? 'Banned' 
+          : player.punishments && player.punishments.some((p: any) => p.active) 
+          ? 'Restricted' 
+          : 'Active';
+        
+        // Format warnings from notes
+        const warnings = player.notes ? player.notes.map((note: any) => ({
+          type: 'Warning',
+          reason: note.text,
+          date: new Date(note.date).toLocaleDateString(),
+          by: note.issuerName
+        })) : [];
+        
+        // Add punishments to warnings
+        if (player.punishments) {
+          player.punishments.forEach((punishment: any) => {
+            warnings.push({
+              type: punishment.type,
+              reason: punishment.reason,
+              date: new Date(punishment.date).toLocaleDateString(),
+              by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : '')
+            });
+          });
+        }
+        
+        // Extract notes
+        const notes = player.notes 
+          ? player.notes.map((note: any) => `${note.text} (Added by ${note.issuerName} on ${new Date(note.date).toLocaleDateString()})`) 
+          : [];
+        
+        // Extract linked accounts
+        const linkedAccounts: string[] = [];
+        if (player.discord) linkedAccounts.push(`${player.discord} (Discord)`);
+        if (player.email) linkedAccounts.push(`${player.email} (Email)`);
+        
+        setPlayerInfo(prev => ({
+          ...prev,
+          username: currentUsername,
+          status: status === 'Active' ? 'Online' : status,
+          region: player.region || 'Unknown',
+          country: player.country || 'Unknown',
+          firstJoined: firstJoined,
+          lastOnline: 'Recent', // This data isn't available in our current schema
+          lastServer: player.lastServer || 'Unknown',
+          playtime: player.playtime ? `${player.playtime} hours` : 'Not tracked',
+          social: player.social || 'Medium',
+          gameplay: player.gameplay || 'Medium',
+          punished: status !== 'Active',
+          previousNames: previousNames,
+          warnings: warnings,
+          linkedAccounts: linkedAccounts,
+          notes: notes
+        }));
+      } else if (player.username) {
+        // Handle API response format if different
         setPlayerInfo(prev => ({
           ...prev,
           username: player.username,
-          lastOnline: player.lastOnline,
+          lastOnline: player.lastOnline || 'Unknown',
           status: player.status === 'Active' ? 'Online' : player.status
         }));
       }
     }
-  }, [playerId, isOpen]);
+  }, [player, isOpen]);
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <ResizableWindow
+        id={`player-${playerId}`}
+        title="Loading Player Info..."
+        isOpen={isOpen}
+        onClose={onClose}
+        initialPosition={initialPosition}
+        initialSize={{ width: 650, height: 550 }}
+      >
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </ResizableWindow>
+    );
+  }
+
+  // Show error state
+  if (error || !player) {
+    return (
+      <ResizableWindow
+        id={`player-${playerId}`}
+        title="Player Not Found"
+        isOpen={isOpen}
+        onClose={onClose}
+        initialPosition={initialPosition}
+        initialSize={{ width: 650, height: 550 }}
+      >
+        <div className="flex flex-col items-center justify-center h-64">
+          <p className="text-destructive">Could not find player data.</p>
+          <Button onClick={onClose} className="mt-4">Close</Button>
+        </div>
+      </ResizableWindow>
+    );
+  }
+  
   return (
     <ResizableWindow
       id={`player-${playerId}`}
