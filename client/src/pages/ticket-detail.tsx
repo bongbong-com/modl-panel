@@ -225,7 +225,7 @@ const TicketDetail = () => {
         }))) || []),
         notes: ticketData.notes || [],
         tags,
-        locked: ticketData.locked || false,
+        locked: ticketData.locked === true,
         // Set default action to "Comment" to highlight the Comment button
         selectedAction: 'Comment' 
       });

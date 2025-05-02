@@ -210,6 +210,7 @@ export function setupTicketRoutes(app: Express) {
           reportedBy: ticket.creator,
           date: ticket.created,
           category, // Explicitly add category to response
+          locked: ticket.data.get('locked') === true || ticket.data.get('locked') === 'true',
           type: category.toLowerCase().includes('bug') ? 'bug' : 
                 category.toLowerCase().includes('appeal') ? 'appeal' :
                 category.toLowerCase().includes('player') ? 'player' : 'chat'
@@ -364,6 +365,9 @@ export function setupTicketRoutes(app: Express) {
       if (!ticket) {
         return res.status(404).json({ error: 'Ticket not found' });
       }
+      
+      // Log status for debugging
+      console.log(`Updated ticket ${id} - Locked status: ${ticket.data.get('locked')}`);
       
       await createSystemLog(`Ticket ${id} updated`);
       res.json(ticket);
