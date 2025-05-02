@@ -26,6 +26,7 @@ import {
   Plus,
   X,
   Lock as LockIcon,
+  Unlock as UnlockIcon,
   Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
