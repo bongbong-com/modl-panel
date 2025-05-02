@@ -46,68 +46,82 @@ const PlayerLookupWindow = ({ playerId, isOpen, onClose }: { playerId?: string; 
 
   useEffect(() => {
     if (player && isOpen) {
-      // Format the player data from MongoDB for display
-      const currentUsername = player.usernames && player.usernames.length > 0 
-        ? player.usernames[player.usernames.length - 1].username 
-        : 'Unknown';
-      
-      const firstJoined = player.usernames && player.usernames.length > 0 
-        ? new Date(player.usernames[0].date).toLocaleDateString() 
-        : 'Unknown';
-      
-      // Get previous usernames
-      const previousNames = player.usernames && player.usernames.length > 1
-        ? player.usernames
-            .slice(0, -1) // All except the most recent
-            .map(u => u.username)
-            .join(', ')
-        : 'None';
-      
-      // Format IP
-      const lastIP = player.ipList && player.ipList.length > 0 
-        ? player.ipList[player.ipList.length - 1].ipAddress.replace(/\d+$/, 'x.x') 
-        : 'Unknown';
+      // Check if we're dealing with MongoDB data or the API response format
+      if (player.username && player.uuid) {
+        // This is already in the correct format from our API
+        setPlayerInfo({
+          username: player.username,
+          status: player.status,
+          uuid: player.uuid,
+          firstJoined: player.firstJoined,
+          lastOnline: player.lastOnline,
+          warnings: player.warnings || []
+        });
+      } else {
+        // This is MongoDB raw data that needs formatting
+        // Format the player data from MongoDB for display
+        const currentUsername = player.usernames && player.usernames.length > 0 
+          ? player.usernames[player.usernames.length - 1].username 
+          : 'Unknown';
         
-      // Determine player status
-      const status = player.punishments && player.punishments.some(p => p.active && !p.expires) 
-        ? 'Banned' 
-        : player.punishments && player.punishments.some(p => p.active) 
-        ? 'Restricted' 
-        : 'Active';
-      
-      // Format warnings from notes
-      const warnings: Warning[] = player.notes ? player.notes.map(note => ({
-        type: 'Warning',
-        reason: note.text,
-        date: new Date(note.date).toLocaleDateString(),
-        by: note.issuerName
-      })) : [];
-      
-      // Add punishments to warnings
-      if (player.punishments) {
-        player.punishments.forEach(punishment => {
-          warnings.push({
-            type: punishment.type,
-            reason: punishment.reason,
-            date: new Date(punishment.date).toLocaleDateString(),
-            by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : '')
+        const firstJoined = player.usernames && player.usernames.length > 0 
+          ? new Date(player.usernames[0].date).toLocaleDateString() 
+          : 'Unknown';
+        
+        // Get previous usernames
+        const previousNames = player.usernames && player.usernames.length > 1
+          ? player.usernames
+              .slice(0, -1) // All except the most recent
+              .map((u: any) => u.username)
+              .join(', ')
+          : 'None';
+        
+        // Format IP
+        const lastIP = player.ipList && player.ipList.length > 0 
+          ? player.ipList[player.ipList.length - 1].ipAddress.replace(/\d+$/, 'x.x') 
+          : 'Unknown';
+          
+        // Determine player status
+        const status = player.punishments && player.punishments.some((p: any) => p.active && !p.expires) 
+          ? 'Banned' 
+          : player.punishments && player.punishments.some((p: any) => p.active) 
+          ? 'Restricted' 
+          : 'Active';
+        
+        // Format warnings from notes
+        const warnings: Warning[] = player.notes ? player.notes.map((note: any) => ({
+          type: 'Warning',
+          reason: note.text,
+          date: new Date(note.date).toLocaleDateString(),
+          by: note.issuerName
+        })) : [];
+        
+        // Add punishments to warnings
+        if (player.punishments) {
+          player.punishments.forEach((punishment: any) => {
+            warnings.push({
+              type: punishment.type,
+              reason: punishment.reason,
+              date: new Date(punishment.date).toLocaleDateString(),
+              by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : '')
+            });
           });
+        }
+        
+        setPlayerInfo({
+          username: currentUsername,
+          status: status === 'Active' ? 'Online' : status,
+          vip: false, // Not tracked in our schema yet
+          level: 0,    // Not tracked in our schema yet
+          uuid: player.minecraftUuid,
+          firstJoined,
+          lastOnline: 'Recent', // This data isn't available in our current schema
+          playtime: 'Not tracked', // This data isn't available in our current schema 
+          ip: lastIP,
+          previousNames,
+          warnings
         });
       }
-      
-      setPlayerInfo({
-        username: currentUsername,
-        status: status === 'Active' ? 'Online' : status,
-        vip: false, // Not tracked in our schema yet
-        level: 0,    // Not tracked in our schema yet
-        uuid: player.minecraftUuid,
-        firstJoined,
-        lastOnline: 'Recent', // This data isn't available in our current schema
-        playtime: 'Not tracked', // This data isn't available in our current schema 
-        ip: lastIP,
-        previousNames,
-        warnings
-      });
     }
   }, [player, isOpen]);
 

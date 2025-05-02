@@ -61,16 +61,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { Player } = await import('./models/mongodb-schemas');
       
-      // Try to find player in MongoDB first
+      // Try to find player in MongoDB
       let query: any = {};
       if (type === 'uuid') {
         query = { minecraftUuid: identifier };
       } else {
-        // More flexible matching for usernames using a partial match approach
-        // This will search for usernames that start with the provided identifier
+        // Using a more forgiving regex approach - find anywhere in the username
+        const escapedIdentifier = identifier.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         query = { 
           'usernames.username': { 
-            $regex: new RegExp(identifier.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i') 
+            $regex: new RegExp(escapedIdentifier, 'i') 
           }
         };
       }
