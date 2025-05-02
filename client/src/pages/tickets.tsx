@@ -6,7 +6,8 @@ import {
   MessageSquare, 
   LockKeyhole, 
   Filter, 
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -15,7 +16,7 @@ import { useSidebar } from '@/hooks/use-sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { tickets } from '@/data/mockData';
+import { useTickets } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 
 const Tickets = () => {
@@ -23,16 +24,17 @@ const Tickets = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("bug");
   const [, setLocation] = useLocation();
+  const { data: tickets, isLoading, error } = useTickets();
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
 
   // Filter tickets by type and status
-  const filteredTickets = tickets.filter(ticket => {
+  const filteredTickets = tickets ? tickets.filter(ticket => {
     const typeMatch = ticket.type === activeTab;
     const statusMatch = statusFilter === "all" || ticket.status.toLowerCase() === statusFilter;
     return typeMatch && statusMatch;
-  });
+  }) : [];
   
   const handleNavigateToTicket = (ticketId: string) => {
     // Navigate to the ticket detail page
@@ -81,7 +83,7 @@ const Tickets = () => {
                 >
                   <Bug className="h-4 w-4 mr-2" />
                   Bug Reports
-                  <Badge className="ml-2 bg-primary text-white">{tickets.filter(t => t.type === 'bug').length}</Badge>
+                  <Badge className="ml-2 bg-primary text-white">{tickets ? tickets.filter(t => t.type === 'bug').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="player" 
@@ -89,7 +91,7 @@ const Tickets = () => {
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Player Reports
-                  <Badge className="ml-2 bg-destructive text-white">{tickets.filter(t => t.type === 'player').length}</Badge>
+                  <Badge className="ml-2 bg-destructive text-white">{tickets ? tickets.filter(t => t.type === 'player').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chat" 
@@ -97,7 +99,7 @@ const Tickets = () => {
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat Reports
-                  <Badge className="ml-2 bg-warning text-white">{tickets.filter(t => t.type === 'chat').length}</Badge>
+                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter(t => t.type === 'chat').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="appeal" 
@@ -105,7 +107,7 @@ const Tickets = () => {
                 >
                   <LockKeyhole className="h-4 w-4 mr-2" />
                   Ban Appeals
-                  <Badge className="ml-2 bg-info text-white">{tickets.filter(t => t.type === 'appeal').length}</Badge>
+                  <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter(t => t.type === 'appeal').length : 0}</Badge>
                 </TabsTrigger>
               </TabsList>
               
@@ -123,7 +125,16 @@ const Tickets = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTickets.length > 0 ? (
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6">
+                            <div className="flex justify-center items-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                              <span className="text-muted-foreground">Loading tickets...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredTickets.length > 0 ? (
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
@@ -170,7 +181,7 @@ const Tickets = () => {
                   
                   <div className="flex justify-between items-center pt-4">
                     <div className="text-sm text-muted-foreground">
-                      Showing {filteredTickets.length} of {tickets.filter(t => t.type === activeTab).length} entries
+                      Showing {filteredTickets.length} of {tickets ? tickets.filter(t => t.type === activeTab).length : 0} entries
                     </div>
                     <div className="flex space-x-1">
                       <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
@@ -207,7 +218,16 @@ const Tickets = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTickets.length > 0 ? (
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6">
+                            <div className="flex justify-center items-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                              <span className="text-muted-foreground">Loading tickets...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredTickets.length > 0 ? (
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
@@ -266,7 +286,16 @@ const Tickets = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTickets.length > 0 ? (
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6">
+                            <div className="flex justify-center items-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                              <span className="text-muted-foreground">Loading tickets...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredTickets.length > 0 ? (
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
@@ -325,7 +354,16 @@ const Tickets = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredTickets.length > 0 ? (
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-6">
+                            <div className="flex justify-center items-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                              <span className="text-muted-foreground">Loading tickets...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredTickets.length > 0 ? (
                         filteredTickets.map((ticket, index) => (
                           <TableRow key={index} className="border-b border-border">
                             <TableCell>{ticket.id}</TableCell>
