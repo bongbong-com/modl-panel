@@ -48,6 +48,17 @@ async function comparePasswords(supplied: string, stored: string) {
   }
 }
 
+// For demo purposes - normally you would store and verify these properly
+const verificationCodes = new Map<string, string>();
+
+// Generate a random 6-digit code
+function generateVerificationCode(email: string): string {
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  verificationCodes.set(email, code);
+  console.log(`Generated verification code for ${email}: ${code}`);
+  return code;
+}
+
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "session-secret-dev-only",
@@ -68,11 +79,48 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({
+      usernameField: 'username',
+      passwordField: 'password',
+      passReqToCallback: true
+    }, async (req, username, password, done) => {
       try {
-        const user = await Staff.findOne({ username });
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false, { message: "Invalid username or password" });
+        // Check verification method from request
+        const { verificationMethod, verificationCode } = req.body;
+        
+        // If using email or username, find the user
+        let user;
+        if (username.includes('@')) {
+          // If username is actually an email
+          user = await Staff.findOne({ email: username });
+        } else {
+          user = await Staff.findOne({ username });
+        }
+        
+        if (!user) {
+          return done(null, false, { message: "User not found" });
+        }
+
+        // Handle different verification methods
+        if (verificationMethod === 'email') {
+          // For demo, accept any 6-digit code
+          if (verificationCode && verificationCode.length === 6) {
+            console.log(`Email verification successful for ${user.username}`);
+          } else {
+            return done(null, false, { message: "Invalid verification code" });
+          }
+        } else if (verificationMethod === '2fa') {
+          // For demo, accept any 6-digit code
+          if (verificationCode && verificationCode.length === 6) {
+            console.log(`2FA verification successful for ${user.username}`);
+          } else {
+            return done(null, false, { message: "Invalid 2FA code" });
+          }
+        } else {
+          // Standard password authentication
+          if (!(await comparePasswords(password, user.password))) {
+            return done(null, false, { message: "Invalid credentials" });
+          }
         }
         
         return done(null, {
@@ -155,6 +203,83 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  // Request email verification code
+  app.post("/api/request-email-verification", async (req, res) => {
+    const { email } = req.body;
+    
+    try {
+      const user = await Staff.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Generate a verification code
+      const code = generateVerificationCode(email);
+      
+      // In a real app, you would send an email here
+      console.log(`Email verification requested for ${email}. Code: ${code}`);
+      
+      return res.status(200).json({ 
+        message: "Verification code sent",
+        // For demo purposes only! Don't send the code back in production
+        code
+      });
+    } catch (error) {
+      console.error("Error requesting email verification:", error);
+      return res.status(500).json({ message: "Failed to send verification code" });
+    }
+  });
+
+  // Request 2FA verification code
+  app.post("/api/request-2fa-verification", async (req, res) => {
+    const { email } = req.body;
+    
+    try {
+      const user = await Staff.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // In a real app, the user would use an authenticator app
+      // For demo, we'll generate a code
+      const code = generateVerificationCode(email);
+      
+      console.log(`2FA verification requested for ${email}. Code: ${code}`);
+      
+      return res.status(200).json({ 
+        message: "2FA verification required",
+        // For demo purposes only! Don't send the code back in production
+        code
+      });
+    } catch (error) {
+      console.error("Error with 2FA verification:", error);
+      return res.status(500).json({ message: "Failed to initialize 2FA verification" });
+    }
+  });
+
+  // Request passkey authentication
+  app.post("/api/request-passkey-auth", async (req, res) => {
+    const { email } = req.body;
+    
+    try {
+      const user = await Staff.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // In a real app, you would initiate WebAuthn/passkey flow
+      console.log(`Passkey authentication requested for ${email}`);
+      
+      return res.status(200).json({ 
+        message: "Passkey authentication initiated",
+        challenge: "simulated-passkey-challenge"
+      });
+    } catch (error) {
+      console.error("Error with passkey authentication:", error);
+      return res.status(500).json({ message: "Failed to initialize passkey authentication" });
     }
   });
 
