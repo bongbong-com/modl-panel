@@ -171,14 +171,7 @@ const Tickets = () => {
                                 >
                                   {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
                                 </Badge>
-                                {ticket.type === 'bug' && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="text-xs px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200"
-                                  >
-                                    UI Issue
-                                  </Badge>
-                                )}
+
                               </div>
                             </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
@@ -260,15 +253,13 @@ const Tickets = () => {
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                  className={`text-xs px-1.5 py-0 h-5 ${
+                                    !ticket.locked && ticket.status !== 'Closed'
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-red-50 text-red-700 border-red-200'
+                                  }`}
                                 >
-                                  {ticket.status}
-                                </Badge>
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-red-50 text-red-700 border-red-200"
-                                >
-                                  Harassment
+                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
                                 </Badge>
                               </div>
                             </TableCell>
@@ -328,15 +319,13 @@ const Tickets = () => {
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                  className={`text-xs px-1.5 py-0 h-5 ${
+                                    !ticket.locked && ticket.status !== 'Closed'
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-red-50 text-red-700 border-red-200'
+                                  }`}
                                 >
-                                  {ticket.status}
-                                </Badge>
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-orange-50 text-orange-700 border-orange-200"
-                                >
-                                  Chat Abuse
+                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
                                 </Badge>
                               </div>
                             </TableCell>
@@ -396,15 +385,13 @@ const Tickets = () => {
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-200"
+                                  className={`text-xs px-1.5 py-0 h-5 ${
+                                    !ticket.locked && ticket.status !== 'Closed'
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-red-50 text-red-700 border-red-200'
+                                  }`}
                                 >
-                                  {ticket.status}
-                                </Badge>
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs px-1.5 py-0 h-5 bg-indigo-50 text-indigo-700 border-indigo-200"
-                                >
-                                  Ban Appeal
+                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
                                 </Badge>
                               </div>
                             </TableCell>
