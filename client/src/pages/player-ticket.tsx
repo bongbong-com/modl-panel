@@ -8,12 +8,15 @@ import {
   Send,
   ArrowLeft,
   Loader2,
-  Tag
+  Tag,
+  Link2,
+  Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTicket, useUpdateTicket } from '@/hooks/use-data';
 import { queryClient } from '@/lib/queryClient';
 
