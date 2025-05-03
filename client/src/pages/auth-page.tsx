@@ -157,7 +157,7 @@ const AuthPage = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Verification Method</FormLabel>
-                            <div className="flex flex-wrap gap-2 mt-1">
+                            <div className="flex flex-wrap gap-1 mt-1">
                               <Badge 
                                 variant={field.value === "email" ? "default" : "outline"}
                                 className="cursor-pointer py-1 px-3 hover:bg-primary/90"
