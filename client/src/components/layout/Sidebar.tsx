@@ -214,7 +214,7 @@ const Sidebar = () => {
       : players || [];
 
   return (
-    <div className="fixed ml-4 top-8 left-4 z-40">
+    <div className="fixed ml-4 top-1/4 left-4 z-40">
       {/* Server Logo */}
       <div className="bg-sidebar/90 p-2 rounded-2xl shadow-lg w-16 mb-3 transition-all duration-200 hover:shadow-xl hover:bg-sidebar/95" 
         style={{ backdropFilter: "blur(12px)" }}>
