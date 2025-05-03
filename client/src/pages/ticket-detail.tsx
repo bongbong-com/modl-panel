@@ -524,7 +524,7 @@ const TicketDetail = () => {
   return (
     <PageContainer>
       <div className="flex flex-col space-y-4">
-        <div className="flex items-center">
+        <div className="flex items-center justify-between w-full">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -534,6 +534,42 @@ const TicketDetail = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Tickets
           </Button>
+          
+          {ticketDetails.id && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Share with player:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center">
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Share Link
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-3 w-auto">
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Player can use this link to view and reply to the ticket:</p>
+                    <div className="flex items-center">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={`${window.location.origin}/player-ticket/${ticketDetails.id}`}
+                        className="text-xs p-2 bg-muted rounded border border-border flex-1 mr-2"
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="secondary"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/player-ticket/${ticketDetails.id}`);
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
         
         {isLoading && (
