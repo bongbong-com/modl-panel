@@ -214,22 +214,15 @@ const Sidebar = () => {
       : players || [];
 
   return (
-    <div className="fixed ml-4 top-8 left-4 z-40 flex flex-col gap-2">
+    <div className="fixed ml-4 top-8 left-4 z-40">
       {/* Server Logo */}
-      <div className="flex flex-col items-center mb-3">
-        <div className="bg-sidebar/90 p-3 rounded-2xl shadow-lg transition-all duration-200 hover:shadow-xl hover:bg-sidebar/95" 
-          style={{ backdropFilter: "blur(12px)" }}>
-          <img 
-            src={serverLogo} 
-            alt="SkyRiver Server Logo" 
-            className="w-20 h-20 object-contain rounded-xl"
-          />
-        </div>
-        <div className="mt-2 px-3 py-1 bg-sidebar/90 rounded-xl shadow text-center" 
-          style={{ backdropFilter: "blur(12px)" }}>
-          <h3 className="text-md font-bold text-blue-400">SkyRiver</h3>
-          <p className="text-xs text-gray-300">Admin Panel</p>
-        </div>
+      <div className="bg-sidebar/90 p-2 rounded-2xl shadow-lg w-16 mb-3 transition-all duration-200 hover:shadow-xl hover:bg-sidebar/95" 
+        style={{ backdropFilter: "blur(12px)" }}>
+        <img 
+          src={serverLogo} 
+          alt="SkyRiver Server Logo" 
+          className="w-12 h-12 object-contain rounded-xl"
+        />
       </div>
       
       <div className="flex">
