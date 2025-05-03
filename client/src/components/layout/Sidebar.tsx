@@ -23,7 +23,7 @@ import { useDashboard } from "@/contexts/DashboardContext";
 // Fix import: using direct path relative to src directory
 import PlayerWindow from "../../components/windows/PlayerWindow";
 // Import the server logo
-import serverLogo from "../../assets/server-logo.jpg";
+import serverLogo from "../../assets/server-logo.png";
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
