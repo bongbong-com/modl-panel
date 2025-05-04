@@ -308,8 +308,8 @@ const PlayerTicket = () => {
   };
   
   // Define default form templates based on ticket type
-  const getDefaultFormFields = (type) => {
-    const defaultTemplates = {
+  const getDefaultFormFields = (type: string) => {
+    const defaultTemplates: Record<string, {fieldName: string; fieldLabel: string; fieldType: string; required: boolean; options?: string[]}[]> = {
       'bug': [
         { fieldName: 'description', fieldLabel: 'Bug Description', fieldType: 'textarea', required: true },
         { fieldName: 'steps', fieldLabel: 'Steps to Reproduce', fieldType: 'textarea', required: true },
@@ -379,9 +379,9 @@ const PlayerTicket = () => {
       
       // If formTemplates processing fails or returns empty fields, check formTemplates array
       if (fields.length === 0 && settingsData?.formTemplates) {
-        const template = settingsData.formTemplates.find(t => t.ticketType === ticketDetails.type);
+        const template = settingsData.formTemplates.find((t: any) => t.ticketType === ticketDetails.type);
         if (template && template.fields) {
-          fields = template.fields.map(f => ({
+          fields = template.fields.map((f: any) => ({
             fieldName: f.id,
             fieldLabel: f.label,
             fieldType: f.type,
