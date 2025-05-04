@@ -11,6 +11,7 @@ import Home from "@/pages/home";
 import Lookup from "@/pages/lookup";
 import Tickets from "@/pages/tickets";
 import TicketDetail from "@/pages/ticket-detail";
+import PlayerTicket from "@/pages/player-ticket";
 import Audit from "@/pages/audit";
 import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
@@ -20,14 +21,16 @@ function Router() {
   const [location] = useLocation();
   const isAuthPage = location === '/auth';
   const isAppealsPage = location === '/appeals';
+  const isPlayerTicketPage = location.startsWith('/player-ticket/');
 
-  // Don't show sidebar on auth page or appeals page
-  if (isAuthPage || isAppealsPage) {
+  // Don't show sidebar on auth page, appeals page, or player ticket page
+  if (isAuthPage || isAppealsPage || isPlayerTicketPage) {
     return (
       <main className="h-full">
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
+          <Route path="/player-ticket/:id" component={PlayerTicket} />
         </Switch>
       </main>
     );
@@ -46,6 +49,7 @@ function Router() {
           <ProtectedRoute path="/settings" component={Settings} />
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
+          <Route path="/player-ticket/:id" component={PlayerTicket} />
           <Route component={NotFound} />
         </Switch>
       </main>

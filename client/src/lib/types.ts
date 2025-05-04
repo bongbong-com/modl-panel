@@ -24,12 +24,13 @@ export interface Player {
 
 export interface Ticket {
   id: string;
-  type: 'bug' | 'player' | 'chat' | 'appeal';
+  type: 'bug' | 'player' | 'chat' | 'appeal' | 'staff' | 'support';
   subject: string;
   reportedBy: string;
   date: string;
-  status: string;
+  status: 'Unfinished' | 'Open' | 'Closed';
   priority: 'Critical' | 'Medium' | 'Low' | 'Fixed';
+  locked?: boolean;
 }
 
 export interface AuditLog {

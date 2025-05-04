@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import {
   MessageSquare,
@@ -87,16 +88,15 @@ export const defaultReplies: Record<TicketCategory, Record<string, string>> = {
 export interface TicketDetails {
   id: string;
   subject: string;
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-  priority: 'Critical' | 'Medium' | 'Low' | 'Fixed';
+  status: 'Open' | 'Closed'; // Simplified to just Open/Closed
   reportedBy: string;
-  assignedTo?: string;
   date: string;
   category: TicketCategory;
   relatedPlayer?: string;
   relatedPlayerId?: string;
   messages: TicketMessage[];
   notes: TicketNote[];
+  locked?: boolean; // Tracks if the ticket is locked
   newNote?: string;
   isAddingNote?: boolean;
   newReply?: string;
@@ -109,7 +109,6 @@ export interface TicketDetails {
   isPermanent?: boolean;
   tags?: string[];
   newTag?: string;
-  locked?: boolean;
 }
 
 const TicketDetail = () => {
@@ -119,6 +118,23 @@ const TicketDetail = () => {
   const [isPunishWindowOpen, setIsPunishWindowOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+  
+  // Format date to MM/dd/yy HH:mm in browser's timezone
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (e) {
+      return dateString; // Return original string if formatting fails
+    }
+  };
   
   // More robust parsing of ticket ID from URL
   const path = location[0];
@@ -150,23 +166,21 @@ const TicketDetail = () => {
     id: "",
     subject: "",
     status: "Open",
-    priority: "Medium",
     reportedBy: "",
-    assignedTo: undefined,
     date: "",
     category: "Player Report",
     relatedPlayer: "",
     relatedPlayerId: "",
     tags: [],
     messages: [],
-    notes: []
+    notes: [],
+    locked: false
   });
 
+  // Simplified status colors - just Open and Closed
   const statusColors = {
-    'Open': 'bg-warning/10 text-warning border-warning/20',
-    'In Progress': 'bg-primary/10 text-primary border-primary/20',
-    'Resolved': 'bg-success/10 text-success border-success/20',
-    'Closed': 'bg-muted/50 text-muted-foreground border-muted/30'
+    'Open': 'bg-green-50 text-green-700 border-green-200',
+    'Closed': 'bg-red-50 text-red-700 border-red-200'
   };
 
   const priorityColors = {
@@ -205,11 +219,10 @@ const TicketDetail = () => {
       setTicketDetails({
         id: ticketData.id || ticketData._id,
         subject: ticketData.subject || 'No Subject',
-        status: (ticketData.status || 'Open') as 'Open' | 'In Progress' | 'Resolved' | 'Closed',
-        priority: (ticketData.priority || 'Medium') as 'Critical' | 'Medium' | 'Low' | 'Fixed',
+        // Simplify status to Open/Closed - anything but Closed is Open
+        status: (ticketData.locked === true || ticketData.status === 'Closed') ? 'Closed' : 'Open',
         reportedBy: ticketData.reportedBy || 'Unknown',
-        assignedTo: ticketData.assignedTo,
-        date: ticketData.date || new Date().toLocaleDateString(),
+        date: ticketData.date || new Date().toISOString(),
         category,
         relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
         relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
@@ -219,9 +232,9 @@ const TicketDetail = () => {
           senderType: reply.type === 'staff' ? 'staff' : 
                      reply.type === 'system' ? 'system' : 'user',
           content: reply.content,
-          timestamp: reply.created ? new Date(reply.created).toLocaleString() : new Date().toLocaleString(),
+          timestamp: reply.created ? reply.created : new Date().toISOString(),
           staff: reply.staff,
-          closedAs: reply.action
+          closedAs: (reply.action === "Comment" || reply.action === "Reopen") ? undefined : reply.action
         }))) || []),
         notes: ticketData.notes || [],
         tags,
@@ -237,7 +250,8 @@ const TicketDetail = () => {
     if (!ticketDetails.newNote?.trim()) return;
     
     const now = new Date();
-    const timestamp = now.toLocaleDateString() + ' ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    // Store ISO string for the server
+    const timestamp = now.toISOString();
     
     // Create the new note with proper structure
     const newNote: TicketNote = {
@@ -280,11 +294,13 @@ const TicketDetail = () => {
 
   const handleSendReply = () => {
     const now = new Date();
-    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+    // Use ISO format for consistent timestamps
+    const timestamp = now.toISOString();
     
     // Determine the content and subject based on selected action
     let messageContent = ticketDetails.newReply?.trim() || '';
-    let status: 'Open' | 'In Progress' | 'Resolved' | 'Closed' = ticketDetails.status;
+    // Simplified status: only Open or Closed
+    let status: 'Open' | 'Closed' = ticketDetails.status;
     
     // If no message content but default text is available, use that
     if (!messageContent && ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
@@ -298,7 +314,8 @@ const TicketDetail = () => {
       switch(ticketDetails.selectedAction) {
         case 'Accepted':
           actionDesc = "accepted this report";
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Rejected':
           actionDesc = "rejected this report";
@@ -306,7 +323,8 @@ const TicketDetail = () => {
           break;
         case 'Completed':
           actionDesc = "marked this bug as completed";
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Stale':
           actionDesc = "marked this bug as stale";
@@ -318,13 +336,15 @@ const TicketDetail = () => {
           break;
         case 'Pardon':
           actionDesc = "pardoned this punishment";
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Reduce':
           actionDesc = ticketDetails.isPermanent 
             ? 'changed the punishment to permanent' 
             : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Reject':
           actionDesc = "rejected this appeal";
@@ -427,7 +447,7 @@ const TicketDetail = () => {
     handleUpdateTagsWithPersistence(newTags);
   };
   
-  const handleStatusChange = (newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed', lockTicket = false) => {
+  const handleStatusChange = (newStatus: 'Open' | 'Closed', lockTicket = false) => {
     // First update local state for immediate UI feedback
     setTicketDetails(prev => ({
       ...prev,
@@ -454,20 +474,19 @@ const TicketDetail = () => {
     }));
     
     // Update status based on action
-    let newStatus: 'Open' | 'Resolved' | 'Closed' = ticketDetails.status;
+    let newStatus: 'Open' | 'Closed' = ticketDetails.status;
     
     switch(action) {
       case 'Accepted':
       case 'Completed':
       case 'Pardon':
       case 'Reduce':
-        newStatus = 'Resolved';
-        break;
       case 'Rejected':
       case 'Stale': 
       case 'Duplicate':
       case 'Reject':
       case 'Close':
+        // All resolution actions map to Closed in simplified system
         newStatus = 'Closed';
         break;
       case 'Reopen':
@@ -524,7 +543,7 @@ const TicketDetail = () => {
   return (
     <PageContainer>
       <div className="flex flex-col space-y-4">
-        <div className="flex items-center">
+        <div className="flex items-center justify-between w-full">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -534,6 +553,42 @@ const TicketDetail = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Tickets
           </Button>
+          
+          {ticketDetails.id && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Share with player:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center">
+                    <Link2 className="w-4 h-4 mr-2" />
+                    Share Link
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-3 w-auto">
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Player can use this link to view and reply to the ticket:</p>
+                    <div className="flex items-center">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={`${window.location.origin}/player-ticket/${ticketDetails.id}`}
+                        className="text-xs p-2 bg-muted rounded border border-border flex-1 mr-2"
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="secondary"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/player-ticket/${ticketDetails.id}`);
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
         
         {isLoading && (
@@ -605,11 +660,11 @@ const TicketDetail = () => {
                       
                       {/* Simple Status Badge - Only Open or Closed */}
                       <Badge variant="outline" className={
-                        ticketDetails.status === 'Open' || ticketDetails.status === 'In Progress' ? 
+                        ticketDetails.status === 'Open' ? 
                           'bg-green-50 text-green-700 border-green-200' : 
                           'bg-gray-50 text-gray-700 border-gray-200'
                       }>
-                        {ticketDetails.status === 'Open' || ticketDetails.status === 'In Progress' ? 'Open' : 'Closed'}
+                        {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
                       </Badge>
                       
                       {/* Display the tags */}
@@ -703,14 +758,9 @@ const TicketDetail = () => {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Date:</span>
-                    <span className="ml-1">{ticketDetails.date}</span>
+                    <span className="ml-1">{formatDate(ticketDetails.date)}</span>
                   </div>
-                  {ticketDetails.assignedTo && (
-                    <div>
-                      <span className="text-muted-foreground">Assigned To:</span>
-                      <span className="ml-1">{ticketDetails.assignedTo}</span>
-                    </div>
-                  )}
+                  {/* Removed assignedTo field as part of simplified ticket system */}
                   {ticketDetails.relatedPlayer && (
                     <div className="flex items-center">
                       <span className="text-muted-foreground">Related Player:</span>
@@ -790,10 +840,10 @@ const TicketDetail = () => {
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground">{message.timestamp || new Date().toLocaleString()}</span>
+                            <span className="text-xs text-muted-foreground">{formatDate(message.timestamp) || formatDate(new Date().toISOString())}</span>
                           </div>
                           {/* If this message has a closedAs status, show the ticket closing info */}
-                          {message.closedAs ? (
+                          {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
                             <>
                               <div className="text-sm mt-1 flex items-center">
                                 <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
@@ -1082,7 +1132,7 @@ const TicketDetail = () => {
                                 sender: newMessage.name,
                                 senderType: 'staff',
                                 content: newMessage.content,
-                                timestamp: new Date().toLocaleString(),
+                                timestamp: new Date().toISOString(),
                                 staff: true
                               };
                               
@@ -1128,7 +1178,7 @@ const TicketDetail = () => {
                       <div key={idx} className="bg-muted/20 p-3 rounded-md">
                         <div className="flex justify-between">
                           <span className="font-medium text-sm">{note.author}</span>
-                          <span className="text-xs text-muted-foreground">{note.date}</span>
+                          <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
                         </div>
                         <p className="text-sm mt-1.5">{note.content}</p>
                       </div>

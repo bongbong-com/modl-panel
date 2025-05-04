@@ -3,6 +3,19 @@ import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas'
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
+// Helper function to get ticket category from type
+function getTicketCategory(type: string): string {
+  switch(type) {
+    case 'bug': return 'Bug Report';
+    case 'player': return 'Player Report';
+    case 'chat': return 'Chat Report';
+    case 'appeal': return 'Punishment Appeal';
+    case 'staff': return 'Staff Application';
+    case 'support': return 'General Support';
+    default: return 'Other';
+  }
+}
+
 // Helper to hash password for staff accounts
 async function hashPassword(password: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -136,7 +149,8 @@ export async function seedEnhancedDatabase() {
       'Player using hacks'
     ];
     
-    const ticketStatuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
+    // We only support 'Unfinished', 'Open', 'Closed' statuses in our schema
+    const ticketStatuses = ['Open', 'Closed'];
     const ticketPriorities = ['Critical', 'Medium', 'Low', 'Fixed'];
     const ticketCategories = ['Bug Report', 'Player Report', 'Punishment Appeal', 'Other'];
     
@@ -308,20 +322,32 @@ export async function seedEnhancedDatabase() {
     const tickets = [];
     
     for (let i = 0; i < 15; i++) {
-      const type = randomItem(ticketTypes);
-      const ticketId = `${type.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      // Map old ticket types to new ticket type enum values
+      const typeMap = {
+        'bug': 'bug',
+        'player': 'player',
+        'chat': 'chat',
+        'appeal': 'appeal'
+      };
+      
+      const oldType = randomItem(ticketTypes);
+      // Convert to new type format, defaulting to 'bug' if not in map
+      const type = typeMap[oldType as keyof typeof typeMap] || 'bug';
+      
+      const ticketId = `${oldType.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
       const creationDate = randomDate(new Date(new Date().getFullYear() - 1, 0, 1), new Date());
       
       // Pick a random player as creator
       const creator = players[Math.floor(Math.random() * players.length)];
       const creatorUsername = creator.usernames[creator.usernames.length - 1].username;
+      const creatorUuid = creator.minecraftUuid;
       
       // Generate 2-5 tags
       const tagCount = Math.floor(Math.random() * 4) + 2;
       const tags = [];
       
       // Always include the ticket type as a tag
-      tags.push(type);
+      tags.push(oldType);
       
       // Add additional unique tags
       while (tags.length < tagCount) {
@@ -449,14 +475,24 @@ export async function seedEnhancedDatabase() {
         data.set('punishmentId', punishmentId);
       }
       
+      // Create a ticket with our new schema format
       tickets.push({
         _id: ticketId,
+        type: type,
+        status: data.get('status') as string || 'Open',
+        subject: data.get('subject') as string || 'No Subject',
         created: creationDate,
         creator: creatorUsername,
+        creatorUuid: creatorUuid, // Add the creatorUuid field
+        locked: false,
         tags,
         replies,
         notes,
-        data
+        // Include reportedPlayer/reportedPlayerUuid for player/chat tickets
+        reportedPlayer: data.get('relatedPlayer') as string,
+        reportedPlayerUuid: data.get('relatedPlayerId') as string,
+        // Convert data map to formData map for compatibility
+        formData: data
       });
     }
     
@@ -489,19 +525,21 @@ export async function seedEnhancedDatabase() {
     
     // Ticket logs
     for (const ticket of tickets) {
+      const category = getTicketCategory(ticket.type);
+      
       logs.push({
-        description: `New ${ticket.data.get('category')} ticket created: ${ticket._id}`,
+        description: `New ${category} ticket created: ${ticket._id}`,
         level: 'info',
         source: 'system',
         created: ticket.created
       });
       
       // Logs for status changes to resolved/closed
-      if (ticket.data.get('status') === 'Resolved' || ticket.data.get('status') === 'Closed') {
+      if (ticket.status === 'Resolved' || ticket.status === 'Closed') {
         logs.push({
-          description: `Ticket ${ticket._id} marked as ${ticket.data.get('status')}`,
+          description: `Ticket ${ticket._id} marked as ${ticket.status}`,
           level: 'info',
-          source: ticket.data.get('assignedTo') as string || 'system',
+          source: 'system',
           created: ticket.replies[ticket.replies.length - 1].created
         });
       }
