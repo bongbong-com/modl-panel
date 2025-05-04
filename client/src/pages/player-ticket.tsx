@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -53,9 +54,10 @@ interface TicketDetails {
 interface FormField {
   fieldName: string;
   fieldLabel: string;
-  fieldType: 'text' | 'textarea' | 'select';
+  fieldType: 'text' | 'textarea' | 'select' | 'checkbox' | 'radio';
   required: boolean;
   options?: string[];
+  helpText?: string;
 }
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -332,8 +334,8 @@ const PlayerTicket = () => {
   };
   
   // Define default form templates based on ticket type
-  const getDefaultFormFields = (type: string) => {
-    const defaultTemplates: Record<string, {fieldName: string; fieldLabel: string; fieldType: string; required: boolean; options?: string[]}[]> = {
+  const getDefaultFormFields = (type: string): FormField[] => {
+    const defaultTemplates: Record<string, FormField[]> = {
       'bug': [
         { fieldName: 'description', fieldLabel: 'Bug Description', fieldType: 'textarea', required: true },
         { fieldName: 'steps', fieldLabel: 'Steps to Reproduce', fieldType: 'textarea', required: true },
@@ -355,12 +357,19 @@ const PlayerTicket = () => {
         { fieldName: 'chatlog', fieldLabel: 'Copy & Paste Chat Log', fieldType: 'textarea', required: true }
       ],
       'staff': [
-        { fieldName: 'experience', fieldLabel: 'Previous Experience', fieldType: 'textarea', required: true },
-        { fieldName: 'age', fieldLabel: 'Age', fieldType: 'text', required: true },
-        { fieldName: 'timezone', fieldLabel: 'Timezone', fieldType: 'text', required: true },
-        { fieldName: 'availability', fieldLabel: 'Weekly Availability (hours)', fieldType: 'text', required: true },
-        { fieldName: 'why', fieldLabel: 'Why do you want to join our staff team?', fieldType: 'textarea', required: true },
-        { fieldName: 'skills', fieldLabel: 'Special Skills', fieldType: 'textarea', required: false }
+        { fieldName: 'experience', fieldLabel: 'Previous Experience', fieldType: 'textarea', required: true, 
+          helpText: 'Share any previous moderation or community management experience you have.' },
+        { fieldName: 'age', fieldLabel: 'Age', fieldType: 'text', required: true,
+          helpText: 'You must be at least 16 years old to apply.' },
+        { fieldName: 'timezone', fieldLabel: 'Timezone', fieldType: 'text', required: true,
+          helpText: 'Please specify your timezone (e.g., UTC+0, EST, etc.)' },
+        { fieldName: 'availability', fieldLabel: 'Weekly Availability (hours)', fieldType: 'text', required: true,
+          helpText: 'How many hours per week can you dedicate to moderation?' },
+        { fieldName: 'why', fieldLabel: 'Why do you want to join our staff team?', fieldType: 'textarea', required: true,
+          helpText: 'Explain your motivation for becoming a staff member.' },
+        { fieldName: 'skills', fieldLabel: 'Special Skills', fieldType: 'textarea', required: false,
+          helpText: 'List any relevant skills that would be beneficial (e.g., languages, technical abilities).' },
+        { fieldName: 'age_check', fieldLabel: 'I am 16 years of age or older', fieldType: 'checkbox', required: true }
       ],
       'support': [
         { fieldName: 'description', fieldLabel: 'How can we help you?', fieldType: 'textarea', required: true },
@@ -408,9 +417,10 @@ const PlayerTicket = () => {
           fields = template.fields.map((f: any) => ({
             fieldName: f.id,
             fieldLabel: f.label,
-            fieldType: f.type,
+            fieldType: f.type as 'text' | 'textarea' | 'select' | 'checkbox' | 'radio',
             required: f.required,
-            options: f.options
+            options: f.options,
+            helpText: f.helpText
           }));
         }
       }
@@ -477,16 +487,17 @@ const PlayerTicket = () => {
                   </SelectContent>
                 </Select>
               ) : field.fieldType === 'checkbox' ? (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-start space-x-2 mt-2">
                   <Checkbox 
                     id={field.fieldName}
                     checked={formData[field.fieldName] === "true"}
-                    onCheckedChange={(checked) => handleFormFieldChange(field.fieldName, checked ? "true" : "false")}
+                    onCheckedChange={(checked: boolean) => handleFormFieldChange(field.fieldName, checked ? "true" : "false")}
                     required={field.required}
+                    className="mt-1"
                   />
                   <label 
                     htmlFor={field.fieldName}
-                    className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     {field.fieldLabel}
                   </label>
