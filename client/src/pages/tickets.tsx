@@ -58,7 +58,7 @@ interface Ticket {
 // Generate a badge color and text based on ticket status
 const getTicketStatusInfo = (ticket: Ticket) => {
   // Use simplified status system - only Open or Closed
-  const isOpen = ticket.status === 'Open' && !ticket.locked;
+  const isOpen = !ticket.locked;
                   
   const statusClass = isOpen
     ? 'bg-green-50 text-green-700 border-green-200'

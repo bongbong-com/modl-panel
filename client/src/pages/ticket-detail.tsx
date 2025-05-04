@@ -234,7 +234,7 @@ const TicketDetail = () => {
           content: reply.content,
           timestamp: reply.created ? reply.created : new Date().toISOString(),
           staff: reply.staff,
-          closedAs: reply.action
+          closedAs: (reply.action === "Comment" || reply.action === "Reopen") ? undefined : reply.action
         }))) || []),
         notes: ticketData.notes || [],
         tags,
@@ -843,7 +843,7 @@ const TicketDetail = () => {
                             <span className="text-xs text-muted-foreground">{formatDate(message.timestamp) || formatDate(new Date().toISOString())}</span>
                           </div>
                           {/* If this message has a closedAs status, show the ticket closing info */}
-                          {message.closedAs ? (
+                          {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
                             <>
                               <div className="text-sm mt-1 flex items-center">
                                 <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>

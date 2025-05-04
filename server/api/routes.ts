@@ -188,32 +188,67 @@ export function setupPlayerRoutes(app: Express) {
   });
 }
 
+// Helper function to generate ticket ID
+async function generateTicketId(type: string): Promise<string> {
+  // Convert ticket type to prefix
+  const prefix = type === 'bug' ? 'BUG' : 
+                type === 'player' ? 'PLAYER' :
+                type === 'chat' ? 'CHAT' :
+                type === 'appeal' ? 'APPEAL' :
+                type === 'staff' ? 'STAFF' : 'SUPPORT';
+  
+  // Generate a random 6-digit number
+  const randomId = Math.floor(100000 + Math.random() * 900000);
+  
+  // Combine to create ticket ID
+  const ticketId = `${prefix}-${randomId}`;
+  
+  // Check if this ID already exists, if so, try again
+  const existingTicket = await Ticket.findById(ticketId);
+  if (existingTicket) {
+    return generateTicketId(type);
+  }
+  
+  return ticketId;
+}
+
+// Helper function to get player by UUID
+async function getPlayerByUuid(uuid: string) {
+  try {
+    const player = await Player.findOne({ minecraftUuid: uuid });
+    if (!player) return null;
+    
+    // Get the latest username
+    const latestUsername = player.usernames && player.usernames.length > 0
+      ? player.usernames[player.usernames.length - 1].username
+      : 'Unknown';
+    
+    return { player, latestUsername };
+  } catch (error) {
+    console.error('Error finding player:', error);
+    return null;
+  }
+}
+
 // Ticket routes
 export function setupTicketRoutes(app: Express) {
-  // Get all tickets
+  // Get all tickets (exclude Unfinished tickets)
   app.get('/api/tickets', async (req: Request, res: Response) => {
     try {
-      const tickets = await Ticket.find();
+      // Only get tickets that don't have Unfinished status
+      const tickets = await Ticket.find({ status: { $ne: 'Unfinished' } });
       
       // Transform for client consumption
       const transformedTickets = tickets.map(ticket => {
-        const subject = ticket.data.get('subject') as string || 'No Subject';
-        const status = ticket.data.get('status') as string || 'Open';
-        const priority = ticket.data.get('priority') as string || 'Low';
-        const category = ticket.data.get('category') as string || 'Other';
-        
         return {
           id: ticket._id,
-          subject,
-          status,
-          priority,
+          subject: ticket.subject || 'No Subject',
+          status: ticket.status,
           reportedBy: ticket.creator,
           date: ticket.created,
-          category, // Explicitly add category to response
-          locked: ticket.data.get('locked') === true || ticket.data.get('locked') === 'true',
-          type: category.toLowerCase().includes('bug') ? 'bug' : 
-                category.toLowerCase().includes('appeal') ? 'appeal' :
-                category.toLowerCase().includes('player') ? 'player' : 'chat'
+          category: getCategoryFromType(ticket.type),
+          locked: ticket.locked || false,
+          type: ticket.type
         };
       });
       
@@ -223,6 +258,18 @@ export function setupTicketRoutes(app: Express) {
       res.status(500).json({ error: 'Failed to fetch tickets' });
     }
   });
+  
+  function getCategoryFromType(type: string): string {
+    switch(type) {
+      case 'bug': return 'Bug Report';
+      case 'player': return 'Player Report';
+      case 'chat': return 'Chat Report';
+      case 'appeal': return 'Ban Appeal';
+      case 'staff': return 'Staff Application';
+      case 'support': return 'General Support';
+      default: return 'Other';
+    }
+  }
 
   // Get ticket by ID
   app.get('/api/tickets/:id', async (req: Request, res: Response) => {
@@ -237,16 +284,16 @@ export function setupTicketRoutes(app: Express) {
       // Transform for client consumption
       const transformedTicket = {
         id: ticket._id,
-        subject: ticket.data.get('subject') as string || 'No Subject',
-        status: ticket.data.get('status') as string || 'Open',
-        priority: ticket.data.get('priority') as string || 'Low',
-        category: ticket.data.get('category') as string || 'Other',
+        subject: ticket.subject || 'No Subject',
+        status: ticket.status,
+        type: ticket.type,
+        category: getCategoryFromType(ticket.type),
         reportedBy: ticket.creator,
         date: ticket.created,
-        assignedTo: ticket.data.get('assignedTo') as string,
-        relatedPlayer: ticket.data.get('relatedPlayer') as string,
-        relatedPlayerId: ticket.data.get('relatedPlayerId') as string,
-        locked: ticket.data.get('locked') === true || ticket.data.get('locked') === 'true',
+        locked: ticket.locked || false,
+        formData: ticket.formData ? Object.fromEntries(ticket.formData) : {},
+        reportedPlayer: ticket.reportedPlayer,
+        reportedPlayerUuid: ticket.reportedPlayerUuid,
         messages: ticket.replies.map(reply => ({
           id: reply._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           sender: reply.name,
@@ -254,7 +301,7 @@ export function setupTicketRoutes(app: Express) {
           content: reply.content,
           timestamp: reply.created,
           staff: reply.staff,
-          closedAs: reply.action // This will be undefined for now, we'll add it below
+          closedAs: reply.action
         })),
         notes: ticket.notes,
         tags: ticket.tags
@@ -267,17 +314,281 @@ export function setupTicketRoutes(app: Express) {
     }
   });
 
-  // Create a new ticket
-  app.post('/api/tickets', async (req: Request, res: Response) => {
+  // Create a bug report
+  app.post('/api/tickets/bug', async (req: Request, res: Response) => {
     try {
-      const newTicket = new Ticket(req.body);
+      const { creatorUuid } = req.body;
+      if (!creatorUuid) {
+        return res.status(400).json({ error: 'Creator UUID is required' });
+      }
+      
+      // Get creator info
+      const creatorInfo = await getPlayerByUuid(creatorUuid);
+      if (!creatorInfo) {
+        return res.status(404).json({ error: 'Creator not found' });
+      }
+      
+      // Create ticket ID
+      const ticketId = await generateTicketId('bug');
+      
+      // Create the ticket
+      const newTicket = new Ticket({
+        _id: ticketId,
+        type: 'bug',
+        status: 'Unfinished',
+        tags: ['bug'],
+        creator: creatorInfo.latestUsername,
+        creatorUuid: creatorUuid
+      });
+      
       await newTicket.save();
       
-      await createSystemLog(`Ticket ${newTicket._id} created by ${req.body.creator}`);
-      res.status(201).json(newTicket);
+      await createSystemLog(`Bug report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      res.status(201).json({ ticketId });
     } catch (error) {
-      console.error('Error creating ticket:', error);
-      res.status(500).json({ error: 'Failed to create ticket' });
+      console.error('Error creating bug report ticket:', error);
+      res.status(500).json({ error: 'Failed to create bug report ticket' });
+    }
+  });
+
+  // Create a player report
+  app.post('/api/tickets/player', async (req: Request, res: Response) => {
+    try {
+      const { creatorUuid, reportedPlayerUuid } = req.body;
+      
+      if (!creatorUuid) {
+        return res.status(400).json({ error: 'Creator UUID is required' });
+      }
+      
+      if (!reportedPlayerUuid) {
+        return res.status(400).json({ error: 'Reported player UUID is required' });
+      }
+      
+      // Get creator info
+      const creatorInfo = await getPlayerByUuid(creatorUuid);
+      if (!creatorInfo) {
+        return res.status(404).json({ error: 'Creator not found' });
+      }
+      
+      // Get reported player info
+      const reportedPlayerInfo = await getPlayerByUuid(reportedPlayerUuid);
+      if (!reportedPlayerInfo) {
+        return res.status(404).json({ error: 'Reported player not found' });
+      }
+      
+      // Create ticket ID
+      const ticketId = await generateTicketId('player');
+      
+      // Create the ticket
+      const newTicket = new Ticket({
+        _id: ticketId,
+        type: 'player',
+        status: 'Unfinished',
+        tags: ['player'],
+        creator: creatorInfo.latestUsername,
+        creatorUuid: creatorUuid,
+        reportedPlayer: reportedPlayerInfo.latestUsername,
+        reportedPlayerUuid: reportedPlayerUuid
+      });
+      
+      await newTicket.save();
+      
+      await createSystemLog(`Player report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      res.status(201).json({ ticketId });
+    } catch (error) {
+      console.error('Error creating player report ticket:', error);
+      res.status(500).json({ error: 'Failed to create player report ticket' });
+    }
+  });
+
+  // Create a chat report
+  app.post('/api/tickets/chat', async (req: Request, res: Response) => {
+    try {
+      const { creatorUuid, reportedPlayerUuid, chatMessages } = req.body;
+      
+      if (!creatorUuid) {
+        return res.status(400).json({ error: 'Creator UUID is required' });
+      }
+      
+      if (!reportedPlayerUuid) {
+        return res.status(400).json({ error: 'Reported player UUID is required' });
+      }
+      
+      if (!chatMessages || !Array.isArray(chatMessages) || chatMessages.length === 0) {
+        return res.status(400).json({ error: 'Chat messages are required' });
+      }
+      
+      // Get creator info
+      const creatorInfo = await getPlayerByUuid(creatorUuid);
+      if (!creatorInfo) {
+        return res.status(404).json({ error: 'Creator not found' });
+      }
+      
+      // Get reported player info
+      const reportedPlayerInfo = await getPlayerByUuid(reportedPlayerUuid);
+      if (!reportedPlayerInfo) {
+        return res.status(404).json({ error: 'Reported player not found' });
+      }
+      
+      // Create ticket ID
+      const ticketId = await generateTicketId('chat');
+      
+      // Create the ticket
+      const newTicket = new Ticket({
+        _id: ticketId,
+        type: 'chat',
+        status: 'Unfinished',
+        tags: ['chat'],
+        creator: creatorInfo.latestUsername,
+        creatorUuid: creatorUuid,
+        reportedPlayer: reportedPlayerInfo.latestUsername,
+        reportedPlayerUuid: reportedPlayerUuid,
+        chatMessages: chatMessages
+      });
+      
+      await newTicket.save();
+      
+      await createSystemLog(`Chat report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      res.status(201).json({ ticketId });
+    } catch (error) {
+      console.error('Error creating chat report ticket:', error);
+      res.status(500).json({ error: 'Failed to create chat report ticket' });
+    }
+  });
+
+  // Create a staff application
+  app.post('/api/tickets/staff', async (req: Request, res: Response) => {
+    try {
+      const { creatorUuid } = req.body;
+      if (!creatorUuid) {
+        return res.status(400).json({ error: 'Creator UUID is required' });
+      }
+      
+      // Get creator info
+      const creatorInfo = await getPlayerByUuid(creatorUuid);
+      if (!creatorInfo) {
+        return res.status(404).json({ error: 'Creator not found' });
+      }
+      
+      // Create ticket ID
+      const ticketId = await generateTicketId('staff');
+      
+      // Create the ticket
+      const newTicket = new Ticket({
+        _id: ticketId,
+        type: 'staff',
+        status: 'Unfinished',
+        tags: ['staff'],
+        creator: creatorInfo.latestUsername,
+        creatorUuid: creatorUuid
+      });
+      
+      await newTicket.save();
+      
+      await createSystemLog(`Staff application ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      res.status(201).json({ ticketId });
+    } catch (error) {
+      console.error('Error creating staff application ticket:', error);
+      res.status(500).json({ error: 'Failed to create staff application ticket' });
+    }
+  });
+
+  // Create a general support ticket
+  app.post('/api/tickets/support', async (req: Request, res: Response) => {
+    try {
+      const { creatorUuid } = req.body;
+      if (!creatorUuid) {
+        return res.status(400).json({ error: 'Creator UUID is required' });
+      }
+      
+      // Get creator info
+      const creatorInfo = await getPlayerByUuid(creatorUuid);
+      if (!creatorInfo) {
+        return res.status(404).json({ error: 'Creator not found' });
+      }
+      
+      // Create ticket ID
+      const ticketId = await generateTicketId('support');
+      
+      // Create the ticket
+      const newTicket = new Ticket({
+        _id: ticketId,
+        type: 'support',
+        status: 'Unfinished',
+        tags: ['support'],
+        creator: creatorInfo.latestUsername,
+        creatorUuid: creatorUuid
+      });
+      
+      await newTicket.save();
+      
+      await createSystemLog(`Support ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      res.status(201).json({ ticketId });
+    } catch (error) {
+      console.error('Error creating support ticket:', error);
+      res.status(500).json({ error: 'Failed to create support ticket' });
+    }
+  });
+  
+  // Submit form data for an unfinished ticket and make it active
+  app.post('/api/tickets/:id/submit', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { subject, formData } = req.body;
+      
+      if (!subject || !formData) {
+        return res.status(400).json({ error: 'Subject and form data are required' });
+      }
+      
+      // Find the ticket
+      const ticket = await Ticket.findById(id);
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket not found' });
+      }
+      
+      // Verify it's unfinished
+      if (ticket.status !== 'Unfinished') {
+        return res.status(400).json({ error: 'Only unfinished tickets can be submitted' });
+      }
+      
+      // Create a content string from form data
+      let contentString = '';
+      Object.entries(formData).forEach(([key, value]) => {
+        contentString += `**${key}**: ${value}\n\n`;
+      });
+      
+      // Create initial message
+      const initialMessage = {
+        name: ticket.creator,
+        content: contentString,
+        type: 'player',
+        created: new Date(),
+        staff: false
+      };
+      
+      // Update the ticket
+      const updatedTicket = await Ticket.findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            status: 'Open',
+            subject: subject,
+            formData: formData
+          },
+          $push: { replies: initialMessage }
+        },
+        { new: true }
+      );
+      
+      await createSystemLog(`Ticket ${id} submitted by ${ticket.creator}`);
+      res.json({ 
+        success: true, 
+        ticketId: id,
+        ticket: updatedTicket
+      });
+    } catch (error) {
+      console.error('Error submitting ticket form:', error);
+      res.status(500).json({ error: 'Failed to submit ticket form' });
     }
   });
 
