@@ -99,6 +99,113 @@ const Tickets = () => {
     }, 50);
   };
 
+  // Render a single ticket row
+  const renderTicketRow = (ticket: Ticket, index: number) => (
+    <TableRow key={index} className="border-b border-border">
+      <TableCell>{ticket.id}</TableCell>
+      <TableCell className="font-medium">
+        {ticket.subject}
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          <Badge 
+            variant="outline" 
+            className={`text-xs px-1.5 py-0 h-5 ${getTicketStatusInfo(ticket).statusClass}`}
+          >
+            {getTicketStatusInfo(ticket).statusText}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell>{ticket.reportedBy}</TableCell>
+      <TableCell>{ticket.date}</TableCell>
+      <TableCell>Recent</TableCell>
+      <TableCell>
+        <div className="flex space-x-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+
+  // Render a loading row
+  const renderLoadingRow = () => (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center py-6">
+        <div className="flex justify-center items-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+          <span className="text-muted-foreground">Loading tickets...</span>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+
+  // Render an empty table message
+  const renderEmptyRow = () => (
+    <TableRow>
+      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+        No tickets match your current filters.
+      </TableCell>
+    </TableRow>
+  );
+
+  // Render ticket table content based on loading state and data
+  const renderTicketTableContent = () => {
+    if (isLoading) {
+      return renderLoadingRow();
+    }
+    
+    if (filteredTickets.length > 0) {
+      return filteredTickets.map((ticket, index) => renderTicketRow(ticket, index));
+    }
+    
+    return renderEmptyRow();
+  };
+
+  // Render table with header and content
+  const renderTicketTable = () => (
+    <Table>
+      <TableHeader className="bg-muted/50">
+        <TableRow>
+          <TableHead className="rounded-l-lg">ID</TableHead>
+          <TableHead>Subject</TableHead>
+          <TableHead>Reported By</TableHead>
+          <TableHead>Created</TableHead>
+          <TableHead>Last Reply</TableHead>
+          <TableHead className="rounded-r-lg">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {renderTicketTableContent()}
+      </TableBody>
+    </Table>
+  );
+
+  // Render pagination controls
+  const renderPagination = () => (
+    <div className="flex justify-between items-center pt-4">
+      <div className="text-sm text-muted-foreground">
+        Showing {filteredTickets.length} of {tickets ? tickets.filter((t: Ticket) => t.type === activeTab).length : 0} entries
+      </div>
+      <div className="flex space-x-1">
+        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
+          &lt;
+        </Button>
+        <Button variant="default" size="sm" className="px-3 py-1">
+          1
+        </Button>
+        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
+          2
+        </Button>
+        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
+          3
+        </Button>
+        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
+          &gt;
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <PageContainer>
       <div className="flex flex-col space-y-6">
@@ -161,288 +268,26 @@ const Tickets = () => {
               
               <TabsContent value="bug" className="p-0 mt-0">
                 <CardContent className="p-4">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="rounded-l-lg">ID</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Reported By</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Last Reply</TableHead>
-                        <TableHead className="rounded-r-lg">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6">
-                            <div className="flex justify-center items-center">
-                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                              <span className="text-muted-foreground">Loading tickets...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket: Ticket, index: number) => (
-                          <TableRow key={index} className="border-b border-border">
-                            <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">
-                              {ticket.subject}
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs px-1.5 py-0 h-5 ${
-                                    getSimplifiedStatus(ticket) === 'open'
-                                      ? 'bg-green-50 text-green-700 border-green-200'
-                                      : 'bg-red-50 text-red-700 border-red-200'
-                                  }`}
-                                >
-                                  {getSimplifiedStatus(ticket) === 'open' ? 'Open' : 'Closed'}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>{ticket.reportedBy}</TableCell>
-                            <TableCell>{ticket.date}</TableCell>
-                            <TableCell>2 hours ago</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                            No tickets match your current filters.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                  
-                  <div className="flex justify-between items-center pt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {filteredTickets.length} of {tickets ? tickets.filter((t: Ticket) => t.type === activeTab).length : 0} entries
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-                        &lt;
-                      </Button>
-                      <Button variant="default" size="sm" className="px-3 py-1">
-                        1
-                      </Button>
-                      <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-                        2
-                      </Button>
-                      <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-                        3
-                      </Button>
-                      <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-                        &gt;
-                      </Button>
-                    </div>
-                  </div>
+                  {renderTicketTable()}
+                  {renderPagination()}
                 </CardContent>
               </TabsContent>
               
               <TabsContent value="player" className="p-0 mt-0">
                 <CardContent className="p-4">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="rounded-l-lg">ID</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Reported By</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Last Reply</TableHead>
-                        <TableHead className="rounded-r-lg">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6">
-                            <div className="flex justify-center items-center">
-                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                              <span className="text-muted-foreground">Loading tickets...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket: Ticket, index: number) => (
-                          <TableRow key={index} className="border-b border-border">
-                            <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">
-                              {ticket.subject}
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs px-1.5 py-0 h-5 ${
-                                    !ticket.locked && ticket.status !== 'Closed'
-                                      ? 'bg-green-50 text-green-700 border-green-200'
-                                      : 'bg-red-50 text-red-700 border-red-200'
-                                  }`}
-                                >
-                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>{ticket.reportedBy}</TableCell>
-                            <TableCell>{ticket.date}</TableCell>
-                            <TableCell>1 day ago</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                            No tickets match your current filters.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                  {renderTicketTable()}
                 </CardContent>
               </TabsContent>
               
               <TabsContent value="chat" className="p-0 mt-0">
                 <CardContent className="p-4">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="rounded-l-lg">ID</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Reported By</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Last Reply</TableHead>
-                        <TableHead className="rounded-r-lg">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6">
-                            <div className="flex justify-center items-center">
-                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                              <span className="text-muted-foreground">Loading tickets...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket: Ticket, index: number) => (
-                          <TableRow key={index} className="border-b border-border">
-                            <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">
-                              {ticket.subject}
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs px-1.5 py-0 h-5 ${
-                                    !ticket.locked && ticket.status !== 'Closed'
-                                      ? 'bg-green-50 text-green-700 border-green-200'
-                                      : 'bg-red-50 text-red-700 border-red-200'
-                                  }`}
-                                >
-                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>{ticket.reportedBy}</TableCell>
-                            <TableCell>{ticket.date}</TableCell>
-                            <TableCell>3 days ago</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                            No tickets match your current filters.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                  {renderTicketTable()}
                 </CardContent>
               </TabsContent>
               
               <TabsContent value="appeal" className="p-0 mt-0">
                 <CardContent className="p-4">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="rounded-l-lg">ID</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Reported By</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Last Reply</TableHead>
-                        <TableHead className="rounded-r-lg">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6">
-                            <div className="flex justify-center items-center">
-                              <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                              <span className="text-muted-foreground">Loading tickets...</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : filteredTickets.length > 0 ? (
-                        filteredTickets.map((ticket: Ticket, index: number) => (
-                          <TableRow key={index} className="border-b border-border">
-                            <TableCell>{ticket.id}</TableCell>
-                            <TableCell className="font-medium">
-                              {ticket.subject}
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs px-1.5 py-0 h-5 ${
-                                    !ticket.locked && ticket.status !== 'Closed'
-                                      ? 'bg-green-50 text-green-700 border-green-200'
-                                      : 'bg-red-50 text-red-700 border-red-200'
-                                  }`}
-                                >
-                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>{ticket.reportedBy}</TableCell>
-                            <TableCell>{ticket.date}</TableCell>
-                            <TableCell>1 week ago</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                            No tickets match your current filters.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                  {renderTicketTable()}
                 </CardContent>
               </TabsContent>
             </Tabs>
