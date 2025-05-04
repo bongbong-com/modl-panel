@@ -309,6 +309,8 @@ const PlayerTicket = () => {
         description: "Your ticket is now open for staff review.",
         variant: "default"
       });
+
+      window.location.reload();
     } catch (error) {
       console.error('Error submitting ticket form:', error);
       toast({
