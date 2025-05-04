@@ -248,7 +248,8 @@ const Tickets = () => {
         <Card>
           <CardHeader className="p-0">
             <Tabs defaultValue="bug" className="w-full" onValueChange={setActiveTab}>
-              <TabsList className="w-full flex-wrap rounded-none bg-transparent border-b border-border">
+              <div className="overflow-x-auto pb-1 border-b border-border">
+                <TabsList className="w-max flex rounded-none bg-transparent">
                 <TabsTrigger 
                   value="bug" 
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-2 py-0.5 flex-shrink-0 text-sm"
@@ -298,6 +299,7 @@ const Tickets = () => {
                   <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'support').length : 0}</Badge>
                 </TabsTrigger>
               </TabsList>
+              </div>
               
               <TabsContent value="bug" className="p-0 mt-0">
                 <CardContent className="p-4">

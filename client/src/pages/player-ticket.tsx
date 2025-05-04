@@ -239,32 +239,54 @@ const PlayerTicket = () => {
       return;
     }
     
-    if (Object.keys(formData).length === 0) {
-      toast({
-        title: "Form Incomplete",
-        description: "Please complete the form before submitting.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Check if any required fields are missing
+    let missingRequired = false;
+    const fields = [];
     
-    // Validate required fields
-    if (settingsData?.settings) {
-      const formTemplates = settingsData.settings.get('ticketForms');
-      if (formTemplates && formTemplates[ticketDetails.type]) {
-        const formTemplate = formTemplates[ticketDetails.type];
-        for (const field of formTemplate) {
-          if (field.required && !formData[field.fieldName]) {
-            toast({
-              title: "Required Field Missing",
-              description: `Please complete the "${field.fieldLabel}" field.`,
-              variant: "destructive"
-            });
-            return;
-          }
+    try {
+      // Try to get fields from settings (if available)
+      if (settingsData?.settings) {
+        const formTemplates = settingsData.settings.get('ticketForms');
+        if (formTemplates && formTemplates[ticketDetails.type]) {
+          fields.push(...formTemplates[ticketDetails.type]);
         }
       }
+      
+      // If formTemplates processing fails or returns empty fields, check formTemplates array
+      if (fields.length === 0 && settingsData?.formTemplates) {
+        const template = settingsData.formTemplates.find((t: any) => t.ticketType === ticketDetails.type);
+        if (template && template.fields) {
+          fields.push(...template.fields.map((f: any) => ({
+            fieldName: f.id,
+            fieldLabel: f.label,
+            fieldType: f.type,
+            required: f.required,
+            options: f.options
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('Error processing form templates:', error);
     }
+    
+    // If no fields found in settings, use defaults
+    if (fields.length === 0) {
+      fields.push(...getDefaultFormFields(ticketDetails.type));
+    }
+    
+    // Check required fields
+    for (const field of fields) {
+      if (field.required && (!formData[field.fieldName] || formData[field.fieldName].trim() === '')) {
+        toast({
+          title: "Required Field Missing",
+          description: `Please complete the "${field.fieldLabel}" field.`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
+    // Validation already completed above
     
     setIsSubmitting(true);
     
