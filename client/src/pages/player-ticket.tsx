@@ -42,6 +42,23 @@ interface TicketDetails {
   locked?: boolean;
 }
 
+// Format date to MM/dd/yy HH:mm in browser's timezone
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    return dateString; // Return original string if formatting fails
+  }
+};
+
 const PlayerTicket = () => {
   const { id } = useParams();
   const [playerName, setPlayerName] = useState('');
@@ -87,7 +104,7 @@ const PlayerTicket = () => {
         subject: ticketData.subject || 'No Subject',
         status: simplifiedStatus,
         reportedBy: ticketData.reportedBy || 'Unknown',
-        date: ticketData.date || new Date().toLocaleDateString(),
+        date: ticketData.date || new Date().toISOString(),
         category: ticketData.category || 'Other',
         messages: (ticketData.messages || []),
         locked: ticketData.locked === true
@@ -181,22 +198,7 @@ const PlayerTicket = () => {
     );
   }
 
-  // Format date to MM/dd/yy HH:mm in browser's timezone
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-    } catch (e) {
-      return dateString; // Return original string if formatting fails
-    }
-  };
+
 
   return (
     <div className="min-h-screen bg-background p-6">

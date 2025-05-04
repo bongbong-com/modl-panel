@@ -9,6 +9,23 @@ import {
   Eye,
   Loader2
 } from 'lucide-react';
+
+// Format date to MM/dd/yy HH:mm in browser's timezone
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    return dateString; // Return original string if formatting fails
+  }
+};
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
