@@ -40,11 +40,11 @@ import PageContainer from '@/components/layout/PageContainer';
 interface Ticket {
   _id?: string;
   id: string;
-  type: 'bug' | 'player' | 'chat' | 'appeal';
+  type: 'bug' | 'player' | 'chat' | 'appeal' | 'staff' | 'support';
   subject: string;
   reportedBy: string;
   date: string;
-  status: 'Open' | 'Closed'; // Simplified to just Open/Closed
+  status: 'Unfinished' | 'Open' | 'Closed';
   locked?: boolean;
   description?: string;
   notes?: Array<{
