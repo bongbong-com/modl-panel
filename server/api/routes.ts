@@ -554,7 +554,7 @@ export function setupTicketRoutes(app: Express) {
       // Create a content string from form data
       let contentString = '';
       Object.entries(formData).forEach(([key, value]) => {
-        contentString += `**${key}**: ${value}\n\n`;
+        contentString += `${key}: ${value}\n\n`;
       });
       
       // Create initial message
