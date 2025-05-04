@@ -3,6 +3,19 @@ import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas'
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
+// Helper function to get ticket category from type
+function getTicketCategory(type: string): string {
+  switch(type) {
+    case 'bug': return 'Bug Report';
+    case 'player': return 'Player Report';
+    case 'chat': return 'Chat Report';
+    case 'appeal': return 'Punishment Appeal';
+    case 'staff': return 'Staff Application';
+    case 'support': return 'General Support';
+    default: return 'Other';
+  }
+}
+
 // Helper to hash password for staff accounts
 async function hashPassword(password: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -136,7 +149,8 @@ export async function seedEnhancedDatabase() {
       'Player using hacks'
     ];
     
-    const ticketStatuses = ['Open', 'In Progress', 'Resolved', 'Closed'];
+    // We only support 'Unfinished', 'Open', 'Closed' statuses in our schema
+    const ticketStatuses = ['Open', 'Closed'];
     const ticketPriorities = ['Critical', 'Medium', 'Low', 'Fixed'];
     const ticketCategories = ['Bug Report', 'Player Report', 'Punishment Appeal', 'Other'];
     
