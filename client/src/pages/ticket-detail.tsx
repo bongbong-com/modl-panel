@@ -119,6 +119,23 @@ const TicketDetail = () => {
   const location = useLocation();
   const { user } = useAuth();
   
+  // Format date to MM/dd/yy HH:mm in browser's timezone
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (e) {
+      return dateString; // Return original string if formatting fails
+    }
+  };
+  
   // More robust parsing of ticket ID from URL
   const path = location[0];
   const pathParts = path.split('/');
@@ -205,7 +222,7 @@ const TicketDetail = () => {
         // Simplify status to Open/Closed - anything but Closed is Open
         status: (ticketData.locked === true || ticketData.status === 'Closed') ? 'Closed' : 'Open',
         reportedBy: ticketData.reportedBy || 'Unknown',
-        date: ticketData.date || new Date().toLocaleDateString(),
+        date: ticketData.date || new Date().toISOString(),
         category,
         relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
         relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
@@ -215,7 +232,7 @@ const TicketDetail = () => {
           senderType: reply.type === 'staff' ? 'staff' : 
                      reply.type === 'system' ? 'system' : 'user',
           content: reply.content,
-          timestamp: reply.created ? new Date(reply.created).toLocaleString() : new Date().toLocaleString(),
+          timestamp: reply.created ? reply.created : new Date().toISOString(),
           staff: reply.staff,
           closedAs: reply.action
         }))) || []),
