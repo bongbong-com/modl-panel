@@ -4,6 +4,23 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Link2, UploadCloud, Send } from 'lucide-react';
+
+// Format date to MM/dd/yy HH:mm in browser's timezone
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (e) {
+    return dateString; // Return original string if formatting fails
+  }
+};
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -608,7 +625,7 @@ const AppealsPage = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Submitted:</span>
-                    <span className="text-sm">{appealInfo.submittedOn}</span>
+                    <span className="text-sm">{formatDate(appealInfo.submittedOn)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Status:</span>
@@ -626,7 +643,7 @@ const AppealsPage = () => {
                   {appealInfo.lastUpdate && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Last Update:</span>
-                      <span className="text-sm">{appealInfo.lastUpdate}</span>
+                      <span className="text-sm">{formatDate(appealInfo.lastUpdate)}</span>
                     </div>
                   )}
                 </div>
@@ -697,7 +714,7 @@ const AppealsPage = () => {
                               </div>
                               <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                               <div className="text-xs opacity-70 mt-1 text-right">
-                                {message.timestamp}
+                                {formatDate(message.timestamp)}
                               </div>
                             </div>
                           </div>

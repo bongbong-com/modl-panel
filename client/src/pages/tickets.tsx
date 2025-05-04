@@ -127,7 +127,7 @@ const Tickets = () => {
         </div>
       </TableCell>
       <TableCell>{ticket.reportedBy}</TableCell>
-      <TableCell>{ticket.date}</TableCell>
+      <TableCell>{formatDate(ticket.date)}</TableCell>
       <TableCell>Recent</TableCell>
       <TableCell>
         <div className="flex space-x-2">
