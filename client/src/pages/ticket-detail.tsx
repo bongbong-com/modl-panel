@@ -250,7 +250,8 @@ const TicketDetail = () => {
     if (!ticketDetails.newNote?.trim()) return;
     
     const now = new Date();
-    const timestamp = now.toLocaleDateString() + ' ' + now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    // Store ISO string for the server
+    const timestamp = now.toISOString();
     
     // Create the new note with proper structure
     const newNote: TicketNote = {
@@ -293,7 +294,8 @@ const TicketDetail = () => {
 
   const handleSendReply = () => {
     const now = new Date();
-    const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+    // Use ISO format for consistent timestamps
+    const timestamp = now.toISOString();
     
     // Determine the content and subject based on selected action
     let messageContent = ticketDetails.newReply?.trim() || '';
@@ -756,7 +758,7 @@ const TicketDetail = () => {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Date:</span>
-                    <span className="ml-1">{ticketDetails.date}</span>
+                    <span className="ml-1">{formatDate(ticketDetails.date)}</span>
                   </div>
                   {/* Removed assignedTo field as part of simplified ticket system */}
                   {ticketDetails.relatedPlayer && (
@@ -838,7 +840,7 @@ const TicketDetail = () => {
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground">{message.timestamp || new Date().toLocaleString()}</span>
+                            <span className="text-xs text-muted-foreground">{formatDate(message.timestamp) || formatDate(new Date().toISOString())}</span>
                           </div>
                           {/* If this message has a closedAs status, show the ticket closing info */}
                           {message.closedAs ? (
@@ -1130,7 +1132,7 @@ const TicketDetail = () => {
                                 sender: newMessage.name,
                                 senderType: 'staff',
                                 content: newMessage.content,
-                                timestamp: new Date().toLocaleString(),
+                                timestamp: new Date().toISOString(),
                                 staff: true
                               };
                               
@@ -1176,7 +1178,7 @@ const TicketDetail = () => {
                       <div key={idx} className="bg-muted/20 p-3 rounded-md">
                         <div className="flex justify-between">
                           <span className="font-medium text-sm">{note.author}</span>
-                          <span className="text-xs text-muted-foreground">{note.date}</span>
+                          <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
                         </div>
                         <p className="text-sm mt-1.5">{note.content}</p>
                       </div>
