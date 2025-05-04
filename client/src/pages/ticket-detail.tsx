@@ -849,12 +849,12 @@ const TicketDetail = () => {
                                 <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
                                 
                               </div>
-                              <p className="text-sm mt-1">
+                              <p className="text-sm mt-1 whitespace-pre-wrap">
                                 {message.content}
                               </p>
                             </>
                           ) : (
-                            <p className="text-sm mt-1">
+                            <p className="text-sm mt-1 whitespace-pre-wrap">
                               {message.content}
                             </p>
                           )}

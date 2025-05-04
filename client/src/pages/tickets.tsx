@@ -26,6 +26,43 @@ const formatDate = (dateString: string): string => {
     return dateString; // Return original string if formatting fails
   }
 };
+
+// Format date as "X time ago"
+const formatTimeAgo = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    
+    // Convert to seconds
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec} second${diffSec !== 1 ? 's' : ''} ago`;
+    
+    // Convert to minutes
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? 's' : ''} ago`;
+    
+    // Convert to hours
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour} hour${diffHour !== 1 ? 's' : ''} ago`;
+    
+    // Convert to days
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 30) return `${diffDay} day${diffDay !== 1 ? 's' : ''} ago`;
+    
+    // Convert to months
+    const diffMonth = Math.floor(diffDay / 30);
+    if (diffMonth < 12) return `${diffMonth} month${diffMonth !== 1 ? 's' : ''} ago`;
+    
+    // Convert to years
+    const diffYear = Math.floor(diffMonth / 12);
+    return `${diffYear} year${diffYear !== 1 ? 's' : ''} ago`;
+    
+  } catch (e) {
+    console.error("Error formatting time ago:", e);
+    return "Unknown";
+  }
+};
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +84,14 @@ interface Ticket {
   status: 'Unfinished' | 'Open' | 'Closed';
   locked?: boolean;
   description?: string;
+  messages?: Array<{
+    id: string;
+    sender: string;
+    senderType: string;
+    content: string;
+    timestamp: string;
+    staff?: boolean;
+  }>;
   notes?: Array<{
     author: string;
     content: string;
@@ -116,33 +161,51 @@ const Tickets = () => {
     }, 50);
   };
 
+  // Get the timestamp of the last message in the ticket
+  const getLastReplyTimestamp = (ticket: Ticket): string => {
+    if (!ticket.messages || ticket.messages.length === 0) {
+      return ticket.date; // If no messages, use the ticket creation date
+    }
+    
+    // Sort messages by timestamp (newest first)
+    const sortedMessages = [...ticket.messages].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    
+    return sortedMessages[0].timestamp;
+  };
+
   // Render a single ticket row
-  const renderTicketRow = (ticket: Ticket, index: number) => (
-    <TableRow key={index} className="border-b border-border">
-      <TableCell>{ticket.id}</TableCell>
-      <TableCell className="font-medium">
-        {ticket.subject}
-        <div className="flex flex-wrap gap-1.5 mt-1">
-          <Badge 
-            variant="outline" 
-            className={`text-xs px-1.5 py-0 h-5 ${getTicketStatusInfo(ticket).statusClass}`}
-          >
-            {getTicketStatusInfo(ticket).statusText}
-          </Badge>
-        </div>
-      </TableCell>
-      <TableCell>{ticket.reportedBy}</TableCell>
-      <TableCell>{formatDate(ticket.date)}</TableCell>
-      <TableCell>Recent</TableCell>
-      <TableCell>
-        <div className="flex space-x-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
-            <Eye className="h-4 w-4" />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
+  const renderTicketRow = (ticket: Ticket, index: number) => {
+    const lastReplyTimestamp = getLastReplyTimestamp(ticket);
+    
+    return (
+      <TableRow key={index} className="border-b border-border">
+        <TableCell>{ticket.id}</TableCell>
+        <TableCell className="font-medium">
+          {ticket.subject}
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <Badge 
+              variant="outline" 
+              className={`text-xs px-1.5 py-0 h-5 ${getTicketStatusInfo(ticket).statusClass}`}
+            >
+              {getTicketStatusInfo(ticket).statusText}
+            </Badge>
+          </div>
+        </TableCell>
+        <TableCell>{ticket.reportedBy}</TableCell>
+        <TableCell>{formatDate(ticket.date)}</TableCell>
+        <TableCell>{formatTimeAgo(lastReplyTimestamp)}</TableCell>
+        <TableCell>
+          <div className="flex space-x-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
+              <Eye className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   // Render a loading row
   const renderLoadingRow = () => (
