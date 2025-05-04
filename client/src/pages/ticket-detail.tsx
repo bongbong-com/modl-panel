@@ -87,16 +87,15 @@ export const defaultReplies: Record<TicketCategory, Record<string, string>> = {
 export interface TicketDetails {
   id: string;
   subject: string;
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-  priority: 'Critical' | 'Medium' | 'Low' | 'Fixed';
+  status: 'Open' | 'Closed'; // Simplified to just Open/Closed
   reportedBy: string;
-  assignedTo?: string;
   date: string;
   category: TicketCategory;
   relatedPlayer?: string;
   relatedPlayerId?: string;
   messages: TicketMessage[];
   notes: TicketNote[];
+  locked?: boolean; // Tracks if the ticket is locked
   newNote?: string;
   isAddingNote?: boolean;
   newReply?: string;
@@ -109,7 +108,6 @@ export interface TicketDetails {
   isPermanent?: boolean;
   tags?: string[];
   newTag?: string;
-  locked?: boolean;
 }
 
 const TicketDetail = () => {
@@ -150,23 +148,21 @@ const TicketDetail = () => {
     id: "",
     subject: "",
     status: "Open",
-    priority: "Medium",
     reportedBy: "",
-    assignedTo: undefined,
     date: "",
     category: "Player Report",
     relatedPlayer: "",
     relatedPlayerId: "",
     tags: [],
     messages: [],
-    notes: []
+    notes: [],
+    locked: false
   });
 
+  // Simplified status colors - just Open and Closed
   const statusColors = {
-    'Open': 'bg-warning/10 text-warning border-warning/20',
-    'In Progress': 'bg-primary/10 text-primary border-primary/20',
-    'Resolved': 'bg-success/10 text-success border-success/20',
-    'Closed': 'bg-muted/50 text-muted-foreground border-muted/30'
+    'Open': 'bg-green-50 text-green-700 border-green-200',
+    'Closed': 'bg-red-50 text-red-700 border-red-200'
   };
 
   const priorityColors = {
@@ -205,10 +201,9 @@ const TicketDetail = () => {
       setTicketDetails({
         id: ticketData.id || ticketData._id,
         subject: ticketData.subject || 'No Subject',
-        status: (ticketData.status || 'Open') as 'Open' | 'In Progress' | 'Resolved' | 'Closed',
-        priority: (ticketData.priority || 'Medium') as 'Critical' | 'Medium' | 'Low' | 'Fixed',
+        // Simplify status to Open/Closed - anything but Closed is Open
+        status: (ticketData.locked === true || ticketData.status === 'Closed') ? 'Closed' : 'Open',
         reportedBy: ticketData.reportedBy || 'Unknown',
-        assignedTo: ticketData.assignedTo,
         date: ticketData.date || new Date().toLocaleDateString(),
         category,
         relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
@@ -284,7 +279,8 @@ const TicketDetail = () => {
     
     // Determine the content and subject based on selected action
     let messageContent = ticketDetails.newReply?.trim() || '';
-    let status: 'Open' | 'In Progress' | 'Resolved' | 'Closed' = ticketDetails.status;
+    // Simplified status: only Open or Closed
+    let status: 'Open' | 'Closed' = ticketDetails.status;
     
     // If no message content but default text is available, use that
     if (!messageContent && ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
@@ -298,7 +294,8 @@ const TicketDetail = () => {
       switch(ticketDetails.selectedAction) {
         case 'Accepted':
           actionDesc = "accepted this report";
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Rejected':
           actionDesc = "rejected this report";
@@ -306,7 +303,8 @@ const TicketDetail = () => {
           break;
         case 'Completed':
           actionDesc = "marked this bug as completed";
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Stale':
           actionDesc = "marked this bug as stale";
@@ -318,13 +316,15 @@ const TicketDetail = () => {
           break;
         case 'Pardon':
           actionDesc = "pardoned this punishment";
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Reduce':
           actionDesc = ticketDetails.isPermanent 
             ? 'changed the punishment to permanent' 
             : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
-          status = 'Resolved';
+          // Map all resolved statuses to Closed in simplified system
+          status = 'Closed';
           break;
         case 'Reject':
           actionDesc = "rejected this appeal";
@@ -427,7 +427,7 @@ const TicketDetail = () => {
     handleUpdateTagsWithPersistence(newTags);
   };
   
-  const handleStatusChange = (newStatus: 'Open' | 'In Progress' | 'Resolved' | 'Closed', lockTicket = false) => {
+  const handleStatusChange = (newStatus: 'Open' | 'Closed', lockTicket = false) => {
     // First update local state for immediate UI feedback
     setTicketDetails(prev => ({
       ...prev,
@@ -454,20 +454,19 @@ const TicketDetail = () => {
     }));
     
     // Update status based on action
-    let newStatus: 'Open' | 'Resolved' | 'Closed' = ticketDetails.status;
+    let newStatus: 'Open' | 'Closed' = ticketDetails.status;
     
     switch(action) {
       case 'Accepted':
       case 'Completed':
       case 'Pardon':
       case 'Reduce':
-        newStatus = 'Resolved';
-        break;
       case 'Rejected':
       case 'Stale': 
       case 'Duplicate':
       case 'Reject':
       case 'Close':
+        // All resolution actions map to Closed in simplified system
         newStatus = 'Closed';
         break;
       case 'Reopen':
@@ -641,11 +640,11 @@ const TicketDetail = () => {
                       
                       {/* Simple Status Badge - Only Open or Closed */}
                       <Badge variant="outline" className={
-                        ticketDetails.status === 'Open' || ticketDetails.status === 'In Progress' ? 
+                        ticketDetails.status === 'Open' ? 
                           'bg-green-50 text-green-700 border-green-200' : 
                           'bg-gray-50 text-gray-700 border-gray-200'
                       }>
-                        {ticketDetails.status === 'Open' || ticketDetails.status === 'In Progress' ? 'Open' : 'Closed'}
+                        {ticketDetails.status === 'Open' ? 'Open' : 'Closed'}
                       </Badge>
                       
                       {/* Display the tags */}
