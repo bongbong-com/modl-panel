@@ -629,10 +629,22 @@ export function setupTicketRoutes(app: Express) {
             
             // Also lock the ticket
             req.body.locked = true;
+            
+            // Directly update locked state in case the rest of the code misses it
+            await Ticket.findByIdAndUpdate(
+              id,
+              { $set: { locked: true } }
+            );
           } else if (reply.action === reopenAction) {
             // Reopening action
             req.body.status = 'Open';
             req.body.locked = false;
+            
+            // Directly update locked state in case the rest of the code misses it
+            await Ticket.findByIdAndUpdate(
+              id,
+              { $set: { locked: false } }
+            );
           }
           // Comment action doesn't change status or locked state
         }
@@ -650,13 +662,18 @@ export function setupTicketRoutes(app: Express) {
         );
       }
       
-      // Update data map
+      // Update data map for data fields
       const dataUpdates = {};
       if (req.body.status) dataUpdates['data.status'] = req.body.status;
       if (req.body.priority) dataUpdates['data.priority'] = req.body.priority;
       if (req.body.assignedTo) dataUpdates['data.assignedTo'] = req.body.assignedTo;
-      // Handle locked status
-      if (req.body.locked !== undefined) dataUpdates['data.locked'] = req.body.locked;
+      
+      // Direct field updates for built-in schema fields
+      const directUpdates = {};
+      // Update main status if needed
+      if (req.body.status) directUpdates['status'] = req.body.status;
+      // Handle locked status - update it on the main document
+      if (req.body.locked !== undefined) directUpdates['locked'] = req.body.locked;
       
       // Handle tags
       if (req.body.tags) {
@@ -666,10 +683,23 @@ export function setupTicketRoutes(app: Express) {
         );
       }
       
+      // Merge direct and data updates
+      const updateOperations = { $set: {} };
+      
+      // Add data field updates
+      if (Object.keys(dataUpdates).length > 0) {
+        Object.assign(updateOperations.$set, dataUpdates);
+      }
+      
+      // Add direct field updates
+      if (Object.keys(directUpdates).length > 0) {
+        Object.assign(updateOperations.$set, directUpdates);
+      }
+      
       // Apply all updates and get updated ticket
       const ticket = await Ticket.findByIdAndUpdate(
         id,
-        { $set: dataUpdates },
+        updateOperations,
         { new: true }
       );
       
@@ -678,7 +708,7 @@ export function setupTicketRoutes(app: Express) {
       }
       
       // Log status for debugging
-      console.log(`Updated ticket ${id} - Locked status: ${ticket.data.get('locked')}`);
+      console.log(`Updated ticket ${id} - Locked status: ${ticket.locked}`);
       
       await createSystemLog(`Ticket ${id} updated`);
       res.json(ticket);
