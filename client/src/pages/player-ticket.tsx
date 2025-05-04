@@ -69,14 +69,6 @@ const PlayerTicket = () => {
     'Closed': 'bg-gray-50 text-gray-700 border-gray-200'
   };
 
-  // Initialize player name from localStorage if available
-  useEffect(() => {
-    const savedName = localStorage.getItem('playerName');
-    if (savedName) {
-      setPlayerName(savedName);
-    }
-  }, []);
-
   // Update ticket details when data is fetched
   useEffect(() => {
     if (ticketData) {
@@ -124,7 +116,7 @@ const PlayerTicket = () => {
       sender: playerName,
       senderType: 'user',
       content: newReply.trim(),
-      timestamp: new Date().toLocaleString(),
+      timestamp: new Date().toISOString(),
       staff: false
     };
     
@@ -189,9 +181,43 @@ const PlayerTicket = () => {
     );
   }
 
+  // Format date to MM/dd/yy HH:mm in browser's timezone
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (e) {
+      return dateString; // Return original string if formatting fails
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto">
+        {/* Security Disclaimer */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="text-yellow-600 mt-0.5">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-medium text-yellow-800">Security Notice</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                Do not share sensitive information, personal data, or passwords over tickets. The six digit ticket ID is the only authentication on this page; anyone with this ticket ID can view and reply to this ticket as you.
+              </p>
+            </div>
+          </div>
+        </div>
+        
         <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-6">
           <div className="p-4 bg-muted/30">
             <div className="flex justify-between items-start">
@@ -213,7 +239,7 @@ const PlayerTicket = () => {
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                <span>{new Date(ticketDetails.date).toLocaleDateString()}</span>
+                <span>{formatDate(ticketDetails.date)}</span>
               </div>
               <div className="flex items-center gap-1">
                 <MessageSquare className="h-3.5 w-3.5" />
@@ -263,7 +289,7 @@ const PlayerTicket = () => {
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
-                          {message.timestamp}
+                          {formatDate(message.timestamp)}
                         </div>
                       </div>
                       <div className="text-sm whitespace-pre-wrap">
