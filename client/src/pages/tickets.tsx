@@ -39,6 +39,22 @@ interface Ticket {
   }>;
 }
 
+// Generate a badge color and text based on ticket status
+const getTicketStatusInfo = (ticket: Ticket) => {
+  // If the ticket is locked or explicitly marked as Closed/Resolved, it's closed
+  const isOpen = !(ticket.locked === true || 
+                  ticket.status === 'Closed' || 
+                  ticket.status === 'Resolved');
+                  
+  const statusClass = isOpen
+    ? 'bg-green-50 text-green-700 border-green-200'
+    : 'bg-red-50 text-red-700 border-red-200';
+    
+  const statusText = isOpen ? 'Open' : 'Closed';
+  
+  return { statusClass, statusText, isOpen };
+};
+
 const Tickets = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
@@ -49,10 +65,22 @@ const Tickets = () => {
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
 
-  // Filter tickets by type and status
+  // Convert ticket status to simplified Open/Closed
+  const getSimplifiedStatus = (ticket: Ticket): 'open' | 'closed' => {
+    // If the ticket is locked or explicitly marked as Closed/Resolved, it's closed
+    if (ticket.locked === true || 
+        ticket.status === 'Closed' || 
+        ticket.status === 'Resolved') {
+      return 'closed';
+    }
+    return 'open';
+  };
+  
+  // Filter tickets by type and simplified status
   const filteredTickets = tickets ? tickets.filter((ticket: Ticket) => {
     const typeMatch = ticket.type === activeTab;
-    const statusMatch = statusFilter === "all" || ticket.status.toLowerCase() === statusFilter;
+    const simplifiedStatus = getSimplifiedStatus(ticket);
+    const statusMatch = statusFilter === "all" || simplifiedStatus === statusFilter;
     return typeMatch && statusMatch;
   }) : [];
   
@@ -164,14 +192,13 @@ const Tickets = () => {
                                 <Badge 
                                   variant="outline" 
                                   className={`text-xs px-1.5 py-0 h-5 ${
-                                    !ticket.locked && ticket.status !== 'Closed'
+                                    getSimplifiedStatus(ticket) === 'open'
                                       ? 'bg-green-50 text-green-700 border-green-200'
                                       : 'bg-red-50 text-red-700 border-red-200'
                                   }`}
                                 >
-                                  {!ticket.locked && ticket.status !== 'Closed' ? 'Open' : 'Closed'}
+                                  {getSimplifiedStatus(ticket) === 'open' ? 'Open' : 'Closed'}
                                 </Badge>
-
                               </div>
                             </TableCell>
                             <TableCell>{ticket.reportedBy}</TableCell>
