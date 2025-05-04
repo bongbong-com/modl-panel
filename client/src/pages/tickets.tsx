@@ -27,8 +27,7 @@ interface Ticket {
   subject: string;
   reportedBy: string;
   date: string;
-  status: string;
-  priority: 'Critical' | 'Medium' | 'Low' | 'Fixed';
+  status: 'Open' | 'Closed'; // Simplified to just Open/Closed
   locked?: boolean;
   description?: string;
   notes?: Array<{
@@ -41,10 +40,8 @@ interface Ticket {
 
 // Generate a badge color and text based on ticket status
 const getTicketStatusInfo = (ticket: Ticket) => {
-  // If the ticket is locked or explicitly marked as Closed/Resolved, it's closed
-  const isOpen = !(ticket.locked === true || 
-                  ticket.status === 'Closed' || 
-                  ticket.status === 'Resolved');
+  // Use simplified status system - only Open or Closed
+  const isOpen = ticket.status === 'Open' && !ticket.locked;
                   
   const statusClass = isOpen
     ? 'bg-green-50 text-green-700 border-green-200'
@@ -67,10 +64,8 @@ const Tickets = () => {
 
   // Convert ticket status to simplified Open/Closed
   const getSimplifiedStatus = (ticket: Ticket): 'open' | 'closed' => {
-    // If the ticket is locked or explicitly marked as Closed/Resolved, it's closed
-    if (ticket.locked === true || 
-        ticket.status === 'Closed' || 
-        ticket.status === 'Resolved') {
+    // Using simplified status system - if it's not Open or it's locked, it's closed
+    if (ticket.status === 'Closed' || ticket.locked === true) {
       return 'closed';
     }
     return 'open';
@@ -155,7 +150,7 @@ const Tickets = () => {
     }
     
     if (filteredTickets.length > 0) {
-      return filteredTickets.map((ticket, index) => renderTicketRow(ticket, index));
+      return filteredTickets.map((ticket: Ticket, index: number) => renderTicketRow(ticket, index));
     }
     
     return renderEmptyRow();

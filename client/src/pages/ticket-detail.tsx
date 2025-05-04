@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import {
   MessageSquare,
@@ -740,12 +741,7 @@ const TicketDetail = () => {
                     <span className="text-muted-foreground">Date:</span>
                     <span className="ml-1">{ticketDetails.date}</span>
                   </div>
-                  {ticketDetails.assignedTo && (
-                    <div>
-                      <span className="text-muted-foreground">Assigned To:</span>
-                      <span className="ml-1">{ticketDetails.assignedTo}</span>
-                    </div>
-                  )}
+                  {/* Removed assignedTo field as part of simplified ticket system */}
                   {ticketDetails.relatedPlayer && (
                     <div className="flex items-center">
                       <span className="text-muted-foreground">Related Player:</span>
