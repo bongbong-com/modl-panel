@@ -307,6 +307,53 @@ const PlayerTicket = () => {
     }));
   };
   
+  // Define default form templates based on ticket type
+  const getDefaultFormFields = (type) => {
+    const defaultTemplates = {
+      'bug': [
+        { fieldName: 'description', fieldLabel: 'Bug Description', fieldType: 'textarea', required: true },
+        { fieldName: 'steps', fieldLabel: 'Steps to Reproduce', fieldType: 'textarea', required: true },
+        { fieldName: 'expected', fieldLabel: 'Expected Behavior', fieldType: 'textarea', required: true },
+        { fieldName: 'actual', fieldLabel: 'Actual Behavior', fieldType: 'textarea', required: true },
+        { fieldName: 'server', fieldLabel: 'Server', fieldType: 'text', required: true },
+        { fieldName: 'version', fieldLabel: 'Game Version', fieldType: 'text', required: false }
+      ],
+      'player': [
+        { fieldName: 'description', fieldLabel: 'Describe the Incident', fieldType: 'textarea', required: true },
+        { fieldName: 'serverName', fieldLabel: 'Server Name', fieldType: 'text', required: true },
+        { fieldName: 'when', fieldLabel: 'When did this happen?', fieldType: 'text', required: true },
+        { fieldName: 'evidence', fieldLabel: 'Evidence (screenshots, videos, etc.)', fieldType: 'textarea', required: false }
+      ],
+      'chat': [
+        { fieldName: 'description', fieldLabel: 'Describe the Issue', fieldType: 'textarea', required: true },
+        { fieldName: 'serverName', fieldLabel: 'Server Name', fieldType: 'text', required: true },
+        { fieldName: 'when', fieldLabel: 'When did this happen?', fieldType: 'text', required: true },
+        { fieldName: 'chatlog', fieldLabel: 'Copy & Paste Chat Log', fieldType: 'textarea', required: true }
+      ],
+      'staff': [
+        { fieldName: 'experience', fieldLabel: 'Previous Experience', fieldType: 'textarea', required: true },
+        { fieldName: 'age', fieldLabel: 'Age', fieldType: 'text', required: true },
+        { fieldName: 'timezone', fieldLabel: 'Timezone', fieldType: 'text', required: true },
+        { fieldName: 'availability', fieldLabel: 'Weekly Availability (hours)', fieldType: 'text', required: true },
+        { fieldName: 'why', fieldLabel: 'Why do you want to join our staff team?', fieldType: 'textarea', required: true },
+        { fieldName: 'skills', fieldLabel: 'Special Skills', fieldType: 'textarea', required: false }
+      ],
+      'support': [
+        { fieldName: 'description', fieldLabel: 'How can we help you?', fieldType: 'textarea', required: true },
+        { fieldName: 'category', fieldLabel: 'Support Category', fieldType: 'select', 
+          options: ['Account Issues', 'Technical Help', 'Purchases', 'Other'],
+          required: true 
+        },
+        { fieldName: 'priority', fieldLabel: 'Priority', fieldType: 'select', 
+          options: ['Low', 'Medium', 'High'],
+          required: true 
+        }
+      ]
+    };
+    
+    return defaultTemplates[type] || [];
+  };
+
   // Render form based on ticket type
   const renderTicketForm = () => {
     if (isLoadingSettings) {
@@ -318,25 +365,40 @@ const PlayerTicket = () => {
       );
     }
     
-    if (!settingsData?.settings) {
-      return (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No form template available.</p>
-        </div>
-      );
+    // Get form fields - attempt to fetch from settings, but fall back to defaults
+    let fields = [];
+    
+    try {
+      // Try to get fields from settings (if available)
+      if (settingsData?.settings) {
+        const formTemplates = settingsData.settings.get('ticketForms');
+        if (formTemplates && formTemplates[ticketDetails.type]) {
+          fields = formTemplates[ticketDetails.type];
+        }
+      }
+      
+      // If formTemplates processing fails or returns empty fields, check formTemplates array
+      if (fields.length === 0 && settingsData?.formTemplates) {
+        const template = settingsData.formTemplates.find(t => t.ticketType === ticketDetails.type);
+        if (template && template.fields) {
+          fields = template.fields.map(f => ({
+            fieldName: f.id,
+            fieldLabel: f.label,
+            fieldType: f.type,
+            required: f.required,
+            options: f.options
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error processing form templates:', error);
     }
     
-    // Get the form template for this ticket type
-    const formTemplates = settingsData.settings.get('ticketForms');
-    if (!formTemplates || !formTemplates[ticketDetails.type]) {
-      return (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No form template found for this ticket type.</p>
-        </div>
-      );
+    // If no fields found in settings, use defaults
+    if (fields.length === 0) {
+      fields = getDefaultFormFields(ticketDetails.type);
+      console.log('Using default form template for', ticketDetails.type);
     }
-    
-    const fields = formTemplates[ticketDetails.type];
     
     return (
       <form onSubmit={handleFormSubmit} className="space-y-6">

@@ -90,6 +90,11 @@ const Tickets = () => {
   
   // Filter tickets by type and simplified status
   const filteredTickets = tickets ? tickets.filter((ticket: Ticket) => {
+    // Skip "Unfinished" tickets entirely - they should only appear in their creation flow
+    if (ticket.status === 'Unfinished') {
+      return false;
+    }
+    
     const typeMatch = ticket.type === activeTab;
     const simplifiedStatus = getSimplifiedStatus(ticket);
     const statusMatch = statusFilter === "all" || simplifiedStatus === statusFilter;
@@ -276,6 +281,22 @@ const Tickets = () => {
                   Ban Appeals
                   <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'appeal').length : 0}</Badge>
                 </TabsTrigger>
+                <TabsTrigger 
+                  value="staff" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-0.5 flex-shrink-0 text-sm"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Staff Applications
+                  <Badge className="ml-2 bg-primary text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'staff').length : 0}</Badge>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="support" 
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-3 py-0.5 flex-shrink-0 text-sm"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Support
+                  <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'support').length : 0}</Badge>
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="bug" className="p-0 mt-0">
@@ -298,6 +319,18 @@ const Tickets = () => {
               </TabsContent>
               
               <TabsContent value="appeal" className="p-0 mt-0">
+                <CardContent className="p-4">
+                  {renderTicketTable()}
+                </CardContent>
+              </TabsContent>
+              
+              <TabsContent value="staff" className="p-0 mt-0">
+                <CardContent className="p-4">
+                  {renderTicketTable()}
+                </CardContent>
+              </TabsContent>
+              
+              <TabsContent value="support" className="p-0 mt-0">
                 <CardContent className="p-4">
                   {renderTicketTable()}
                 </CardContent>
