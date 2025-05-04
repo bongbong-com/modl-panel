@@ -232,7 +232,13 @@ const PlayerTicket = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formSubject.trim()) {
+    // For staff applications, auto-generate the subject
+    const finalSubject = ticketDetails.type === 'staff' 
+      ? `${playerName || ticketDetails.reportedBy}'s Staff Application` 
+      : formSubject.trim();
+    
+    // Check if subject is required for non-staff applications
+    if (ticketDetails.type !== 'staff' && !finalSubject) {
       toast({
         title: "Subject Required",
         description: "Please provide a subject for your ticket.",
@@ -295,7 +301,7 @@ const PlayerTicket = () => {
     try {
       // Submit the form to complete the ticket
       const response = await apiRequest('POST', `/api/tickets/${ticketDetails.id}/submit`, {
-        subject: formSubject,
+        subject: finalSubject,
         formData: formData
       });
       
@@ -357,19 +363,21 @@ const PlayerTicket = () => {
         { fieldName: 'chatlog', fieldLabel: 'Copy & Paste Chat Log', fieldType: 'textarea', required: true }
       ],
       'staff': [
-        { fieldName: 'experience', fieldLabel: 'Previous Experience', fieldType: 'textarea', required: true, 
-          helpText: 'Share any previous moderation or community management experience you have.' },
-        { fieldName: 'age', fieldLabel: 'Age', fieldType: 'text', required: true,
-          helpText: 'You must be at least 16 years old to apply.' },
-        { fieldName: 'timezone', fieldLabel: 'Timezone', fieldType: 'text', required: true,
-          helpText: 'Please specify your timezone (e.g., UTC+0, EST, etc.)' },
-        { fieldName: 'availability', fieldLabel: 'Weekly Availability (hours)', fieldType: 'text', required: true,
-          helpText: 'How many hours per week can you dedicate to moderation?' },
-        { fieldName: 'why', fieldLabel: 'Why do you want to join our staff team?', fieldType: 'textarea', required: true,
-          helpText: 'Explain your motivation for becoming a staff member.' },
-        { fieldName: 'skills', fieldLabel: 'Special Skills', fieldType: 'textarea', required: false,
-          helpText: 'List any relevant skills that would be beneficial (e.g., languages, technical abilities).' },
-        { fieldName: 'age_check', fieldLabel: 'I am 16 years of age or older', fieldType: 'checkbox', required: true }
+        { fieldName: 'email', fieldLabel: 'Your email', fieldType: 'text', required: true,
+          helpText: 'Please monitor this as replies will be sent here.' },
+        { fieldName: 'introduction', fieldLabel: 'Introduce yourself.', fieldType: 'textarea', required: true,
+          helpText: 'Who are you? Tell us about your hobbies, education, environment, schedule, and world view' },
+        { fieldName: 'server_perspective', fieldLabel: 'Introduce the server.', fieldType: 'textarea', required: true,
+          helpText: 'From your point of view, what is the server about and why do you enjoy it?' },
+        { fieldName: 'passion', fieldLabel: 'Describe in detail something you are passionate about.', fieldType: 'textarea', required: true,
+          helpText: 'This could be anything, we want to hear it!' },
+        { fieldName: 'additional', fieldLabel: 'Anything else?', fieldType: 'textarea', required: false,
+          helpText: 'Use this space to reflect/explain on any punishments on the server or disclose other information relevant to your application.' },
+        { fieldName: 'age_check', fieldLabel: 'I am 16 years of age or older', fieldType: 'checkbox', required: true },
+        { fieldName: 'microphone_check', fieldLabel: 'I have a working microphone and am able to use recording software', fieldType: 'checkbox', required: true },
+        { fieldName: 'english_check', fieldLabel: 'I can speak english fluently', fieldType: 'checkbox', required: true },
+        { fieldName: 'interview_check', fieldLabel: 'I am willing to participate in a voice-call interview if this application is selected', fieldType: 'checkbox', required: true },
+        { fieldName: 'wait_check', fieldLabel: 'I understand that it may take several weeks to process this application and I will not open additional tickets regarding the status of my application', fieldType: 'checkbox', required: true }
       ],
       'support': [
         { fieldName: 'description', fieldLabel: 'How can we help you?', fieldType: 'textarea', required: true },
@@ -437,18 +445,20 @@ const PlayerTicket = () => {
     return (
       <form onSubmit={handleFormSubmit} className="space-y-6">
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="subject" className="font-medium">Ticket Subject</Label>
-            <Input
-              id="subject"
-              type="text"
-              placeholder="Enter a subject for your ticket"
-              value={formSubject}
-              onChange={(e) => setFormSubject(e.target.value)}
-              className="mt-1"
-              required
-            />
-          </div>
+          {ticketDetails.type !== 'staff' && (
+            <div>
+              <Label htmlFor="subject" className="font-medium">Ticket Subject</Label>
+              <Input
+                id="subject"
+                type="text"
+                placeholder="Enter a subject for your ticket"
+                value={formSubject}
+                onChange={(e) => setFormSubject(e.target.value)}
+                className="mt-1"
+                required
+              />
+            </div>
+          )}
           
           {fields.map((field: FormField) => (
             <div key={field.fieldName} className="space-y-1">
@@ -467,7 +477,10 @@ const PlayerTicket = () => {
                   placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
                   value={formData[field.fieldName] || ''}
                   onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
-                  className="min-h-[120px]"
+                  className={ticketDetails.type === 'staff' ? 
+                    (field.fieldName === 'introduction' || field.fieldName === 'server_perspective' || field.fieldName === 'passion') ? 
+                      "min-h-[180px]" : "min-h-[120px]" 
+                    : "min-h-[120px]"}
                   required={field.required}
                 />
               ) : field.fieldType === 'select' ? (
@@ -563,8 +576,39 @@ const PlayerTicket = () => {
         {ticketDetails.status === 'Unfinished' ? (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Complete Your {ticketDetails.type.charAt(0).toUpperCase() + ticketDetails.type.slice(1)} Ticket</CardTitle>
-              <CardDescription>Please provide the required information below to submit your ticket</CardDescription>
+              {ticketDetails.type === 'staff' ? (
+                <>
+                  <CardTitle>Staff Application</CardTitle>
+                  <CardDescription className="mt-2">
+                    Thank you for your interest in becoming a volunteer moderator. Please complete the form with honesty and showcase your personality.
+                  </CardDescription>
+                </>
+              ) : ticketDetails.type === 'bug' ? (
+                <>
+                  <CardTitle>Complete Your Bug Report</CardTitle>
+                  <CardDescription>Please provide detailed information about the bug you've encountered</CardDescription>
+                </>
+              ) : ticketDetails.type === 'player' ? (
+                <>
+                  <CardTitle>Complete Your Player Report</CardTitle>
+                  <CardDescription>Please provide details about the player and the incident</CardDescription>
+                </>
+              ) : ticketDetails.type === 'chat' ? (
+                <>
+                  <CardTitle>Complete Your Chat Report</CardTitle>
+                  <CardDescription>Please provide information about the chat incident</CardDescription>
+                </>
+              ) : ticketDetails.type === 'support' ? (
+                <>
+                  <CardTitle>Complete Your Support Request</CardTitle>
+                  <CardDescription>Please tell us how we can help you</CardDescription>
+                </>
+              ) : (
+                <>
+                  <CardTitle>Complete Your {ticketDetails.type.charAt(0).toUpperCase() + ticketDetails.type.slice(1)} Ticket</CardTitle>
+                  <CardDescription>Please provide the required information below to submit your ticket</CardDescription>
+                </>
+              )}
             </CardHeader>
             <CardContent>
               {renderTicketForm()}
