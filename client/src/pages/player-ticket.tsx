@@ -441,11 +441,15 @@ const PlayerTicket = () => {
           </div>
           
           {fields.map((field: FormField) => (
-            <div key={field.fieldName}>
+            <div key={field.fieldName} className="space-y-1">
               <Label htmlFor={field.fieldName} className="font-medium">
                 {field.fieldLabel}
                 {field.required && <span className="text-destructive ml-1">*</span>}
               </Label>
+              
+              {field.helpText && (
+                <p className="text-sm text-muted-foreground mb-1">{field.helpText}</p>
+              )}
               
               {field.fieldType === 'textarea' ? (
                 <Textarea
@@ -453,7 +457,7 @@ const PlayerTicket = () => {
                   placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
                   value={formData[field.fieldName] || ''}
                   onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
-                  className="mt-1 min-h-[120px]"
+                  className="min-h-[120px]"
                   required={field.required}
                 />
               ) : field.fieldType === 'select' ? (
@@ -461,7 +465,7 @@ const PlayerTicket = () => {
                   value={formData[field.fieldName] || ''}
                   onValueChange={(value) => handleFormFieldChange(field.fieldName, value)}
                 >
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger>
                     <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
                   </SelectTrigger>
                   <SelectContent>
@@ -472,6 +476,21 @@ const PlayerTicket = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              ) : field.fieldType === 'checkbox' ? (
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id={field.fieldName}
+                    checked={formData[field.fieldName] === "true"}
+                    onCheckedChange={(checked) => handleFormFieldChange(field.fieldName, checked ? "true" : "false")}
+                    required={field.required}
+                  />
+                  <label 
+                    htmlFor={field.fieldName}
+                    className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {field.fieldLabel}
+                  </label>
+                </div>
               ) : (
                 <Input
                   id={field.fieldName}
@@ -479,7 +498,6 @@ const PlayerTicket = () => {
                   placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
                   value={formData[field.fieldName] || ''}
                   onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
-                  className="mt-1"
                   required={field.required}
                 />
               )}

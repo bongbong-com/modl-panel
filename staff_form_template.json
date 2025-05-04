@@ -1,0 +1,76 @@
+{
+  "formTemplates": [
+    {
+      "ticketType": "staff",
+      "title": "Staff Application",
+      "description": "Thank you for your interest in becoming a volunteer moderator. Please complete the form with honesty and showcase your personality.",
+      "fields": [
+        {
+          "id": "email",
+          "label": "Your email",
+          "type": "text",
+          "required": true,
+          "helpText": "Please monitor this as replies will be sent here."
+        },
+        {
+          "id": "introduction",
+          "label": "Introduce yourself.",
+          "type": "textarea",
+          "required": true,
+          "helpText": "Who are you? Tell us about your hobbies, education, environment, schedule, and world view"
+        },
+        {
+          "id": "server_intro",
+          "label": "Introduce the server.",
+          "type": "textarea",
+          "required": true,
+          "helpText": "From your point of view, what is the server about and why do you enjoy it?"
+        },
+        {
+          "id": "passion",
+          "label": "Describe in detail something you are passionate about.",
+          "type": "textarea",
+          "required": true,
+          "helpText": "This could be anything, we want to hear it!"
+        },
+        {
+          "id": "additional",
+          "label": "Anything else?",
+          "type": "textarea",
+          "required": false,
+          "helpText": "Use this space to reflect/explain on any punishments on the server or disclose other information relevant to your application."
+        },
+        {
+          "id": "age_check",
+          "label": "I am 16 years of age or older",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "id": "mic_check",
+          "label": "I have a working microphone and am able to use recording software",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "id": "english_check",
+          "label": "I can speak english fluently",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "id": "interview_check",
+          "label": "I am willing to participate in a voice-call interview if this application is selected",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "id": "wait_check",
+          "label": "I understand that it may take several weeks to process this application and I will not open additional tickets regarding the status of my application",
+          "type": "checkbox",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
