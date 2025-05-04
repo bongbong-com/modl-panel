@@ -249,9 +249,10 @@ const PlayerTicket = () => {
     }
     
     // Validate required fields
-    if (settingsData?.settings?.ticketForms) {
-      const formTemplate = settingsData.settings.get('ticketForms')[ticketDetails.type];
-      if (formTemplate) {
+    if (settingsData?.settings) {
+      const formTemplates = settingsData.settings.get('ticketForms');
+      if (formTemplates && formTemplates[ticketDetails.type]) {
+        const formTemplate = formTemplates[ticketDetails.type];
         for (const field of formTemplate) {
           if (field.required && !formData[field.fieldName]) {
             toast({
