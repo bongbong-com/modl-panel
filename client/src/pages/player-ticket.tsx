@@ -34,8 +34,7 @@ export interface TicketMessage {
 interface TicketDetails {
   id: string;
   subject: string;
-  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
-  priority: 'Critical' | 'Medium' | 'Low' | 'Fixed';
+  status: 'Open' | 'Closed';
   reportedBy: string;
   date: string;
   category: string;
@@ -59,7 +58,6 @@ const PlayerTicket = () => {
     id: "",
     subject: "",
     status: "Open",
-    priority: "Medium",
     reportedBy: "",
     date: "",
     category: "Player Report",
@@ -67,17 +65,8 @@ const PlayerTicket = () => {
   });
 
   const statusColors = {
-    'Open': 'bg-warning/10 text-warning border-warning/20',
-    'In Progress': 'bg-primary/10 text-primary border-primary/20',
-    'Resolved': 'bg-success/10 text-success border-success/20',
-    'Closed': 'bg-muted/50 text-muted-foreground border-muted/30'
-  };
-
-  const priorityColors = {
-    'Critical': 'bg-destructive/10 text-destructive border-destructive/20',
-    'Medium': 'bg-warning/10 text-warning border-warning/20',
-    'Low': 'bg-info/10 text-info border-info/20',
-    'Fixed': 'bg-success/10 text-success border-success/20'
+    'Open': 'bg-green-50 text-green-700 border-green-200', 
+    'Closed': 'bg-gray-50 text-gray-700 border-gray-200'
   };
 
   // Initialize player name from localStorage if available
@@ -93,12 +82,18 @@ const PlayerTicket = () => {
     if (ticketData) {
       console.log('Received ticket data:', ticketData);
       
-      // Map API data to our TicketDetails interface
+      // Map API data to our TicketDetails interface with simplified status
+      const status = ticketData.status || 'Open';
+      // Convert status to either Open or Closed
+      const simplifiedStatus = 
+        (status === 'Open' || status === 'In Progress') 
+          ? 'Open' 
+          : 'Closed';
+          
       setTicketDetails({
         id: ticketData.id || ticketData._id,
         subject: ticketData.subject || 'No Subject',
-        status: (ticketData.status || 'Open') as 'Open' | 'In Progress' | 'Resolved' | 'Closed',
-        priority: (ticketData.priority || 'Medium') as 'Critical' | 'Medium' | 'Low' | 'Fixed',
+        status: simplifiedStatus,
         reportedBy: ticketData.reportedBy || 'Unknown',
         date: ticketData.date || new Date().toLocaleDateString(),
         category: ticketData.category || 'Other',
@@ -119,14 +114,40 @@ const PlayerTicket = () => {
     
     setIsSubmitting(true);
     
+    // Generate a temporary ID for optimistic UI
+    const tempId = Date.now().toString();
+    const timestamp = new Date().toISOString();
+    
+    // Create new message for immediate display
+    const newMessage: TicketMessage = {
+      id: tempId,
+      sender: playerName,
+      senderType: 'user',
+      content: newReply.trim(),
+      timestamp: new Date().toLocaleString(),
+      staff: false
+    };
+    
+    // Update UI immediately with the new message
+    setTicketDetails(prev => ({
+      ...prev,
+      messages: [...prev.messages, newMessage]
+    }));
+    
     // Format the new reply for the API
     const reply = {
       name: playerName,
       type: 'user',
       content: newReply.trim(),
-      created: new Date().toISOString(),
+      created: timestamp,
       staff: false
     };
+    
+    // Clear the reply field
+    setNewReply('');
+    
+    // Save player name to localStorage for future use
+    localStorage.setItem('playerName', playerName);
     
     try {
       // Send the update to the API
@@ -137,16 +158,12 @@ const PlayerTicket = () => {
         }
       });
       
-      // Clear the reply field and update local state
-      setNewReply('');
-      
-      // Save player name to localStorage for future use
-      localStorage.setItem('playerName', playerName);
-      
-      // Manually invalidate the cache to force a refresh
+      // Manually invalidate the cache for background refresh
       queryClient.invalidateQueries({ queryKey: ['/api/tickets', ticketDetails.id] });
     } catch (error) {
       console.error('Error sending reply:', error);
+      // If there was an error, we could show a toast message here
+      // and potentially remove the optimistic update
     } finally {
       setIsSubmitting(false);
     }
@@ -167,12 +184,6 @@ const PlayerTicket = () => {
         <div className="bg-destructive/10 text-destructive rounded-lg p-6 max-w-md">
           <h2 className="text-xl font-semibold mb-2">Ticket Not Found</h2>
           <p className="mb-4">Sorry, we couldn't find the ticket you're looking for. It may have been deleted or you may not have permission to view it.</p>
-          <Link href="/appeals">
-            <Button variant="outline" className="w-full">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Go Back
-            </Button>
-          </Link>
         </div>
       </div>
     );
@@ -181,20 +192,6 @@ const PlayerTicket = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-5xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center">
-            <Link href="/appeals">
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Appeals
-              </Button>
-            </Link>
-          </div>
-          <Badge className={`text-xs px-2 py-1 font-medium border ${statusColors[ticketDetails.status]}`}>
-            {ticketDetails.status}
-          </Badge>
-        </div>
-
         <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-6">
           <div className="p-4 bg-muted/30">
             <div className="flex justify-between items-start">
@@ -204,8 +201,8 @@ const PlayerTicket = () => {
                   <Tag className="h-3 w-3" />
                   {ticketDetails.category}
                 </Badge>
-                <Badge variant="outline" className={`border ${priorityColors[ticketDetails.priority]}`}>
-                  {ticketDetails.priority}
+                <Badge className={`text-xs px-2 py-1 font-medium border ${statusColors[ticketDetails.status]}`}>
+                  {ticketDetails.status}
                 </Badge>
               </div>
             </div>
@@ -288,18 +285,6 @@ const PlayerTicket = () => {
         {!ticketDetails.locked ? (
           <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
             <div className="p-4">
-              <div className="mb-4">
-                <label htmlFor="player-name" className="block text-sm font-medium mb-1">
-                  Your Name
-                </label>
-                <input
-                  id="player-name"
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Enter your name"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                />
-              </div>
               <div className="mb-4">
                 <Textarea
                   placeholder="Type your reply here..."
