@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import SidebarLayout from '@/components/layout/SidebarLayout';
 
 const ApiDocs = () => {
   const [expandedEndpoints, setExpandedEndpoints] = useState<Record<string, boolean>>({
@@ -244,67 +243,65 @@ const ApiDocs = () => {
   ];
 
   return (
-    <SidebarLayout>
-      <div className="container max-w-5xl py-6 space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">API Documentation</h1>
-          <p className="text-muted-foreground">
-            This documentation provides details on the available API endpoints for the Minecraft Moderation Panel.
-          </p>
-        </div>
+    <div className="container max-w-5xl py-6 space-y-8">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">API Documentation</h1>
+        <p className="text-muted-foreground">
+          This documentation provides details on the available API endpoints for the Minecraft Moderation Panel.
+        </p>
+      </div>
 
-        <div className="grid gap-6">
-          {endpoints.map((endpoint) => (
-            <div key={endpoint.id} className="border rounded-lg overflow-hidden">
-              <div 
-                className="flex items-center justify-between px-4 py-3 bg-muted/40 cursor-pointer"
-                onClick={() => toggleEndpoint(endpoint.id)}
-              >
-                <h2 className="text-xl font-semibold">{endpoint.title}</h2>
-                <Button variant="ghost" size="icon">
-                  {expandedEndpoints[endpoint.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                </Button>
-              </div>
-              
-              {expandedEndpoints[endpoint.id] && (
-                <div className="p-4 space-y-4">
-                  <p className="text-muted-foreground">{endpoint.description}</p>
-                  
-                  <div className="space-y-3">
-                    {endpoint.routes.map((route, index) => (
-                      <div key={index} className="border rounded-md overflow-hidden">
-                        <div className="flex items-center px-4 py-2 bg-muted/20">
-                          <span className={`inline-block px-2 py-1 text-xs font-medium rounded-md mr-3 ${
-                            route.method === 'GET' ? 'bg-blue-100 text-blue-700' :
-                            route.method === 'POST' ? 'bg-green-100 text-green-700' :
-                            route.method === 'PATCH' ? 'bg-yellow-100 text-yellow-700' :
-                            route.method === 'DELETE' ? 'bg-red-100 text-red-700' : ''
-                          }`}>
-                            {route.method}
-                          </span>
-                          <code className="font-mono text-sm">{route.path}</code>
-                        </div>
-                        <div className="p-3 space-y-2">
-                          <p>{route.description}</p>
-                          {route.requestType && (
-                            <div className="text-sm">
-                              <span className="font-semibold">Request:</span> <code className="bg-muted/30 px-1.5 py-0.5 rounded">{route.requestType}</code>
-                            </div>
-                          )}
+      <div className="grid gap-6">
+        {endpoints.map((endpoint) => (
+          <div key={endpoint.id} className="border rounded-lg overflow-hidden">
+            <div 
+              className="flex items-center justify-between px-4 py-3 bg-muted/40 cursor-pointer"
+              onClick={() => toggleEndpoint(endpoint.id)}
+            >
+              <h2 className="text-xl font-semibold">{endpoint.title}</h2>
+              <Button variant="ghost" size="icon">
+                {expandedEndpoints[endpoint.id] ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              </Button>
+            </div>
+            
+            {expandedEndpoints[endpoint.id] && (
+              <div className="p-4 space-y-4">
+                <p className="text-muted-foreground">{endpoint.description}</p>
+                
+                <div className="space-y-3">
+                  {endpoint.routes.map((route, index) => (
+                    <div key={index} className="border rounded-md overflow-hidden">
+                      <div className="flex items-center px-4 py-2 bg-muted/20">
+                        <span className={`inline-block px-2 py-1 text-xs font-medium rounded-md mr-3 ${
+                          route.method === 'GET' ? 'bg-blue-100 text-blue-700' :
+                          route.method === 'POST' ? 'bg-green-100 text-green-700' :
+                          route.method === 'PATCH' ? 'bg-yellow-100 text-yellow-700' :
+                          route.method === 'DELETE' ? 'bg-red-100 text-red-700' : ''
+                        }`}>
+                          {route.method}
+                        </span>
+                        <code className="font-mono text-sm">{route.path}</code>
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <p>{route.description}</p>
+                        {route.requestType && (
                           <div className="text-sm">
-                            <span className="font-semibold">Response:</span> <code className="bg-muted/30 px-1.5 py-0.5 rounded">{route.responseType}</code>
+                            <span className="font-semibold">Request:</span> <code className="bg-muted/30 px-1.5 py-0.5 rounded">{route.requestType}</code>
                           </div>
+                        )}
+                        <div className="text-sm">
+                          <span className="font-semibold">Response:</span> <code className="bg-muted/30 px-1.5 py-0.5 rounded">{route.responseType}</code>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

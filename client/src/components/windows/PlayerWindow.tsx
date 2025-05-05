@@ -126,8 +126,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       // Show success message
       toast({
         title: "Punishment applied",
-        description: `Successfully applied ${playerInfo.selectedPunishmentCategory} to ${playerInfo.username}`,
-        variant: "success"
+        description: `Successfully applied ${playerInfo.selectedPunishmentCategory} to ${playerInfo.username}`
       });
       
       // Reset the punishment form

@@ -16,6 +16,7 @@ import Audit from "@/pages/audit";
 import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
 import AppealsPage from "@/pages/appeals";
+import ApiDocs from "@/pages/api-docs";
 
 function Router() {
   const [location] = useLocation();
@@ -47,6 +48,7 @@ function Router() {
           <ProtectedRoute path="/tickets/:id" component={TicketDetail} />
           <ProtectedRoute path="/audit" component={Audit} />
           <ProtectedRoute path="/settings" component={Settings} />
+          <ProtectedRoute path="/api-docs" component={ApiDocs} />
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
