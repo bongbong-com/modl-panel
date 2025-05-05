@@ -117,7 +117,7 @@ const getTicketStatusInfo = (ticket: Ticket) => {
 const Tickets = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("bug");
+  const [activeTab, setActiveTab] = useState("support");
   const [, setLocation] = useLocation();
   const { data: tickets, isLoading, error } = useTickets();
   
@@ -127,7 +127,7 @@ const Tickets = () => {
   // Convert ticket status to simplified Open/Closed
   const getSimplifiedStatus = (ticket: Ticket): 'open' | 'closed' => {
     // Using simplified status system - if it's not Open or it's locked, it's closed
-    if (ticket.status === 'Closed' || ticket.locked === true) {
+    if (ticket.locked === true) {
       return 'closed';
     }
     return 'open';
@@ -310,7 +310,7 @@ const Tickets = () => {
         
         <Card>
           <CardHeader className="p-0">
-            <Tabs defaultValue="bug" className="w-full" onValueChange={setActiveTab}>
+            <Tabs defaultValue="support" className="w-full" onValueChange={setActiveTab}>
               <div className="overflow-x-auto pb-1 border-b border-border">
                 <TabsList className="w-max flex rounded-none bg-transparent">
                   <TabsTrigger 
@@ -364,6 +364,13 @@ const Tickets = () => {
               
               </TabsList>
               </div>
+
+              <TabsContent value="support" className="p-0 mt-0">
+                <CardContent className="p-4">
+                  {renderTicketTable()}
+                  {renderPagination()}
+                </CardContent>
+              </TabsContent>
               
               <TabsContent value="bug" className="p-0 mt-0">
                 <CardContent className="p-4">
@@ -375,32 +382,31 @@ const Tickets = () => {
               <TabsContent value="player" className="p-0 mt-0">
                 <CardContent className="p-4">
                   {renderTicketTable()}
+                  {renderPagination()}
                 </CardContent>
               </TabsContent>
               
               <TabsContent value="chat" className="p-0 mt-0">
                 <CardContent className="p-4">
                   {renderTicketTable()}
+                  {renderPagination()}
                 </CardContent>
               </TabsContent>
               
               <TabsContent value="appeal" className="p-0 mt-0">
                 <CardContent className="p-4">
                   {renderTicketTable()}
+                  {renderPagination()}
                 </CardContent>
               </TabsContent>
               
               <TabsContent value="staff" className="p-0 mt-0">
                 <CardContent className="p-4">
                   {renderTicketTable()}
+                  {renderPagination()}
                 </CardContent>
               </TabsContent>
-              
-              <TabsContent value="support" className="p-0 mt-0">
-                <CardContent className="p-4">
-                  {renderTicketTable()}
-                </CardContent>
-              </TabsContent>
+          
             </Tabs>
           </CardHeader>
         </Card>

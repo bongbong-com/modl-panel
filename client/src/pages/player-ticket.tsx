@@ -370,14 +370,14 @@ const PlayerTicket = () => {
         { fieldName: 'server_perspective', fieldLabel: 'Introduce the server.', fieldType: 'textarea', required: true,
           helpText: 'From your point of view, what is the server about and why do you enjoy it?' },
         { fieldName: 'passion', fieldLabel: 'Describe in detail something you are passionate about.', fieldType: 'textarea', required: true,
-          helpText: 'This could be anything, we want to hear it!' },
+          helpText: 'This does not have to be about the server and could be about literally anything, we want to hear it!' },
         { fieldName: 'additional', fieldLabel: 'Anything else?', fieldType: 'textarea', required: false,
-          helpText: 'Use this space to reflect/explain on any punishments on the server or disclose other information relevant to your application.' },
+          helpText: 'Use this space to reflect/explain on any punishments on the server, talk about past experience, or disclose other information relevant to your application.' },
         { fieldName: 'age_check', fieldLabel: 'I am 16 years of age or older', fieldType: 'checkbox', required: true },
         { fieldName: 'microphone_check', fieldLabel: 'I have a working microphone and am able to use recording software', fieldType: 'checkbox', required: true },
         { fieldName: 'english_check', fieldLabel: 'I can speak english fluently', fieldType: 'checkbox', required: true },
-        { fieldName: 'interview_check', fieldLabel: 'I am willing to participate in a voice-call interview if this application is selected', fieldType: 'checkbox', required: true },
-        { fieldName: 'wait_check', fieldLabel: 'I understand that it may take several weeks to process this application and I will not open additional tickets regarding the status of my application', fieldType: 'checkbox', required: true }
+        { fieldName: 'interview_check', fieldLabel: 'I am willing to participate in a voice-call interview if I am chosen to move forward in the process', fieldType: 'checkbox', required: true },
+        { fieldName: 'wait_check', fieldLabel: 'I understand that it may take several weeks to process this application and I agree to not open additional tickets regarding the status of my application', fieldType: 'checkbox', required: true }
       ],
       'support': [
         { fieldName: 'description', fieldLabel: 'How can we help you?', fieldType: 'textarea', required: true },
@@ -462,10 +462,13 @@ const PlayerTicket = () => {
           
           {fields.map((field: FormField) => (
             <div key={field.fieldName} className="space-y-1">
-              <Label htmlFor={field.fieldName} className="font-medium">
-                {field.fieldLabel}
-                {field.required && <span className="text-destructive ml-1">*</span>}
-              </Label>
+
+              {field.fieldType !== 'checkbox' ?
+                <Label htmlFor={field.fieldName} className="font-medium">
+                  {field.fieldLabel}
+                  {field.required && <span className="text-destructive ml-1">*</span>}
+                </Label> : null
+              }
               
               {field.helpText && (
                 <p className="text-sm text-muted-foreground mb-1">{field.helpText}</p>
@@ -513,6 +516,7 @@ const PlayerTicket = () => {
                     className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     {field.fieldLabel}
+                    {field.required && <span className="text-destructive ml-1">*</span>}
                   </label>
                 </div>
               ) : (
