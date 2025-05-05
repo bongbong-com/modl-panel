@@ -9,6 +9,7 @@ import {
   FileText,
   Settings,
   Loader2,
+  BookOpen
 } from "lucide-react";
 import {
   Tooltip,
@@ -179,6 +180,15 @@ const Sidebar = () => {
       onClick: () => {
         if (isLookupOpen) closeLookup();
         navigate("/audit");
+      },
+    },
+    {
+      name: "API Docs",
+      path: "/api-docs",
+      icon: <BookOpen className="h-5 w-5" />,
+      onClick: () => {
+        if (isLookupOpen) closeLookup();
+        navigate("/api-docs");
       },
     },
     {
