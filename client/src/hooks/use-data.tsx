@@ -238,3 +238,30 @@ export function useStats() {
     }
   });
 }
+
+// Punishment hooks
+export function useApplyPunishment() {
+  return useMutation({
+    mutationFn: async ({ uuid, punishmentData }: { uuid: string, punishmentData: any }) => {
+      const res = await fetch(`/api/players/${uuid}/punishments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(punishmentData)
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to apply punishment');
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Invalidate player data to refresh it
+      queryClient.invalidateQueries({ queryKey: ['/api/players', data._id] });
+      // Invalidate the entire player list to refresh it
+      queryClient.invalidateQueries({ queryKey: ['/api/players'] });
+    }
+  });
+}

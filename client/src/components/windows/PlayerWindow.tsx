@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { usePlayer } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment } from '@/hooks/use-data';
+import { toast } from '@/hooks/use-toast';
 
 import { WindowPosition } from '@/lib/types';
 
@@ -58,6 +59,106 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [activeTab, setActiveTab] = useState('history');
   const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
   const [showBanSearchResults, setShowBanSearchResults] = useState(false);
+  const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
+  
+  // Initialize the applyPunishment mutation hook
+  const applyPunishment = useApplyPunishment();
+  
+  // Handler for applying punishment
+  const handleApplyPunishment = async () => {
+    // Validate required fields
+    if (!playerInfo.selectedPunishmentCategory) {
+      toast({
+        title: "Missing information",
+        description: "Please select a punishment category",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!playerInfo.reason) {
+      toast({
+        title: "Missing information",
+        description: "Please provide a reason for the punishment",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!playerInfo.isPermanent && (!playerInfo.duration?.value || !playerInfo.duration?.unit)) {
+      toast({
+        title: "Invalid duration",
+        description: "Please specify a valid duration or select 'Permanent'",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsApplyingPunishment(true);
+      
+      // Prepare punishment data
+      const punishmentData = {
+        type: playerInfo.selectedPunishmentCategory,
+        severity: playerInfo.selectedSeverity || 'Regular',
+        reason: playerInfo.reason,
+        evidence: playerInfo.evidence || '',
+        notes: playerInfo.staffNotes || '',
+        permanent: playerInfo.isPermanent || false,
+        duration: playerInfo.isPermanent ? null : playerInfo.duration,
+        silent: playerInfo.silentPunishment || false,
+        banLinkedAccounts: playerInfo.banLinkedAccounts || false,
+        wipeAccountAfterExpiry: playerInfo.wipeAccountAfterExpiry || false,
+        kickSameIP: playerInfo.kickSameIP || false,
+        relatedBan: playerInfo.banToLink || null,
+        attachedReports: playerInfo.attachedReports || []
+      };
+      
+      // Call the API
+      await applyPunishment.mutateAsync({
+        uuid: playerId,
+        punishmentData
+      });
+      
+      // Refetch player data
+      refetch();
+      
+      // Show success message
+      toast({
+        title: "Punishment applied",
+        description: `Successfully applied ${playerInfo.selectedPunishmentCategory} to ${playerInfo.username}`,
+        variant: "success"
+      });
+      
+      // Reset the punishment form
+      setPlayerInfo(prev => ({
+        ...prev,
+        selectedPunishmentCategory: undefined,
+        selectedSeverity: undefined,
+        duration: undefined,
+        isPermanent: false,
+        reason: '',
+        evidence: '',
+        attachedReports: [],
+        banLinkedAccounts: false,
+        wipeAccountAfterExpiry: false,
+        kickSameIP: false,
+        banToLink: '',
+        staffNotes: '',
+        silentPunishment: false
+      }));
+      
+    } catch (error) {
+      console.error('Error applying punishment:', error);
+      toast({
+        title: "Failed to apply punishment",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsApplyingPunishment(false);
+    }
+  };
   
   const [playerInfo, setPlayerInfo] = useState<PlayerInfo>({
     username: 'DragonSlayer123',
@@ -1735,8 +1836,19 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                       </div>
                       
                       <div className="pt-2">
-                        <Button className="w-full">
-                          Apply Punishment
+                        <Button 
+                          className="w-full" 
+                          onClick={handleApplyPunishment}
+                          disabled={isApplyingPunishment}
+                        >
+                          {isApplyingPunishment ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Applying...
+                            </>
+                          ) : (
+                            <>Apply Punishment</>
+                          )}
                         </Button>
                       </div>
                     </>
