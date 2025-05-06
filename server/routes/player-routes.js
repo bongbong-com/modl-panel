@@ -33,29 +33,39 @@ router.post('/api/players/login', async (req, res) => {
   try {
     const { minecraftUuid, username, ipAddress } = req.body;
 
+    // Fetch IP information from ip-api.com
+    const ipInfo = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,countryCode,regionName,city,as,proxy,hosting`)
+      .then(response => response.json());
+
     // Check if player already exists
     const existingPlayer = await Player.findOne({ minecraftUuid });
     if (existingPlayer) {
-      
-      const existingIp = player.ipList.find(ip => ip.ipAddress === ipAddress);
+      // Fix: Use existingPlayer instead of undefined player variable
+      const existingIp = existingPlayer.ipList.find(ip => ip.ipAddress === ipAddress);
       if (existingIp) {
         // Just update the login dates
         existingIp.logins.push(new Date());
-
-        
       } else {
-        // Add new IP
-        player.ipList.push({
+        // Add new IP with data from ip-api.com
+        existingPlayer.ipList.push({
           ipAddress,
-          country,
-          region,
-          asn,
+          country: ipInfo.countryCode,
+          region: ipInfo.regionName + ipInfo.city,
+          asn: ipInfo.as,
+          proxy: ipInfo.proxy || ipInfo.hosting,
           firstLogin: new Date(),
           logins: [new Date()]
         });
       }
+
+      // Update the username list
+      const existingUsername = existingPlayer.usernames.find(u => u.username === username);
+      if (!existingUsername) {
+        existingPlayer.usernames.push({ username, date: new Date() });
+      }
       
-      return existingPlayer;
+      await existingPlayer.save();
+      return res.status(201).json(existingPlayer);
     }
 
     // Create new player
@@ -64,7 +74,15 @@ router.post('/api/players/login', async (req, res) => {
       minecraftUuid,
       usernames: [{ username, date: new Date() }],
       notes: [],
-      ipList: [],
+      ipList: [{
+        ipAddress,
+        country: ipInfo.countryCode,
+        region: ipInfo.regionName + ipInfo.city,
+        asn: ipInfo.as,
+        proxy: ipInfo.proxy || ipInfo.hosting,
+        firstLogin: new Date(),
+        logins: [new Date()]
+      }],
       punishments: [],
       pendingNotifications: []
     });
