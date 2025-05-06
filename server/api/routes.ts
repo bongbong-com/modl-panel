@@ -1,10 +1,12 @@
 import { Express, Request, Response } from 'express';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
 import { createSystemLog } from '../routes/log-routes';
-const { v4: uuidv4 } = require('uuid');
+
 
 // Player routes
 export function setupPlayerRoutes(app: Express) {
+  const { v4: uuidv4 } = require('uuid');
+
   // Search player by username
   app.get('/api/player/:username', async (req: Request, res: Response) => {
     try {
