@@ -1,6 +1,7 @@
 import { Express, Request, Response } from 'express';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
 import { createSystemLog } from '../routes/log-routes';
+const { v4: uuidv4 } = require('uuid');
 
 // Player routes
 export function setupPlayerRoutes(app: Express) {
@@ -84,6 +85,72 @@ export function setupPlayerRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching player:', error);
       res.status(500).json({ error: 'Failed to fetch player' });
+    }
+  });
+
+  app.post('/api/players/login', async (req: Request, res: Response) => {
+    try {
+      const { minecraftUuid, username, ipAddress } = req.body;
+  
+      // Fetch IP information from ip-api.com
+      const ipInfo = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,countryCode,regionName,city,as,proxy,hosting`)
+        .then(response => response.json());
+  
+      // Check if player already exists
+      const existingPlayer = await Player.findOne({ minecraftUuid });
+      if (existingPlayer) {
+        // Fix: Use existingPlayer instead of undefined player variable
+        const existingIp = existingPlayer.ipList.find(ip => ip.ipAddress === ipAddress);
+        if (existingIp) {
+          // Just update the login dates
+          existingIp.logins.push(new Date());
+        } else {
+          // Add new IP with data from ip-api.com
+          existingPlayer.ipList.push({
+            ipAddress,
+            country: ipInfo.countryCode,
+            region: ipInfo.regionName + ipInfo.city,
+            asn: ipInfo.as,
+            proxy: ipInfo.proxy || ipInfo.hosting,
+            firstLogin: new Date(),
+            logins: [new Date()]
+          });
+        }
+  
+        // Update the username list
+        const existingUsername = existingPlayer.usernames.find(u => u.username === username);
+        if (!existingUsername) {
+          existingPlayer.usernames.push({ username, date: new Date() });
+        }
+        
+        await existingPlayer.save();
+        return res.status(201).json(existingPlayer);
+      }
+  
+      // Create new player
+      const player = new Player({
+        _id: uuidv4(),
+        minecraftUuid,
+        usernames: [{ username, date: new Date() }],
+        notes: [],
+        ipList: [{
+          ipAddress,
+          country: ipInfo.countryCode,
+          region: ipInfo.regionName + ipInfo.city,
+          asn: ipInfo.as,
+          proxy: ipInfo.proxy || ipInfo.hosting,
+          firstLogin: new Date(),
+          logins: [new Date()]
+        }],
+        punishments: [],
+        pendingNotifications: []
+      });
+  
+      await player.save();
+      res.status(201).json(player);
+    } catch (error) {
+      console.error('Error creating player:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
