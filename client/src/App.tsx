@@ -23,15 +23,17 @@ function Router() {
   const isAuthPage = location === '/auth';
   const isAppealsPage = location === '/appeals';
   const isPlayerTicketPage = location.startsWith('/player-ticket/');
+  const isApiDocs = location === '/api-docs';
 
   // Don't show sidebar on auth page, appeals page, or player ticket page
-  if (isAuthPage || isAppealsPage || isPlayerTicketPage) {
+  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isApiDocs) {
     return (
       <main className="h-full">
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/api-docs" component={ApiDocs} />
         </Switch>
       </main>
     );
@@ -48,9 +50,9 @@ function Router() {
           <ProtectedRoute path="/tickets/:id" component={TicketDetail} />
           <ProtectedRoute path="/audit" component={Audit} />
           <ProtectedRoute path="/settings" component={Settings} />
-          <ProtectedRoute path="/api-docs" component={ApiDocs} />
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
+          <Route path="/api-docs" component={ApiDocs} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
           <Route component={NotFound} />
         </Switch>

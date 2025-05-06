@@ -28,6 +28,55 @@ router.get('/api/players/:uuid', async (req, res) => {
   }
 });
 
+// Log a player in
+router.post('/api/players/login', async (req, res) => {
+  try {
+    const { minecraftUuid, username, ipAddress } = req.body;
+
+    // Check if player already exists
+    const existingPlayer = await Player.findOne({ minecraftUuid });
+    if (existingPlayer) {
+      
+      const existingIp = player.ipList.find(ip => ip.ipAddress === ipAddress);
+      if (existingIp) {
+        // Just update the login dates
+        existingIp.logins.push(new Date());
+
+        
+      } else {
+        // Add new IP
+        player.ipList.push({
+          ipAddress,
+          country,
+          region,
+          asn,
+          firstLogin: new Date(),
+          logins: [new Date()]
+        });
+      }
+      
+      return existingPlayer;
+    }
+
+    // Create new player
+    const player = new Player({
+      _id: uuidv4(),
+      minecraftUuid,
+      usernames: [{ username, date: new Date() }],
+      notes: [],
+      ipList: [],
+      punishments: [],
+      pendingNotifications: []
+    });
+
+    await player.save();
+    res.status(201).json(player);
+  } catch (error) {
+    console.error('Error creating player:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Create new player
 router.post('/api/players', async (req, res) => {
   try {

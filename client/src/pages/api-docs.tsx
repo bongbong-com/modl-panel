@@ -243,13 +243,15 @@ const ApiDocs = () => {
   ];
 
   return (
-    <div className="container max-w-5xl py-6 space-y-8">
+    <div className="min-h-screen items-center justify-center bg-background px-24 py-24">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">API Documentation</h1>
         <p className="text-muted-foreground">
           This documentation provides details on the available API endpoints for the Minecraft Moderation Panel.
         </p>
       </div>
+
+      <br></br>
 
       <div className="grid gap-6">
         {endpoints.map((endpoint) => (

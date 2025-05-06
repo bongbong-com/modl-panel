@@ -183,15 +183,6 @@ const Sidebar = () => {
       },
     },
     {
-      name: "API Docs",
-      path: "/api-docs",
-      icon: <BookOpen className="h-5 w-5" />,
-      onClick: () => {
-        if (isLookupOpen) closeLookup();
-        navigate("/api-docs");
-      },
-    },
-    {
       name: "Settings",
       path: "/settings",
       icon: <Settings className="h-5 w-5" />,
