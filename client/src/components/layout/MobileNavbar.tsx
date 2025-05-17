@@ -1,86 +1,79 @@
-import { useLocation } from "wouter";
-import { cn } from "@/lib/utils";
-import {
-  Home,
-  Search,
-  Ticket,
-  FileText,
-  Settings,
+import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
+import { 
+  Home, 
+  Search, 
+  Ticket, 
+  Settings, 
+  AlertCircle,
   BookOpen
-} from "lucide-react";
+} from 'lucide-react';
 
 const MobileNavbar = () => {
   const [location, navigate] = useLocation();
-
-  // Define nav items
-  const navItems = [
-    {
-      name: "Home",
-      path: "/",
-      icon: <Home className="h-5 w-5" />,
-      onClick: () => navigate("/")
-    },
-    {
-      name: "Lookup",
-      path: "/lookup",
-      icon: <Search className="h-5 w-5" />,
-      onClick: () => navigate("/lookup")
-    },
-    {
-      name: "Tickets",
-      path: "/tickets",
-      icon: <Ticket className="h-5 w-5" />,
-      onClick: () => navigate("/tickets")
-    },
-    {
-      name: "Audit",
-      path: "/audit",
-      icon: <FileText className="h-5 w-5" />,
-      onClick: () => navigate("/audit")
-    },
-    {
-      name: "Docs",
-      path: "/api-docs",
-      icon: <BookOpen className="h-5 w-5" />,
-      onClick: () => navigate("/api-docs")
-    },
-    {
-      name: "Settings",
-      path: "/settings",
-      icon: <Settings className="h-5 w-5" />,
-      onClick: () => navigate("/settings")
-    }
-  ];
+  
+  const isActive = (path: string) => {
+    return location === path 
+      ? "text-primary" 
+      : "text-muted-foreground";
+  };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-16 bg-sidebar/90 backdrop-blur-md border-t border-border z-50">
-      <div className="flex h-full items-center justify-around">
-        {navItems.map((item) => {
-          const isActive = location === item.path;
-          
-          return (
-            <button
-              key={item.path}
-              className={cn(
-                "flex flex-col items-center justify-center px-2 py-1 w-1/6",
-                isActive && "text-primary"
-              )}
-              onClick={item.onClick}
-            >
-              <div className="relative">
-                {item.icon}
-                {item.name === "Tickets" && (
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-primary text-[8px] text-white">
-                    5
-                  </span>
-                )}
-              </div>
-              <span className="text-[9px] mt-1">{item.name}</span>
-            </button>
-          );
-        })}
+    <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
+      <div className="grid grid-cols-5 h-16">
+        <NavItem 
+          icon={<Home className="h-5 w-5" />} 
+          label="Home" 
+          isActive={isActive('/')} 
+          onClick={() => navigate('/')} 
+        />
+        <NavItem 
+          icon={<Search className="h-5 w-5" />} 
+          label="Lookup" 
+          isActive={isActive('/lookup')} 
+          onClick={() => navigate('/lookup')} 
+        />
+        <NavItem 
+          icon={<Ticket className="h-5 w-5" />} 
+          label="Tickets" 
+          isActive={isActive('/tickets')} 
+          onClick={() => navigate('/tickets')} 
+        />
+        <NavItem 
+          icon={<AlertCircle className="h-5 w-5" />} 
+          label="Audit" 
+          isActive={isActive('/audit')} 
+          onClick={() => navigate('/audit')} 
+        />
+        <NavItem 
+          icon={<Settings className="h-5 w-5" />} 
+          label="Settings" 
+          isActive={isActive('/settings')} 
+          onClick={() => navigate('/settings')} 
+        />
       </div>
     </div>
+  );
+};
+
+interface NavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  isActive: string;
+  onClick: () => void;
+}
+
+const NavItem = ({ icon, label, isActive, onClick }: NavItemProps) => {
+  return (
+    <button 
+      className={`flex flex-col items-center justify-center ${isActive}`}
+      onClick={onClick}
+    >
+      <div className="mb-0.5">
+        {icon}
+      </div>
+      <span className="text-[10px]">{label}</span>
+    </button>
   );
 };
 
