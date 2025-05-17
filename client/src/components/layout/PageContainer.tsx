@@ -6,15 +6,17 @@ interface PageContainerProps {
 }
 
 const PageContainer = ({ children, title }: PageContainerProps) => {
-  // More generous margins on all sides with rounded border
+  // Responsive container that adapts to mobile devices
   return (
-    <section className="p-8 md:p-12 transition-all duration-300 ml-28 bg-background/50 border rounded-xl shadow-sm my-16 mr-16">
+    <section className="transition-all duration-300 bg-background/50 border rounded-xl shadow-sm w-full
+      md:p-8 md:ml-28 md:my-16 md:mr-16 
+      p-4 my-0 mx-0">
       {title && (
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-4 md:mb-8">
           <h2 className="text-xl font-semibold">{title}</h2>
         </div>
       )}
-      <div className="flex flex-col space-y-10">
+      <div className="flex flex-col space-y-6 md:space-y-10">
         {children}
       </div>
     </section>
