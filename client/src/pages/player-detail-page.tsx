@@ -293,7 +293,7 @@ const PlayerDetailPage = () => {
   }
 
   return (
-    <div className="container max-w-4xl py-4 pb-20">
+    <div className="w-full px-4 py-4 pb-20">
       <div className="flex items-center mb-4">
         <Button 
           variant="ghost" 

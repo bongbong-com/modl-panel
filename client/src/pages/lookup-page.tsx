@@ -46,7 +46,7 @@ const LookupPage = () => {
 
   // Filter players based on search query
   const filteredPlayers = players 
-    ? players.filter(player => 
+    ? players.filter((player: Player) => 
         player.username.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
@@ -73,7 +73,7 @@ const LookupPage = () => {
   };
 
   return (
-    <div className="container max-w-4xl py-4">
+    <div className="w-full px-4 py-4">
       <h1 className="text-2xl font-bold mb-4">Player Lookup</h1>
       
       <div className="flex items-center relative mb-6">
@@ -112,7 +112,7 @@ const LookupPage = () => {
           <h2 className="text-sm font-medium text-muted-foreground mb-2">Search Results</h2>
           
           {filteredPlayers.length > 0 ? (
-            filteredPlayers.map((player) => (
+            filteredPlayers.map((player: Player) => (
               <div 
                 key={player.uuid}
                 className="flex items-center justify-between p-3 bg-card rounded-lg hover:bg-card/80 cursor-pointer"
@@ -182,7 +182,7 @@ const LookupPage = () => {
           <div className="space-y-1">
             <h2 className="text-sm font-medium text-muted-foreground mb-2">All Players</h2>
             {players && players.length > 0 ? (
-              players.slice(0, 15).map((player) => (
+              players.slice(0, 15).map((player: Player) => (
                 <div 
                   key={player.uuid}
                   className="flex items-center justify-between p-3 bg-card rounded-lg hover:bg-card/80 cursor-pointer"
