@@ -552,7 +552,7 @@ const PlayerDetailPage = () => {
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">Action Types</label>
-                    <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -583,37 +583,11 @@ const PlayerDetailPage = () => {
                         Manual Ban
                       </Button>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Security Ban'}))}
-                      >
-                        Security Ban
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Linked Ban'}))}
-                      >
-                        Linked Ban
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Blacklist'}))}
-                      >
-                        Blacklist
-                      </Button>
-                    </div>
                   </div>
                   
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
-                    <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -639,37 +613,11 @@ const PlayerDetailPage = () => {
                         Hate Speech
                       </Button>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Impersonation'}))}
-                      >
-                        Impersonation
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Advertising'}))}
-                      >
-                        Advertising
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Offensive Name'}))}
-                      >
-                        Offensive Name
-                      </Button>
-                    </div>
                   </div>
                   
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground">Gameplay</label>
-                    <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -693,32 +641,6 @@ const PlayerDetailPage = () => {
                         onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Exploiting'}))}
                       >
                         Exploiting
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bug Abuse'}))}
-                      >
-                        Bug Abuse
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Team Griefing'}))}
-                      >
-                        Team Griefing
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="py-1 text-xs" 
-                        onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'AFK Abuse'}))}
-                      >
-                        AFK Abuse
                       </Button>
                     </div>
                   </div>
