@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -11,85 +11,725 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useSettings } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { queryClient } from '@/lib/queryClient';
+import { useBeforeUnload } from 'react-router-dom';
+import { useLocation } from "wouter"; // For wouter navigation
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Type definitions for punishment types
+interface PunishmentType {
+  id: number;
+  name: string;
+  category: 'Gameplay' | 'Social' | 'Core';
+  isCustomizable: boolean;
+  ordinal: number;
+  durations?: {
+    low: { 
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    regular: {
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    severe: {
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+  };
+  points?: number;
+}
+
+// Type definition for offender status thresholds
+interface StatusThresholds {
+  gameplay: {
+    medium: number;  // Points threshold for medium offender status
+    habitual: number; // Points threshold for habitual offender status
+  };
+  social: {
+    medium: number;  // Points threshold for medium offender status
+    habitual: number; // Points threshold for habitual offender status
+  };
+}
 
 const Settings = () => {
-  const { } = useSidebar(); // We're not using sidebar context in this component
-  
-  // More generous left margin to prevent text overlap with sidebar
+  const { } = useSidebar();
+  const [, navigateWouter] = useLocation();
   const mainContentClass = "ml-[32px] pl-8";
+
+  // Auto-save state
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initialSettingsRef = useRef<any | null>(null);
+  const justLoadedFromServerRef = useRef(true);
+  const pendingChangesRef = useRef(false);
+  const initialLoadCompletedRef = useRef(false);
 
   // Database connection state
   const [dbConnectionStatus, setDbConnectionStatus] = useState(false);
   const [mongodbUri, setMongodbUri] = useState('');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
 
+  // Punishment types state
+  // State for all settings fields
+  const [punishmentTypes, setPunishmentTypesState] = useState<PunishmentType[]>([
+    // Fixed punishment types (not customizable)
+    { id: 0, name: 'Kick', category: 'Core', isCustomizable: false, ordinal: 0 },
+    { id: 1, name: 'Manual Mute', category: 'Core', isCustomizable: false, ordinal: 1 },
+    { id: 2, name: 'Manual Ban', category: 'Core', isCustomizable: false, ordinal: 2 },
+    { id: 3, name: 'Security Ban', category: 'Core', isCustomizable: false, ordinal: 3 },
+    { id: 4, name: 'Linked Ban', category: 'Core', isCustomizable: false, ordinal: 4 },
+    { id: 5, name: 'Blacklist', category: 'Core', isCustomizable: false, ordinal: 5 },
+    // Customizable punishment types
+    {
+      id: 6,
+      name: 'Bad Skin',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 6,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+        severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+      },
+      points: 2
+    },
+    {
+      id: 7,
+      name: 'Bad Name',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 7,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+        severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+      },
+      points: 2
+    },
+    {
+      id: 8,
+      name: 'Chat Abuse',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 8,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+      },
+      points: 2
+    },
+    {
+      id: 9,
+      name: 'Anti Social',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 9,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+      },
+      points: 3
+    },
+    {
+      id: 10,
+      name: 'Targeting',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 10,
+      durations: {
+        low: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+      },
+      points: 4
+    },
+    {
+      id: 11,
+      name: 'Bad Content',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 11,
+      durations: {
+        low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+      },
+      points: 5
+    },
+    {
+      id: 12,
+      name: 'Team Abuse',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 12,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+        severe: { first: { value: 4, unit: 'days' }, medium: { value: 10, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+      },
+      points: 2
+    },
+    {
+      id: 13,
+      name: 'Game Abuse',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 13,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+      },
+      points: 4
+    },
+    {
+      id: 14,
+      name: 'Cheating',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 14,
+      durations: {
+        low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
+        severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 180, unit: 'days' } }
+      },
+      points: 7
+    },
+    {
+      id: 15,
+      name: 'Game Trading',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 15,
+      durations: {
+        low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+      },
+      points: 5
+    },
+    {
+      id: 16,
+      name: 'Account Abuse',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 16,
+      durations: {
+        low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
+        severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 120, unit: 'days' } }
+      },
+      points: 6
+    },
+    {
+      id: 17,
+      name: 'Scamming',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 17,
+      durations: {
+        low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+      },
+      points: 5
+    }
+  ]);
+  const [newPunishmentName, setNewPunishmentNameState] = useState('');
+  const [newPunishmentCategory, setNewPunishmentCategoryState] = useState<'Gameplay' | 'Social'>('Gameplay');
+  
+  // Threshold values for player status levels
+  const [statusThresholds, setStatusThresholdsState] = useState<StatusThresholds>({
+    gameplay: {
+      medium: 5,  // 5+ points = medium offender
+      habitual: 10 // 10+ points = habitual offender
+    },
+    social: {
+      medium: 4,  // 4+ points = medium offender
+      habitual: 8  // 8+ points = habitual offender
+    }
+  });
+  
+  // Selected punishment for editing
+  const [selectedPunishment, setSelectedPunishmentState] = useState<PunishmentType | null>(null);
+  
+  // State to control visibility of core punishment types
+  const [showCorePunishments, setShowCorePunishmentsState] = useState(false);
+  
   // Sliders state
-  const [toxicity, setToxicity] = useState(75);
-  const [spam, setSpam] = useState(60);
-  const [automated, setAutomated] = useState(40);
+  const [toxicity, setToxicityState] = useState(75);
+  const [spam, setSpamState] = useState(60);
+  const [automated, setAutomatedState] = useState(40);
 
-  // Switch states
-  const [aiModeration, setAiModeration] = useState(true);
-  const [aiChat, setAiChat] = useState(true);
-  const [aiBan, setAiBan] = useState(true);
-  const [staffOverride, setStaffOverride] = useState(true);
-  const [requireApproval, setRequireApproval] = useState(true);
+  const [aiModeration, setAiModerationState] = useState(true);
+  const [aiChat, setAiChatState] = useState(true);
+  const [aiBan, setAiBanState] = useState(true);
+  const [staffOverride, setStaffOverrideState] = useState(true);
+  const [requireApproval, setRequireApprovalState] = useState(true);
   
   // Tags state for each ticket category
-  const [bugReportTags, setBugReportTags] = useState<string[]>([
+  const [bugReportTags, setBugReportTagsState] = useState<string[]>([
     'UI Issue', 'Server', 'Performance', 'Crash', 'Game Mechanics'
   ]);
-  const [playerReportTags, setPlayerReportTags] = useState<string[]>([
+  const [playerReportTags, setPlayerReportTagsState] = useState<string[]>([
     'Harassment', 'Cheating', 'Spam', 'Inappropriate Content', 'Griefing'
   ]);
-  const [appealTags, setAppealTags] = useState<string[]>([
+  const [appealTags, setAppealTagsState] = useState<string[]>([
     'Ban Appeal', 'Mute Appeal', 'False Positive', 'Second Chance'
   ]);
   
   // For new tag input
-  const [newBugTag, setNewBugTag] = useState('');
-  const [newPlayerTag, setNewPlayerTag] = useState('');
-  const [newAppealTag, setNewAppealTag] = useState('');
+  const [newBugTag, setNewBugTagState] = useState('');
+  const [newPlayerTag, setNewPlayerTagState] = useState('');
+  const [newAppealTag, setNewAppealTagState] = useState('');
   
   // Security tab states
-  const [has2FA, setHas2FA] = useState(false);
-  const [hasPasskey, setHasPasskey] = useState(false);
-  const [showSetup2FA, setShowSetup2FA] = useState(false);
-  const [showSetupPasskey, setShowSetupPasskey] = useState(false);
-  const [recoveryCodesCopied, setRecoveryCodesCopied] = useState(false);
+  const [has2FA, setHas2FAState] = useState(false);
+  const [hasPasskey, setHasPasskeyState] = useState(false);
+  const [showSetup2FA, setShowSetup2FAState] = useState(false);
+  const [showSetupPasskey, setShowSetupPasskeyState] = useState(false);
+  const [recoveryCodesCopied, setRecoveryCodesCopiedState] = useState(false);
   
   const { toast } = useToast();
-  
-  // Check database connection status on page load
-  React.useEffect(() => {
-    const checkDbStatus = async () => {
-      try {
-        const response = await fetch('/api/settings/database-status');
-        if (response.ok) {
-          const data = await response.json();
-          setDbConnectionStatus(data.connected);
-        }
-      } catch (error) {
-        console.error('Error checking database status:', error);
-        setDbConnectionStatus(false);
+  const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
+
+  // Define captureInitialSettings first, before it's used anywhere else
+  const captureInitialSettings = useCallback(() => {
+    const currentSettingsSnapshot = {
+      punishmentTypes: JSON.parse(JSON.stringify(punishmentTypes)), // Deep copy
+      statusThresholds: JSON.parse(JSON.stringify(statusThresholds)), // Deep copy
+      aiModeration,
+      aiChat,
+      aiBan,
+      staffOverride,
+      requireApproval,
+      toxicity,
+      spam,
+      automated,
+      bugReportTags: JSON.parse(JSON.stringify(bugReportTags)), // Deep copy
+      playerReportTags: JSON.parse(JSON.stringify(playerReportTags)), // Deep copy
+      appealTags: JSON.parse(JSON.stringify(appealTags)), // Deep copy
+      mongodbUri,
+      has2FA,
+      hasPasskey,
+    };
+    initialSettingsRef.current = currentSettingsSnapshot;
+  }, [punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride, requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey]);
+
+  // Helper to apply a settings object to all state variables without triggering auto-save
+  const applySettingsObjectToState = useCallback((settingsObject: any) => {
+    if (!settingsObject) return;
+
+    justLoadedFromServerRef.current = true;
+    console.log("[SettingsPage] Applying settings from server to state");
+    
+    // Use direct state setters to avoid triggering auto-save during load
+    if (settingsObject.punishmentTypes) setPunishmentTypesState(JSON.parse(JSON.stringify(settingsObject.punishmentTypes)));
+    if (settingsObject.statusThresholds) setStatusThresholdsState(JSON.parse(JSON.stringify(settingsObject.statusThresholds)));
+    if (settingsObject.aiModeration !== undefined) setAiModerationState(settingsObject.aiModeration);
+    if (settingsObject.aiChat !== undefined) setAiChatState(settingsObject.aiChat);
+    if (settingsObject.aiBan !== undefined) setAiBanState(settingsObject.aiBan);
+    if (settingsObject.staffOverride !== undefined) setStaffOverrideState(settingsObject.staffOverride);
+    if (settingsObject.requireApproval !== undefined) setRequireApprovalState(settingsObject.requireApproval);
+    if (settingsObject.toxicity !== undefined) setToxicityState(settingsObject.toxicity);
+    if (settingsObject.spam !== undefined) setSpamState(settingsObject.spam);
+    if (settingsObject.automated !== undefined) setAutomatedState(settingsObject.automated);
+    if (settingsObject.bugReportTags) setBugReportTagsState(JSON.parse(JSON.stringify(settingsObject.bugReportTags)));
+    if (settingsObject.playerReportTags) setPlayerReportTagsState(JSON.parse(JSON.stringify(settingsObject.playerReportTags)));
+    if (settingsObject.appealTags) setAppealTagsState(JSON.parse(JSON.stringify(settingsObject.appealTags)));
+    if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
+    if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
+    if (settingsObject.hasPasskey !== undefined) setHasPasskeyState(settingsObject.hasPasskey);
+    
+    // After a short delay, reset the flag to allow auto-saving
+    setTimeout(() => {
+      justLoadedFromServerRef.current = false;
+      console.log("[SettingsPage] Initial load completed, auto-save enabled");
+    }, 500);
+  }, []); 
+
+  // Save settings to backend
+  const saveSettings = useCallback(async () => {
+    if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current) {
+      console.log("[SettingsPage] Skipping auto-save during initial load");
+      return; // Skip saving during initial load
+    }
+
+    console.log("[SettingsPage] Auto-saving settings...");
+    setIsSaving(true);
+    pendingChangesRef.current = false;
+    
+    try {
+      const settingsToSave = {
+        punishmentTypes,
+        statusThresholds,
+        aiModeration,
+        aiChat,
+        aiBan,
+        staffOverride,
+        requireApproval,
+        toxicity,
+        spam,
+        automated,
+        bugReportTags,
+        playerReportTags,
+        appealTags,
+        mongodbUri,
+        has2FA,
+        hasPasskey,
+      };
+
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settingsToSave)
+      });
+      
+      if (response.ok) {
+        // Don't invalidate the query here - it causes a loop
+        // await queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
+        setLastSaved(new Date());
+        // Don't show a toast on every auto-save to avoid spam
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to save settings",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while saving",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride, 
+    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags, 
+    appealTags, mongodbUri, has2FA, hasPasskey, toast
+  ]);
+
+  // Effect: Load settings from React Query into local component state
+  useEffect(() => {
+    if (isLoadingSettings || isFetchingSettings) {
+      console.log('[SettingsPage] settingsData is loading/fetching. Waiting...');
+      return;
+    }
+
+    if (!initialLoadCompletedRef.current) {
+      if (settingsData?.settings && Object.keys(settingsData.settings).length > 0) {
+        console.log('[SettingsPage] Valid settingsData.settings received. Applying to local state.');
+        applySettingsObjectToState(settingsData.settings);
+        
+        // Capture settings for future reference
+        setTimeout(() => {
+          captureInitialSettings();
+          initialLoadCompletedRef.current = true;
+        }, 600);
+      } else {
+        console.log('[SettingsPage] No valid settings data received, marking initial load as complete anyway');
+        initialLoadCompletedRef.current = true;
+      }
+    }
+  }, [settingsData, isLoadingSettings, isFetchingSettings, applySettingsObjectToState, captureInitialSettings]);
+
+  // Debounced auto-save effect - only trigger when settings change after initial load
+  useEffect(() => {
+    // Don't auto-save during initial load
+    if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current || isLoadingSettings || isFetchingSettings) {
+      return;
+    }
+    
+    console.log("[SettingsPage] Settings changed, scheduling auto-save");
+    
+    // If there's a pending save, clear it
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set a flag that we have pending changes
+    pendingChangesRef.current = true;
+    
+    // Schedule a new save
+    saveTimeoutRef.current = setTimeout(() => {
+      if (pendingChangesRef.current) {
+        saveSettings();
+      }
+    }, 1000); // Auto-save after 1 second of inactivity
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
     };
+  }, [
+    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride, 
+    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags, 
+    appealTags, mongodbUri, has2FA, hasPasskey, isLoadingSettings, isFetchingSettings,
+    saveSettings
+  ]);
+
+  // Check database connection status on page load
+  useEffect(() => {
+    const checkDbConnection = async () => {
+      if (!mongodbUri) {
+        setDbConnectionStatus(false);
+        return;
+      }
+      
+      setIsTestingConnection(true);
+      
+      try {
+        const response = await fetch('/api/settings/test-database', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uri: mongodbUri })
+        });
+        
+        const data = await response.json();
+        
+        if (data.connected) {
+          setDbConnectionStatus(true);
+        } else {
+          setDbConnectionStatus(false);
+        }
+      } catch (error) {
+        console.error("Database connection check error:", error);
+        setDbConnectionStatus(false);
+      } finally {
+        setIsTestingConnection(false);
+      }
+    };
+
+    checkDbConnection();
+  }, [mongodbUri]);
+
+  // Wrapper functions to set state that trigger auto-save
+  const setPunishmentTypes = (value: React.SetStateAction<PunishmentType[]>) => {
+    // Skip auto-save during initial load
+    if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current) {
+      setPunishmentTypesState(value);
+    } else {
+      console.log("[SettingsPage] Setting punishmentTypes and flagging for auto-save");
+      setPunishmentTypesState(value);
+    }
+  };
+  const setNewPunishmentName = (value: React.SetStateAction<string>) => {
+    setNewPunishmentNameState(value);
+  };
+  const setNewPunishmentCategory = (value: React.SetStateAction<'Gameplay' | 'Social'>) => {
+    setNewPunishmentCategoryState(value);
+  };
+  const setStatusThresholds = (value: React.SetStateAction<StatusThresholds>) => {
+    setStatusThresholdsState(value);
+  };
+  const setSelectedPunishment = (value: React.SetStateAction<PunishmentType | null>) => {
+    setSelectedPunishmentState(value);
+  };
+  const setShowCorePunishments = (value: React.SetStateAction<boolean>) => {
+    setShowCorePunishmentsState(value);
+  };
+  const setToxicity = (value: React.SetStateAction<number>) => {
+    setToxicityState(value);
+  };
+  const setSpam = (value: React.SetStateAction<number>) => {
+    setSpamState(value);
+  };
+  const setAutomated = (value: React.SetStateAction<number>) => {
+    setAutomatedState(value);
+  };
+  const setAiModeration = (value: React.SetStateAction<boolean>) => {
+    setAiModerationState(value);
+  };
+  const setAiChat = (value: React.SetStateAction<boolean>) => {
+    setAiChatState(value);
+  };
+  const setAiBan = (value: React.SetStateAction<boolean>) => {
+    setAiBanState(value);
+  };
+  const setStaffOverride = (value: React.SetStateAction<boolean>) => {
+    setStaffOverrideState(value);
+  };
+  const setRequireApproval = (value: React.SetStateAction<boolean>) => {
+    setRequireApprovalState(value);
+  };
+  const setBugReportTags = (value: React.SetStateAction<string[]>) => {
+    setBugReportTagsState(value);
+  };
+  const setPlayerReportTags = (value: React.SetStateAction<string[]>) => {
+    setPlayerReportTagsState(value);
+  };
+  const setAppealTags = (value: React.SetStateAction<string[]>) => {
+    setAppealTagsState(value);
+  };
+  const setNewBugTag = (value: React.SetStateAction<string>) => {
+    setNewBugTagState(value);
+  };
+  const setNewPlayerTag = (value: React.SetStateAction<string>) => {
+    setNewPlayerTagState(value);
+  };
+  const setNewAppealTag = (value: React.SetStateAction<string>) => {
+    setNewAppealTagState(value);
+  };
+  const setHas2FA = (value: React.SetStateAction<boolean>) => {
+    setHas2FAState(value);
+  };
+  const setHasPasskey = (value: React.SetStateAction<boolean>) => {
+    setHasPasskeyState(value);
+  };
+  const setShowSetup2FA = (value: React.SetStateAction<boolean>) => {
+    setShowSetup2FAState(value);
+  };
+  const setShowSetupPasskey = (value: React.SetStateAction<boolean>) => {
+    setShowSetupPasskeyState(value);
+  };
+  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
+    setRecoveryCodesCopiedState(value);
+  };
+
+  // Add a new punishment type
+  const addPunishmentType = () => {
+    if (newPunishmentName.trim()) {
+      const newId = Math.max(...punishmentTypes.map(pt => pt.id)) + 1;
+      const newOrdinal = Math.max(...punishmentTypes.map(pt => pt.ordinal)) + 1;
+      
+      // Default durations and points based on category
+      const defaultUnit = 'hours' as 'hours' | 'days' | 'weeks' | 'months';
+      
+      // Helper function to create duration objects
+      const createDuration = (value: number) => ({ value, unit: defaultUnit });
+      
+      const defaultGameplayDurations = {
+        low: {
+          first: createDuration(24),
+          medium: createDuration(72),
+          habitual: createDuration(168)
+        },
+        regular: {
+          first: createDuration(72),
+          medium: createDuration(168),
+          habitual: createDuration(336)
+        },
+        severe: {
+          first: createDuration(168),
+          medium: createDuration(336),
+          habitual: createDuration(720)
+        }
+      };
+      
+      const defaultSocialDurations = {
+        low: {
+          first: createDuration(24),
+          medium: createDuration(48),
+          habitual: createDuration(96)
+        },
+        regular: {
+          first: createDuration(48),
+          medium: createDuration(96),
+          habitual: createDuration(168)
+        },
+        severe: {
+          first: createDuration(72),
+          medium: createDuration(168),
+          habitual: createDuration(336)
+        }
+      };
+      
+      const defaultGameplayPoints = 4;
+      const defaultSocialPoints = 3;
+      
+      const newPunishment = {
+        id: newId,
+        name: newPunishmentName.trim(),
+        category: newPunishmentCategory,
+        isCustomizable: true,
+        ordinal: newOrdinal,
+        durations: newPunishmentCategory === 'Gameplay' ? defaultGameplayDurations : defaultSocialDurations,
+        points: newPunishmentCategory === 'Gameplay' ? defaultGameplayPoints : defaultSocialPoints
+      };
+      setPunishmentTypes(prevTypes => [...prevTypes, newPunishment]);
+      setNewPunishmentName('');
+    }
+  };
+
+  // Remove a punishment type
+  const removePunishmentType = (id: number) => {
+    setPunishmentTypes(prevTypes => prevTypes.filter(pt => pt.id !== id));
+  };
+
+  // Update punishment type
+  const updatePunishmentType = (id: number, updates: Partial<PunishmentType>) => {
+    setPunishmentTypes(prevTypes =>
+      prevTypes.map(pt => (pt.id === id ? { ...pt, ...updates } : pt))
+    );
+  };
+
+  // Format the last saved time
+  const formatLastSaved = () => {
+    if (!lastSaved) return "Not saved yet";
     
-    checkDbStatus();
-  }, []);
+    const now = new Date();
+    const diffSeconds = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
+    
+    if (diffSeconds < 60) {
+      return "Just now";
+    } else if (diffSeconds < 3600) {
+      const minutes = Math.floor(diffSeconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else {
+      return lastSaved.toLocaleTimeString();
+    }
+  };
 
   return (
     <PageContainer>
-      <div className="flex flex-col space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Settings</h2>
-          <Button>
-            Save Changes
-          </Button>
+      <div className="flex flex-col space-y-6 pb-10">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+          <div className="flex items-center gap-3">
+            {isSaving ? (
+              <span className="text-sm text-muted-foreground flex items-center">
+                <Save className="animate-spin h-4 w-4 mr-2" />
+                Saving...
+              </span>
+            ) : lastSaved ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="text-sm text-muted-foreground flex items-center">
+                      <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                      Saved {formatLastSaved()}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Changes are automatically saved</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : null}
+          </div>
         </div>
         
-        <Card>
+        <Card className="overflow-visible">
           <Tabs defaultValue="ai">
             <TabsList className="w-full h-full justify-start rounded-none bg-transparent border-b border-border overflow-x-auto mx-1">
               <TabsTrigger 
@@ -111,7 +751,7 @@ const Settings = () => {
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Scale className="h-4 w-4 mr-2" />
-                Punishment Ladders
+                Punishment Types
               </TabsTrigger>
               <TabsTrigger 
                 value="tags" 
@@ -292,12 +932,317 @@ const Settings = () => {
               </CardContent>
             </TabsContent>
             
-            <TabsContent value="punishment">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
-                  <p className="text-muted-foreground">Punishment Ladders Settings Panel</p>
+            <TabsContent value="punishment" className="space-y-6 p-6">
+              {/* Status Thresholds Section MOVED HERE */}
+              <div>
+                <h4 className="text-base font-medium mb-3 mt-2">Offender Status Thresholds</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Configure the point thresholds for determining a player's offender status. Higher thresholds make it harder to reach medium and habitual status.
+                </p>
+                
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-4 border rounded-md p-4">
+                    <h5 className="font-medium flex items-center">
+                      <GamepadIcon className="h-4 w-4 mr-2 text-amber-500" />
+                      Gameplay Status Thresholds
+                    </h5>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label htmlFor="gameplay-medium">Medium Offender</Label>
+                          <span className="text-sm text-muted-foreground">{statusThresholds.gameplay.medium}+ points</span>
+                        </div>
+                        <Slider
+                          id="gameplay-medium"
+                          value={[statusThresholds.gameplay.medium]}
+                          min={1}
+                          max={20}
+                          step={1}
+                          onValueChange={values => setStatusThresholds(prev => ({
+                            ...prev,
+                            gameplay: {
+                              ...prev.gameplay,
+                              medium: values[0]
+                            }
+                          }))}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label htmlFor="gameplay-habitual">Habitual Offender</Label>
+                          <span className="text-sm text-muted-foreground">{statusThresholds.gameplay.habitual}+ points</span>
+                        </div>
+                        <Slider
+                          id="gameplay-habitual"
+                          value={[statusThresholds.gameplay.habitual]}
+                          min={statusThresholds.gameplay.medium + 1}
+                          max={30}
+                          step={1}
+                          onValueChange={values => setStatusThresholds(prev => ({
+                            ...prev,
+                            gameplay: {
+                              ...prev.gameplay,
+                              habitual: values[0]
+                            }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4 border rounded-md p-4">
+                    <h5 className="font-medium flex items-center">
+                      <MessageCircle className="h-4 w-4 mr-2 text-blue-500" />
+                      Social Status Thresholds
+                    </h5>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label htmlFor="social-medium">Medium Offender</Label>
+                          <span className="text-sm text-muted-foreground">{statusThresholds.social.medium}+ points</span>
+                        </div>
+                        <Slider
+                          id="social-medium"
+                          value={[statusThresholds.social.medium]}
+                          min={1}
+                          max={20}
+                          step={1}
+                          onValueChange={values => setStatusThresholds(prev => ({
+                            ...prev,
+                            social: {
+                              ...prev.social,
+                              medium: values[0]
+                            }
+                          }))}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label htmlFor="social-habitual">Habitual Offender</Label>
+                          <span className="text-sm text-muted-foreground">{statusThresholds.social.habitual}+ points</span>
+                        </div>
+                        <Slider
+                          id="social-habitual"
+                          value={[statusThresholds.social.habitual]}
+                          min={statusThresholds.social.medium + 1}
+                          max={30}
+                          step={1}
+                          onValueChange={values => setStatusThresholds(prev => ({
+                            ...prev,
+                            social: {
+                              ...prev.social,
+                              habitual: values[0]
+                            }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </CardContent>
+                
+                <div className="bg-muted/30 p-4 rounded-md mb-6">
+                  <h5 className="text-sm font-medium mb-1">About Offender Status</h5>
+                  <p className="text-xs text-muted-foreground">
+                    Players accumulate points with each punishment. When they reach the threshold for medium or habitual status,
+                    stricter durations will apply to future punishments. Points decay over time according to server settings.
+                  </p>
+                </div>
+              </div>
+              
+              <Separator />
+
+              <div>
+                <h3 className="text-lg font-medium mb-2">Punishment Types</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Configure the punishment types available in your system. Each type is stored with an ordinal value for persistence.
+                  Core punishment types cannot be modified.
+                </p>
+
+                {/* NEW: Fixed Punishment Types Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-base font-medium flex items-center">
+                      <Lock className="h-4 w-4 mr-2 text-gray-500" />
+                      Core Punishment Types
+                    </h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowCorePunishments(!showCorePunishments)}
+                      className="text-xs"
+                    >
+                      {showCorePunishments ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                  
+                  {showCorePunishments && (
+                    <div className="space-y-2 mb-6">
+                      {punishmentTypes
+                        .filter(pt => !pt.isCustomizable)
+                        .sort((a, b) => a.ordinal - b.ordinal)
+                        .map(type => (
+                          <div key={type.id} className="flex items-center justify-between p-2 border rounded-md bg-card">
+                            <div className="flex items-center">
+                              <span className={`text-xs font-mono px-1.5 py-0.5 rounded mr-3 bg-primary/10 text-primary`}>
+                                {type.ordinal}
+                              </span>
+                              <span>{type.name} ({type.category})</span>
+                            </div>
+                          </div>
+                        ))
+                    }
+                    </div>
+                  )}
+                  
+                  {!showCorePunishments && (
+                    <div className="text-sm text-muted-foreground mb-6">
+                      Click 'Show' to view core punishment types that cannot be modified or removed.
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-4 mb-8">
+                  <div className="w-1/2">
+                    <h4 className="text-base font-medium mb-3 flex items-center">
+                      <GamepadIcon className="h-4 w-4 mr-2 text-amber-500" />
+                      Customizable Gameplay Related
+                    </h4>
+                    <div className="space-y-2">
+                      {punishmentTypes
+                        .filter(pt => pt.category === 'Gameplay' && pt.isCustomizable)
+                        .sort((a, b) => a.ordinal - b.ordinal)
+                        .map(type => (
+                          <div key={type.id} className="flex items-center justify-between p-2 border rounded-md bg-card hover:bg-accent/50">
+                            <div className="flex items-center">
+                              <span className={`text-xs font-mono px-1.5 py-0.5 rounded mr-3 bg-muted`}>
+                                {type.ordinal}
+                              </span>
+                              <span>{type.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {type.isCustomizable && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedPunishment(type)}
+                                  className="text-xs px-2 h-7 text-muted-foreground"
+                                >
+                                  Configure
+                                </Button>
+                              )}
+                              {type.isCustomizable && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePunishmentType(type.id)}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                  
+                  <div className="w-1/2">
+                    <h4 className="text-base font-medium mb-3 flex items-center">
+                      <MessageCircle className="h-4 w-4 mr-2 text-blue-500" />
+                      Customizable Social Related
+                    </h4>
+                    <div className="space-y-2">
+                      {punishmentTypes
+                        .filter(pt => pt.category === 'Social' && pt.isCustomizable)
+                        .sort((a, b) => a.ordinal - b.ordinal)
+                        .map(type => (
+                          <div key={type.id} className="flex items-center justify-between p-2 border rounded-md bg-card hover:bg-accent/50">
+                            <div className="flex items-center">
+                              <span className={`text-xs font-mono px-1.5 py-0.5 rounded mr-3 bg-muted`}>
+                                {type.ordinal}
+                              </span>
+                              <span>{type.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {type.isCustomizable && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedPunishment(type)}
+                                  className="text-xs px-2 h-7 text-muted-foreground"
+                                >
+                                  Configure
+                                </Button>
+                              )}
+                              {type.isCustomizable && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePunishmentType(type.id)}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                </div>
+                                
+                <Separator className="my-6" />
+                
+                <div className="space-y-4">
+                  <h4 className="text-base font-medium">Add New Punishment Type</h4>
+                  <div className="flex gap-3 items-end">
+                    <div className="space-y-2 flex-grow">
+                      <Label htmlFor="punishment-name">Punishment Name</Label>
+                      <Input
+                        id="punishment-name"
+                        placeholder="Enter punishment type name"
+                        value={newPunishmentName}
+                        onChange={(e) => setNewPunishmentName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2 w-48">
+                      <Label htmlFor="punishment-category">Category</Label>
+                      <Select
+                        value={newPunishmentCategory}
+                        onValueChange={(value) => setNewPunishmentCategory(value as 'Gameplay' | 'Social')}
+                      >
+                        <SelectTrigger id="punishment-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Gameplay">Gameplay</SelectItem>
+                          <SelectItem value="Social">Social</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      onClick={addPunishmentType}
+                      disabled={!newPunishmentName.trim()}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Type
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-muted/30 p-4 rounded-md mt-6">
+                  <h4 className="text-sm font-medium mb-2">About Punishment Types</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Punishment types are used throughout the system for player moderation. The ordinal values (numbers) 
+                    are used for storage and should remain consistent. Core punishment types (Kick, Manual Mute, 
+                    Manual Ban, Security Ban, Linked Ban, and Blacklist) cannot be modified or removed.
+                  </p>
+                </div>
+              </div>
             </TabsContent>
             
             <TabsContent value="tags" className="space-y-6 p-6">
@@ -327,6 +1272,7 @@ const Settings = () => {
                           </Button>
                         </Badge>
                       ))}
+
                     </div>
                     <div className="flex gap-2 items-center">
                       <Input 
@@ -378,6 +1324,7 @@ const Settings = () => {
                           </Button>
                         </Badge>
                       ))}
+
                     </div>
                     <div className="flex gap-2 items-center">
                       <Input 
@@ -429,6 +1376,7 @@ const Settings = () => {
                           </Button>
                         </Badge>
                       ))}
+
                     </div>
                     <div className="flex gap-2 items-center">
                       <Input 
@@ -594,7 +1542,7 @@ const Settings = () => {
                                 Copy Recovery Codes
                               </Button>
                             </div>
-                          ) : (
+) : (
                             <div className="bg-green-50 border border-green-200 rounded-md p-3">
                               <div className="flex items-start">
                                 <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
@@ -635,7 +1583,7 @@ const Settings = () => {
                         </div>
                       </div>
                     )}
-                  </div>
+</div>
                   
                   <Separator />
                   
@@ -875,6 +1823,325 @@ const Settings = () => {
             </TabsContent>
           </Tabs>
         </Card>
+        
+        {/* Punishment Configuration Dialog */}
+        {selectedPunishment && (
+          <Dialog open={Boolean(selectedPunishment)} onOpenChange={() => setSelectedPunishmentState(null)}>
+            <DialogContent className="max-w-2xl p-6">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold">
+                  Configure Punishment Type
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Adjust the settings for the punishment type "{selectedPunishment.name}".
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                {/* Punishment Name and Category */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-punishment-name">Punishment Name</Label>
+                    <Input
+                      id="edit-punishment-name"
+                      value={selectedPunishment.name}
+                      onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-punishment-category">Category</Label>
+                    <Select
+                      value={selectedPunishment.category}
+                      onValueChange={(value) => setSelectedPunishment(prev => prev ? { ...prev, category: value as 'Gameplay' | 'Social' } : null)}
+                    >
+                      <SelectTrigger id="edit-punishment-category">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Gameplay">Gameplay</SelectItem>
+                        <SelectItem value="Social">Social</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {/* Durations and Points Configuration */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-base font-medium mb-2">Durations</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Set the durations and units for low, regular, and severe levels of this punishment.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Low Severity */}
+                      <div className="space-y-2">
+                        <Label className="font-medium">Low Severity Durations</Label>
+                        <div className="space-y-3 p-2 border rounded-md">
+                          {['first', 'medium', 'habitual'].map((offenseType) => (
+                            <div key={`low-${offenseType}`}>
+                              <Label htmlFor={`low-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
+                                {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                              </Label>
+                              <div className="flex gap-2 mt-1">
+                                <Input
+                                  id={`low-${offenseType}-${selectedPunishment.id}`}
+                                  type="number"
+                                  min="0"
+                                  value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.value || ''}
+                                  onChange={(e) => {
+                                    const value = Number(e.target.value);
+                                    setSelectedPunishment(prev => prev && prev.durations ? {
+                                      ...prev,
+                                      durations: {
+                                        ...prev.durations,
+                                        low: { 
+                                          ...prev.durations.low, 
+                                          [offenseType]: { 
+                                            ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                            value 
+                                          } 
+                                        }
+                                      }
+                                    } : null);
+                                  }}
+                                  className="text-center w-full"
+                                  placeholder="e.g., 24"
+                                />
+                                <Select
+                                  value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.unit || 'hours'}
+                                  onValueChange={(unit) => {
+                                    setSelectedPunishment(prev => prev && prev.durations ? {
+                                      ...prev,
+                                      durations: {
+                                        ...prev.durations,
+                                        low: { 
+                                          ...prev.durations.low, 
+                                          [offenseType]: { 
+                                            ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                            unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                          } 
+                                        }
+                                      }
+                                    } : null);
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px]">
+                                    <SelectValue/>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="hours">Hours</SelectItem>
+                                    <SelectItem value="days">Days</SelectItem>
+                                    <SelectItem value="weeks">Weeks</SelectItem>
+                                    <SelectItem value="months">Months</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Regular Severity */}
+                      <div className="space-y-2">
+                        <Label className="font-medium">Regular Severity Durations</Label>
+                        <div className="space-y-3 p-2 border rounded-md">
+                          {['first', 'medium', 'habitual'].map((offenseType) => (
+                            <div key={`regular-${offenseType}`}>
+                              <Label htmlFor={`regular-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
+                                {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                              </Label>
+                              <div className="flex gap-2 mt-1">
+                                <Input
+                                  id={`regular-${offenseType}-${selectedPunishment.id}`}
+                                  type="number"
+                                  min="0"
+                                  value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.value || ''}
+                                  onChange={(e) => {
+                                    const value = Number(e.target.value);
+                                    setSelectedPunishment(prev => prev && prev.durations ? {
+                                      ...prev,
+                                      durations: {
+                                        ...prev.durations,
+                                        regular: { 
+                                          ...prev.durations.regular, 
+                                          [offenseType]: { 
+                                            ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                            value 
+                                          } 
+                                        }
+                                      }
+                                    } : null);
+                                  }}
+                                  className="text-center w-full"
+                                  placeholder="e.g., 48"
+                                />
+                                <Select
+                                  value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.unit || 'hours'}
+                                  onValueChange={(unit) => {
+                                    setSelectedPunishment(prev => prev && prev.durations ? {
+                                      ...prev,
+                                      durations: {
+                                        ...prev.durations,
+                                        regular: { 
+                                          ...prev.durations.regular, 
+                                          [offenseType]: { 
+                                            ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                            unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                          } 
+                                        }
+                                      }
+                                    } : null);
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px]">
+                                    <SelectValue/>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="hours">Hours</SelectItem>
+                                    <SelectItem value="days">Days</SelectItem>
+                                    <SelectItem value="weeks">Weeks</SelectItem>
+                                    <SelectItem value="months">Months</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Severe Severity */}
+                      <div className="space-y-2">
+                                               <Label className="font-medium">Severe Severity Durations</Label>
+                        <div className="space-y-3 p-2 border rounded-md">
+                                                   {['first', 'medium', 'habitual'].map((offenseType) => (
+                            <div key={`severe-${offenseType}`}>
+                              <Label htmlFor={`severe-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
+                                {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                              </Label>
+                              <div className="flex gap-2 mt-1">
+                                <Input
+                                  id={`severe-${offenseType}-${selectedPunishment.id}`}
+                                  type="number"
+                                  min="0"
+                                 
+                                  value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.value || ''}
+                                  onChange={(e) => {
+                                    const value = Number(e.target.value);
+                                    setSelectedPunishment(prev => prev && prev.durations ? {
+                                      ...prev,
+                                      durations: {
+                                        ...prev.durations,
+                                        severe: { 
+                                          ...prev.durations.severe, 
+                                          [offenseType]: { 
+                                            ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                            value 
+                                          } 
+                                        }
+                                      }
+                                    } : null);
+                                  }}
+                                  className="text-center w-full"
+                                  placeholder="e.g., 72"
+                                />
+                                <Select
+                                  value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.unit || 'hours'}
+                                  onValueChange={(unit) => {
+                                    setSelectedPunishment(prev => prev && prev.durations ? {
+                                      ...prev,
+                                      durations: {
+                                        ...prev.durations,
+                                        severe: { 
+                                          ...prev.durations.severe, 
+                                          [offenseType]: { 
+                                            ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                            unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                          } 
+                                        }
+                                      }
+                                    } : null);
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px]">
+                                    <SelectValue/>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="hours">Hours</SelectItem>
+                                    <SelectItem value="days">Days</SelectItem>
+                                    <SelectItem value="weeks">Weeks</SelectItem>
+                                    <SelectItem value="months">Months</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-base font-medium mb-2">Points</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Set the points for this punishment.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2 md:col-span-1"> {/* Adjusted to take less space */}
+                        <Label className="font-medium">Points Value</Label>
+                        <Input
+                          type="number"
+                          placeholder="Points"
+                          value={selectedPunishment.points || ''}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            setSelectedPunishment(prev => {
+                              if (!prev) return null;
+                              return {
+                                ...prev,
+                                points: value,
+                              };
+                            });
+                          }}
+                          className="text-center w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedPunishment(null)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Save updates to the punishment type
+                    if (selectedPunishment) {
+                      setPunishmentTypes(prev => 
+                        prev.map(pt => pt.id === selectedPunishment.id ? selectedPunishment : pt)
+                      );
+                      toast({
+                        title: "Punishment Type Updated",
+                        description: `The punishment type "${selectedPunishment.name}" has been updated`
+                        // Removed invalid variant: "success"
+                      });
+                    }
+                    setSelectedPunishment(null);
+                  }}
+                >
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
       </PageContainer>
   );

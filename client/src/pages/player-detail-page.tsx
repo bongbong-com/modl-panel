@@ -14,8 +14,34 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePlayer, useApplyPunishment } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment, useSettings } from '@/hooks/use-data';
 import { toast } from '@/hooks/use-toast';
+
+interface PunishmentType {
+  id: number;
+  name: string;
+  category: 'Gameplay' | 'Social' | 'Core';
+  isCustomizable: boolean;
+  ordinal: number;
+  durations?: {
+    low: { 
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    regular: {
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    severe: {
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+  };
+  points?: number;
+}
 
 interface PlayerInfo {
   username: string;
@@ -298,7 +324,47 @@ const PlayerDetailPage = () => {
     }
   }, [player]);
 
-  if (isLoading) {
+  // Fetch punishment types from settings
+  const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
+  
+  // Parse punishment types from settings
+  const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
+    Core: PunishmentType[], 
+    Social: PunishmentType[], 
+    Gameplay: PunishmentType[]
+  }>({
+    Core: [],
+    Social: [],
+    Gameplay: []
+  });
+  
+  // Process settings data to extract punishment types by category
+  useEffect(() => {
+    if (settingsData?.settings?.punishmentTypes) {
+      try {
+        // Parse punishment types if they're stored as a string
+        const typesData = typeof settingsData.settings.punishmentTypes === 'string' 
+          ? JSON.parse(settingsData.settings.punishmentTypes) 
+          : settingsData.settings.punishmentTypes;
+          
+        if (Array.isArray(typesData)) {
+          // Group punishment types by category
+          const categorized = {
+            Core: typesData.filter(pt => pt.category === 'Core').sort((a, b) => a.ordinal - b.ordinal),
+            Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
+            Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
+          };
+          
+          setPunishmentTypesByCategory(categorized);
+          console.log('Punishment types by category:', categorized);
+        }
+      } catch (error) {
+        console.error("Error parsing punishment types:", error);
+      }
+    }
+  }, [settingsData]);
+
+  if (isLoading || isLoadingSettings) {
     return (
       <div className="container py-8 flex flex-col items-center justify-center min-h-[50vh]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -576,175 +642,75 @@ const PlayerDetailPage = () => {
             <div className="bg-muted/30 p-4 rounded-lg space-y-4">
               {!playerInfo.selectedPunishmentCategory ? (
       <div className="space-y-3">
+        {/* Core Punishment Types */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Action Types</label>
+          <label className="text-xs font-medium text-muted-foreground">Core Actions</label>
           <div className="grid grid-cols-3 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className={`py-1 text-xs ${playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => {
-                if (playerInfo.status === 'Online') {
-                  setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Kick'}));
-                }
-              }}
-              title={playerInfo.status !== 'Online' ? 'Player must be online to kick' : ''}
-            >
-              Kick
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Manual Mute'}))}
-            >
-              Manual Mute
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Manual Ban'}))}
-            >
-              Manual Ban
-            </Button>
+            {punishmentTypesByCategory.Core.map(type => (
+              <Button 
+                key={type.id}
+                variant="outline" 
+                size="sm" 
+                className={`py-1 text-xs ${type.name === 'Kick' && playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => {
+                  if (type.name === 'Kick' && playerInfo.status !== 'Online') {
+                    // Prevent kick for offline players
+                    return;
+                  }
+                  setPlayerInfo(prev => ({
+                    ...prev, 
+                    selectedPunishmentCategory: type.name
+                  }))
+                }}
+                title={type.name === 'Kick' && playerInfo.status !== 'Online' ? 'Player must be online to kick' : ''}
+              >
+                {type.name}
+              </Button>
+            ))}
           </div>
-          <div className="grid grid-cols-3 gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="py-1 text-xs" 
-            onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Security Ban'}))}
-          >
-            Security Ban
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="py-1 text-xs" 
-            onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Linked Ban'}))}
-          >
-            Linked Ban
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="py-1 text-xs" 
-            onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Blacklist'}))}
-          >
-            Blacklist
-          </Button></div>
         </div>
 
+        {/* Social Punishment Types */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
           <div className="grid grid-cols-3 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Chat Abuse'}))}
-            >
-              Chat Abuse
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Anti Social'}))}
-            >
-              Anti Social
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Targeting'}))}
-            >
-              Targeting
-            </Button>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bad Skin'}))}
-            >
-              Bad Skin
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bad Name'}))}
-            >
-              Bad Name
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bad Content'}))}
-            >
-              Bad Content
-            </Button>
+            {punishmentTypesByCategory.Social.map(type => (
+              <Button 
+                key={type.id}
+                variant="outline" 
+                size="sm" 
+                className="py-1 text-xs" 
+                onClick={() => setPlayerInfo(prev => ({
+                  ...prev, 
+                  selectedPunishmentCategory: type.name
+                }))
+                }
+              >
+                {type.name}
+              </Button>
+            ))}
           </div>
         </div>
 
+        {/* Gameplay Punishment Types */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Game & Account</label>
           <div className="grid grid-cols-3 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Team Abuse'}))}
-            >
-              Team Abuse
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Game Abuse'}))}
-            >
-              Game Abuse
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Cheating'}))}
-            >
-              Cheating
-            </Button>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Game Trading'}))}
-            >
-              Game Trading
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Account Abuse'}))}
-            >
-              Account Abuse
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="py-1 text-xs" 
-              onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Scamming'}))}
-            >
-              Scamming
-            </Button>
+            {punishmentTypesByCategory.Gameplay.map(type => (
+              <Button 
+                key={type.id}
+                variant="outline" 
+                size="sm" 
+                className="py-1 text-xs" 
+                onClick={() => setPlayerInfo(prev => ({
+                  ...prev, 
+                  selectedPunishmentCategory: type.name
+                }))
+                }
+              >
+                {type.name}
+              </Button>
+            ))}
           </div>
         </div>
       </div>
@@ -1595,7 +1561,7 @@ const PlayerDetailPage = () => {
                     >
                       <option value="">Select a report</option>
                       <option value="ticket-123">Ticket #123 - Chat Report</option>
-                      <option value="ticket-456">Ticket #456 - Chat Report</option>
+                      <option value="ticket-456">Ticket #456 - Player Report</option>
                     </select>
                     <Button 
                       variant="ghost" 
@@ -1613,19 +1579,6 @@ const PlayerDetailPage = () => {
                     </Button>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="ban-linked" 
-                  className="rounded mr-2"
-                  checked={!!playerInfo.banLinkedAccounts}
-                  onChange={(e) => setPlayerInfo(prev => ({...prev, banLinkedAccounts: e.target.checked}))}
-                />
-                <label htmlFor="ban-linked" className="text-sm">Ban Linked Accounts</label>
               </div>
             </div>
           </>
@@ -1735,30 +1688,6 @@ const PlayerDetailPage = () => {
                 ))}
               </div>
             </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="ban-linked" 
-                  className="rounded mr-2"
-                  checked={!!playerInfo.banLinkedAccounts}
-                  onChange={(e) => setPlayerInfo(prev => ({...prev, banLinkedAccounts: e.target.checked}))}
-                />
-                <label htmlFor="ban-linked" className="text-sm">Ban Linked Accounts</label>
-              </div>
-
-              <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  id="wipe-account" 
-                  className="rounded mr-2"
-                  checked={!!playerInfo.wipeAccountAfterExpiry}
-                  onChange={(e) => setPlayerInfo(prev => ({...prev, wipeAccountAfterExpiry: e.target.checked}))}
-                />
-                <label htmlFor="wipe-account" className="text-sm">Wipe Account After Expiry</label>
-              </div>
-            </div>
           </>
         )}
 
@@ -1809,8 +1738,8 @@ const PlayerDetailPage = () => {
             </div>
       )}
             </div>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
       </div>
     </div>
   );

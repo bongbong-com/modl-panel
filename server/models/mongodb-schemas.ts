@@ -1,3 +1,4 @@
+import { Int32 } from 'mongodb'; // Import Int32 from mongodb package
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
@@ -46,13 +47,12 @@ const modificationSchema = new Schema({
 // Punishment Schema
 const punishmentSchema = new Schema({
   id: { type: String, required: true }, // 8-char alphanumeric
-  issuerId: { type: String },
   issuerName: { type: String, required: true },
-  type: { type: String, required: true },
-  reason: { type: String, required: true },
-  date: { type: Date, default: Date.now },
-  expires: { type: Date, default: null },
-  active: { type: Boolean, default: true },
+  issued: { type: Date, default: Date.now },
+  started: { type: Date, default: Date.now },
+  type_ordinal: { type: Int32, required: true },
+  modifications: [modificationSchema],
+  notes: [noteSchema],
   attachedTicketIds: [{ type: String }],
   data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible data
 });

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { usePlayer, useApplyPunishment } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment, useSettings } from '@/hooks/use-data';
 import { toast } from '@/hooks/use-toast';
 
 import { WindowPosition } from '@/lib/types';
@@ -53,6 +53,32 @@ interface PlayerInfo {
   banToLink?: string;
   staffNotes?: string;
   silentPunishment?: boolean;
+}
+
+interface PunishmentType {
+  id: number;
+  name: string;
+  category: 'Gameplay' | 'Social' | 'Core';
+  isCustomizable: boolean;
+  ordinal: number;
+  durations?: {
+    low: { 
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    regular: {
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    severe: {
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+  };
+  points?: number;
 }
 
 const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWindowProps) => {
@@ -305,6 +331,82 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     }
   }, [player, isOpen]);
 
+  // Fetch punishment types from settings
+  const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
+  
+  // Parse punishment types from settings
+  const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
+    Core: PunishmentType[], 
+    Social: PunishmentType[], 
+    Gameplay: PunishmentType[]
+  }>({
+    Core: [
+      // Default fallback Core punishments in case settings don't load
+      { id: 0, name: 'Kick', category: 'Core', isCustomizable: false, ordinal: 0 },
+      { id: 1, name: 'Manual Mute', category: 'Core', isCustomizable: false, ordinal: 1 },
+      { id: 2, name: 'Manual Ban', category: 'Core', isCustomizable: false, ordinal: 2 },
+      { id: 3, name: 'Security Ban', category: 'Core', isCustomizable: false, ordinal: 3 },
+      { id: 4, name: 'Linked Ban', category: 'Core', isCustomizable: false, ordinal: 4 },
+      { id: 5, name: 'Blacklist', category: 'Core', isCustomizable: false, ordinal: 5 }
+    ],
+    Social: [
+      // Default fallback Social punishments
+      { id: 6, name: 'Chat Abuse', category: 'Social', isCustomizable: true, ordinal: 6 },
+      { id: 7, name: 'Anti Social', category: 'Social', isCustomizable: true, ordinal: 7 },
+      { id: 8, name: 'Targeting', category: 'Social', isCustomizable: true, ordinal: 8 },
+      { id: 9, name: 'Bad Skin', category: 'Social', isCustomizable: true, ordinal: 9 },
+      { id: 10, name: 'Bad Name', category: 'Social', isCustomizable: true, ordinal: 10 },
+      { id: 11, name: 'Bad Content', category: 'Social', isCustomizable: true, ordinal: 11 }
+    ],
+    Gameplay: [
+      // Default fallback Gameplay punishments
+      { id: 12, name: 'Team Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 12 },
+      { id: 13, name: 'Game Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 13 },
+      { id: 14, name: 'Cheating', category: 'Gameplay', isCustomizable: true, ordinal: 14 },
+      { id: 15, name: 'Game Trading', category: 'Gameplay', isCustomizable: true, ordinal: 15 },
+      { id: 16, name: 'Account Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 16 },
+      { id: 17, name: 'Scamming', category: 'Gameplay', isCustomizable: true, ordinal: 17 }
+    ]
+  });
+  
+  // Process settings data to extract punishment types by category
+  useEffect(() => {
+    console.log('Settings data received in PlayerWindow:', settingsData);
+    
+    if (settingsData?.settings?.punishmentTypes) {
+      try {
+        // Parse punishment types if they're stored as a string
+        const typesData = typeof settingsData.settings.punishmentTypes === 'string' 
+          ? JSON.parse(settingsData.settings.punishmentTypes) 
+          : settingsData.settings.punishmentTypes;
+          
+        console.log('Parsed punishment types:', typesData);
+          
+        if (Array.isArray(typesData)) {
+          // Group punishment types by category
+          const categorized = {
+            Core: typesData.filter(pt => pt.category === 'Core').sort((a, b) => a.ordinal - b.ordinal),
+            Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
+            Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
+          };
+          
+          console.log('Punishment types categorized:', categorized);
+          
+          // Only update if we have data in at least one category
+          if (categorized.Core.length > 0 || categorized.Social.length > 0 || categorized.Gameplay.length > 0) {
+            setPunishmentTypesByCategory(categorized);
+          } else {
+            console.warn('No punishment types found in any category, keeping defaults');
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing punishment types:", error);
+      }
+    } else {
+      console.warn("No punishment types found in settings, using default values");
+    }
+  }, [settingsData]);
+  
   // Show loading state
   if (isLoading) {
     return (
@@ -625,170 +727,73 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 <>
                   {/* Stage 1: Category Selection */}
                   <div className="space-y-3">
+                    {/* Core Punishment Types */}
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">Action Types</label>
+                      <label className="text-xs font-medium text-muted-foreground">Core Actions</label>
                       <div className="grid grid-cols-6 gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className={`py-1 text-xs ${playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          onClick={() => {
-                            if (playerInfo.status === 'Online') {
-                              setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Kick'}));
-                            }
-                          }}
-                          title={playerInfo.status !== 'Online' ? 'Player must be online to kick' : ''}
-                        >
-                          Kick
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Manual Mute'}))}
-                        >
-                          Manual Mute
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Manual Ban'}))}
-                        >
-                          Manual Ban
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Security Ban'}))}
-                        >
-                          Security Ban
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Linked Ban'}))}
-                        >
-                          Linked Ban
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Blacklist'}))}
-                        >
-                          Blacklist
-                        </Button>
+                        {punishmentTypesByCategory.Core.map(type => (
+                          <Button 
+                            key={type.id}
+                            variant="outline" 
+                            size="sm" 
+                            className={`py-1 text-xs ${type.name === 'Kick' && playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={() => {
+                              if (type.name === 'Kick' && playerInfo.status !== 'Online') {
+                                // Prevent kick for offline players
+                                return;
+                              }
+                              setPlayerInfo(prev => ({
+                                ...prev, 
+                                selectedPunishmentCategory: type.name
+                              }))
+                            }}
+                            title={type.name === 'Kick' && playerInfo.status !== 'Online' ? 'Player must be online to kick' : ''}
+                          >
+                            {type.name}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                     
+                    {/* Social Punishment Types */}
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
                       <div className="grid grid-cols-6 gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Chat Abuse'}))}
-                        >
-                          Chat Abuse
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Anti Social'}))}
-                        >
-                          Anti Social
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Targeting'}))}
-                        >
-                          Targeting
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bad Skin'}))}
-                        >
-                          Bad Skin
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bad Name'}))}
-                        >
-                          Bad Name
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Bad Content'}))}
-                        >
-                          Bad Content
-                        </Button>
+                        {punishmentTypesByCategory.Social.map(type => (
+                          <Button 
+                            key={type.id}
+                            variant="outline" 
+                            size="sm" 
+                            className="py-1 text-xs" 
+                            onClick={() => setPlayerInfo(prev => ({
+                              ...prev, 
+                              selectedPunishmentCategory: type.name
+                            }))}
+                          >
+                            {type.name}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                     
+                    {/* Gameplay Punishment Types */}
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Game & Account</label>
                       <div className="grid grid-cols-6 gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Team Abuse'}))}
-                        >
-                          Team Abuse
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Game Abuse'}))}
-                        >
-                          Game Abuse
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Cheating'}))}
-                        >
-                          Cheating
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Game Trading'}))}
-                        >
-                          Game Trading
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Account Abuse'}))}
-                        >
-                          Account Abuse
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="py-1 text-xs" 
-                          onClick={() => setPlayerInfo(prev => ({...prev, selectedPunishmentCategory: 'Scamming'}))}
-                        >
-                          Scamming
-                        </Button>
+                        {punishmentTypesByCategory.Gameplay.map(type => (
+                          <Button 
+                            key={type.id}
+                            variant="outline" 
+                            size="sm" 
+                            className="py-1 text-xs" 
+                            onClick={() => setPlayerInfo(prev => ({
+                              ...prev, 
+                              selectedPunishmentCategory: type.name
+                            }))}
+                          >
+                            {type.name}
+                          </Button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -1659,19 +1664,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               </Button>
                             </div>
                           ))}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <input 
-                            type="checkbox" 
-                            id="ban-linked" 
-                            className="rounded mr-2"
-                            checked={!!playerInfo.banLinkedAccounts}
-                            onChange={(e) => setPlayerInfo(prev => ({...prev, banLinkedAccounts: e.target.checked}))}
-                          />
-                          <label htmlFor="ban-linked" className="text-sm">Ban Linked Accounts</label>
                         </div>
                       </div>
                     </>

@@ -220,8 +220,17 @@ export function useSettings() {
       if (!res.ok) {
         throw new Error('Failed to fetch settings');
       }
-      return res.json();
-    }
+      const data = await res.json();
+      console.log('Fetched settings:', data);
+      return data;
+    },
+    // Modified options to improve behavior when returning to settings page
+    staleTime: 0, // Consider data stale immediately - this ensures refetch when returning to the page
+    refetchOnMount: 'always', // Always refetch when component mounts (returning to page)
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid overriding user edits
+    gcTime: 1000 * 60 * 5, // Keep data in cache for 5 minutes
+    refetchInterval: false, // Disable periodic refetching
+    refetchOnReconnect: false // Disable refetch on reconnect
   });
 }
 

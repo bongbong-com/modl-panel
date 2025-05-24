@@ -81,14 +81,43 @@ export async function seedEnhancedDatabase() {
     const regions = ['West', 'East', 'North', 'South', 'Central'];
     const asns = ['AS12345', 'AS67890', 'AS54321', 'AS09876', 'AS13579'];
     
+    // Define punishment types with ordinals
+    // Each type has an ordinal: number value for storage
     const punishmentTypes = [
-      'Kick', 'Blacklist', 
-      'Security Ban', 'Linked Ban', 
-      'Bad Skin', 'Bad Name',
-      'Chat Abuse', 'Anti Social', 'Targeting', 'Bad Content', 
-      'Team Abuse', 'Game Abuse', 'Cheating', 'Game Trading',
-      'Account Abuse', 'Scamming', 'Manual Mute', 'Manual Ban'
+      { ordinal: 0, name: 'Kick', category: 'Gameplay' },
+      { ordinal: 1, name: 'Manual Mute', category: 'Social' },
+      { ordinal: 2, name: 'Manual Ban', category: 'Gameplay' },
+      { ordinal: 3, name: 'Security Ban', category: 'Gameplay' },
+      { ordinal: 4, name: 'Linked Ban', category: 'Gameplay' },
+      { ordinal: 5, name: 'Blacklist', category: 'Gameplay' },
+      { ordinal: 6, name: 'Bad Skin', category: 'Social' },
+      { ordinal: 7, name: 'Bad Name', category: 'Social' },
+      { ordinal: 8, name: 'Chat Abuse', category: 'Social' },
+      { ordinal: 9, name: 'Anti Social', category: 'Social' },
+      { ordinal: 10, name: 'Targeting', category: 'Social' },
+      { ordinal: 11, name: 'Bad Content', category: 'Social' },
+      { ordinal: 12, name: 'Team Abuse', category: 'Gameplay' },
+      { ordinal: 13, name: 'Game Abuse', category: 'Gameplay' },
+      { ordinal: 14, name: 'Cheating', category: 'Gameplay' },
+      { ordinal: 15, name: 'Game Trading', category: 'Gameplay' },
+      { ordinal: 16, name: 'Account Abuse', category: 'Gameplay' },
+      { ordinal: 17, name: 'Scamming', category: 'Social' }
     ];
+    
+    // Initialize settings for punishment types if not already set
+    const existingSettings = await Settings.findOne();
+    if (!existingSettings) {
+      const settings = new Settings({
+        settings: new Map()
+      });
+      settings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+      await settings.save();
+      console.log('Initialized punishment types in settings');
+    } else if (!existingSettings.settings.has('punishmentTypes')) {
+      existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+      await existingSettings.save();
+      console.log('Added punishment types to existing settings');
+    }
     
     const punishmentReasons = [
       'Using inappropriate language in chat',
@@ -289,13 +318,17 @@ export async function seedEnhancedDatabase() {
         // 50% chance the punishment is still active
         const isActive = Math.random() < 0.5;
         
+        // Select a random punishment type using ordinals
+        const randomPunishmentType = randomItem(punishmentTypes);
+        
         const punishmentData = new Map<string, string | boolean | number>();
         punishmentData.set('severity', randomItem(['Low', 'Medium', 'High']));
         punishmentData.set('autoDetected', Math.random() < 0.3);
         
         punishments.push({
           id: generatePunishmentId(),
-          type: randomItem(punishmentTypes),
+          // Use ordinal for type instead of string name
+          type_ordinal: randomPunishmentType.ordinal,
           issuerId: staffId,
           issuerName: staffName,
           reason: randomItem(punishmentReasons),
@@ -514,8 +547,12 @@ export async function seedEnhancedDatabase() {
       
       // Logs for punishments
       for (const punishment of player.punishments) {
+        // Get the punishment type name from the ordinal
+        const punishmentType = punishmentTypes.find(pt => pt.ordinal === punishment.type_ordinal);
+        const typeName = punishmentType ? punishmentType.name : `Unknown Type (${punishment.type_ordinal})`;
+        
         logs.push({
-          description: `Player ${player.usernames[player.usernames.length - 1].username} received ${punishment.type} punishment: ${punishment.reason}`,
+          description: `Player ${player.usernames[player.usernames.length - 1].username} received ${typeName} punishment: ${punishment.reason}`,
           level: 'moderation',
           source: punishment.issuerName,
           created: punishment.date
