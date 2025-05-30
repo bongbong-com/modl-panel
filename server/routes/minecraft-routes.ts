@@ -5,6 +5,47 @@ import { createSystemLog } from './log-routes';
 import { verifyMinecraftApiKey } from '../middleware/api-auth';
 import { Int32 } from 'mongodb';
 
+/**
+ * Utility function to check if a punishment is currently active
+ * Replicates the behavior of PunishmentHelper.isPunishmentActive in Java
+ */
+function isPunishmentActive(punishment: any): boolean {
+  // Check type_ordinal is present
+  if (!punishment.type_ordinal) return false;
+  
+  // Check if it's explicitly marked as inactive
+  if (punishment.data && punishment.data.has('active') && !punishment.data.get('active')) {
+    return false;
+  }
+  
+  // Check if it has expired
+  if (punishment.data && punishment.data.has('expires')) {
+    const expiry = punishment.data.get('expires');
+    if (expiry && new Date(expiry) < new Date()) {
+      return false;
+    }
+  }
+  
+  // For bans, check if it's a ban type and if it's started
+  if (punishment.type_ordinal.valueOf() === 2) { // Ban type
+    // If it's not started yet, it's not active
+    if (!punishment.started) {
+      return false;
+    }
+  }
+  
+  // For other punishment types like mute
+  if (punishment.type_ordinal.valueOf() === 1) { // Mute type
+    // Mutes must be started to be active
+    if (!punishment.started) {
+      return false;
+    }
+  }
+  
+  // Default to active
+  return true;
+}
+
 // Define the router for Minecraft API routes
 export function setupMinecraftRoutes(app: Express) {
   // Apply API key verification middleware to all Minecraft routes
@@ -18,30 +59,31 @@ export function setupMinecraftRoutes(app: Express) {
    */
   app.post('/minecraft/player/login', async (req: Request, res: Response) => {
     try {
-      const { minecraftUuid, ipAddress, skinHash, username } = req.body;
-
-      if (!minecraftUuid || !ipAddress || !username) {
+      const { minecraftUuid, ipAddress, skinHash, username } = req.body;      if (!minecraftUuid || !ipAddress || !username) {
         return res.status(400).json({
           status: 400,
           message: 'Missing required fields: minecraftUuid, ipAddress, username'
         });
       }
       
-      // Get IP information from ip-api.com
-      const ipInfo = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,countryCode,regionName,city,as,proxy,hosting`)
-        .then(response => response.json());
-
       // Check if player already exists
       let player = await Player.findOne({ minecraftUuid });
+      let ipInfo;
       
       if (player) {
         // Update existing player
         let existingIp = player.ipList.find(ip => ip.ipAddress === ipAddress);
+
+        // Handle existing IPs vs new IPs (replicating JoinListener.java behavior)
         if (existingIp) {
-          // Just update the login dates
+          // Just update the login dates (similar to ip.get().logins().add(new Date()) in Java)
           existingIp.logins.push(new Date());
         } else {
-          // Add new IP to list
+          // Only request IP information if this is a new IP we haven't seen before
+          ipInfo = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,countryCode,regionName,city,as,proxy,hosting`)
+            .then(response => response.json());
+            
+          // This is a new IP, add it to the player's list (like in handleNewIP method)
           player.ipList.push({
             ipAddress,
             country: ipInfo.countryCode,
@@ -49,113 +91,221 @@ export function setupMinecraftRoutes(app: Express) {
             asn: ipInfo.as,
             proxy: ipInfo.proxy || ipInfo.hosting,
             firstLogin: new Date(),
-            logins: [new Date()]          });
+            logins: [new Date()]
+          });
           
-          // Check for IP ban evasion - find other accounts with this IP that are banned
+          // Find linked accounts with this IP (similar to findLinkedAccounts in Java)
           const linkedPlayers = await Player.find({
             minecraftUuid: { $ne: minecraftUuid }, // Exclude the current player
             'ipList.ipAddress': ipAddress
           });
           
-          // Check if any linked accounts are banned
-          let evading = false;
-          let evasionDetails = {
-            originalBannedName: '',
-            originalBannedUuid: '',
-            banReason: ''
-          };
+          // Search for linked punishments (similar to handleNewIP in Java)
+          let linkedActiveBan = null;
+          let linkedPlayer = null;
           
-          for (const linkedPlayer of linkedPlayers) {
-            // Check for active permanent bans or temporary bans that haven't expired
-            const activeBan = linkedPlayer.punishments.find(punishment => {
-              // Check if it's a ban (type_ordinal === 2)
-              if (punishment.type_ordinal && punishment.type_ordinal.valueOf() === 2) {
-                // Check if the ban is still active
-                if (punishment.data && punishment.data.has('active') && !punishment.data.get('active')) {
-                  return false;
-                }
+          // Check each linked account for active bans that have 'altBlocking' enabled
+          for (const account of linkedPlayers) {
+            let unstartedPunishments: any[] = [];
+            for (const punishment of account.punishments) {
                 
-                // Check if the ban has an expiry and if it hasn't passed
-                if (punishment.data && punishment.data.has('expires')) {
-                  const expiry = punishment.data.get('expires');
-                  if (expiry && new Date(expiry) < new Date()) {
-                    return false;
-                  }
-                }
-                
-                // This is an active ban
-                return true;
+              if (!punishment.started) {
+                unstartedPunishments.push(punishment);
+                continue;
               }
-              return false;
-            });
-            
-            if (activeBan) {
-              evading = true;
-              evasionDetails.originalBannedName = linkedPlayer.usernames[linkedPlayer.usernames.length - 1].username;
-              evasionDetails.originalBannedUuid = linkedPlayer.minecraftUuid;
-              evasionDetails.banReason = activeBan.notes && activeBan.notes.length > 0 
-                ? activeBan.notes[0].text 
-                : 'Unknown reason';
-              break;
+              
+              // Skip bans that are already linked to this account
+              const isAlreadyLinked = player.punishments.some(p => 
+                p.data && 
+                p.data.has('linkedBanId') && 
+                p.data.get('linkedBanId') === punishment.id
+              );
+              
+              if (isAlreadyLinked) continue;
+              
+              // Check if punishment is active and configured for alt blocking
+              if (isPunishmentActive(punishment) && 
+                  punishment.data && 
+                  punishment.data.has('altBlocking') && 
+                  punishment.data.get('altBlocking')) {
+                linkedActiveBan = punishment;
+                linkedPlayer = account;
+                break;
+              }
             }
+
+            for (const punishment of unstartedPunishments) {
+              punishment.started = new Date();
+              await account.save();
+              
+              // Skip bans that are already linked to this account
+              const isAlreadyLinked = player.punishments.some(p => 
+                p.data && 
+                p.data.has('linkedBanId') && 
+                p.data.get('linkedBanId') === punishment.id
+              );
+              
+              if (isAlreadyLinked) continue;
+              
+              // Check if punishment is active and configured for alt blocking
+              if (isPunishmentActive(punishment) && 
+                  punishment.data && 
+                  punishment.data.has('altBlocking') && 
+                  punishment.data.get('altBlocking')) {
+                linkedActiveBan = punishment;
+                linkedPlayer = account;
+                break;
+              }
+            }
+            
+            if (linkedActiveBan) break;
           }
           
-          // If evasion detected, issue a new ban for this player
-          if (evading) {
+          // If we found an active ban with alt blocking, create a linked punishment
+          if (linkedActiveBan) {
             // Generate a random 8-character alphanumeric ID for the ban
-            const id = Math.random().toString(36).substring(2, 10).toUpperCase();              // Create a new ban punishment
-            const evasionBanData = new Map();
-            evasionBanData.set('active', true);
-            evasionBanData.set('permanentBan', true);
-            evasionBanData.set('severity', 'Severe');
-            evasionBanData.set('evasion', true);
-            evasionBanData.set('originalBannedUuid', evasionDetails.originalBannedUuid);
+            const id = Math.random().toString(36).substring(2, 10).toUpperCase();
             
-            const evasionBan = {
+            // Create ban data with link information
+            const linkedBanData = new Map();
+            linkedBanData.set('active', true);
+            linkedBanData.set('linkedBanId', linkedActiveBan.id);
+            linkedBanData.set('linkedBanExpiry', linkedActiveBan.data && linkedActiveBan.data.has('expires') ? 
+              linkedActiveBan.data.get('expires') : null);
+            linkedBanData.set('altBlocking', true);
+            
+            const linkedUsername = linkedPlayer.usernames[linkedPlayer.usernames.length - 1].username;
+            
+            // Create the linked punishment (similar to createLinkedPunishment in Java)
+            const linkedPunishment = {
               id,
               issuerName: 'System',
               issued: new Date(),
-              started: new Date(), // Ban starts immediately
-              type_ordinal: new Int32(2), // Manual Ban
+              started: new Date(), // Start immediately
+              type_ordinal: new Int32(2), // Ban type
               modifications: [],
               notes: [{ 
-                text: `Ban evasion - Previously banned as ${evasionDetails.originalBannedName} (${evasionDetails.originalBannedUuid}) for: ${evasionDetails.banReason}`, 
+                text: `Alt account of banned player ${linkedUsername} (${linkedPlayer.minecraftUuid})`, 
                 issuerName: 'System',
                 date: new Date() 
               }],
               attachedTicketIds: [],
-              data: evasionBanData
+              data: linkedBanData
             };
             
-            // Add evasion ban to player
-            player.punishments.push(evasionBan);
+            // Add linked ban to player
+            player.punishments.push(linkedPunishment);
             
-            // Log the evasion detection
-            await createSystemLog(`Ban evasion detected: ${username} (${minecraftUuid}) is evading a ban on ${evasionDetails.originalBannedName} (${evasionDetails.originalBannedUuid})`);
+            // Log the alt detection
+            await createSystemLog(`Alt account detected: ${username} (${minecraftUuid}) is an alt of banned player ${linkedUsername} (${linkedPlayer.minecraftUuid})`);
+          } else {
+            // If no linked ban with altBlocking, still check for regular ban evasion
+            let evading = false;
+            let evasionDetails = {
+              originalBannedName: '',
+              originalBannedUuid: '',
+              banReason: ''
+            };
+            
+            for (const linkedPlayer of linkedPlayers) {
+              // Check for active permanent bans or temporary bans that haven't expired
+              const activeBan = linkedPlayer.punishments.find(punishment => isPunishmentActive(punishment));
+              
+              if (activeBan) {
+                evading = true;
+                evasionDetails.originalBannedName = linkedPlayer.usernames[linkedPlayer.usernames.length - 1].username;
+                evasionDetails.originalBannedUuid = linkedPlayer.minecraftUuid;
+                evasionDetails.banReason = activeBan.notes && activeBan.notes.length > 0 
+                  ? activeBan.notes[0].text 
+                  : 'Unknown reason';
+                break;
+              }
+            }
+            
+            // If evasion detected, issue a new ban for this player
+            if (evading) {
+              // Generate a random 8-character alphanumeric ID for the ban
+              const id = Math.random().toString(36).substring(2, 10).toUpperCase();
+              
+              // Create ban data
+              const evasionBanData = new Map();
+              evasionBanData.set('active', true);
+              evasionBanData.set('permanentBan', true);
+              evasionBanData.set('severity', 'Severe');
+              evasionBanData.set('evasion', true);
+              evasionBanData.set('originalBannedUuid', evasionDetails.originalBannedUuid);
+              
+              const evasionBan = {
+                id,
+                issuerName: 'System',
+                issued: new Date(),
+                started: new Date(), // Ban starts immediately
+                type_ordinal: new Int32(2), // Ban type
+                modifications: [],
+                notes: [{ 
+                  text: `Ban evasion - Previously banned as ${evasionDetails.originalBannedName} (${evasionDetails.originalBannedUuid}) for: ${evasionDetails.banReason}`, 
+                  issuerName: 'System',
+                  date: new Date() 
+                }],
+                attachedTicketIds: [],
+                data: evasionBanData
+              };
+              
+              // Add evasion ban to player
+              player.punishments.push(evasionBan);
+              
+              // Log the evasion detection
+              await createSystemLog(`Ban evasion detected: ${username} (${minecraftUuid}) is evading a ban on ${evasionDetails.originalBannedName} (${evasionDetails.originalBannedUuid})`);
+            }
           }
         }
 
-        // Update username list if it's a new username
+        // Update username list if it's a new username (similar to Java code handling username)
         const existingUsername = player.usernames.find(u => u.username.toLowerCase() === username.toLowerCase());
         if (!existingUsername) {
           player.usernames.push({ username, date: new Date() });
-        }        // Check for inactive bans that need to be started now that player is online
+        }
+
+        // Handle unstartedPunishments like in handleBansRestrictions method in Java
+        // First create a sorted tree map of punishments by date
+        const unstartedPunishments = player.punishments
+          .filter(p => !p.started && isPunishmentActive(p))
+          .sort((a, b) => new Date(a.issued) - new Date(b.issued));
+        
         let startedAny = false;
-        for (const punishment of player.punishments) {
-          // Manual Ban (assuming ordinal 2)
-          if (!punishment.started && punishment.type_ordinal && punishment.type_ordinal.valueOf() === 2) {
-            punishment.started = new Date();
-            startedAny = true;
-          }
+        for (const punishment of unstartedPunishments) {
+          // Start previously unstartedPunishments (like in Java code)
+          punishment.started = new Date();
+          startedAny = true;
         }
 
         if (startedAny) {
-          await createSystemLog(`Started pending ban for player ${username} (${minecraftUuid})`);
+          await createSystemLog(`Started pending punishments for player ${username} (${minecraftUuid})`);
+        }
+        
+        // Handle restrictions (blockedName, blockedSkin) if present
+        // This implementation is simplified since we don't have the same restriction concepts
+        if (skinHash) {
+          const skinRestriction = player.punishments.find(p => 
+            p.data && 
+            p.data.has('blockedSkin') && 
+            p.data.get('blockedSkin') === skinHash
+          );
+          
+          if (skinRestriction && isPunishmentActive(skinRestriction)) {
+            // Log the skin restriction trigger
+            await createSystemLog(`Player ${username} (${minecraftUuid}) triggered a skin restriction`);
+          }
         }
 
-        await player.save();
-      } else {
-        // Create a new player
+        await player.save();      } else {
+        // For new players, we need to get the IP information
+        if (!ipInfo) {
+          ipInfo = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,countryCode,regionName,city,as,proxy,hosting`)
+            .then(response => response.json());
+        }
+        
+        // Create a new player (similar to Java code: account = new Account(...))
         player = new Player({
           _id: uuidv4(),
           minecraftUuid,
@@ -171,27 +321,91 @@ export function setupMinecraftRoutes(app: Express) {
             logins: [new Date()]
           }],
           punishments: [],
-          pendingNotifications: []
+          pendingNotifications: [],
+          data: new Map([['firstJoin', new Date()]])
         });
-
-        await player.save();
-        await createSystemLog(`New player ${username} (${minecraftUuid}) registered`);
-      }
-
-      // Get active punishments
-      const activePunishments = player.punishments.filter(punishment => {
-        if (punishment.data && punishment.data.has('active') && !punishment.data.get('active')) {
-          return false;
-        }          // Check if the punishment has an expiry date and if it has passed
-        if (punishment.data && punishment.data.has('expires')) {
-          const expiry = punishment.data.get('expires');
-          if (expiry && new Date(expiry) < new Date()) {
-            return false;
+        
+        // After creating the player, check for linked accounts with this IP
+        const linkedPlayers = await Player.find({
+          minecraftUuid: { $ne: minecraftUuid },
+          'ipList.ipAddress': ipAddress
+        });
+        
+        // Similar to handleNewIP in Java, check for alt blocking on new accounts
+        for (const linkedAccount of linkedPlayers) {
+          for (const punishment of linkedAccount.punishments) {
+            if (isPunishmentActive(punishment) && 
+                punishment.data && 
+                punishment.data.has('altBlockingNewAccounts') && 
+                punishment.data.get('altBlockingNewAccounts')) {
+                
+              // Create linked punishment
+              const id = Math.random().toString(36).substring(2, 10).toUpperCase();
+              const linkedBanData = new Map();
+              linkedBanData.set('active', true);
+              linkedBanData.set('linkedBanId', punishment.id);
+              linkedBanData.set('linkedBanExpiry', punishment.data.has('expires') ? 
+                punishment.data.get('expires') : null);
+              linkedBanData.set('altBlocking', true);
+              linkedBanData.set('preventNewAccount', true);
+              
+              const linkedUsername = linkedAccount.usernames[linkedAccount.usernames.length - 1].username;
+              
+              // Create the linked punishment
+              const linkedPunishment = {
+                id,
+                issuerName: 'System',
+                issued: new Date(),
+                started: new Date(),
+                type_ordinal: new Int32(2), // Ban type
+                modifications: [],
+                notes: [{ 
+                  text: `New account created from IP of banned player ${linkedUsername} (${linkedAccount.minecraftUuid})`, 
+                  issuerName: 'System',
+                  date: new Date() 
+                }],
+                attachedTicketIds: [],
+                data: linkedBanData
+              };
+              
+              player.punishments.push(linkedPunishment);
+              await createSystemLog(`New account restriction: ${username} (${minecraftUuid}) created from IP of banned player ${linkedUsername}`);
+              break;
+            }
           }
         }
+        
+        await player.save();
+        await createSystemLog(`New player ${username} (${minecraftUuid}) registered`);
+      }// Handle mutes separately (similar to handleMute method in Java)
+      // Find all mutes for sorting
+      const unstartedMutes = player.punishments
+        .filter(p => 
+          p.type_ordinal && 
+          p.type_ordinal.valueOf() === 1 && // Mute type
+          !p.started &&
+          isPunishmentActive(p)
+        )
+        .sort((a, b) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
+        
+      const activeMutes = player.punishments
+        .filter(p => 
+          p.type_ordinal && 
+          p.type_ordinal.valueOf() === 1 && // Mute type
+          p.started &&
+          isPunishmentActive(p)
+        )
+        .sort((a, b) => new Date(a.started).getTime() - new Date(b.started).getTime());
+      
+      // Start the oldest unstarted mute if there are no active mutes
+      if (activeMutes.length === 0 && unstartedMutes.length > 0) {
+        const muteToStart = unstartedMutes[0]; // Get the oldest mute
+        muteToStart.started = new Date();
+        await createSystemLog(`Started mute for player ${username} (${minecraftUuid})`);
+      }
 
-        return true;
-      });
+      // Get all active punishments (both bans and mutes)
+      const activePunishments = player.punishments.filter(punishment => isPunishmentActive(punishment));
 
       // Convert type_ordinal to plain number for JSON response
       const formattedPunishments = activePunishments.map(punishment => {

@@ -43,12 +43,17 @@ Requests without a valid API key will receive a `401 Unauthorized` response.
     ]
   }
   ```
-- **Logic:**
-  - Updates player's last connection time
+- **Logic:**  - Updates player's last connection time
   - Updates IP list (adds new IP or logs to existing IP)
-  - Checks for ban evasion if new IP is detected
-  - Returns active punishments or starts inactive punishments
-- Detects and handles ban evasion by checking if the player shares IP addresses with other banned accounts
+  - Handles ban evasion detection including:
+    - Linked account detection
+    - Alt account blocking
+    - Restricted accounts tracking
+    - New account prevention from banned IPs
+  - Manages mute handling with proper start/activation
+  - Starts inactive punishments when player comes online
+  - Handles skin restrictions if configured
+  - Returns active punishments with proper type handling
 
 ### Player Disconnect
 - **URL:** `/minecraft/player/disconnect`
@@ -186,12 +191,21 @@ Requests without a valid API key will receive a `401 Unauthorized` response.
 
 The system automatically detects and handles ban evasion through the following mechanisms:
 
-1. **During Login**: When a player logs in, the system checks if any other accounts sharing the same IP address have active bans
-   - If ban evasion is detected, a new ban is automatically created for the evading player
-   - The new ban includes a reference to the original banned account and reason
+1. **During Login**: When a player logs in, several checks are performed:
+   - New IPs trigger searches for linked banned accounts
+   - Alt account detection with `altBlocking` flag creates linked punishments
+   - Punishments can now block new account creation from specific IPs
+   - Skin and name-based restrictions are enforced if configured
 
-2. **Through Linked Accounts Endpoint**: Staff can use the `/minecraft/player/linked` endpoint to check for potential alternate accounts
-   - This helps identify relationships between accounts that might be used for ban evasion
+2. **With Ban Options**: Several ban configuration options are available:
+   - `altBlocking`: Blocks alt accounts from playing
+   - `altBlockingNewAccounts`: Prevents creation of new accounts from the same IP
+   - `blockedSkin`: Restricts specific player skins
+   - `blockedName`: Restricts specific usernames
+   - `linkedBanId` and `linkedBanExpiry`: Tracks linked punishments
+
+3. **Through Linked Accounts Endpoint**: Staff can use the `/minecraft/player/linked` endpoint to check for potential alternate accounts
+   - Helps identify relationships between accounts that might be used for ban evasion
 
 ### Testing Ban Evasion
 
