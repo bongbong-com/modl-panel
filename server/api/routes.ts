@@ -2,6 +2,7 @@ import { Express, Request, Response } from 'express';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
 import { createSystemLog } from '../routes/log-routes';
 import { v4 as uuidv4 } from 'uuid';
+import { setupMinecraftRoutes } from '../routes/minecraft-routes';
 
 // Player routes
 export function setupPlayerRoutes(app: Express) {
@@ -1170,4 +1171,5 @@ export function setupApiRoutes(app: Express) {
   setupSettingsRoutes(app);
   setupStatsRoutes(app);
   setupStaffRoutes(app);
+  setupMinecraftRoutes(app);
 }

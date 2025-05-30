@@ -1,0 +1,38 @@
+ALL REQUESTS ARE UNDER /minecraft/ ROUTE
+
+POST REQUESTS
+-> Player login (/player/login)
+ -> Request: UUID minecraft-uuid, String IP-address, String skin-hash, String username
+ -> Response: int status, List<Punishment> active-punishments
+ -> Logic:
+  - Update player's last_connect to current time in mongodb
+  - Update player's IP list by either adding new IP or adding login to already logged IP
+  - If new IP, check evasion logic. If evading, issue new ban for player
+  - Check started/unstarted bans and respond with currently active or start an inactive one
+-> Player disconnect (/player/disconnect)
+ -> Request: UUID minecraft-uuid
+ -> Response: int status
+ -> Logic: Update player's last_disconnect to current time in mongodb
+-> Create Ticket (/ticket/create)
+ -> Request: UUID minecraft-uuid, int type-ordinal
+ -> Response: int status, String link
+ -> Logic: Create a new ticket
+-> Create Punishment (/punishment/create)
+ -> Request: UUID minecraft-uuid, UUID minecraft-staff-uuid, String note, int type-ordinal, JsonObject punishment-data, boolean online
+ -> Response: int status, Punishment punishment
+ -> Logic: 
+    - Create a new punishment and update that player's mongodb profile. If ban, start only if online. If mute, start only if online & not currently muted.
+    - Return the created punishment as json object.
+-> Add Player Note (/player/note/create)
+ -> Request: UUID minecraft-uuid, UUID minecraft-staff-uuid, String note
+ -> Response: int status
+ -> Logic: Update player profile in mongo and return 200 
+
+GET REQUESTS
+-> Player Profile (/player)
+ -> Request: UUID minecraft-uuid
+ -> Response: int status, Profile profile
+ -> Logic: pull profile from mongo and return it
+-> Player Linked Accounts (/player/linked)
+ -> Request: UUID minecraft-uuid
+ -> Response: int status, List<Profile> profiles

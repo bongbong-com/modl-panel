@@ -86,7 +86,8 @@ const playerSchema = new Schema({
   notes: [noteSchema],
   ipList: [ipAddressSchema],
   punishments: [punishmentSchema],
-  pendingNotifications: [{ type: String }]
+  pendingNotifications: [{ type: String }],
+  data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible additional data
 });
 
 // Staff Collection
