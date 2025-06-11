@@ -356,7 +356,6 @@ const PlayerDetailPage = () => {
           };
           
           setPunishmentTypesByCategory(categorized);
-          console.log('Punishment types by category:', categorized);
         }
       } catch (error) {
         console.error("Error parsing punishment types:", error);

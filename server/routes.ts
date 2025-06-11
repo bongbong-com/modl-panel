@@ -116,9 +116,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
-      // Log our search query for debugging
-      console.log(`Searching for player with query:`, JSON.stringify(query));
-      
       const player = await Player.findOne(query);
       
       if (player) {
