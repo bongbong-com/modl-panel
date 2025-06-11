@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import { Connection, Document } from 'mongoose';
 
 // This interface should align with the actual Log schema defined in mongodb-schemas.ts
@@ -51,3 +52,25 @@ export async function createSystemLog(
     return null;
   }
 }
+
+const router = Router();
+
+router.get('/', async (req, res) => {
+  if (!req.serverDbConnection) {
+    console.error('Error fetching logs: No server-specific database connection found.');
+    return res.status(500).json({ message: 'Server context not found, cannot fetch logs.' });
+  }
+
+  try {
+    const LogModel = req.serverDbConnection.model<ILogDocument>('Log');
+    // Fetch logs, sort by creation date descending, limit to 100 or a query param
+    const limit = parseInt(req.query.limit as string) || 100;
+    const logs = await LogModel.find().sort({ created: -1 }).limit(limit);
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching logs:', error);
+    res.status(500).json({ message: 'Failed to fetch logs from database.' });
+  }
+});
+
+export default router; // Export the router

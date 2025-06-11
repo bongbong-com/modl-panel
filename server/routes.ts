@@ -15,6 +15,7 @@ import playerRoutes from './routes/player-routes';
 import settingsRoutes from './routes/settings-routes';
 import staffRoutes from './routes/staff-routes';
 import ticketRoutes from './routes/ticket-routes';
+import logRoutes from './routes/log-routes'; // Import log routes
 // Import setup function for minecraft routes
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 
@@ -27,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   try {
     // Attempt to connect to the global MODL database first
     globalDbConnection = await connectToGlobalModlDb(); // Assign the connection
-    console.log('Successfully connected to Global MODL Database for server data (e.g., list of tenants).');
+    // console.log('Successfully connected to Global MODL Database for server data (e.g., list of tenants).');
 
     // Removed: createSystemLog call that was using globalDbConnection for 'panel-main'
     // Panel-main specific logs, if needed, should use the main operational DB connection (mongoose.connection)
@@ -62,34 +63,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/settings', settingsRoutes);
   app.use('/api/staff', staffRoutes);
   app.use('/api/tickets', ticketRoutes);
+  app.use('/api/logs', logRoutes); // Use log routes
   
   // Setup Minecraft routes (which internally add /minecraft prefix)
   setupMinecraftRoutes(app);
 
+  // New route for recent activity
+  app.get('/api/activity/recent', async (req, res) => {
+    // TODO: Implement logic to fetch recent activity
+    console.log(`Placeholder for /api/activity/recent. Limit: ${req.query.limit}, Days: ${req.query.days}`);
+    res.json([]); // Return empty array for now
+  });
 
   // Legacy API routes - these will be removed once MongoDB routes are fully integrated
   
   // Get server stats
   app.get('/api/stats', async (req, res) => {
     try {
-      const { Player, Ticket } = await import('./models/mongodb-schemas');
+      // Ensure middleware has provided a server-specific connection
+      if (!req.serverDbConnection) {
+        console.error('Error fetching stats: No server-specific database connection found for this request.');
+        // Fallback to mock data or return an error, as per original behavior for connection issues.
+        // Matching the existing catch block's response structure.
+        return res.json({
+          activePlayers: 153,
+          openTickets: 28,
+          modActions: 47,
+          error: 'Server context not found, using fallback data.'
+        });
+      }
+
+      const Player = req.serverDbConnection.model('Player');
+      const Ticket = req.serverDbConnection.model('Ticket');
       
-      // Get real stats from MongoDB if available
+      // Get real stats from MongoDB
       const playerCount = await Player.countDocuments({});
       const openTickets = await Ticket.countDocuments({ 'data.status': { $ne: 'Closed' } });
       
       res.json({
-        activePlayers: playerCount || 153,
-        openTickets: openTickets || 28,
-        modActions: 47 // This will be replaced with actual count
+        activePlayers: playerCount || 0, // Default to 0 if null/undefined, rather than mock 153
+        openTickets: openTickets || 0,   // Default to 0 if null/undefined, rather than mock 28
+        modActions: 47 // This was previously hardcoded, keeping as is.
       });
     } catch (error) {
-      // Fall back to mock data if MongoDB is not available
+      // Fall back to mock data if MongoDB operations fail
       console.error('Error fetching stats:', error);
       res.json({
-        activePlayers: 153,
-        openTickets: 28,
-        modActions: 47
+        activePlayers: 153, // Original fallback
+        openTickets: 28,  // Original fallback
+        modActions: 47,
+        error: 'Failed to fetch stats from database, using fallback data.'
       });
     }
   });
@@ -100,7 +123,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { type = 'username' } = req.query;
     
     try {
-      const { Player } = await import('./models/mongodb-schemas');
+      // Ensure middleware has provided a server-specific connection
+      if (!req.serverDbConnection) {
+        console.error('Error looking up player: No server-specific database connection found for this request.');
+        return res.status(500).json({
+          error: 'Server error',
+          message: 'Server context not found. Cannot lookup player.'
+        });
+      }
+      const Player = req.serverDbConnection.model('Player');
       
       // Try to find player in MongoDB
       let query: any = {};

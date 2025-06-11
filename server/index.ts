@@ -12,6 +12,7 @@ app.use(express.urlencoded({ extended: false }));
 // It needs to run before any routes that depend on req.serverDbConnection.
 app.use(subdomainDbMiddleware);
 
+/* // Commenting out the API request logger
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -41,6 +42,7 @@ app.use((req, res, next) => {
 
   next();
 });
+*/
 
 (async () => {
   const server = await registerRoutes(app);

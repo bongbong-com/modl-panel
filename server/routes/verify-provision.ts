@@ -12,7 +12,7 @@ import {
 
 // TODO: Define a more robust initial data seeding function for new servers
 async function provisionNewServerInstance(dbConnection: Connection, serverName: string) {
-  console.log(`Starting provisioning for ${serverName} using DB: ${dbConnection.name}...`);
+  // console.log(`Starting provisioning for ${serverName} using DB: ${dbConnection.name}...`);
 
   // Register models on the server-specific connection using their schemas
   dbConnection.model('Player', Player.schema);
@@ -20,7 +20,7 @@ async function provisionNewServerInstance(dbConnection: Connection, serverName: 
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
   dbConnection.model('Settings', Settings.schema);
-  console.log(`Models registered on DB ${dbConnection.name} for ${serverName}.`);
+  // console.log(`Models registered on DB ${dbConnection.name} for ${serverName}.`);
 
   // Example: Seed initial settings
   const SettingsModelOnNewConnection = dbConnection.model('Settings');

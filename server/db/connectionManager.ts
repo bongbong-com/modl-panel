@@ -1,6 +1,5 @@
-// filepath: d:\bongbong\modl-panel\server\db\connectionManager.ts
-import mongoose, { Connection } from 'mongoose'; // Removed Schema from here as it's not directly used in this way after changes
 import dotenv from 'dotenv';
+import mongoose, { Connection } from 'mongoose'; // Removed Schema from here as it's not directly used in this way after changes
 import { 
     playerSchema, 
     ticketSchema, 
@@ -14,6 +13,7 @@ dotenv.config();
 
 const GLOBAL_MODL_DB_URI = process.env.GLOBAL_MODL_DB_URI;
 const PANEL_DB_PREFIX = process.env.PANEL_DB_PREFIX || 'server_';
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 let globalModlConnection: Connection | null = null;
 const serverConnections = new Map<string, Connection>();
@@ -34,7 +34,7 @@ const tenantSchemas: Record<string, mongoose.Schema<any>> = {
 function registerTenantModels(connection: Connection): void {
     for (const modelName in tenantSchemas) {
         if (Object.prototype.hasOwnProperty.call(tenantSchemas, modelName) && tenantSchemas[modelName]) {
-            console.log(`Registering model '${modelName}' on connection for DB: '${connection.name}'`);
+            // console.log(`Registering model '${modelName}' on connection for DB: '${connection.name}'`);
             connection.model(modelName, tenantSchemas[modelName]);
         } else {
             console.warn(`Schema for model '${modelName}' not found or not provided, skipping registration for DB: '${connection.name}'.`);
@@ -84,12 +84,26 @@ export async function getModlServersModel() {
  * @returns The Mongoose connection object for the server's database.
  */
 export async function connectToServerDb(serverName: string): Promise<Connection> {
+  if (IS_DEVELOPMENT) {
+    // In development, all tenants on localhost might share a single 'modl_test' DB
+    // or have individual test DBs. Current logic points to a shared 'modl_test'.
+    // console.log(`Development mode: Request for server '${serverName}', will use shared DB 'modl_test'.`);
+    const devConnectionKey = 'dev_shared_modl_test_connection';
+    if (serverConnections.has(devConnectionKey) && serverConnections.get(devConnectionKey)!.readyState === 1) {
+      // console.log(`Reusing existing connection for key '${devConnectionKey}' (DB: modl_test).`);
+      return serverConnections.get(devConnectionKey)!;
+    }
+  }
+
   let connectionKeyInMap: string;
   let serverDbUri: string;
   let actualDbNameForConnection: string;
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  // const isDevelopment = process.env.NODE_ENV === 'development';
+  // Use the already defined IS_DEVELOPMENT
+  // const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
-  if (isDevelopment) {
+
+  if (IS_DEVELOPMENT) {
     actualDbNameForConnection = 'modl_test';
     // In development, all serverName instances share a single connection to 'modl_test'.
     // Use a fixed key in the map for this shared connection.
@@ -118,7 +132,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   }
 
   // Construct URI
-  if (isDevelopment) {
+  if (IS_DEVELOPMENT) {
     const baseUri = GLOBAL_MODL_DB_URI;
     if (!baseUri) {
       const errorMessage = 'GLOBAL_MODL_DB_URI is not set in .env. This is required to construct the development database URI for modl_test.';
