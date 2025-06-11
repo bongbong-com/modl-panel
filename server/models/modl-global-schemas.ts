@@ -7,7 +7,7 @@ const ModlServerSchema = new Schema({
   serverName: { type: String, required: true, unique: true },
   customDomain: { type: String, required: true, unique: true }, // This will be the subdomain
   plan: { type: String, required: true, enum: ['free', 'paid'] }, // Added enum for plan
-  emailVerificationToken: { type: String, required: true, unique: true },
+  emailVerificationToken: { type: String, unique: true, sparse: true }, // Made optional, unique only when a value is present
   emailVerified: { type: Boolean, default: false },
   provisioningStatus: { type: String, enum: ['pending', 'in-progress', 'completed', 'failed'], default: 'pending' }, // To track provisioning
   databaseName: { type: String }, // To store the name of the server's dedicated DB
