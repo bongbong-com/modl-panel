@@ -21,6 +21,7 @@ import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
 import AppealsPage from "@/pages/appeals";
 import ApiDocs from "@/pages/api-docs";
+import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
 
 function Router() {
   const [location] = useLocation();
@@ -29,15 +30,17 @@ function Router() {
   const isAuthPage = location === '/auth';
   const isAppealsPage = location === '/appeals';
   const isPlayerTicketPage = location.startsWith('/player-ticket/');
+  const isProvisioningPage = location === '/provisioning-in-progress'; // Add this line
 
-  // Don't show navigation on auth page, appeals page, or player ticket page
-  if (isAuthPage || isAppealsPage || isPlayerTicketPage) {
+  // Don't show navigation on auth page, appeals page, player ticket page, or provisioning page
+  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage) { // Add isProvisioningPage here
     return (
       <main className="h-full">
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} /> {/* Ensure this route is here */}
         </Switch>
       </main>
     );
@@ -60,6 +63,7 @@ function Router() {
             <AuthRoute path="/auth" component={AuthPage} />
             <Route path="/appeals" component={AppealsPage} />
             <Route path="/player-ticket/:id" component={PlayerTicket} />
+            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} /> {/* Provisioning page route for mobile, though typically accessed without nav */}
             <Route component={NotFound} />
           </Switch>
         </main>
@@ -84,6 +88,7 @@ function Router() {
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} /> {/* Provisioning page route for desktop, though typically accessed without nav */}
           <Route component={NotFound} />
         </Switch>
       </main>

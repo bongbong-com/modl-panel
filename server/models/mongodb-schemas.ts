@@ -185,5 +185,22 @@ export {
   Staff,
   Ticket,
   Log,
-  Settings
+  Settings,
+  // Export raw schemas
+  playerSchema,
+  staffSchema,
+  ticketSchema,
+  logSchema,
+  settingsSchema,
+  // also export other schemas if they are needed by connectionManager for model registration
+  usernameSchema,
+  noteSchema,
+  ticketNoteSchema,
+  ipAddressSchema,
+  modificationSchema,
+  punishmentSchema,
+  passkeySchema,
+  replySchema,
+  formFieldSchema,
+  formTemplateSchema
 };

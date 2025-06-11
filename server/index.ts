@@ -1,10 +1,16 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes"; // This should point to the updated routes.ts
 import { setupVite, serveStatic, log } from "./vite";
+import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware"; // Import the middleware
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Apply the subdomain DB middleware early in the stack,
+// but after static assets or general purpose parsers if any were before.
+// It needs to run before any routes that depend on req.serverDbConnection.
+app.use(subdomainDbMiddleware);
 
 app.use((req, res, next) => {
   const start = Date.now();

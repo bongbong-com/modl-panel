@@ -1,35 +1,63 @@
 import { Express, Request, Response } from 'express';
-import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
-import { createSystemLog } from '../routes/log-routes';
+// Models will be accessed via req.serverDbConnection.model(<ModelName>)
+import { createSystemLog } from '../routes/log-routes'; // IMPORTANT: createSystemLog in log-routes.ts must be refactored
 import { v4 as uuidv4 } from 'uuid';
-import { setupMinecraftRoutes } from '../routes/minecraft-routes';
+import { setupMinecraftRoutes } from '../routes/minecraft-routes'; // This would also need refactoring if it uses models directly
+import { Connection } from 'mongoose'; // Added for type hinting
+
+// Define interfaces for schema types to help with type safety for lambda parameters
+interface IUsername {
+  username: string;
+  date: Date;
+}
+
+interface IIPAddress {
+  ipAddress: string;
+  country?: string;
+  region?: string;
+  asn?: string;
+  proxy?: boolean;
+  firstLogin: Date;
+  logins: Date[];
+}
+
+interface IPunishment { 
+  id: string;
+  active?: boolean; // This field is used conceptually; actual active status might be derived from type/duration or data map
+  // ... other punishment fields from punishmentSchema
+}
+
+interface IReply {
+  _id?: any; // Mongoose _id
+  name: string;
+  content: string;
+  type: string;
+  created: Date;
+  staff?: boolean;
+  action?: string;
+}
 
 // Player routes
 export function setupPlayerRoutes(app: Express) {
 
   // Search player by username
   app.get('/api/player/:username', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const username = req.params.username;
-      
-      // Create a case-insensitive regex for partial matching
       const regex = new RegExp(username, 'i');
-      
-      // Search for players with a matching username in their history
       const player = await Player.findOne({
         'usernames.username': { $regex: regex }
       });
-      
       if (!player) {
         return res.status(404).json({ message: 'Player not found' });
       }
-      
-      // Get the latest username
       const latestUsername = player.usernames && player.usernames.length > 0
         ? player.usernames[player.usernames.length - 1].username
         : 'Unknown';
-      
-      // Return minimal player info with UUID for lookup
       res.json({
         uuid: player.minecraftUuid,
         username: latestUsername
@@ -42,20 +70,25 @@ export function setupPlayerRoutes(app: Express) {
 
   // Get all players
   app.get('/api/players', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const players = await Player.find({}, { 
         minecraftUuid: 1, 
-        'usernames': { $slice: -1 }, // Get only the most recent username
-        'punishments.active': 1 
-      });
+        'usernames': { $slice: -1 },
+        'punishments': 1 
+      }).lean(); 
       
-      // Transform for client consumption
-      const transformedPlayers = players.map(player => {
+      const transformedPlayers = players.map((player: any) => { 
         const latestUsername = player.usernames && player.usernames.length > 0 
           ? player.usernames[player.usernames.length - 1].username 
           : 'Unknown';
         
-        const status = player.punishments && player.punishments.some(p => p.active) 
+        // Assuming 'active' is a derived property or stored in punishment.data
+        // For now, this logic is kept, but IPunishment.active is optional.
+        const status = player.punishments && player.punishments.some((p: IPunishment) => p.active) 
           ? 'Banned' 
           : 'Active';
         
@@ -75,14 +108,16 @@ export function setupPlayerRoutes(app: Express) {
 
   // Get player by UUID
   app.get('/api/players/:uuid', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const uuid = req.params.uuid;
       const player = await Player.findOne({ minecraftUuid: uuid });
-      
       if (!player) {
         return res.status(404).json({ error: 'Player not found' });
       }
-      
       res.json(player);
     } catch (error) {
       console.error('Error fetching player:', error);
@@ -91,23 +126,21 @@ export function setupPlayerRoutes(app: Express) {
   });
 
   app.post('/api/players/login', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const { minecraftUuid, username, ipAddress } = req.body;
-  
-      // Fetch IP information from ip-api.com
       const ipInfo = await fetch(`http://ip-api.com/json/${ipAddress}?fields=status,message,countryCode,regionName,city,as,proxy,hosting`)
         .then(response => response.json());
   
-      // Check if player already exists
       const existingPlayer = await Player.findOne({ minecraftUuid });
       if (existingPlayer) {
-        // Fix: Use existingPlayer instead of undefined player variable
-        const existingIp = existingPlayer.ipList.find(ip => ip.ipAddress === ipAddress);
+        const existingIp = existingPlayer.ipList.find((ip: IIPAddress) => ip.ipAddress === ipAddress);
         if (existingIp) {
-          // Just update the login dates
           existingIp.logins.push(new Date());
         } else {
-          // Add new IP with data from ip-api.com
           existingPlayer.ipList.push({
             ipAddress,
             country: ipInfo.countryCode,
@@ -118,19 +151,15 @@ export function setupPlayerRoutes(app: Express) {
             logins: [new Date()]
           });
         }
-  
-        // Update the username list
-        const existingUsername = existingPlayer.usernames.find(u => u.username === username);
+        const existingUsername = existingPlayer.usernames.find((u: IUsername) => u.username === username);
         if (!existingUsername) {
           existingPlayer.usernames.push({ username, date: new Date() });
         }
-        
         await existingPlayer.save();
         return res.status(201).json(existingPlayer);
       }
   
-      // Create new player
-      const player = new Player({
+      const newPlayerDoc = new Player({
         _id: uuidv4(),
         minecraftUuid,
         usernames: [{ username, date: new Date() }],
@@ -147,22 +176,25 @@ export function setupPlayerRoutes(app: Express) {
         punishments: [],
         pendingNotifications: []
       });
-  
-      await player.save();
-      res.status(201).json(player);
+      await newPlayerDoc.save();
+      res.status(201).json(newPlayerDoc);
     } catch (error) {
-      console.error('Error creating player:', error);
+      console.error('Error processing player login:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   // Create a new player
   app.post('/api/players', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const newPlayer = new Player(req.body);
       await newPlayer.save();
-      
-      await createSystemLog(`Player ${req.body.usernames[0].username} created`);
+      // IMPORTANT: createSystemLog call assumes it's refactored for (Connection, string, string)
+      await createSystemLog(req.serverDbConnection, req.serverName, `Player ${req.body.usernames[0].username} created`);
       res.status(201).json(newPlayer);
     } catch (error) {
       console.error('Error creating player:', error);
@@ -172,6 +204,10 @@ export function setupPlayerRoutes(app: Express) {
 
   // Update player
   app.patch('/api/players/:uuid', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const uuid = req.params.uuid;
       const player = await Player.findOneAndUpdate(
@@ -179,12 +215,10 @@ export function setupPlayerRoutes(app: Express) {
         { $set: req.body },
         { new: true }
       );
-      
       if (!player) {
         return res.status(404).json({ error: 'Player not found' });
       }
-      
-      await createSystemLog(`Player ${uuid} updated`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Player ${uuid} updated`);
       res.json(player);
     } catch (error) {
       console.error('Error updating player:', error);
@@ -194,21 +228,22 @@ export function setupPlayerRoutes(app: Express) {
   
   // Add punishment to player
   app.post('/api/players/:uuid/punishments', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const uuid = req.params.uuid;
       const punishment = req.body;
-      
       const player = await Player.findOneAndUpdate(
         { minecraftUuid: uuid },
         { $push: { punishments: punishment } },
         { new: true }
       );
-      
       if (!player) {
         return res.status(404).json({ error: 'Player not found' });
       }
-      
-      await createSystemLog(`Punishment added to player ${uuid}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Punishment added to player ${uuid}`);
       res.json(player);
     } catch (error) {
       console.error('Error adding punishment:', error);
@@ -218,38 +253,31 @@ export function setupPlayerRoutes(app: Express) {
 
   // Add note to player
   app.post('/api/players/:uuid/notes', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Player = req.serverDbConnection.model('Player');
     try {
       const uuid = req.params.uuid;
-      const note = req.body;
-      
-      console.log('Adding note to player:', uuid, 'Note data:', note);
-      
-      // Try to find the player by either UUID or minecraftUuid
-      let player = await Player.findOne({
+      const note = req.body; // Assuming note structure matches the schema for player notes
+      let playerDoc = await Player.findOne({
         $or: [
           { _id: uuid },
-          { uuid: uuid },
+          // { uuid: uuid }, // 'uuid' is not standard; _id or minecraftUuid are typical
           { minecraftUuid: uuid }
         ]
       });
-      
-      if (!player) {
-        console.log('Player not found with UUID:', uuid);
+      if (!playerDoc) {
         return res.status(404).json({ error: 'Player not found' });
       }
-      
-      console.log('Found player:', player.usernames && player.usernames.length ? player.usernames[player.usernames.length - 1].username : 'Unknown');
-      
-      // Add the note
-      player = await Player.findByIdAndUpdate(
-        player._id,
+      // Ensure playerDoc._id is used for findByIdAndUpdate
+      playerDoc = await Player.findByIdAndUpdate(
+        playerDoc._id, 
         { $push: { notes: note } },
         { new: true }
       );
-      
-      console.log('Note added successfully');
-      await createSystemLog(`Note added to player ${uuid}`);
-      res.json(player);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Note added to player ${uuid}`);
+      res.json(playerDoc);
     } catch (error) {
       console.error('Error adding note:', error);
       res.status(500).json({ error: 'Failed to add note' });
@@ -258,40 +286,31 @@ export function setupPlayerRoutes(app: Express) {
 }
 
 // Helper function to generate ticket ID
-async function generateTicketId(type: string): Promise<string> {
-  // Convert ticket type to prefix
+async function generateTicketId(serverDbConnection: Connection, type: string): Promise<string> {
+  const Ticket = serverDbConnection.model('Ticket');
   const prefix = type === 'bug' ? 'BUG' : 
                 type === 'player' ? 'PLAYER' :
                 type === 'chat' ? 'CHAT' :
                 type === 'appeal' ? 'APPEAL' :
                 type === 'staff' ? 'STAFF' : 'SUPPORT';
-  
-  // Generate a random 6-digit number
   const randomId = Math.floor(100000 + Math.random() * 900000);
-  
-  // Combine to create ticket ID
   const ticketId = `${prefix}-${randomId}`;
-  
-  // Check if this ID already exists, if so, try again
   const existingTicket = await Ticket.findById(ticketId);
   if (existingTicket) {
-    return generateTicketId(type);
+    return generateTicketId(serverDbConnection, type); // Recursive call with connection
   }
-  
   return ticketId;
 }
 
 // Helper function to get player by UUID
-async function getPlayerByUuid(uuid: string) {
+async function getPlayerByUuid(serverDbConnection: Connection, uuid: string): Promise<{ player: any, latestUsername: string } | null> {
+  const Player = serverDbConnection.model('Player');
   try {
     const player = await Player.findOne({ minecraftUuid: uuid });
     if (!player) return null;
-    
-    // Get the latest username
     const latestUsername = player.usernames && player.usernames.length > 0
       ? player.usernames[player.usernames.length - 1].username
       : 'Unknown';
-    
     return { player, latestUsername };
   } catch (error) {
     console.error('Error finding player:', error);
@@ -301,26 +320,23 @@ async function getPlayerByUuid(uuid: string) {
 
 // Ticket routes
 export function setupTicketRoutes(app: Express) {
-  // Get all tickets (exclude Unfinished tickets)
   app.get('/api/tickets', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
-      // Only get tickets that don't have Unfinished status
       const tickets = await Ticket.find({ status: { $ne: 'Unfinished' } });
-      
-      // Transform for client consumption
-      const transformedTickets = tickets.map(ticket => {
-        return {
-          id: ticket._id,
-          subject: ticket.subject || 'No Subject',
-          status: ticket.status,
-          reportedBy: ticket.creator,
-          date: ticket.created,
-          category: getCategoryFromType(ticket.type),
-          locked: ticket.locked || false,
-          type: ticket.type
-        };
-      });
-      
+      const transformedTickets = tickets.map((ticket: any) => ({
+        id: ticket._id,
+        subject: ticket.subject || 'No Subject',
+        status: ticket.status,
+        reportedBy: ticket.creator,
+        date: ticket.created,
+        category: getCategoryFromType(ticket.type),
+        locked: ticket.locked || false,
+        type: ticket.type
+      }));
       res.json(transformedTickets);
     } catch (error) {
       console.error('Error fetching tickets:', error);
@@ -340,17 +356,17 @@ export function setupTicketRoutes(app: Express) {
     }
   }
 
-  // Get ticket by ID
   app.get('/api/tickets/:id', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const id = req.params.id;
       const ticket = await Ticket.findById(id);
-      
       if (!ticket) {
         return res.status(404).json({ error: 'Ticket not found' });
       }
-      
-      // Transform for client consumption
       const transformedTicket = {
         id: ticket._id,
         subject: ticket.subject || 'No Subject',
@@ -363,7 +379,7 @@ export function setupTicketRoutes(app: Express) {
         formData: ticket.formData ? Object.fromEntries(ticket.formData) : {},
         reportedPlayer: ticket.reportedPlayer,
         reportedPlayerUuid: ticket.reportedPlayerUuid,
-        messages: ticket.replies.map(reply => ({
+        messages: ticket.replies.map((reply: IReply) => ({
           id: reply._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           sender: reply.name,
           senderType: reply.type,
@@ -372,10 +388,9 @@ export function setupTicketRoutes(app: Express) {
           staff: reply.staff,
           closedAs: reply.action
         })),
-        notes: ticket.notes,
+        notes: ticket.notes, // Assuming notes are already in the desired format
         tags: ticket.tags
       };
-      
       res.json(transformedTicket);
     } catch (error) {
       console.error('Error fetching ticket:', error);
@@ -385,22 +400,18 @@ export function setupTicketRoutes(app: Express) {
 
   // Create a bug report
   app.post('/api/tickets/bug', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const { creatorUuid } = req.body;
-      if (!creatorUuid) {
-        return res.status(400).json({ error: 'Creator UUID is required' });
-      }
+      if (!creatorUuid) return res.status(400).json({ error: 'Creator UUID is required' });
       
-      // Get creator info
-      const creatorInfo = await getPlayerByUuid(creatorUuid);
-      if (!creatorInfo) {
-        return res.status(404).json({ error: 'Creator not found' });
-      }
+      const creatorInfo = await getPlayerByUuid(req.serverDbConnection, creatorUuid);
+      if (!creatorInfo) return res.status(404).json({ error: 'Creator not found' });
       
-      // Create ticket ID
-      const ticketId = await generateTicketId('bug');
-      
-      // Create the ticket
+      const ticketId = await generateTicketId(req.serverDbConnection, 'bug');
       const newTicket = new Ticket({
         _id: ticketId,
         type: 'bug',
@@ -409,10 +420,8 @@ export function setupTicketRoutes(app: Express) {
         creator: creatorInfo.latestUsername,
         creatorUuid: creatorUuid
       });
-      
       await newTicket.save();
-      
-      await createSystemLog(`Bug report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Bug report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
       res.status(201).json({ ticketId });
     } catch (error) {
       console.error('Error creating bug report ticket:', error);
@@ -422,33 +431,22 @@ export function setupTicketRoutes(app: Express) {
 
   // Create a player report
   app.post('/api/tickets/player', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const { creatorUuid, reportedPlayerUuid } = req.body;
+      if (!creatorUuid) return res.status(400).json({ error: 'Creator UUID is required' });
+      if (!reportedPlayerUuid) return res.status(400).json({ error: 'Reported player UUID is required' });
+
+      const creatorInfo = await getPlayerByUuid(req.serverDbConnection, creatorUuid);
+      if (!creatorInfo) return res.status(404).json({ error: 'Creator not found' });
       
-      if (!creatorUuid) {
-        return res.status(400).json({ error: 'Creator UUID is required' });
-      }
+      const reportedPlayerInfo = await getPlayerByUuid(req.serverDbConnection, reportedPlayerUuid);
+      if (!reportedPlayerInfo) return res.status(404).json({ error: 'Reported player not found' });
       
-      if (!reportedPlayerUuid) {
-        return res.status(400).json({ error: 'Reported player UUID is required' });
-      }
-      
-      // Get creator info
-      const creatorInfo = await getPlayerByUuid(creatorUuid);
-      if (!creatorInfo) {
-        return res.status(404).json({ error: 'Creator not found' });
-      }
-      
-      // Get reported player info
-      const reportedPlayerInfo = await getPlayerByUuid(reportedPlayerUuid);
-      if (!reportedPlayerInfo) {
-        return res.status(404).json({ error: 'Reported player not found' });
-      }
-      
-      // Create ticket ID
-      const ticketId = await generateTicketId('player');
-      
-      // Create the ticket
+      const ticketId = await generateTicketId(req.serverDbConnection, 'player');
       const newTicket = new Ticket({
         _id: ticketId,
         type: 'player',
@@ -459,10 +457,8 @@ export function setupTicketRoutes(app: Express) {
         reportedPlayer: reportedPlayerInfo.latestUsername,
         reportedPlayerUuid: reportedPlayerUuid
       });
-      
       await newTicket.save();
-      
-      await createSystemLog(`Player report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Player report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
       res.status(201).json({ ticketId });
     } catch (error) {
       console.error('Error creating player report ticket:', error);
@@ -472,37 +468,25 @@ export function setupTicketRoutes(app: Express) {
 
   // Create a chat report
   app.post('/api/tickets/chat', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const { creatorUuid, reportedPlayerUuid, chatMessages } = req.body;
-      
-      if (!creatorUuid) {
-        return res.status(400).json({ error: 'Creator UUID is required' });
-      }
-      
-      if (!reportedPlayerUuid) {
-        return res.status(400).json({ error: 'Reported player UUID is required' });
-      }
-      
+      if (!creatorUuid) return res.status(400).json({ error: 'Creator UUID is required' });
+      if (!reportedPlayerUuid) return res.status(400).json({ error: 'Reported player UUID is required' });
       if (!chatMessages || !Array.isArray(chatMessages) || chatMessages.length === 0) {
         return res.status(400).json({ error: 'Chat messages are required' });
       }
+
+      const creatorInfo = await getPlayerByUuid(req.serverDbConnection, creatorUuid);
+      if (!creatorInfo) return res.status(404).json({ error: 'Creator not found' });
+
+      const reportedPlayerInfo = await getPlayerByUuid(req.serverDbConnection, reportedPlayerUuid);
+      if (!reportedPlayerInfo) return res.status(404).json({ error: 'Reported player not found' });
       
-      // Get creator info
-      const creatorInfo = await getPlayerByUuid(creatorUuid);
-      if (!creatorInfo) {
-        return res.status(404).json({ error: 'Creator not found' });
-      }
-      
-      // Get reported player info
-      const reportedPlayerInfo = await getPlayerByUuid(reportedPlayerUuid);
-      if (!reportedPlayerInfo) {
-        return res.status(404).json({ error: 'Reported player not found' });
-      }
-      
-      // Create ticket ID
-      const ticketId = await generateTicketId('chat');
-      
-      // Create the ticket
+      const ticketId = await generateTicketId(req.serverDbConnection, 'chat');
       const newTicket = new Ticket({
         _id: ticketId,
         type: 'chat',
@@ -514,10 +498,8 @@ export function setupTicketRoutes(app: Express) {
         reportedPlayerUuid: reportedPlayerUuid,
         chatMessages: chatMessages
       });
-      
       await newTicket.save();
-      
-      await createSystemLog(`Chat report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Chat report ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
       res.status(201).json({ ticketId });
     } catch (error) {
       console.error('Error creating chat report ticket:', error);
@@ -527,22 +509,18 @@ export function setupTicketRoutes(app: Express) {
 
   // Create a staff application
   app.post('/api/tickets/staff', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const { creatorUuid } = req.body;
-      if (!creatorUuid) {
-        return res.status(400).json({ error: 'Creator UUID is required' });
-      }
+      if (!creatorUuid) return res.status(400).json({ error: 'Creator UUID is required' });
+
+      const creatorInfo = await getPlayerByUuid(req.serverDbConnection, creatorUuid);
+      if (!creatorInfo) return res.status(404).json({ error: 'Creator not found' });
       
-      // Get creator info
-      const creatorInfo = await getPlayerByUuid(creatorUuid);
-      if (!creatorInfo) {
-        return res.status(404).json({ error: 'Creator not found' });
-      }
-      
-      // Create ticket ID
-      const ticketId = await generateTicketId('staff');
-      
-      // Create the ticket
+      const ticketId = await generateTicketId(req.serverDbConnection, 'staff');
       const newTicket = new Ticket({
         _id: ticketId,
         type: 'staff',
@@ -551,12 +529,10 @@ export function setupTicketRoutes(app: Express) {
         creator: creatorInfo.latestUsername,
         creatorUuid: creatorUuid
       });
-      
       await newTicket.save();
-      
-      await createSystemLog(`Staff application ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Staff application ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
       res.status(201).json({ ticketId });
-    } catch (error) {
+    } catch (error) { // Corrected catch syntax
       console.error('Error creating staff application ticket:', error);
       res.status(500).json({ error: 'Failed to create staff application ticket' });
     }
@@ -564,22 +540,18 @@ export function setupTicketRoutes(app: Express) {
 
   // Create a general support ticket
   app.post('/api/tickets/support', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const { creatorUuid } = req.body;
-      if (!creatorUuid) {
-        return res.status(400).json({ error: 'Creator UUID is required' });
-      }
+      if (!creatorUuid) return res.status(400).json({ error: 'Creator UUID is required' });
+
+      const creatorInfo = await getPlayerByUuid(req.serverDbConnection, creatorUuid);
+      if (!creatorInfo) return res.status(404).json({ error: 'Creator not found' });
       
-      // Get creator info
-      const creatorInfo = await getPlayerByUuid(creatorUuid);
-      if (!creatorInfo) {
-        return res.status(404).json({ error: 'Creator not found' });
-      }
-      
-      // Create ticket ID
-      const ticketId = await generateTicketId('support');
-      
-      // Create the ticket
+      const ticketId = await generateTicketId(req.serverDbConnection, 'support');
       const newTicket = new Ticket({
         _id: ticketId,
         type: 'support',
@@ -588,10 +560,8 @@ export function setupTicketRoutes(app: Express) {
         creator: creatorInfo.latestUsername,
         creatorUuid: creatorUuid
       });
-      
       await newTicket.save();
-      
-      await createSystemLog(`Support ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Support ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
       res.status(201).json({ ticketId });
     } catch (error) {
       console.error('Error creating support ticket:', error);
@@ -601,33 +571,25 @@ export function setupTicketRoutes(app: Express) {
   
   // Submit form data for an unfinished ticket and make it active
   app.post('/api/tickets/:id/submit', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const { id } = req.params;
       const { subject, formData } = req.body;
-      
-      if (!subject || !formData) {
-        return res.status(400).json({ error: 'Subject and form data are required' });
-      }
-      
-      // Find the ticket
+      if (!subject || !formData) return res.status(400).json({ error: 'Subject and form data are required' });
+
       const ticket = await Ticket.findById(id);
-      if (!ticket) {
-        return res.status(404).json({ error: 'Ticket not found' });
-      }
-      
-      // Verify it's unfinished
-      if (ticket.status !== 'Unfinished') {
-        return res.status(400).json({ error: 'Only unfinished tickets can be submitted' });
-      }
-      
-      // Create a content string from form data
+      if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+      if (ticket.status !== 'Unfinished') return res.status(400).json({ error: 'Only unfinished tickets can be submitted' });
+
       let contentString = '';
       Object.entries(formData).forEach(([key, value]) => {
         contentString += `${key}: ${value}\n\n`;
       });
       
-      // Create initial message
-      const initialMessage = {
+      const initialMessage: IReply = {
         name: ticket.creator,
         content: contentString,
         type: 'player',
@@ -635,21 +597,19 @@ export function setupTicketRoutes(app: Express) {
         staff: false
       };
       
-      // Update the ticket
       const updatedTicket = await Ticket.findByIdAndUpdate(
         id,
         {
           $set: {
             status: 'Open',
             subject: subject,
-            formData: formData
+            formData: formData // Assuming formData is a Map or object compatible with schema
           },
           $push: { replies: initialMessage }
         },
         { new: true }
       );
-      
-      await createSystemLog(`Ticket ${id} submitted by ${ticket.creator}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Ticket ${id} submitted by ${ticket.creator}`);
       res.json({ 
         success: true, 
         ticketId: id,
@@ -663,124 +623,75 @@ export function setupTicketRoutes(app: Express) {
 
   // Update ticket
   app.patch('/api/tickets/:id', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const id = req.params.id;
-      
-      // Handle special cases like adding replies or notes
+      const ticketToUpdate = await Ticket.findById(id); // Fetch first to ensure it exists
+      if (!ticketToUpdate) return res.status(404).json({ error: 'Ticket not found' });
+
+      const updateOperations: any = { $set: {}, $push: {} };
+
       if (req.body.newReply) {
-        const reply = req.body.newReply;
+        const reply: IReply = req.body.newReply;
+        if (reply.type === 'staff') reply.staff = true;
         
-        // Ensure staff replies are marked correctly
-        if (reply.type === 'staff') {
-          reply.staff = true;
-        }
-        
-        // Add the reply to the ticket
-        await Ticket.findByIdAndUpdate(
-          id,
-          { $push: { replies: reply } }
-        );
-        
-        // If the reply has an action that should close/reopen the ticket, update status
+        // Ensure $push.replies is initialized if not already
+        if (!updateOperations.$push.replies) updateOperations.$push.replies = [];
+        updateOperations.$push.replies.push(reply);
+
         if (reply.action) {
-          const closingActions = ['Accepted', 'Completed', 'Pardon', 'Reduce', 'Rejected', 'Stale', 
-                                 'Duplicate', 'Reject', 'Close'];
+          const closingActions = ['Accepted', 'Completed', 'Pardon', 'Reduce', 'Rejected', 'Stale', 'Duplicate', 'Reject', 'Close'];
           const reopenAction = 'Reopen';
-          
-          // Update ticket status based on the action in the latest reply
           if (closingActions.includes(reply.action)) {
-            // Closing actions
-            req.body.status = reply.action === 'Accepted' || 
-                             reply.action === 'Completed' || 
-                             reply.action === 'Pardon' || 
-                             reply.action === 'Reduce' 
-                             ? 'Resolved' : 'Closed';
-            
-            // Also lock the ticket
-            req.body.locked = true;
-            
-            // Directly update locked state in case the rest of the code misses it
-            await Ticket.findByIdAndUpdate(
-              id,
-              { $set: { locked: true } }
-            );
+            updateOperations.$set.status = (reply.action === 'Accepted' || reply.action === 'Completed' || reply.action === 'Pardon' || reply.action === 'Reduce') 
+                                          ? 'Resolved' : 'Closed';
+            updateOperations.$set.locked = true;
           } else if (reply.action === reopenAction) {
-            // Reopening action
-            req.body.status = 'Open';
-            req.body.locked = false;
-            
-            // Directly update locked state in case the rest of the code misses it
-            await Ticket.findByIdAndUpdate(
-              id,
-              { $set: { locked: false } }
-            );
+            updateOperations.$set.status = 'Open';
+            updateOperations.$set.locked = false;
           }
-          // Comment action doesn't change status or locked state
         }
-      } 
+      }
       
       if (req.body.newNote) {
+        // Assuming newNote has { content: string, author: string }
         const note = {
           content: req.body.newNote.content,
-          author: req.body.newNote.author,
+          author: req.body.newNote.author, 
           date: new Date()
         };
-        await Ticket.findByIdAndUpdate(
-          id,
-          { $push: { notes: note } }
-        );
+        if (!updateOperations.$push.notes) updateOperations.$push.notes = [];
+        updateOperations.$push.notes.push(note);
       }
       
-      // Update data map for data fields
-      const dataUpdates = {};
-      if (req.body.status) dataUpdates['data.status'] = req.body.status;
-      if (req.body.priority) dataUpdates['data.priority'] = req.body.priority;
-      if (req.body.assignedTo) dataUpdates['data.assignedTo'] = req.body.assignedTo;
+      // Direct field updates
+      if (req.body.status) updateOperations.$set.status = req.body.status;
+      if (req.body.locked !== undefined) updateOperations.$set.locked = req.body.locked;
+      if (req.body.tags) updateOperations.$set.tags = req.body.tags;
+      // For fields within 'data' Map (like priority, assignedTo)
+      if (req.body.priority) updateOperations.$set['data.priority'] = req.body.priority;
+      if (req.body.assignedTo) updateOperations.$set['data.assignedTo'] = req.body.assignedTo;
+
+      // Clean up empty $set or $push to avoid errors with empty update objects
+      if (Object.keys(updateOperations.$set).length === 0) delete updateOperations.$set;
+      if (Object.keys(updateOperations.$push).length === 0) delete updateOperations.$push;
       
-      // Direct field updates for built-in schema fields
-      const directUpdates = {};
-      // Update main status if needed
-      if (req.body.status) directUpdates['status'] = req.body.status;
-      // Handle locked status - update it on the main document
-      if (req.body.locked !== undefined) directUpdates['locked'] = req.body.locked;
-      
-      // Handle tags
-      if (req.body.tags) {
-        await Ticket.findByIdAndUpdate(
-          id,
-          { $set: { tags: req.body.tags } }
-        );
+      // Only perform update if there are operations
+      if (Object.keys(updateOperations).length === 0 || (Object.keys(updateOperations).length === 2 && !updateOperations.$set && !updateOperations.$push) ) {
+        return res.json(ticketToUpdate); // No actual updates to perform, return current ticket
       }
-      
-      // Merge direct and data updates
-      const updateOperations = { $set: {} };
-      
-      // Add data field updates
-      if (Object.keys(dataUpdates).length > 0) {
-        Object.assign(updateOperations.$set, dataUpdates);
-      }
-      
-      // Add direct field updates
-      if (Object.keys(directUpdates).length > 0) {
-        Object.assign(updateOperations.$set, directUpdates);
-      }
-      
-      // Apply all updates and get updated ticket
-      const ticket = await Ticket.findByIdAndUpdate(
-        id,
-        updateOperations,
-        { new: true }
-      );
-      
-      if (!ticket) {
-        return res.status(404).json({ error: 'Ticket not found' });
-      }
-      
-      // Log status for debugging
-      console.log(`Updated ticket ${id} - Locked status: ${ticket.locked}`);
-      
-      await createSystemLog(`Ticket ${id} updated`);
-      res.json(ticket);
+
+      const updatedTicket = await Ticket.findByIdAndUpdate(id, updateOperations, { new: true });
+      // findByIdAndUpdate returns null if not found, but we checked with findById already.
+      // However, for safety, a check can be added.
+      if (!updatedTicket) return res.status(404).json({ error: 'Ticket not found during update' }); 
+
+      console.log(`Updated ticket ${id} - Locked status: ${updatedTicket.locked}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Ticket ${id} updated`);
+      res.json(updatedTicket);
     } catch (error) {
       console.error('Error updating ticket:', error);
       res.status(500).json({ error: 'Failed to update ticket' });
@@ -790,28 +701,23 @@ export function setupTicketRoutes(app: Express) {
 
 // Appeal routes (appeals are a special type of ticket)
 export function setupAppealRoutes(app: Express) {
-  // Get all appeals
   app.get('/api/appeals', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket'); // Appeals use the Ticket model
     try {
-      const appeals = await Ticket.find({ tags: 'appeal' });
-      
-      // Transform for client consumption
-      const transformedAppeals = appeals.map(appeal => {
-        const status = appeal.data.get('status') as string || 'Pending Review';
-        const punishmentId = appeal.data.get('punishmentId') as string;
-        
-        return {
-          id: appeal._id,
-          banId: punishmentId,
-          submittedOn: appeal.created,
-          status,
-          lastUpdate: appeal.replies.length > 0 
-            ? appeal.replies[appeal.replies.length - 1].created 
-            : appeal.created,
-          messages: appeal.replies
-        };
-      });
-      
+      const appeals = await Ticket.find({ type: 'appeal' }); // Query by type: 'appeal'
+      const transformedAppeals = appeals.map((appeal: any) => ({
+        id: appeal._id,
+        banId: appeal.data?.get('punishmentId') as string, 
+        submittedOn: appeal.created,
+        status: appeal.data?.get('status') as string || 'Pending Review',
+        lastUpdate: appeal.replies && appeal.replies.length > 0 
+          ? appeal.replies[appeal.replies.length - 1].created 
+          : appeal.created,
+        messages: appeal.replies
+      }));
       res.json(transformedAppeals);
     } catch (error) {
       console.error('Error fetching appeals:', error);
@@ -819,33 +725,28 @@ export function setupAppealRoutes(app: Express) {
     }
   });
 
-  // Get appeal by ID
   app.get('/api/appeals/:id', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const id = req.params.id;
       const appeal = await Ticket.findById(id);
-      
-      if (!appeal) {
-        return res.status(404).json({ error: 'Appeal not found' });
+      if (!appeal || appeal.type !== 'appeal') { // Ensure it's an appeal
+        return res.status(404).json({ error: 'Appeal not found or ticket is not an appeal' });
       }
-      
-      // Check if this is actually an appeal
-      if (!appeal.tags.includes('appeal')) {
-        return res.status(400).json({ error: 'Ticket is not an appeal' });
-      }
-      
-      // Transform for client consumption
+
       const transformedAppeal = {
         id: appeal._id,
-        banId: appeal.data.get('punishmentId') as string,
+        banId: appeal.data?.get('punishmentId') as string,
         submittedOn: appeal.created,
-        status: appeal.data.get('status') as string || 'Pending Review',
-        lastUpdate: appeal.replies.length > 0 
+        status: appeal.data?.get('status') as string || 'Pending Review',
+        lastUpdate: appeal.replies && appeal.replies.length > 0 
           ? appeal.replies[appeal.replies.length - 1].created 
           : appeal.created,
-        messages: appeal.replies.filter(reply => !reply.staff)
+        messages: appeal.replies.filter((reply: IReply) => !reply.staff)
       };
-      
       res.json(transformedAppeal);
     } catch (error) {
       console.error('Error fetching appeal:', error);
@@ -853,28 +754,26 @@ export function setupAppealRoutes(app: Express) {
     }
   });
 
-  // Get appeals for punishment
   app.get('/api/appeals/punishment/:id', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Server database not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const punishmentId = req.params.id;
       const appeals = await Ticket.find({ 
-        tags: 'appeal',
-        'data.punishmentId': punishmentId
+        type: 'appeal',
+        'data.punishmentId': punishmentId 
       });
-      
-      // Transform for client consumption
-      const transformedAppeals = appeals.map(appeal => {
-        return {
-          id: appeal._id,
-          banId: punishmentId,
-          submittedOn: appeal.created,
-          status: appeal.data.get('status') as string || 'Pending Review',
-          lastUpdate: appeal.replies.length > 0 
-            ? appeal.replies[appeal.replies.length - 1].created 
-            : appeal.created
-        };
-      });
-      
+      const transformedAppeals = appeals.map((appeal: any) => ({
+        id: appeal._id,
+        banId: punishmentId,
+        submittedOn: appeal.created,
+        status: appeal.data?.get('status') as string || 'Pending Review',
+        lastUpdate: appeal.replies && appeal.replies.length > 0 
+          ? appeal.replies[appeal.replies.length - 1].created 
+          : appeal.created
+      }));
       res.json(transformedAppeals);
     } catch (error) {
       console.error('Error fetching appeals for punishment:', error);
@@ -882,19 +781,27 @@ export function setupAppealRoutes(app: Express) {
     }
   });
 
-  // Create a new appeal
   app.post('/api/appeals', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
+    const Player = req.serverDbConnection.model('Player');
     try {
-      // Format appeal data as a ticket
+      const ticketId = await generateTicketId(req.serverDbConnection, 'appeal'); 
       const appealData = {
-        _id: `APPEAL-${Math.floor(100000 + Math.random() * 900000)}`,
-        tags: ['appeal', ...req.body.tags || []],
+        _id: ticketId,
+        tags: ['appeal', ...(req.body.tags || [])], // Ensure 'appeal' tag is present
+        type: 'appeal', 
+        status: 'Open', // Default status for new appeals
         created: new Date(),
-        creator: req.body.username,
+        creator: req.body.username, // From request body
+        creatorUuid: req.body.playerUuid, // From request body
+        subject: req.body.subject || `Appeal for ${req.body.username}`, // Optional subject
         replies: [
           {
             name: req.body.username,
-            content: req.body.content,
+            content: req.body.content, // Main appeal content
             type: 'player',
             created: new Date(),
             staff: false
@@ -909,7 +816,7 @@ export function setupAppealRoutes(app: Express) {
         ],
         notes: [],
         data: new Map([
-          ['status', 'Pending Review'],
+          ['status', 'Pending Review'], // Specific status for appeal workflow
           ['punishmentId', req.body.punishmentId],
           ['playerUuid', req.body.playerUuid],
           ['email', req.body.email]
@@ -919,20 +826,20 @@ export function setupAppealRoutes(app: Express) {
       const newAppeal = new Ticket(appealData);
       await newAppeal.save();
       
-      // Update the punishment to link to this appeal
-      await Player.updateOne(
-        { 
-          minecraftUuid: req.body.playerUuid,
-          'punishments.id': req.body.punishmentId
-        },
-        { 
-          $push: { 
-            'punishments.$.attachedTicketIds': newAppeal._id 
-          } 
-        }
-      );
+      // Link appeal to punishment on the Player document
+      if (req.body.playerUuid && req.body.punishmentId) {
+        await Player.updateOne(
+          { 
+            minecraftUuid: req.body.playerUuid,
+            'punishments.id': req.body.punishmentId
+          },
+          { 
+            $push: { 'punishments.$.attachedTicketIds': newAppeal._id } 
+          }
+        );
+      }
       
-      await createSystemLog(`Appeal ${newAppeal._id} submitted for punishment ${req.body.punishmentId}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Appeal ${newAppeal._id} submitted for punishment ${req.body.punishmentId || 'N/A'}`);
       res.status(201).json(newAppeal);
     } catch (error) {
       console.error('Error creating appeal:', error);
@@ -940,29 +847,56 @@ export function setupAppealRoutes(app: Express) {
     }
   });
 
-  // Add reply to appeal
   app.post('/api/appeals/:id/reply', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const id = req.params.id;
-      const reply = {
+      const replyContent: IReply = {
         name: req.body.name,
         content: req.body.content,
         type: req.body.type || 'player',
         created: new Date(),
-        staff: req.body.staff || false
+        staff: req.body.staff || false,
+        action: req.body.action 
       };
       
-      const appeal = await Ticket.findByIdAndUpdate(
-        id,
-        { $push: { replies: reply } },
-        { new: true }
-      );
-      
-      if (!appeal) {
-        return res.status(404).json({ error: 'Appeal not found' });
+      const updatePayload: any = { $push: { replies: replyContent }, $set: {} };
+      let appealToUpdate = await Ticket.findById(id);
+      if (!appealToUpdate || appealToUpdate.type !== 'appeal') {
+        return res.status(404).json({ error: 'Appeal not found or ticket is not an appeal' });
       }
+
+      if (replyContent.action) {
+        const closingActions = ['Accepted', 'Completed', 'Pardon', 'Reduce', 'Rejected', 'Stale', 'Duplicate', 'Reject', 'Close'];
+        const reopenAction = 'Reopen';
+        let newStatus = appealToUpdate.status;
+        let newLocked = appealToUpdate.locked;
+        let newDataStatus = appealToUpdate.data.get('status');
+
+        if (closingActions.includes(replyContent.action)) {
+          newStatus = (replyContent.action === 'Accepted' || replyContent.action === 'Completed' || replyContent.action === 'Pardon' || replyContent.action === 'Reduce') 
+                      ? 'Resolved' : 'Closed';
+          newLocked = true;
+          newDataStatus = newStatus; 
+        } else if (replyContent.action === reopenAction) {
+          newStatus = 'Open';
+          newLocked = false;
+          newDataStatus = 'Open';
+        }
+        updatePayload.$set.status = newStatus;
+        updatePayload.$set.locked = newLocked;
+        updatePayload.$set['data.status'] = newDataStatus;
+      }
+      if (Object.keys(updatePayload.$set).length === 0) delete updatePayload.$set;
+
+      const appeal = await Ticket.findByIdAndUpdate(id, updatePayload, { new: true });
+      // Already checked existence, but double check update result
+      if (!appeal) return res.status(404).json({ error: 'Appeal not found during reply update' }); 
       
-      await createSystemLog(`Reply added to appeal ${id}`);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Reply added to appeal ${id}`);
       res.json(appeal);
     } catch (error) {
       console.error('Error adding reply to appeal:', error);
@@ -970,36 +904,44 @@ export function setupAppealRoutes(app: Express) {
     }
   });
 
-  // Update appeal status
   app.patch('/api/appeals/:id/status', async (req: Request, res: Response) => {
+    if (!req.serverDbConnection || !req.serverName) {
+      return res.status(503).json({ error: 'Server database or server name not available' });
+    }
+    const Ticket = req.serverDbConnection.model('Ticket');
     try {
       const id = req.params.id;
       const status = req.body.status;
       
-      // Update the ticket data map
       const appeal = await Ticket.findById(id);
-      if (!appeal) {
-        return res.status(404).json({ error: 'Appeal not found' });
+      if (!appeal || appeal.type !== 'appeal') { 
+        return res.status(404).json({ error: 'Appeal not found or ticket is not an appeal' });
       }
-      
-      // Update status
-      appeal.data.set('status', status);
-      await appeal.save();
-      
-      // Add system message
-      const systemMessage = {
+
+      const systemMessage: IReply = {
         name: 'System',
         content: `Appeal status changed to ${status}`,
         type: 'system',
         created: new Date(),
         staff: false
       };
+
+      const updatedAppeal = await Ticket.findByIdAndUpdate(
+        id,
+        {
+          $set: { 
+            status: status, // Update main ticket status
+            'data.status': status // Update appeal-specific status in data map
+          },
+          $push: { replies: systemMessage }
+        },
+        { new: true }
+      );
+
+      if (!updatedAppeal) return res.status(404).json({ error: 'Appeal not found during status update' });
       
-      appeal.replies.push(systemMessage);
-      await appeal.save();
-      
-      await createSystemLog(`Appeal ${id} status changed to ${status}`);
-      res.json(appeal);
+      await createSystemLog(req.serverDbConnection, req.serverName, `Appeal ${id} status changed to ${status}`);
+      res.json(updatedAppeal);
     } catch (error) {
       console.error('Error updating appeal status:', error);
       res.status(500).json({ error: 'Failed to update appeal status' });
@@ -1007,169 +949,24 @@ export function setupAppealRoutes(app: Express) {
   });
 }
 
-// Log routes
-export function setupLogRoutes(app: Express) {
-  // Get all logs
-  app.get('/api/logs', async (req: Request, res: Response) => {
-    try {
-      const logs = await Log.find().sort({ created: -1 }).limit(100);
-      res.json(logs);
-    } catch (error) {
-      console.error('Error fetching logs:', error);
-      res.status(500).json({ error: 'Failed to fetch logs' });
-    }
-  });
-
-  // Create a log 
-  app.post('/api/logs', async (req: Request, res: Response) => {
-    try {
-      const newLog = new Log(req.body);
-      await newLog.save();
-      res.status(201).json(newLog);
-    } catch (error) {
-      console.error('Error creating log:', error);
-      res.status(500).json({ error: 'Failed to create log' });
-    }
-  });
-}
-
-// Settings routes
-export function setupSettingsRoutes(app: Express) {
-  // Get settings
-  app.get('/api/settings', async (req: Request, res: Response) => {
-    try {
-      const settings = await Settings.findOne();
-      res.json(settings);
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-      res.status(500).json({ error: 'Failed to fetch settings' });
-    }
-  });
-
-  // Update settings
-  app.patch('/api/settings', async (req: Request, res: Response) => {
-    try {
-      const settings = await Settings.findOne();
-      
-      if (!settings) {
-        // Create settings if they don't exist
-        const newSettings = new Settings({ settings: new Map() });
-        
-        // Update with request data
-        Object.entries(req.body).forEach(([key, value]) => {
-          newSettings.settings.set(key, value);
-        });
-        
-        await newSettings.save();
-        return res.json(newSettings);
-      }
-      
-      // Update existing settings
-      Object.entries(req.body).forEach(([key, value]) => {
-        settings.settings.set(key, value);
-      });
-      
-      await settings.save();
-      await createSystemLog('Settings updated');
-      res.json(settings);
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      res.status(500).json({ error: 'Failed to update settings' });
-    }
-  });
-}
-
-// Stats routes
-export function setupStatsRoutes(app: Express) {
-  app.get('/api/stats', async (req: Request, res: Response) => {
-    try {
-      // Get overall statistics
-      const playerCount = await Player.countDocuments();
-      const ticketCount = await Ticket.countDocuments();
-      const openTicketCount = await Ticket.countDocuments({ 'data.status': 'Open' });
-      const appealCount = await Ticket.countDocuments({ tags: 'appeal' });
-      const staffCount = await Staff.countDocuments();
-      
-      // Get recent activity for display
-      const recentTickets = await Ticket.find()
-        .sort({ created: -1 })
-        .limit(5);
-      
-      const recentAppeals = await Ticket.find({ tags: 'appeal' })
-        .sort({ created: -1 })
-        .limit(5);
-      
-      // Transform tickets for display
-      const transformedTickets = recentTickets.map(ticket => {
-        const subject = ticket.data.get('subject') as string || 'No Subject';
-        return {
-          id: ticket._id,
-          type: ticket.tags.includes('appeal') ? 'appeal' : 'ticket',
-          title: subject,
-          date: ticket.created,
-          status: ticket.data.get('status') as string || 'Open'
-        };
-      });
-      
-      res.json({
-        counts: {
-          players: playerCount,
-          tickets: ticketCount,
-          openTickets: openTicketCount,
-          appeals: appealCount,
-          staff: staffCount
-        },
-        recent: {
-          tickets: transformedTickets,
-          appeals: recentAppeals
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      res.status(500).json({ error: 'Failed to fetch stats' });
-    }
-  });
-}
-
-// Staff routes
-export function setupStaffRoutes(app: Express) {
-  // Get all staff
-  app.get('/api/staff', async (req: Request, res: Response) => {
-    try {
-      const staff = await Staff.find({}, { password: 0, twoFaSecret: 0 });
-      res.json(staff);
-    } catch (error) {
-      console.error('Error fetching staff:', error);
-      res.status(500).json({ error: 'Failed to fetch staff' });
-    }
-  });
-
-  // Get staff by ID
-  app.get('/api/staff/:id', async (req: Request, res: Response) => {
-    try {
-      const id = req.params.id;
-      const staff = await Staff.findById(id, { password: 0, twoFaSecret: 0 });
-      
-      if (!staff) {
-        return res.status(404).json({ error: 'Staff member not found' });
-      }
-      
-      res.json(staff);
-    } catch (error) {
-      console.error('Error fetching staff member:', error);
-      res.status(500).json({ error: 'Failed to fetch staff member' });
-    }
-  });
-}
-
-// Setup all routes
+// Add the missing setupApiRoutes function
 export function setupApiRoutes(app: Express) {
   setupPlayerRoutes(app);
   setupTicketRoutes(app);
   setupAppealRoutes(app);
-  setupLogRoutes(app);
-  setupSettingsRoutes(app);
-  setupStatsRoutes(app);
-  setupStaffRoutes(app);
-  setupMinecraftRoutes(app);
+  // If setupMinecraftRoutes was intended to be part of this centralized API setup,
+  // ensure it's correctly imported and called here.
+  // For now, assuming it's handled separately as per server/routes.ts structure.
 }
+
+// IMPORTANT Reminder:
+// The `createSystemLog` function, located in '../routes/log-routes.ts',
+// MUST be refactored to accept `(dbConnection: Connection, serverName: string, description: string, ...)`
+// and use the `dbConnection` to get the Log model for the specific tenant.
+// Example of how createSystemLog in log-routes.ts should be structured:
+//   import { Connection } from 'mongoose';
+//   export async function createSystemLog(dbConnection: Connection, serverName: string, description: string, level: string = 'info', sourceSystem: string = 'panel') {
+//     const Log = dbConnection.model('Log');
+//     const newLog = new Log({ description, level, source: sourceSystem, server: serverName, created: new Date() });
+//     await newLog.save();
+//   }

@@ -1,22 +1,51 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
+import mongoose from 'mongoose'; // Added for mongoose.connection
 import { storage } from "./storage";
 import { connectToMongoDB } from "./db/mongodb";
 import { setupApiRoutes } from "./api/routes";
-import { createSystemLog } from "./routes/log-routes";
+import { setupVerificationAndProvisioningRoutes } from './routes/verify-provision';
+import { connectToGlobalModlDb } from './db/connectionManager'; // Keep this
+import { type Connection as MongooseConnection } from 'mongoose'; // Import Connection type
+
+// Import new TypeScript routes
+import appealRoutes from './routes/appeal-routes';
+import playerRoutes from './routes/player-routes';
+import settingsRoutes from './routes/settings-routes';
+import staffRoutes from './routes/staff-routes';
+import ticketRoutes from './routes/ticket-routes';
+// Import setup function for minecraft routes
+import { setupMinecraftRoutes } from './routes/minecraft-routes';
+
+// provisioning-routes.ts does not seem to export a router for app.use, verify-provision.ts handles setup
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  let globalDbConnection: MongooseConnection | undefined = undefined; // Variable to hold the connection
+
   // Connect to MongoDB or use in-memory fallback
   try {
-    const connected = await connectToMongoDB();
-    if (connected) {
-      try {
-        await createSystemLog('Server started successfully');
-      } catch (error) {
-        console.log('Unable to create system log, but server started');
-      }
+    // Attempt to connect to the global MODL database first
+    globalDbConnection = await connectToGlobalModlDb(); // Assign the connection
+    console.log('Successfully connected to Global MODL Database for server data (e.g., list of tenants).');
+
+    // Removed: createSystemLog call that was using globalDbConnection for 'panel-main'
+    // Panel-main specific logs, if needed, should use the main operational DB connection (mongoose.connection)
+    // and ensure Log schema is registered there. For now, we are removing this to fix the MissingSchemaError
+    // as logs are primarily tenant-specific.
+
+    // Attempt to connect to the main operational DB for the panel (legacy/default connection)
+    // This might be used by other parts of the app that rely on mongoose.connection
+    const legacyMainDbConnected = await connectToMongoDB(); 
+    if (legacyMainDbConnected) {
+      // If this connection is also used for logging or critical ops, it should be handled here.
+      // For now, we assume panel-main logs are handled by globalDbConnection.
+      console.log('Legacy main panel DB (mongoose.defaultConnection) connected successfully.');
+    } else {
+      // This is where "No MongoDB URI provided, using in-memory simulation" would appear if it fails.
+      console.log('Legacy main panel DB (mongoose.defaultConnection) might be using in-memory simulation or failed to connect.');
     }
+
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
     console.log('Falling back to in-memory storage');
@@ -24,8 +53,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   
   // Register all MongoDB routes
-  setupApiRoutes(app);
+  setupApiRoutes(app); // This handles /api/v1 routes (new TS multi-tenant API)
+  setupVerificationAndProvisioningRoutes(app); // Handles /verify-email, /provision-server etc.
+
+  // Register individual new TypeScript routes under /api base path
+  app.use('/api/appeals', appealRoutes);
+  app.use('/api/players', playerRoutes);
+  app.use('/api/settings', settingsRoutes);
+  app.use('/api/staff', staffRoutes);
+  app.use('/api/tickets', ticketRoutes);
   
+  // Setup Minecraft routes (which internally add /minecraft prefix)
+  setupMinecraftRoutes(app);
+
+
   // Legacy API routes - these will be removed once MongoDB routes are fully integrated
   
   // Get server stats
