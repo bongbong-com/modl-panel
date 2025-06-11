@@ -1,53 +1,116 @@
 import { Request, Response, NextFunction } from 'express';
-import { Connection } from 'mongoose';
-import { connectToServerDb } from '../db/connectionManager';
+import { Connection as MongooseConnection } from 'mongoose';
+import { connectToGlobalModlDb, connectToServerDb } from '../db/connectionManager';
+import { ModlServerSchema } from '../models/modl-global-schemas';
 
 const DOMAIN = process.env.DOMAIN || 'modl.gg';
 const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 export async function subdomainDbMiddleware(req: Request, res: Response, next: NextFunction) {
-  const hostname = req.hostname;
-  let serverName: string | undefined = undefined;
-
-  // Detailed debugging logs
-  // console.log(`[SUBDOMAIN_DEBUG] Request received: ${req.method} ${req.originalUrl}, Hostname: ${hostname}`);
-
-  if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
-    // Reverted to simpler logic without query param override
-    serverName = 'testlocal'; 
-    // console.log(`Subdomain middleware (DEV LOCALHOST): Simulating serverName: ${serverName} for hostname: ${hostname}.`);
-  } else if (hostname.endsWith(`.${DOMAIN}`)) {
-    const parts = hostname.split('.');
-    const baseDomainParts = DOMAIN.split('.').length;
-
-    if (parts.length > baseDomainParts) {
-      serverName = parts.slice(0, parts.length - baseDomainParts).join('.');
-      // console.log(`Subdomain middleware: Extracted serverName: ${serverName} from hostname: ${hostname}`);
-    } else {
-      // console.log(`Subdomain middleware: No serverName extracted for hostname: ${hostname}. Using default or no tenant.`);
-    }
-  } else {
-    // console.log(`Subdomain middleware: Hostname ${hostname} does not match development or DOMAIN. No serverName set.`);
-  }
-
-  if (!serverName) {
-    // If it's not a recognized subdomain (e.g., direct IP, or the main domain like modl.gg itself in prod without specific handling)
-    // or if the subdomain parsing logic didn't lead to a server-specific connection attempt,
-    // we don't attach a server-specific DB. 
-    // The request proceeds, and routes that require req.serverDbConnection must check for its existence.
-    // console.log(`Subdomain middleware: No server-specific DB for hostname: ${hostname}. Allowing request to proceed for global or non-tenant routes.`);
+  // Bypass this middleware for globally accessible API routes
+  if (req.path.startsWith('/api/global/')) {
     return next();
   }
 
-  // console.log(`[SUBDOMAIN_DEBUG] Attempting to connect to DB for serverName: "${serverName}"`);
+  const hostname = req.hostname;
+  let serverName: string | undefined = undefined; // This will hold the derived subdomain
+
+  if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+    serverName = 'testlocal'; // For local dev, 'testlocal' is the conventional subdomain
+  } else if (hostname.endsWith(`.${DOMAIN}`)) {
+    const parts = hostname.split('.');
+    const baseDomainParts = DOMAIN.split('.').length;
+    if (parts.length > baseDomainParts) {
+      serverName = parts.slice(0, parts.length - baseDomainParts).join('.');
+    } else {
+      // Accessing base domain (e.g., modl.gg) or www.modl.gg
+      return next(); // Not a panel subdomain, could be landing page etc.
+    }
+  } else {
+    // Hostname doesn't end with .${DOMAIN} and isn't localhost.
+    // Could be a custom domain not yet handled by this logic for panel resolution, or direct IP access.
+    return next(); // Not a panel subdomain recognized by this middleware's primary logic
+  }
+
+  if (!serverName) {
+    // This means the hostname was not identified as a panel subdomain (e.g., it's the base domain, www.modl.gg, or a non-matching custom domain).
+    // The preceding logic should have already called next() for these cases.
+    // This check is a safeguard; if serverName is not set, it's not a panel request for this middleware to process further.
+    return next();
+  }
+
+  // At this point, 'serverName' is the derived subdomain (e.g., "mypanel", "testlocal").
+  // This derived 'serverName' must exist as a 'customDomain' in the database.
+  let globalConnection: MongooseConnection;
   try {
-    const dbConnection = await connectToServerDb(serverName);
-    req.serverDbConnection = dbConnection;
-    req.serverName = serverName; 
-    // console.log(`[SUBDOMAIN_DEBUG] Successfully connected to DB: ${dbConnection.name} for server: ${serverName}`);
+    globalConnection = await connectToGlobalModlDb();
+    const ModlServerModel = globalConnection.model('ModlServer', ModlServerSchema);
+    
+    // Query by 'customDomain' using the derived serverName (which is the subdomain)
+    const serverConfig = await ModlServerModel.findOne({ customDomain: serverName });
+
+    if (!serverConfig) {
+      // A subdomain was parsed from the hostname, but it's not registered in the database.
+      return res.status(404).send(`Panel for '${serverName}' is not configured or does not exist.`);
+    }
+
+    // Attach serverConfig to request for potential use in other routes or middleware
+    // @ts-ignore
+    req.serverConfig = serverConfig;
+
+    // Define paths accessible *before* email verification for this specific panel
+    const allowedPreVerificationPagePaths = [
+        '/pending-verification',      // Example page: "Check your email to verify"
+        '/resend-verification',       // Example page or API endpoint to resend verification
+        '/verify-email'               // The actual verification link target (GET request)
+    ];
+    // API prefixes/paths related to authentication & verification that should always be accessible
+    const alwaysAllowedApiPatterns = [
+        '/api/auth/',                 // Covers all auth routes like /api/auth/login, /api/auth/register
+        '/api/request-email-verification' // Specific endpoint to request a new verification token
+    ];
+
+    const isPathAllowedPreVerification = 
+        allowedPreVerificationPagePaths.includes(req.path) ||
+        alwaysAllowedApiPatterns.some(pattern => req.path.startsWith(pattern));
+
+    if (!serverConfig.emailVerified && !isPathAllowedPreVerification) {
+      // User is trying to access a panel resource that requires email verification,
+      // but their email for this panel is not verified, and the path is not exempt.
+      if (req.path.startsWith('/api/')) {
+        // For API requests, return JSON 404
+        return res.status(404).json({ message: 'Panel access denied. Email verification required.' });
+      } else {
+        // For browser navigation, return a 404 page/message.
+        // A redirect to a specific "please verify your email" page might offer better UX.
+        // e.g., return res.redirect(`http://${serverConfig.customDomain}.${DOMAIN}/auth/verify-prompt`);
+        return res.status(404).send('Panel not accessible. Please verify your email or check the URL.');
+      }
+    }
+    
+    // If email is verified, proceed to connect to server-specific DB
+    if (serverConfig.emailVerified) {
+        // @ts-ignore
+        req.serverDbConnection = await connectToServerDb(serverConfig.customDomain); // Use customDomain
+
+        // Handle provisioning status
+        // This redirects to an "in-progress" page if provisioning isn't complete.
+        if ((serverConfig.provisioningStatus === 'pending' || serverConfig.provisioningStatus === 'in-progress') &&
+            !req.path.startsWith('/api/provisioning/status') && // Allow checking status
+            req.path !== '/provisioning-in-progress' &&      // Allow accessing the status page itself
+            req.path !== '/verify-email'                     // Don't block verification if provisioning is pending
+            ) {
+            // If provisioning is not complete and the current path is not an allowed exception,
+            // redirect to the provisioning in progress page.
+            return res.redirect(`/provisioning-in-progress`);
+        }
+    }
+    
     next();
-  } catch (error) {
-    console.error(`Subdomain middleware: Failed to connect to DB for server ${serverName}:`, error);
-    res.status(503).json({ error: `Service unavailable. Database connection failed for server ${serverName}.` });
+
+  } catch (error: any) {
+    console.error(`[ERROR] Subdomain middleware for ${hostname} (derived subdomain ${serverName}): ${error.message}`);
+    // Avoid exposing raw error details to the client for security.
+    return res.status(500).send('An internal error occurred while processing your panel request.');
   }
 }
