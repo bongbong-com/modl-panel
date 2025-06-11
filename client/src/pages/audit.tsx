@@ -6,18 +6,62 @@ import { Badge } from '@/components/ui/badge';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { auditLogs } from '@/data/mockData';
-import PageContainer from '@/components/layout/PageContainer'
+import { useLogs } from '@/hooks/use-data';
+import PageContainer from '@/components/layout/PageContainer';
+
+interface DatabaseLog {
+  _id: string;
+  created: string;
+  description: string;
+  level: 'info' | 'warning' | 'error' | 'moderation';
+  source: string;
+}
 
 const AuditLog = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [actionFilter, setActionFilter] = useState("all");
   
-  // More generous left margin to prevent text overlap with sidebar
-  const mainContentClass = "ml-[32px] pl-8";
-
+  // Fetch logs from the database
+  const { data: logsData, isLoading: isLoadingLogs, error: logsError } = useLogs();
+  
+  // Transform database logs to the format expected by the UI
+  const transformedLogs = (logsData as DatabaseLog[] || []).map((log) => {
+    // Map log levels to action types and colors
+    const getActionTypeAndColor = (level: string, source: string) => {
+      switch (level) {
+        case 'moderation':
+          return { actionType: 'staff', color: 'orange', userType: 'Staff' };
+        case 'error':
+          return { actionType: 'system', color: 'red', userType: 'System' };  
+        case 'warning':
+          return { actionType: 'system', color: 'yellow', userType: 'System' };
+        case 'info':
+        default:
+          // If source is not 'system', it might be from a staff member
+          if (source !== 'system') {
+            return { actionType: 'staff', color: 'blue', userType: 'Staff' };
+          }
+          return { actionType: 'system', color: 'blue', userType: 'System' };
+      }
+    };
+    
+    const { actionType, color, userType } = getActionTypeAndColor(log.level, log.source);
+    
+    return {
+      user: log.source,
+      userType,
+      actionType,
+      action: log.description,
+      detail: `Level: ${log.level}`,
+      viewText: '',
+      viewLink: '',
+      time: new Date(log.created).toLocaleString(),
+      color
+    };
+  });
+  
   // Filter logs by action type
-  const filteredLogs = auditLogs.filter(log => {
+  const filteredLogs = transformedLogs.filter(log => {
     return actionFilter === "all" || log.actionType === actionFilter;
   });
 
@@ -48,9 +92,13 @@ const AuditLog = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-md font-medium">Activity Log</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {filteredLogs.map((log, index) => (
+          </CardHeader>          <CardContent className="space-y-4">
+            {isLoadingLogs && <p className="p-4 text-center">Loading audit logs...</p>}
+            {logsError && <p className="p-4 text-center text-destructive">Error loading logs: {logsError.message}</p>}
+            {!isLoadingLogs && !logsError && filteredLogs.length === 0 && (
+              <p className="p-4 text-center text-muted-foreground">No audit logs to display.</p>
+            )}
+            {!isLoadingLogs && !logsError && filteredLogs.map((log, index) => (
               <div key={index} className="flex justify-between">
                 <div className="flex items-center">
                   <div className="mr-4 w-4 h-full flex items-center justify-center">
@@ -69,9 +117,16 @@ const AuditLog = () => {
                     <p className="text-sm text-muted-foreground mt-1">{log.action}</p>
                     <div className="flex items-center space-x-4 mt-2">
                       <span className="text-xs text-muted-foreground">{log.detail}</span>
-                      <Button variant="link" size="sm" className="text-xs text-primary p-0 h-auto">
-                        {log.viewText}
-                      </Button>
+                      {log.viewText && log.viewLink && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="text-xs text-primary p-0 h-auto"
+                          onClick={() => { /* TODO: Implement navigation if using a router */ console.log("Navigate to:", log.viewLink); }}
+                        >
+                          {log.viewText}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

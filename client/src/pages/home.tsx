@@ -14,20 +14,19 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useSidebar } from '@/hooks/use-sidebar';
-import { recentActivity } from '@/data/mockData';
+import { useRecentActivity, useStats, ClientActivity } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 
-type Activity = typeof recentActivity[0];
+type Activity = ClientActivity;
 
 const ActivityItem = ({ activity }: { activity: Activity }) => {
   return (
     <div className="p-4 hover:bg-muted/50 flex items-start ease-in duration-200">
       <div className={`h-10 w-10 rounded-full bg-${activity.color}-500/20 flex items-center justify-center mr-4 flex-shrink-0`}>
-        {activity.type === 'ticket' && <Ticket className={`h-5 w-5 text-${activity.color}-500`} />}
-        {activity.type === 'moderation' && <Shield className={`h-5 w-5 text-${activity.color}-500`} />}
-        {activity.type === 'report' && <CircleAlert className={`h-5 w-5 text-${activity.color}-500`} />}
-        {activity.type === 'ai' && <Bot className={`h-5 w-5 text-${activity.color}-500`} />}
+        {activity.type === 'new_ticket' && <Ticket className={`h-5 w-5 text-${activity.color}-500`} />}
+        {activity.type === 'mod_action' && <Shield className={`h-5 w-5 text-${activity.color}-500`} />}
+        {activity.type === 'new_punishment' && <CircleAlert className={`h-5 w-5 text-${activity.color}-500`} />}
+        {activity.type === 'system_log' && <Bot className={`h-5 w-5 text-${activity.color}-500`} />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start">
@@ -80,6 +79,21 @@ const StatCard = ({ title, value, change, changeText, color }: {
 
 const Home = () => {
   const [activityFilter, setActivityFilter] = useState("all");
+  
+  // Fetch recent activity from the database
+  const { data: recentActivityData, isLoading: isLoadingActivity, error: activityError } = useRecentActivity(20, 7);
+  
+  // Fetch stats data from the database
+  const { data: statsData, isLoading: isLoadingStats } = useStats();
+  
+  // Filter activities by type
+  const filteredActivities = (recentActivityData || []).filter(activity => {
+    if (activityFilter === "all") return true;
+    if (activityFilter === "moderation") return activity.type === "mod_action" || activity.type === "new_punishment";
+    if (activityFilter === "ticket") return activity.type === "new_ticket";
+    if (activityFilter === "ban") return activity.type === "new_punishment";
+    return true;
+  });
 
   return (
     <PageContainer>
@@ -94,25 +108,24 @@ const Home = () => {
           </Button>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <StatCard 
           title="Active Players" 
-          value={153} 
+          value={isLoadingStats ? 0 : (statsData?.counts?.players || 153)} 
           change={12} 
           changeText="from last hour" 
           color="primary" 
         />
         <StatCard 
           title="Open Tickets" 
-          value={28} 
+          value={isLoadingStats ? 0 : (statsData?.counts?.openTickets || 28)} 
           change={-5} 
           changeText="from yesterday" 
           color="warning" 
         />
         <StatCard 
-          title="Mod Actions Today" 
-          value={47} 
+          title="Total Staff" 
+          value={isLoadingStats ? 0 : (statsData?.counts?.staff || 47)} 
           change={-8} 
           changeText="from yesterday" 
           color="info" 
@@ -134,12 +147,14 @@ const Home = () => {
             </SelectContent>
           </Select>
         </CardHeader>
-        
-        <div className="divide-y divide-border">
-          {recentActivity
-            .filter(a => activityFilter === 'all' || a.type === activityFilter)
-            .map((activity, index) => (
-              <ActivityItem key={index} activity={activity} />
+          <div className="divide-y divide-border">
+          {isLoadingActivity && <p className="p-4 text-center">Loading recent activity...</p>}
+          {activityError && <p className="p-4 text-center text-destructive">Error loading activity: {activityError.message}</p>}
+          {!isLoadingActivity && !activityError && filteredActivities.length === 0 && (
+            <p className="p-4 text-center text-muted-foreground">No recent activity to display.</p>
+          )}
+          {!isLoadingActivity && !activityError && filteredActivities.map((activity) => (
+              <ActivityItem key={String(activity.id)} activity={activity} />
             ))}
         </div>
         

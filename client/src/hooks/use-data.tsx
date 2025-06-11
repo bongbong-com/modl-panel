@@ -19,7 +19,6 @@ export function usePlayer(uuid: string) {
   return useQuery({
     queryKey: ['/api/players', uuid],
     queryFn: async () => {
-      console.log('Fetching data for player:', uuid);
       const res = await fetch(`/api/players/${uuid}`);
       if (!res.ok) {
         // If 404, return null - this is not an error, just no player found
@@ -221,7 +220,6 @@ export function useSettings() {
         throw new Error('Failed to fetch settings');
       }
       const data = await res.json();
-      console.log('Fetched settings:', data);
       return data;
     },
     // Modified options to improve behavior when returning to settings page
@@ -245,6 +243,43 @@ export function useStats() {
       }
       return res.json();
     }
+  });
+}
+
+// Type for client-side activity items, matching what home.tsx expects
+// This should align with the Activity interface in home.tsx
+interface ClientActivityAction {
+  label: string;
+  link?: string;
+  primary?: boolean;
+}
+
+export interface ClientActivity {
+  id: string | number;
+  type: string; // e.g., 'new_ticket', 'new_punishment', 'mod_action' - client will map to icons
+  color: string;
+  title: string;
+  time: string; // Formatted date string
+  description: string;
+  actions: ClientActivityAction[];
+}
+
+
+// Recent Activity Hook
+export function useRecentActivity(limit: number = 20, days: number = 7) {
+  return useQuery<ClientActivity[]>({
+    queryKey: ['/api/activity/recent', limit, days],
+    queryFn: async () => {
+      const res = await fetch(`/api/activity/recent?limit=${limit}&days=${days}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: 'Failed to fetch recent activity and could not parse error response.' }));
+        throw new Error(errorData.message || 'Failed to fetch recent activity');
+      }
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 1, // 1 minute stale time
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 }
 

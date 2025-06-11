@@ -16,18 +16,6 @@ function getTicketCategory(type: string): string {
   }
 }
 
-// Helper to hash password for staff accounts
-async function hashPassword(password: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // Create a salt and hash using scrypt
-    const salt = crypto.randomBytes(16).toString('hex');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      resolve(`${derivedKey.toString('hex')}.${salt}`);
-    });
-  });
-}
-
 // Generate a random date within a range
 function randomDate(start: Date, end: Date): Date {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));

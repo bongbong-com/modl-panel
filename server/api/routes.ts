@@ -222,8 +222,6 @@ export function setupPlayerRoutes(app: Express) {
       const uuid = req.params.uuid;
       const note = req.body;
       
-      console.log('Adding note to player:', uuid, 'Note data:', note);
-      
       // Try to find the player by either UUID or minecraftUuid
       let player = await Player.findOne({
         $or: [
@@ -234,11 +232,8 @@ export function setupPlayerRoutes(app: Express) {
       });
       
       if (!player) {
-        console.log('Player not found with UUID:', uuid);
         return res.status(404).json({ error: 'Player not found' });
       }
-      
-      console.log('Found player:', player.usernames && player.usernames.length ? player.usernames[player.usernames.length - 1].username : 'Unknown');
       
       // Add the note
       player = await Player.findByIdAndUpdate(
@@ -247,7 +242,6 @@ export function setupPlayerRoutes(app: Express) {
         { new: true }
       );
       
-      console.log('Note added successfully');
       await createSystemLog(`Note added to player ${uuid}`);
       res.json(player);
     } catch (error) {
@@ -699,21 +693,12 @@ export function setupTicketRoutes(app: Express) {
             // Also lock the ticket
             req.body.locked = true;
             
-            // Directly update locked state in case the rest of the code misses it
-            await Ticket.findByIdAndUpdate(
-              id,
-              { $set: { locked: true } }
-            );
+            // The 'locked' status will be handled by the final update operation.
           } else if (reply.action === reopenAction) {
             // Reopening action
             req.body.status = 'Open';
             req.body.locked = false;
-            
-            // Directly update locked state in case the rest of the code misses it
-            await Ticket.findByIdAndUpdate(
-              id,
-              { $set: { locked: false } }
-            );
+            // The 'locked' status will be handled by the final update operation.
           }
           // Comment action doesn't change status or locked state
         }
@@ -775,9 +760,6 @@ export function setupTicketRoutes(app: Express) {
       if (!ticket) {
         return res.status(404).json({ error: 'Ticket not found' });
       }
-      
-      // Log status for debugging
-      console.log(`Updated ticket ${id} - Locked status: ${ticket.locked}`);
       
       await createSystemLog(`Ticket ${id} updated`);
       res.json(ticket);
@@ -1172,4 +1154,130 @@ export function setupApiRoutes(app: Express) {
   setupStatsRoutes(app);
   setupStaffRoutes(app);
   setupMinecraftRoutes(app);
+  setupActivityRoutes(app); // Add new activity routes
+}
+
+// Interface for a unified activity item on the server-side
+interface ActivityItemServer {
+  id: string;
+  type: string; // e.g., 'new_ticket', 'new_punishment', 'player_login', 'mod_log'
+  title: string;
+  description: string;
+  date: Date;
+  color: string; // Color hint for frontend
+  actions: Array<{ label: string; link?: string; primary?: boolean }>; // Optional actions
+  user?: { // Optional user associated with the activity
+    name: string;
+    uuid?: string;
+  };
+  target?: { // Optional target of the activity
+    name: string;
+    uuid?: string;
+    type?: string; // e.g. 'player', 'ticket'
+  };
+}
+
+// Recent Activity Route
+export function setupActivityRoutes(app: Express) {
+  app.get('/api/activity/recent', async (req: Request, res: Response) => {
+    try {
+      const allActivities: ActivityItemServer[] = [];
+      const limit = parseInt(req.query.limit as string) || 20; // Max items to return
+      const days = parseInt(req.query.days as string) || 7; // How many days back to look
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - days);
+
+      // 1. Fetch recent tickets
+      const recentTickets = await Ticket.find({
+        created: { $gte: sinceDate },
+        status: { $ne: 'Unfinished' } // Exclude unfinished tickets
+      }).sort({ created: -1 }).limit(limit);
+
+      recentTickets.forEach(ticket => {
+        allActivities.push({
+          id: `ticket-${ticket._id}`,
+          type: 'new_ticket',
+          title: `New Ticket: ${ticket.subject || ticket._id}`,
+          description: `Ticket created by ${ticket.creator}. Status: ${ticket.status}.`,
+          date: ticket.created,
+          color: 'blue', // Example color
+          actions: [{ label: 'View Ticket', link: `/tickets/${ticket._id}`, primary: true }],
+          user: { name: ticket.creator, uuid: ticket.creatorUuid },
+          target: { name: ticket._id, type: 'ticket' }
+        });
+      });
+      
+      // TODO: Fetch recent punishments
+      // This will require iterating through players or using aggregation
+      // Example: Fetch players with recent punishments
+      const playersWithRecentPunishments = await Player.find({
+        'punishments.issued': { $gte: sinceDate }
+      }).limit(limit * 2); // Fetch more players initially as one player might have multiple recent punishments
+
+      playersWithRecentPunishments.forEach(player => {
+        player.punishments.forEach(punishment => {
+          if (punishment.issued >= sinceDate) {
+            allActivities.push({
+              id: `punishment-${player.minecraftUuid}-${punishment.id}`,
+              type: 'new_punishment',
+              title: `Punishment Issued: ${punishment.type_ordinal === 1 ? 'Mute' : punishment.type_ordinal === 2 ? 'Ban' : 'Punishment'}`,
+              description: `Player ${player.usernames[player.usernames.length-1].username} was punished by ${punishment.issuerName}.`,
+              date: punishment.issued,
+              color: 'red',
+              actions: [{ label: 'View Player', link: `/players/${player.minecraftUuid}`, primary: true }],
+              user: { name: punishment.issuerName },
+              target: { name: player.usernames[player.usernames.length-1].username, uuid: player.minecraftUuid, type: 'player' }
+            });
+          }
+        });
+      });
+
+      // TODO: Fetch recent logs (e.g., moderation actions)
+      const recentLogs = await Log.find({
+        created: { $gte: sinceDate },
+        level: { $in: ['moderation', 'info'] } // Example: focus on moderation or key info logs
+      }).sort({ created: -1 }).limit(limit);
+
+      recentLogs.forEach(log => {
+        allActivities.push({
+          id: `log-${log._id}`,
+          type: log.level === 'moderation' ? 'mod_action' : 'system_log',
+          title: `Log: ${log.description.substring(0, 50)}${log.description.length > 50 ? '...' : ''}`,
+          description: `Source: ${log.source}. Level: ${log.level}.`,
+          date: log.created,
+          color: log.level === 'moderation' ? 'orange' : 'gray',
+          actions: [], // No specific actions for logs by default
+        });
+      });
+      
+      // TODO: Fetch recent player logins (from Minecraft server via minecraft-routes)
+      // This one is a bit different as logins are part of the player document's ipList.
+      // We might need to query players who logged in recently.
+      // For simplicity, we'll skip direct player login events in this aggregated feed for now,
+      // unless a specific "player_joined" log event is created by minecraft-routes.
+
+      // Sort all activities by date, descending
+      allActivities.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+      // Limit to the most recent items
+      const limitedActivities = allActivities.slice(0, limit);
+      
+      // Transform for client (similar to home.tsx Activity interface)
+      const clientActivities = limitedActivities.map(act => ({
+        id: act.id,
+        type: act.type, // Client will map this to icons/specific display
+        color: act.color,
+        title: act.title,
+        time: act.date.toLocaleString(), // Or use a date formatting library
+        description: act.description,
+        actions: act.actions,
+      }));
+
+      res.json(clientActivities);
+
+    } catch (error) {
+      console.error('Error fetching recent activity:', error);
+      res.status(500).json({ error: 'Failed to fetch recent activity' });
+    }
+  });
 }

@@ -672,7 +672,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           }));
                           
                           // Force a refetch to get the latest data
-                          console.log('Note added successfully to player:', playerId);
                           refetch(); // Refetch player data after adding note
                         } catch (error) {
                           console.error('Error adding note:', error);
