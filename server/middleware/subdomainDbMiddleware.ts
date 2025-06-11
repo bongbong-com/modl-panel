@@ -12,6 +12,12 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     return next();
   }
 
+  // Allow /verify-email to bypass the main subdomain checks,
+  // as it operates using a token and has its own server lookup logic.
+  if (req.path === '/verify-email') {
+    return next();
+  }
+
   const hostname = req.hostname;
   let serverName: string | undefined = undefined; // This will hold the derived subdomain
 
