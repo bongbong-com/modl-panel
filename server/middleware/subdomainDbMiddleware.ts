@@ -66,15 +66,12 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     globalConnection = await connectToGlobalModlDb();
     const ModlServerModel = globalConnection.model('ModlServer', ModlServerSchema);
     
-    // Query by 'customDomain' using the derived serverName (which is the subdomain)
     const serverConfig = await ModlServerModel.findOne({ customDomain: serverName });
 
     if (!serverConfig) {
-      // A subdomain was parsed from the hostname, but it's not registered in the database.
       return res.status(404).send(`Panel for '${serverName}' is not configured or does not exist.`);
     }
 
-    // Attach serverConfig to request for potential use in other routes or middleware
     // @ts-ignore
     req.serverConfig = serverConfig;
     // @ts-ignore // Consistently set serverName to the derived subdomain (customDomain) if serverConfig is found
@@ -113,7 +110,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     // If email is verified, proceed to connect to server-specific DB
     if (serverConfig.emailVerified) {
       // @ts-ignore
-      req.serverDbConnection = await connectToServerDb(serverConfig.serverName); // Changed serverConfig.name to serverConfig.serverName
+      req.serverDbConnection = await connectToServerDb(serverName); // Ensure derived serverName is used here
       // req.serverName is already set
     }
     
