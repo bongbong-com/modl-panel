@@ -16,6 +16,7 @@ import settingsRoutes from './routes/settings-routes';
 import staffRoutes from './routes/staff-routes';
 import ticketRoutes from './routes/ticket-routes';
 import logRoutes from './routes/log-routes'; // Import log routes
+import authRoutes from './routes/auth-routes'; // Import new auth routes
 // Import setup function for minecraft routes
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 
@@ -64,6 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/staff', staffRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/logs', logRoutes); // Use log routes
+  app.use('/api/auth', authRoutes); // Use new auth routes
   
   // Setup Minecraft routes (which internally add /minecraft prefix)
   setupMinecraftRoutes(app);

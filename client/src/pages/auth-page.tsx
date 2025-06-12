@@ -51,6 +51,8 @@ const AuthPage = () => {
   const { toast } = useToast();
   const [loginStep, setLoginStep] = useState<'email' | 'verification'>('email');
   const [verificationMethod, setVerificationMethod] = useState<'2fa' | 'email' | 'passkey'>('email');
+  // Store available auth methods for the entered email
+  const [userAuthMethods, setUserAuthMethods] = useState<{ isTwoFactorEnabled?: boolean; hasFidoPasskeys?: boolean; emailExists?: boolean }>({});
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -73,39 +75,96 @@ const AuthPage = () => {
   // Handle login form submission
   const onLoginSubmit = async (values: LoginFormValues) => {
     if (loginStep === 'email') {
-      // First step - show verification methods
-      setVerificationMethod(values.methodType);
-      
-      // Request verification based on selected method
-      if (values.methodType === 'email') {
-        await requestEmailVerification(values.email);
-      } else if (values.methodType === '2fa') {
-        await request2FAVerification(values.email);
-      } else if (values.methodType === 'passkey') {
-        await requestPasskeyAuthentication(values.email);
-      }
-      
-      setLoginStep('verification');
-      return;
-    }
+      try {
+        const emailCheckResponse = await fetch(`/api/staff/check-email/${encodeURIComponent(values.email)}`);
+        if (!emailCheckResponse.ok) {
+          toast({ title: "Error", description: "Could not verify email. Please try again.", variant: "destructive" });
+          return;
+        }
+        const emailCheckResult = await emailCheckResponse.json();
 
-    // Second step - verify code or passkey
-    try {
-      const success = await login(
-        values.email, 
-        verificationMethod, 
-        verificationMethod !== 'passkey' ? values.code : undefined
-      );
+        setUserAuthMethods({ // Store fetched auth methods availability
+          emailExists: emailCheckResult.exists,
+          isTwoFactorEnabled: emailCheckResult.isTwoFactorEnabled,
+          hasFidoPasskeys: emailCheckResult.hasFidoPasskeys,
+        });
 
-      if (success) {
-        // Redirect is handled by the auth hook on success
+        if (!emailCheckResult.exists) {
+          toast({ title: "Email Not Found", description: "The provided email address was not found.", variant: "destructive" });
+          return;
+        }
+
+        let selectedMethod = values.methodType;
+        // Auto-select 2FA if available and user didn't pick passkey
+        if (emailCheckResult.isTwoFactorEnabled && selectedMethod !== 'passkey' && selectedMethod !== '2fa') {
+            selectedMethod = '2fa';
+        }
+        loginForm.setValue('methodType', selectedMethod); // Ensure form state reflects effective method
+        setVerificationMethod(selectedMethod);
+
+
+        if (selectedMethod === 'passkey') {
+          if (!emailCheckResult.hasFidoPasskeys) {
+            toast({ title: "Passkey Not Available", description: "Passkey login is not set up for this account. Please choose another method.", variant: "default" });
+            return;
+          }
+          // requestPasskeyAuthentication handles the full flow: challenge, browser prompt, and verification (calling login internally)
+          // It will show toasts for prompts, success, or failure.
+          // If successful, useAuth hook handles navigation.
+          await requestPasskeyAuthentication(values.email);
+          return; // Full passkey flow handled, do not proceed to setLoginStep
+        }
+        
+        if (selectedMethod === '2fa') {
+          if (!emailCheckResult.isTwoFactorEnabled) {
+            toast({ title: "2FA Not Available", description: "2FA is not enabled for this account. Please choose another method.", variant: "default" });
+            return;
+          }
+          toast({ title: "2FA Required", description: "Please enter the code from your authenticator app." });
+          setLoginStep('verification');
+          return;
+        }
+
+        if (selectedMethod === 'email') {
+          await requestEmailVerification(values.email);
+          setLoginStep('verification');
+          return;
+        }
+
+      } catch (error) {
+        console.error("Error during email check/login initiation:", error);
+        toast({ title: "Network Error", description: "Failed to connect to the server. Please check your connection.", variant: "destructive" });
+        return;
       }
-    } catch (error) {
-      toast({
-        title: "Authentication failed",
-        description: "An error occurred during authentication",
-        variant: "destructive"
-      });
+    } else { // loginStep === 'verification' (only for 'email' or '2fa')
+      try {
+        if (verificationMethod === 'passkey') {
+          // This state should not be reached as passkey is handled in the 'email' step
+          console.warn("Reached verification step for passkey unexpectedly.");
+          toast({ title: "Error", description: "Unexpected passkey verification step.", variant: "destructive" });
+          setLoginStep('email'); // Reset to email step
+          return;
+        }
+
+        if (!values.code) {
+          toast({ title: "Verification Code Required", description: `Please enter your ${verificationMethod === '2fa' ? '2FA' : 'email'} code.`, variant: "destructive"});
+          return;
+        }
+
+        const success = await login(
+          values.email,
+          verificationMethod, // 'email' or '2fa'
+          values.code
+        );
+
+        if (success) {
+          // Redirect is handled by the auth hook's login on success
+        }
+        // Failure toast is handled by the login function in useAuth
+      } catch (error) { // Should be caught by useAuth's login, but as a fallback
+        console.error("Error during code verification:", error);
+        toast({ title: "Authentication Failed", description: "An error occurred during code verification.", variant: "destructive" });
+      }
     }
   };
 
@@ -200,43 +259,20 @@ const AuthPage = () => {
                           variant="ghost"
                           size="sm"
                           type="button"
-                          onClick={() => setLoginStep('email')}
+                          onClick={() => {
+                            setLoginStep('email');
+                            // Optionally clear code field if user goes back
+                            loginForm.setValue('code', '');
+                            setUserAuthMethods({}); // Clear stored auth methods
+                          }}
                           className="h-7 px-2 text-xs"
                         >
                           Change
                         </Button>
                       </div>
 
-                      {verificationMethod === 'passkey' ? (
-                        <div className="py-6 flex flex-col items-center justify-center space-y-4">
-                          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                            <Fingerprint className="h-8 w-8 text-primary" />
-                          </div>
-                          <p className="text-center text-sm text-muted-foreground max-w-[250px]">
-                            Use your FIDO2 security key or built-in authenticator (Windows Hello, Touch ID, etc.)
-                          </p>
-                          <div className="mt-2 bg-primary/5 rounded-md p-4 w-full flex flex-col items-center">
-                            <p className="text-xs text-center text-muted-foreground mb-3">Your browser will prompt you to use your passkey</p>
-                            <Button 
-                              type="button" 
-                              onClick={() => {
-                                // Simulate browser's WebAuthn API calling
-                                toast({
-                                  title: "Passkey prompt",
-                                  description: "Your browser would prompt for biometric verification here",
-                                });
-                                // Wait a moment then submit the form
-                                setTimeout(() => {
-                                  loginForm.handleSubmit(onLoginSubmit)();
-                                }, 1500);
-                              }}
-                              className="w-full"
-                            >
-                              Verify with Passkey
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
+                      {/* Passkey verification UI is removed from this step, as it's handled in the first step */}
+                      {verificationMethod !== 'passkey' && (
                         <>
                           <FormField
                             control={loginForm.control}

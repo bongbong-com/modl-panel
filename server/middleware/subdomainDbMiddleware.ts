@@ -37,6 +37,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
 
   if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
     serverName = 'testlocal'; // For local dev, 'testlocal' is the conventional subdomain
+    return next();
   } else if (hostname.endsWith(`.${DOMAIN}`)) {
     const parts = hostname.split('.');
     const baseDomainParts = DOMAIN.split('.').length;

@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useContext, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "./use-toast";
+import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 
 // Define the User type to match our MongoDB schema
 interface User {
@@ -15,12 +16,11 @@ interface User {
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, authMethod: string, code?: string) => Promise<boolean>;
+  login: (email: string, authMethod: string, code?: string, assertionResponse?: AuthenticationResponseJSON) => Promise<boolean>;
   logout: () => void;
-  requestEmailVerification: (email: string) => Promise<string>;
-  request2FAVerification: (email: string) => Promise<string>;
-  requestPasskeyAuthentication: (email: string) => Promise<boolean>;
-  updateUserDetails: (details: Partial<Pick<User, 'email' | 'username'>>) => Promise<boolean>; // Added updateUser
+  requestEmailVerification: (email: string) => Promise<string | undefined>;
+  request2FAVerification: (email: string) => Promise<string | undefined>; // Adjusted return type
+  requestPasskeyAuthentication: (email: string) => Promise<boolean>; // This will now orchestrate the full FIDO login
 };
 
 // Create the Auth Context with default values
@@ -52,87 +52,205 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Request email verification code
-  const requestEmailVerification = async (email: string): Promise<string> => {
-    // In demo mode, always return a valid code
-    toast({
-      title: "Verification email sent",
-      description: "Please check your email for the code",
-    });
-    return "123456";
+  const requestEmailVerification = async (email: string): Promise<string | undefined> => {
+    try {
+      const response = await fetch('/api/auth/send-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description: data.message || "Failed to send verification code.",
+          variant: "destructive",
+        });
+        return undefined;
+      }
+      toast({
+        title: "Verification Email Sent",
+        description: "Please check your email for the verification code.",
+      });
+      // In dev, the backend might return the code for easier testing if email sending is disabled
+      return data.code; // This might be undefined in production if code is not sent back
+    } catch (error) {
+      console.error("Error requesting email verification:", error);
+      toast({
+        title: "Network Error",
+        description: "Could not connect to the server to send verification code.",
+        variant: "destructive",
+      });
+      return undefined;
+    }
   };
 
   // Request 2FA verification
-  const request2FAVerification = async (email: string): Promise<string> => {
-    // In demo mode, always return a valid code
+  const request2FAVerification = async (email: string): Promise<string | undefined> => {
+    // This function is called when 2FA is selected.
+    // The actual code submission and verification is handled by the `login` function.
+    // We can show a toast here to guide the user.
     toast({
-      title: "2FA verification required",
-      description: "Please enter the code from your authenticator app",
+      title: "2FA Authentication",
+      description: "Enter the code from your authenticator app.",
     });
-    return "123456";
+    // No code is returned here as it's entered by the user directly.
+    return undefined;
   };
 
-  // Request passkey authentication
+  // Request passkey authentication (challenge + assertion)
   const requestPasskeyAuthentication = async (email: string): Promise<boolean> => {
-    // In demo mode, always succeed with passkey
-    toast({
-      title: "Passkey authentication",
-      description: "Please confirm with your device to continue",
-    });
-    return true;
+    setIsLoading(true);
+    try {
+      // 1. Get Challenge
+      const challengeResponse = await fetch('/api/auth/fido-login-challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const challengeData = await challengeResponse.json();
+
+      if (!challengeResponse.ok) {
+        toast({
+          title: "Passkey Error",
+          description: challengeData.message || "Failed to get passkey challenge.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      // 2. Start Assertion (Browser API)
+      let assertionResult: AuthenticationResponseJSON;
+      try {
+        assertionResult = await startAuthentication(challengeData);
+      } catch (error: any) {
+        console.error("Error during startAssertion:", error);
+        // Handle user cancellation or other browser errors
+        let errorMessage = "Passkey operation failed or was cancelled.";
+        if (error.name === 'NotAllowedError') {
+            errorMessage = "Passkey authentication was cancelled or not allowed.";
+        }
+        toast({
+          title: "Passkey Cancelled",
+          description: errorMessage,
+          variant: "default",
+        });
+        setIsLoading(false);
+        return false;
+      }
+      
+      // 3. Verify Assertion with backend (by calling the login function)
+      // The login function will set isLoading(false)
+      return await login(email, 'passkey', undefined, assertionResult);
+
+    } catch (error) {
+      console.error("Error during passkey authentication flow:", error);
+      toast({
+        title: "Passkey Error",
+        description: "An unexpected error occurred during passkey authentication.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return false;
+    }
   };
 
   // Login function
-  const login = async (email: string, authMethod: string, code?: string): Promise<boolean> => {
+  const login = async (email: string, authMethod: string, code?: string, assertionResponse?: AuthenticationResponseJSON): Promise<boolean> => {
     setIsLoading(true);
-
     try {
-      // Simulate API call with 1 second delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      let response;
+      let requestBody;
 
-      // For demo purposes, any code "123456" is valid, and passkey is always valid
-      if (authMethod === 'passkey' || (code && code === "123456")) {
-        const newUser: User = {
-          _id: "demo-user-id",
-          email: email,
-          username: email.split('@')[0],
-          profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}`,
-          admin: true
-        };
-
-        // Store user in localStorage
-        localStorage.setItem('user', JSON.stringify(newUser));
-        setUser(newUser);
-        setIsLoading(false);
-
-        // Show success message
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${newUser.username}!`,
+      if (authMethod === 'email') {
+        if (!code) {
+          toast({ title: "Error", description: "Email verification code is required.", variant: "destructive" });
+          setIsLoading(false);
+          return false;
+        }
+        requestBody = JSON.stringify({ email, code });
+        response = await fetch('/api/auth/verify-email-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
         });
-
-        return true;
+      } else if (authMethod === 'passkey') {
+        if (!assertionResponse) {
+          toast({ title: "Error", description: "Passkey assertion response is required.", variant: "destructive" });
+          setIsLoading(false);
+          return false;
+        }
+        requestBody = JSON.stringify({ email, assertionResponse });
+        response = await fetch('/api/auth/fido-login-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        });
+      } else if (authMethod === '2fa') {
+        if (!code) {
+          toast({ title: "Error", description: "2FA code is required.", variant: "destructive" });
+          setIsLoading(false);
+          return false;
+        }
+        requestBody = JSON.stringify({ email, code });
+        response = await fetch('/api/auth/verify-2fa-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+        });
       } else {
+        toast({ title: "Error", description: "Unsupported authentication method.", variant: "destructive" });
         setIsLoading(false);
-
-        // Show error message for invalid verification
-        toast({
-          title: "Verification failed",
-          description: "Invalid verification code. Please try again.",
-          variant: "destructive",
-        });
-
         return false;
       }
-    } catch (error) {
-      setIsLoading(false);
 
-      // Show error toast
+      if (!response) { // Should only happen if authMethod was not 'email' and not handled above
+        setIsLoading(false);
+        return false;
+      }
+      
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Login Failed",
+          description: data.message || "An error occurred during login.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      // Assuming the backend /verify-email-code returns user info upon successful verification
+      // For now, we'll create a demo user object as the backend doesn't fully log in yet.
+      // In a real app, `data` would contain the actual user object or session token.
+      const loggedInUser: User = data.user || { // Fallback to demo user if backend doesn't return full user yet
+        _id: "verified-user-id",
+        email: email,
+        username: email.split('@')[0],
+        profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}`,
+        admin: true // Assuming admin for now
+      };
+      
+      localStorage.setItem('user', JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
       toast({
-        title: "Login failed",
-        description: "An error occurred during login. Please try again.",
+        title: "Login Successful",
+        description: `Welcome back, ${loggedInUser.username}!`,
+      });
+      setIsLoading(false);
+      return true;
+
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-
+      setIsLoading(false);
       return false;
     }
   };
@@ -153,43 +271,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Update user details function
-  const updateUserDetails = async (details: Partial<Pick<User, 'email' | 'username'>>): Promise<boolean> => {
-    if (!user) return false;
-    setIsLoading(true);
-
-    try {
-      // Simulate API call with 1 second delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const updatedUser = { ...user, ...details };
-
-      // If username changes, update profilePicture assuming it's derived from username
-      if (details.username && updatedUser.profilePicture?.includes(encodeURIComponent(user.username))) {
-        updatedUser.profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(details.username)}`;
-      }
-      
-      // Update user in localStorage
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setIsLoading(false);
-
-      toast({
-        title: "Profile updated",
-        description: "Your account details have been successfully updated.",
-      });
-      return true;
-    } catch (error) {
-      setIsLoading(false);
-      toast({
-        title: "Update failed",
-        description: "An error occurred while updating your profile. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -199,8 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         requestEmailVerification,
         request2FAVerification,
-        requestPasskeyAuthentication,
-        updateUserDetails, // Added updateUser
+        requestPasskeyAuthentication
       }}
     >
       {children}

@@ -59,10 +59,11 @@ const punishmentSchema = new Schema({
 
 // Passkey Schema
 const passkeySchema = new Schema({
-  credentialId: { type: String, required: true },
-  publicKey: { type: String, required: true },
-  signCount: { type: Number, default: 0 },
-  aaguid: { type: String },
+  credentialID: { type: Buffer, required: true }, // Changed from String to Buffer
+  credentialPublicKey: { type: Buffer, required: true }, // Changed from String to Buffer
+  counter: { type: Number, required: true }, // Renamed from signCount and made required
+  transports: [{ type: String }], // Added transports array
+  aaguid: { type: String }, // Optional, from WebAuthn spec
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -99,7 +100,8 @@ const staffSchema = new Schema({
   profilePicture: { type: String }, // URL or base64 encoded
   admin: { type: Boolean, default: false },
   twoFaSecret: { type: String },
-  passkey: { type: passkeySchema, required: false }
+  isTwoFactorEnabled: { type: Boolean, default: false },
+  passkeys: [{ type: passkeySchema }] // Changed to an array of passkeySchema
 });
 
 // Tickets Collection
