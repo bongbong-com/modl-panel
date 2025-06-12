@@ -103,11 +103,11 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
     // In development, all serverName instances share a single connection to 'modl_test'.
     // Use a fixed key in the map for this shared connection.
     connectionKeyInMap = 'dev_shared_modl_test_connection'; 
-    console.log(`Development mode: Request for server '${serverName}', will use shared DB '${actualDbNameForConnection}'.`);
+    // console.log(`Development mode: Request for server '${serverName}', will use shared DB '${actualDbNameForConnection}'.`); // Hidden
   } else { // Production logic
     actualDbNameForConnection = `${PANEL_DB_PREFIX}${serverName}`;
     connectionKeyInMap = serverName; // Use actual serverName as key in prod
-    console.log(`Production mode: Request for server '${serverName}', target DB '${actualDbNameForConnection}'.`);
+    // console.log(`Production mode: Request for server '${serverName}', target DB '${actualDbNameForConnection}'.`); // Hidden
   }
 
   if (serverConnections.has(connectionKeyInMap)) {
@@ -116,7 +116,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
       // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${existingConn.name}).`);
       return existingConn;
     } else {
-      console.warn(`Found stale connection for key '${connectionKeyInMap}' (readyState: ${existingConn.readyState}). Removing to attempt reconnect.`);
+      // console.warn(`Found stale connection for key '${connectionKeyInMap}' (readyState: ${existingConn.readyState}). Removing to attempt reconnect.`); // Hidden
       try {
         await existingConn.close();
       } catch (closeError) {

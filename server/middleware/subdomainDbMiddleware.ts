@@ -113,7 +113,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     // If email is verified, proceed to connect to server-specific DB
     if (serverConfig.emailVerified) {
       // @ts-ignore
-      req.serverDbConnection = await connectToServerDb(serverConfig.name);
+      req.serverDbConnection = await connectToServerDb(serverConfig.serverName); // Changed serverConfig.name to serverConfig.serverName
       // req.serverName is already set
     }
     
