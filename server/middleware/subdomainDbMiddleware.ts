@@ -77,6 +77,8 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     // Attach serverConfig to request for potential use in other routes or middleware
     // @ts-ignore
     req.serverConfig = serverConfig;
+    // @ts-ignore // Consistently set serverName if serverConfig is found
+    req.serverName = serverConfig.name;
 
     // Define paths accessible *before* email verification for this specific panel
     const allowedPreVerificationPagePaths = [
@@ -110,20 +112,9 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     
     // If email is verified, proceed to connect to server-specific DB
     if (serverConfig.emailVerified) {
-        // @ts-ignore
-        req.serverDbConnection = await connectToServerDb(serverConfig.customDomain); // Use customDomain
-
-        // Handle provisioning status
-        // This redirects to an "in-progress" page if provisioning isn't complete.
-        if ((serverConfig.provisioningStatus === 'pending' || serverConfig.provisioningStatus === 'in-progress') &&
-            !req.path.startsWith('/api/provisioning/status') && // Allow checking status
-            req.path !== '/provisioning-in-progress' &&      // Allow accessing the status page itself
-            req.path !== '/verify-email'                     // Don't block verification if provisioning is pending
-            ) {
-            // If provisioning is not complete and the current path is not an allowed exception,
-            // redirect to the provisioning in progress page, passing the serverName.
-            return res.redirect(`/provisioning-in-progress?server=${serverName}`);
-        }
+      // @ts-ignore
+      req.serverDbConnection = await connectToServerDb(serverConfig.name);
+      // req.serverName is already set
     }
     
     next();

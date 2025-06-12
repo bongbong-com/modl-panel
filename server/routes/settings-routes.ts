@@ -65,11 +65,11 @@ const router = express.Router();
 // Middleware to check for serverDbConnection
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.serverDbConnection) {
-    console.error('Database connection not found for this server.');
+    // console.error('Database connection not found for this server.'); // Hidden
     return res.status(503).json({ error: 'Service unavailable. Database connection not established for this server.' });
   }
   if (!req.serverName) {
-    console.error('Server name not found in request.');
+    // console.error('Server name not found in request.'); // Hidden
     return res.status(500).json({ error: 'Internal server error. Server name missing.' });
   }
   next();
@@ -313,11 +313,10 @@ async function createDefaultSettings(dbConnection: Connection): Promise<ISetting
     
     const newSettingsDoc = new SettingsModel({ settings: defaultSettingsMap });
     await newSettingsDoc.save();
-    console.log('Default settings created successfully.');
     return newSettingsDoc;
   } catch (error) {
-    console.error('Error creating default settings:', error);
-    throw error;
+    // console.error('Error creating default settings:', error); // Hidden
+    throw error; // Re-throw to be caught by the route handler
   }
 }
 
@@ -326,15 +325,13 @@ router.get('/api/settings', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
-    
     if (!settingsDoc) {
+      // console.log(`[Server: ${req.serverName}] No settings found, creating default settings.`); // Hidden
       settingsDoc = await createDefaultSettings(req.serverDbConnection!);
     }
-    
-    const plainSettings = settingsDoc.toObject();
-    res.json(plainSettings);
+    res.json(settingsDoc ? settingsDoc.settings : {});
   } catch (error) {
-    console.error('Error fetching settings:', error);
+    // console.error(`[Server: ${req.serverName}] Error fetching settings:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -343,47 +340,22 @@ router.get('/api/settings', async (req: Request, res: Response) => {
 router.patch('/api/settings', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const updatedSettingsPayload: Record<string, any> = req.body;
-    console.log(`[Server: ${req.serverName}] Received updatedSettingsPayload:`, JSON.stringify(updatedSettingsPayload, null, 2));
-    
     let settingsDoc = await Settings.findOne({});
-    
     if (!settingsDoc) {
-      console.log(`[Server: ${req.serverName}] No settings document found, creating default.`);
       settingsDoc = await createDefaultSettings(req.serverDbConnection!);
-    } else {
-      console.log(`[Server: ${req.serverName}] Found existing settings document.`);
     }
     
-    if (!(settingsDoc.settings instanceof Map)) {
-      console.warn(`[Server: ${req.serverName}] settingsDoc.settings was not a Map, initializing.`);
-      settingsDoc.settings = new Map<string, any>();
-    }
-
-    console.log(`[Server: ${req.serverName}] settingsDoc.settings BEFORE update loop:`, JSON.stringify(Object.fromEntries(settingsDoc.settings), null, 2));
-
-    for (const key in updatedSettingsPayload) {
-      if (Object.prototype.hasOwnProperty.call(updatedSettingsPayload, key)) {
-        const value = updatedSettingsPayload[key];
-        console.log(`[Server: ${req.serverName}] Setting in settingsDoc.settings: key='${key}', value='${JSON.stringify(value, null, 2).substring(0, 100)}...'`);
-        settingsDoc.settings.set(key, value);
+    // Assuming req.body is a flat object of key-value pairs for settings
+    for (const key in req.body) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        settingsDoc.settings.set(key, req.body[key]);
       }
     }
-    
-    console.log(`[Server: ${req.serverName}] settingsDoc.settings AFTER update loop:`, JSON.stringify(Object.fromEntries(settingsDoc.settings), null, 2));
-
-    try {
-      await settingsDoc.save();
-      console.log(`[Server: ${req.serverName}] settingsDoc.save() successful.`);
-      const plainSavedSettings = settingsDoc.toObject();
-      res.json(plainSavedSettings);
-    } catch (saveError: any) {
-      console.error(`[Server: ${req.serverName}] Error during settingsDoc.save():`, saveError);
-      res.status(500).json({ error: 'Internal server error during save', details: saveError.message });
-    }
-
+    await settingsDoc.save();
+    // console.log(`[Server: ${req.serverName}] Settings updated.`); // Hidden
+    res.json(settingsDoc.settings);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] General error in PATCH /api/settings:`, error);
+    // console.error(`[Server: ${req.serverName}] Error updating settings:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -391,12 +363,13 @@ router.patch('/api/settings', async (req: Request, res: Response) => {
 // Reset settings to default
 router.post('/api/settings/reset', async (req: Request, res: Response) => {
   try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    await Settings.deleteMany({});
-    const settings = await createDefaultSettings(req.serverDbConnection!);
-    res.json(settings.toObject());
+    const SettingsModel = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    await SettingsModel.deleteOne({}); // Remove existing settings
+    const defaultSettings = await createDefaultSettings(req.serverDbConnection!); // Create new default settings
+    // console.log(`[Server: ${req.serverName}] Settings reset to default.`); // Hidden
+    res.json(defaultSettings.settings);
   } catch (error) {
-    console.error('Error resetting settings:', error);
+    // console.error(`[Server: ${req.serverName}] Error resetting settings:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -405,22 +378,14 @@ router.post('/api/settings/reset', async (req: Request, res: Response) => {
 router.get('/api/settings/:key', async (req: Request<{ key: string }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const { key } = req.params;
-    let settings = await Settings.findOne({});
-    
-    if (!settings) {
-      settings = await createDefaultSettings(req.serverDbConnection!);
+    const settingsDoc = await Settings.findOne({});
+    if (!settingsDoc || !settingsDoc.settings.has(req.params.key)) {
+      // console.log(`[Server: ${req.serverName}] Setting key '${req.params.key}' not found.`); // Hidden
+      return res.status(404).json({ error: `Setting key '${req.params.key}' not found` });
     }
-    
-    const value = settings.settings.get(key);
-    
-    if (value === undefined) {
-      return res.status(404).json({ error: `Setting '${key}' not found` });
-    }
-    
-    res.json({ key, value });
+    res.json({ key: req.params.key, value: settingsDoc.settings.get(req.params.key) });
   } catch (error) {
-    console.error('Error fetching setting:', error);
+    // console.error(`[Server: ${req.serverName}] Error fetching setting key '${req.params.key}':`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -429,25 +394,16 @@ router.get('/api/settings/:key', async (req: Request<{ key: string }>, res: Resp
 router.put('/api/settings/:key', async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const { key } = req.params;
-    const { value } = req.body;
-    
-    if (value === undefined) {
-      return res.status(400).json({ error: 'No value provided' });
+    let settingsDoc = await Settings.findOne({});
+    if (!settingsDoc) {
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!);
     }
-    
-    let settings = await Settings.findOne({});
-    
-    if (!settings) {
-      settings = await createDefaultSettings(req.serverDbConnection!);
-    }
-    
-    settings.settings.set(key, value);
-    await settings.save();
-    
-    res.json({ key, value });
+    settingsDoc.settings.set(req.params.key, req.body.value);
+    await settingsDoc.save();
+    // console.log(`[Server: ${req.serverName}] Setting key '${req.params.key}' updated.`); // Hidden
+    res.json({ key: req.params.key, value: settingsDoc.settings.get(req.params.key) });
   } catch (error) {
-    console.error('Error updating setting:', error);
+    // console.error(`[Server: ${req.serverName}] Error updating setting key '${req.params.key}':`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });

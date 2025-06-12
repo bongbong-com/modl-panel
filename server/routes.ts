@@ -71,7 +71,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // New route for recent activity
   app.get('/api/activity/recent', async (req, res) => {
     // TODO: Implement logic to fetch recent activity
-    console.log(`Placeholder for /api/activity/recent. Limit: ${req.query.limit}, Days: ${req.query.days}`);
     res.json([]); // Return empty array for now
   });
 

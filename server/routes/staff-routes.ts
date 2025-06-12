@@ -26,11 +26,11 @@ const router = express.Router();
 // Middleware to check for serverDbConnection
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.serverDbConnection) {
-    console.error('Database connection not found for this server.');
+    // console.error('Database connection not found for this server.'); // Hidden
     return res.status(503).json({ error: 'Service unavailable. Database connection not established for this server.' });
   }
   if (!req.serverName) {
-    console.error('Server name not found in request.');
+    // console.error('Server name not found in request.'); // Hidden
     return res.status(500).json({ error: 'Internal server error. Server name missing.' });
   }
   next();
@@ -43,7 +43,7 @@ router.get('/api/staff', async (req: Request, res: Response) => {
     const staff = await Staff.find({}).select('-twoFaSecret -passkey.publicKey -passkey.credentialId -passkey.signCount');
     res.json(staff);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error fetching staff:`, error);
+    // console.error(`[Server: ${req.serverName}] Error fetching staff:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -61,7 +61,7 @@ router.get('/api/staff/:username', async (req: Request<{ username: string }>, re
     
     res.json(staffMember);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error fetching staff member:`, error);
+    // console.error(`[Server: ${req.serverName}] Error fetching staff member:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -83,11 +83,10 @@ router.post('/api/staff', async (req: Request<{}, {}, CreateStaffBody>, res: Res
     });
     
     if (existingStaff) {
-      return res.status(400).json({ error: 'Staff member with this email or username already exists' });
+      return res.status(409).json({ error: 'Staff member with this email or username already exists' });
     }
     
-    const twoFaSecret = crypto.randomBytes(10).toString('hex'); // Changed to hex as base32 is not standard for Buffer.toString()
-    
+    const twoFaSecret = crypto.randomBytes(10).toString('hex');    
     const newStaff = new Staff({
       email,
       username,
@@ -98,12 +97,11 @@ router.post('/api/staff', async (req: Request<{}, {}, CreateStaffBody>, res: Res
     
     await newStaff.save();
     
-    const safeStaff = newStaff.toObject() as Partial<IStaff>; // Cast to allow delete
-    delete safeStaff.twoFaSecret;
+    const safeStaff = newStaff.toObject() as Partial<IStaff>;    delete safeStaff.twoFaSecret;
     
     res.status(201).json(safeStaff);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error creating staff member:`, error);
+    // console.error(`[Server: ${req.serverName}] Error creating staff member:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -130,16 +128,16 @@ router.patch('/api/staff/:username', async (req: Request<{ username: string }, {
     
     await staffMember.save();
     
-    const safeStaff = staffMember.toObject() as Partial<IStaff>; // Cast to allow delete
-    delete safeStaff.twoFaSecret;
+    const safeStaff = staffMember.toObject() as Partial<IStaff>;    delete safeStaff.twoFaSecret;
     if (safeStaff.passkey) {
-        delete safeStaff.passkey.publicKey;
-        delete safeStaff.passkey.credentialId;
+      delete safeStaff.passkey.publicKey;
+      delete safeStaff.passkey.credentialId;
+      delete safeStaff.passkey.signCount;
     }
     
     res.json(safeStaff);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error updating staff member:`, error);
+    // console.error(`[Server: ${req.serverName}] Error updating staff member:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -163,23 +161,16 @@ router.post('/api/staff/:username/passkey', async (req: Request<{ username: stri
     staffMember.passkey = {
       credentialId,
       publicKey,
-      signCount: 0,
       aaguid,
+      signCount: 0,
       createdAt: new Date()
     };
     
     await staffMember.save();
-    
-    const safeStaff = staffMember.toObject() as Partial<IStaff>; // Cast to allow delete
-    delete safeStaff.twoFaSecret;
-    if (safeStaff.passkey) {
-        delete safeStaff.passkey.publicKey;
-        delete safeStaff.passkey.credentialId;
-    }
-    
-    res.json(safeStaff);
+    // console.log(`[Server: ${req.serverName}] Passkey added for staff member ${req.params.username}`); // Hidden
+    res.status(200).json({ message: 'Passkey added successfully' });
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error adding passkey:`, error);
+    // console.error(`[Server: ${req.serverName}] Error adding passkey:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -190,7 +181,7 @@ router.get('/api/staff/check-email/:email', async (req: Request<{ email: string 
     const staffMember = await Staff.findOne({ email: req.params.email });
     res.json({ exists: !!staffMember });
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error checking email:`, error);
+    // console.error(`[Server: ${req.serverName}] Error checking email:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -201,7 +192,7 @@ router.get('/api/staff/check-username/:username', async (req: Request<{ username
     const staffMember = await Staff.findOne({ username: req.params.username });
     res.json({ exists: !!staffMember });
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error checking username:`, error);
+    // console.error(`[Server: ${req.serverName}] Error checking username:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -41,11 +41,11 @@ const router = express.Router();
 // Middleware to check for serverDbConnection
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.serverDbConnection) {
-    console.error('Database connection not found for this server.');
+    // console.error('Database connection not found for this server.'); // Hidden
     return res.status(503).json({ error: 'Service unavailable. Database connection not established for this server.' });
   }
   if (!req.serverName) {
-    console.error('Server name not found in request.');
+    // console.error('Server name not found in request.'); // Hidden
     return res.status(500).json({ error: 'Internal server error. Server name missing.' });
   }
   next();
@@ -58,7 +58,7 @@ router.get('/api/tickets', async (req: Request, res: Response) => {
     const tickets = await Ticket.find({});
     res.json(tickets);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error fetching tickets:`, error);
+    // console.error(`[Server: ${req.serverName}] Error fetching tickets:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -73,7 +73,7 @@ router.get('/api/tickets/:id', async (req: Request<{ id: string }>, res: Respons
     }
     res.json(ticket);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error fetching ticket:`, error);
+    // console.error(`[Server: ${req.serverName}] Error fetching ticket:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -94,28 +94,36 @@ router.post('/api/tickets', async (req: Request<{}, {}, CreateTicketBody>, res: 
     
     const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
     const ticketId = `${category.toUpperCase()}-${randomDigits}`;
-    
-    const ticket = new Ticket({
+
+    const newTicket = new Ticket({
       _id: ticketId,
       category,
       tags: tags || [],
       created: new Date(),
-      creator,
+      creator, // UUID
       creatorName,
       creatorAvatar,
       notes: [],
       replies: [],
-      data: data ? new Map(Object.entries(data)) : new Map(),
-      status: 'Open'
+      data: data || new Map(),
+      status: 'Open', // Default status
     });
-    
-    await ticket.save();
-    await createSystemLog(req.serverDbConnection, req.serverName, `Ticket ${ticketId} created by ${creatorName || creator}`, 'info', 'ticket-creation');
-    res.status(201).json(ticket);
+
+    await newTicket.save();
+
+    // Log ticket creation
+    // await createSystemLog(
+    //   req.serverDbConnection!,
+    //   'Ticket',
+    //   `Ticket ${ticketId} created by ${creatorName || creator}`,
+    //   'System', // Or use an actual actor if available
+    //   { ticketId: newTicket._id, category: newTicket.category }
+    // ); // Hidden
+
+    res.status(201).json(newTicket);
   } catch (error: any) {
-    console.error(`[Server: ${req.serverName}] Error creating ticket:`, error);
-    await createSystemLog(req.serverDbConnection, req.serverName, `Failed to create ticket for ${req.body.creatorName || req.body.creator}: ${error.message}`, 'error', 'ticket-creation');
-    res.status(500).json({ error: 'Internal server error' });
+    // console.error(`[Server: ${req.serverName}] Error creating ticket:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -128,27 +136,34 @@ interface AddNoteBody {
 router.post('/api/tickets/:id/notes', async (req: Request<{ id: string }, {}, AddNoteBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const { text, issuerName, issuerAvatar } = req.body;
-    
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    ticket.notes.push({
-      text,
-      issuerName,
-      issuerAvatar,
-      date: new Date()
-    });
-    
+
+    const newNote: INote = {
+      text: req.body.text,
+      issuerName: req.body.issuerName,
+      issuerAvatar: req.body.issuerAvatar,
+      date: new Date(),
+    };
+
+    ticket.notes.push(newNote);
     await ticket.save();
-    await createSystemLog(req.serverDbConnection, req.serverName, `Note added to ticket ${req.params.id} by ${issuerName}`, 'info', 'ticket-update');
-    res.json(ticket);
+
+    // Log note addition
+    // await createSystemLog(
+    //   req.serverDbConnection!,
+    //   'TicketNote',
+    //   `Note added to ticket ${ticket._id} by ${req.body.issuerName}`,
+    //   req.body.issuerName,
+    //   { ticketId: ticket._id, noteText: req.body.text.substring(0, 50) } // Log snippet
+    // ); // Hidden
+
+    res.status(201).json(newNote);
   } catch (error: any) {
-    console.error(`[Server: ${req.serverName}] Error adding note:`, error);
-    await createSystemLog(req.serverDbConnection, req.serverName, `Failed to add note to ticket ${req.params.id}: ${error.message}`, 'error', 'ticket-update');
-    res.status(500).json({ error: 'Internal server error' });
+    // console.error(`[Server: ${req.serverName}] Error adding note to ticket:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -163,29 +178,36 @@ interface AddReplyBody {
 router.post('/api/tickets/:id/replies', async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const { name, content, type, staff, avatar } = req.body;
-    
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    ticket.replies.push({
-      name,
-      avatar,
-      content,
-      type,
+
+    const newReply: IReply = {
+      name: req.body.name,
+      avatar: req.body.avatar,
+      content: req.body.content,
+      type: req.body.type,
       created: new Date(),
-      staff: staff || false
-    });
-    
+      staff: req.body.staff || false,
+    };
+
+    ticket.replies.push(newReply);
     await ticket.save();
-    await createSystemLog(req.serverDbConnection, req.serverName, `Reply added to ticket ${req.params.id} by ${name}`, 'info', 'ticket-update');
-    res.json(ticket);
+
+    // Log reply addition
+    // await createSystemLog(
+    //   req.serverDbConnection!,
+    //   'TicketReply',
+    //   `Reply added to ticket ${ticket._id} by ${req.body.name}`,
+    //   req.body.name,
+    //   { ticketId: ticket._id, replyType: req.body.type }
+    // ); // Hidden
+
+    res.status(201).json(newReply);
   } catch (error: any) {
-    console.error(`[Server: ${req.serverName}] Error adding reply:`, error);
-    await createSystemLog(req.serverDbConnection, req.serverName, `Failed to add reply to ticket ${req.params.id}: ${error.message}`, 'error', 'ticket-update');
-    res.status(500).json({ error: 'Internal server error' });
+    // console.error(`[Server: ${req.serverName}] Error adding reply to ticket:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -197,23 +219,30 @@ interface AddTagBody {
 router.post('/api/tickets/:id/tags', async (req: Request<{ id: string }, {}, AddTagBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const { tag, staffName } = req.body;
-    
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    if (!ticket.tags.includes(tag)) {
-      ticket.tags.push(tag);
+
+    const tagToAdd = req.body.tag;
+    if (!ticket.tags.includes(tagToAdd)) {
+      ticket.tags.push(tagToAdd);
       await ticket.save();
-      await createSystemLog(req.serverDbConnection, req.serverName, `Tag '${tag}' added to ticket ${req.params.id} by ${staffName || 'system'}`, 'info', 'ticket-update');
+
+      // Log tag addition
+    //   await createSystemLog(
+    //     req.serverDbConnection!,
+    //     'TicketTagAdd',
+    //     `Tag '${tagToAdd}' added to ticket ${ticket._id}${req.body.staffName ? ' by staff ' + req.body.staffName : ''}`,
+    //     req.body.staffName || 'System',
+    //     { ticketId: ticket._id, tag: tagToAdd }
+    //   ); // Hidden
     }
-    res.json(ticket);
+
+    res.status(200).json(ticket.tags);
   } catch (error: any) {
-    console.error(`[Server: ${req.serverName}] Error adding tag:`, error);
-    await createSystemLog(req.serverDbConnection, req.serverName, `Failed to add tag '${req.body.tag}' to ticket ${req.params.id}: ${error.message}`, 'error', 'ticket-update');
-    res.status(500).json({ error: 'Internal server error' });
+    // console.error(`[Server: ${req.serverName}] Error adding tag to ticket:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -224,22 +253,31 @@ interface RemoveTagBody {
 router.delete('/api/tickets/:id/tags/:tag', async (req: Request<{ id: string, tag: string }, {}, RemoveTagBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const staffName = req.body.staffName;
-
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    ticket.tags = ticket.tags.filter(t => t !== req.params.tag);
-    await ticket.save();
-    await createSystemLog(req.serverDbConnection, req.serverName, `Tag '${req.params.tag}' removed from ticket ${req.params.id} by ${staffName || 'system'}`, 'info', 'ticket-update');
-    
-    res.json(ticket);
+
+    const tagToRemove = req.params.tag;
+    const initialLength = ticket.tags.length;
+    ticket.tags = ticket.tags.filter(tag => tag !== tagToRemove);
+
+    if (ticket.tags.length < initialLength) {
+      await ticket.save();
+      // Log tag removal
+    //   await createSystemLog(
+    //     req.serverDbConnection!,
+    //     'TicketTagRemove',
+    //     `Tag '${tagToRemove}' removed from ticket ${ticket._id}${req.body.staffName ? ' by staff ' + req.body.staffName : ''}`,
+    //     req.body.staffName || 'System',
+    //     { ticketId: ticket._id, tag: tagToRemove }
+    //   ); // Hidden
+    }
+
+    res.status(200).json(ticket.tags);
   } catch (error: any) {
-    console.error(`[Server: ${req.serverName}] Error removing tag:`, error);
-    await createSystemLog(req.serverDbConnection, req.serverName, `Failed to remove tag '${req.params.tag}' from ticket ${req.params.id}: ${error.message}`, 'error', 'ticket-update');
-    res.status(500).json({ error: 'Internal server error' });
+    // console.error(`[Server: ${req.serverName}] Error removing tag from ticket:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -251,42 +289,32 @@ interface UpdateTicketDataBody {
 router.patch('/api/tickets/:id/data', async (req: Request<{ id: string }, {}, UpdateTicketDataBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const { data, staffName } = req.body;
-    
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    let logMessage = `Ticket ${req.params.id} data updated by ${staffName || 'system'}. Changes: `;
-    const changes: string[] = [];
 
-    for (const [key, value] of Object.entries(data)) {
-      if (key === 'status' || key === 'assignedTo' || key === 'priority') {
-        if (ticket[key as keyof ITicket] !== value) {
-          changes.push(`${key}: '${ticket[key as keyof ITicket]}' -> '${value}'`);
-          (ticket as any)[key] = value; // Use any for direct assignment to potentially non-Map fields
-        }
-      } else { 
-        if (ticket.data.get(key) !== value) {
-          changes.push(`data.${key}: '${ticket.data.get(key)}' -> '${value}'`);
-          ticket.data.set(key, value);
-        }
+    // Assuming req.body.data is an object with key-value pairs to update in ticket.data (Map)
+    if (req.body.data && typeof req.body.data === 'object') {
+      for (const [key, value] of Object.entries(req.body.data)) {
+        ticket.data.set(key, value);
       }
+      await ticket.save();
+
+      // Log data update
+    //   await createSystemLog(
+    //     req.serverDbConnection!,
+    //     'TicketDataUpdate',
+    //     `Data updated for ticket ${ticket._id}${req.body.staffName ? ' by staff ' + req.body.staffName : ''}`,
+    //     req.body.staffName || 'System',
+    //     { ticketId: ticket._id, updatedKeys: Object.keys(req.body.data) }
+    //   ); // Hidden
     }
-    
-    if (changes.length > 0) {
-        await ticket.save();
-        logMessage += changes.join(', ');
-        await createSystemLog(req.serverDbConnection, req.serverName, logMessage, 'info', 'ticket-update');
-    } else {
-        // No actual changes, perhaps log this if desired or just return the ticket
-    }
-    res.json(ticket);
+
+    res.status(200).json(Object.fromEntries(ticket.data)); // Convert Map to object for JSON response
   } catch (error: any) {
-    console.error(`[Server: ${req.serverName}] Error updating ticket data:`, error);
-    await createSystemLog(req.serverDbConnection, req.serverName, `Failed to update data for ticket ${req.params.id}: ${error.message}`, 'error', 'ticket-update');
-    res.status(500).json({ error: 'Internal server error' });
+    // console.error(`[Server: ${req.serverName}] Error updating ticket data:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -297,7 +325,7 @@ router.get('/api/tickets/tag/:tag', async (req: Request<{ tag: string }>, res: R
     const tickets = await Ticket.find({ tags: req.params.tag });
     res.json(tickets);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error fetching tickets by tag:`, error);
+    // console.error(`[Server: ${req.serverName}] Error fetching tickets by tag:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -309,7 +337,7 @@ router.get('/api/tickets/creator/:uuid', async (req: Request<{ uuid: string }>, 
     const tickets = await Ticket.find({ creator: req.params.uuid });
     res.json(tickets);
   } catch (error) {
-    console.error(`[Server: ${req.serverName}] Error fetching tickets by creator:`, error);
+    // console.error(`[Server: ${req.serverName}] Error fetching tickets by creator:`, error); // Hidden
     res.status(500).json({ error: 'Internal server error' });
   }
 });
