@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
+import PageContainer from '@/components/layout/PageContainer'; // Import PageContainer
+import { Loader2 } from 'lucide-react'; // Import a loader icon
 
 const ProvisioningInProgressPage: React.FC = () => {
   const [, navigate] = useLocation();
   const [statusMessage, setStatusMessage] = useState('Initializing server setup...');
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3; // Max retries for network issues before showing a generic error
+  const maxRetries = 3;
 
   // Get serverName from URL query parameter
   const [searchParams] = useState(new URLSearchParams(window.location.search));
@@ -72,7 +74,7 @@ const ProvisioningInProgressPage: React.FC = () => {
         setStatusMessage('Failed to complete server setup.');
       }
     }
-  }, [navigate, retryCount, serverName]);
+  }, [navigate, retryCount, serverName]); // Removed checkStatus from dependencies as it's defined in the callback
 
   useEffect(() => {
     if (serverName) {
@@ -82,48 +84,43 @@ const ProvisioningInProgressPage: React.FC = () => {
       setStatusMessage('Cannot proceed with server setup check.');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [serverName]); // Rerun if serverName changes (though it shouldn't in this page context)
+  }, [serverName, checkStatus]); // Added checkStatus to dependencies
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '20px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Setting Up Your Server</h1>
-      <p style={{ fontSize: '1.1em', margin: '20px 0' }}>{statusMessage}</p>
-      {error && <p style={{ color: 'red', marginTop: '10px', fontWeight: 'bold' }}>Error: {error}</p>}
-      
-      {!error && !statusMessage.includes("Redirecting") && !statusMessage.includes("Failed") && (
-        <div style={{ marginTop: '20px' }}>
-          <p>This may take a few moments...</p>
-          <div className="spinner" style={{
-            border: '4px solid rgba(0,0,0,.1)',
-            width: '36px',
-            height: '36px',
-            borderRadius: '50%',
-            borderLeftColor: '#007bff', // Blue color for spinner
-            animation: 'spin 1s linear infinite',
-            margin: '20px auto'
-          }}></div>
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      )}
-      {error && (
-         <button 
-            onClick={() => { 
-                setRetryCount(0); 
-                setError(null); 
-                setStatusMessage('Retrying setup check...'); 
-                checkStatus(); 
+    <PageContainer title="Server Setup">
+      <div className="flex flex-col items-center justify-center text-center p-4">
+        <h1 className="text-2xl font-semibold mb-4">Setting Up Your Server: {serverName || "Unknown"}</h1>
+        <p className="text-lg mb-6 text-muted-foreground">{statusMessage}</p>
+        
+        {error && (
+          <div className="bg-destructive/10 border border-destructive text-destructive p-4 rounded-md mb-6 w-full max-w-md">
+            <p className="font-semibold">Error:</p>
+            <p>{error}</p>
+          </div>
+        )}
+        
+        {!error && !statusMessage.includes("Redirecting") && !statusMessage.includes("Failed") && (
+          <div className="flex flex-col items-center mt-6">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">This may take a few moments...</p>
+          </div>
+        )}
+
+        {error && (
+          <button 
+            onClick={() => {
+              setRetryCount(0);
+              setError(null);
+              setStatusMessage('Retrying setup...');
+              checkStatus();
             }}
-            style={{ marginTop: '20px', padding: '10px 20px', fontSize: '1em', cursor: 'pointer' }}
+            className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
-            Retry Manually
+            Try Again
           </button>
-      )}
-    </div>
+        )}
+      </div>
+    </PageContainer>
   );
 };
 
