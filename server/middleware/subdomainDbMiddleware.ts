@@ -7,6 +7,20 @@ const DOMAIN = process.env.DOMAIN || 'modl.gg';
 const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 export async function subdomainDbMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Bypass for common asset types or paths used by Vite/client-side apps
+  // This should be the very first check.
+  const assetPattern = /\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|map)$/i;
+  if (
+    req.path.startsWith('/src/') || // Vite dev path for source modules (like /src/main.tsx)
+    req.path.startsWith('/@vite/') || // Vite internal client
+    req.path.startsWith('/@fs/') || // Vite file system access prefix
+    req.path.startsWith('/node_modules/') || // Vite might serve optimized deps from here
+    req.path.startsWith('/assets/') || // Project's static assets folder if served from root
+    assetPattern.test(req.path) // General asset extensions
+  ) {
+    return next();
+  }
+
   // Bypass this middleware for globally accessible API routes
   if (req.path.startsWith('/api/global/')) {
     return next();
