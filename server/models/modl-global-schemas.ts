@@ -13,7 +13,7 @@ const ModlServerSchema = new Schema({
   databaseName: { type: String }, // To store the name of the server's dedicated DB
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
-});
+}, { collection: 'servers' }); // Explicitly set the collection name
 
 // Pre-save hook to update 'updatedAt'
 ModlServerSchema.pre('save', function(next) {
