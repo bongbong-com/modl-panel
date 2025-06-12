@@ -52,6 +52,7 @@ function generateNumericCode(length: number = 6): string {
 
 // Route to send email verification code
 router.post('/send-email-code', async (req: Request, res: Response) => {
+  console.log(`[AUTH_DEBUG] Received request for /api/auth/send-email-code with body:`, req.body);
   const { email } = req.body;
 
   if (!email) {
@@ -80,29 +81,35 @@ router.post('/send-email-code', async (req: Request, res: Response) => {
   try {
     await transporter.sendMail(mailOptions);
     console.log(`Verification code ${code} sent to ${email} via Postfix.`);
+    console.log(`[AUTH_DEBUG] Sending 200 response for /api/auth/send-email-code`);
     return res.status(200).json({ message: 'Verification code sent to your email.' });
   } catch (error) {
     console.error('Error sending verification email via Postfix:', error);
+    console.log(`[AUTH_DEBUG] Sending 500 response for /api/auth/send-email-code due to error`);
     return res.status(500).json({ message: 'Failed to send verification code.' });
   }
 });
 
 // Route to verify email code
 router.post('/verify-email-code', async (req: Request, res: Response) => {
+  console.log(`[AUTH_DEBUG] Received request for /api/auth/verify-email-code with body:`, req.body);
   const { email, code } = req.body;
 
   if (!email || !code) {
+    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (missing email or code)`);
     return res.status(400).json({ message: 'Email and code are required.' });
   }
 
   const storedEntry = emailVerificationCodes.get(email);
 
   if (!storedEntry) {
+    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (no stored entry)`);
     return res.status(400).json({ message: 'Invalid or expired verification code.' });
   }
 
   if (Date.now() > storedEntry.expiresAt) {
     emailVerificationCodes.delete(email); // Clean up expired code
+    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (code expired)`);
     return res.status(400).json({ message: 'Verification code has expired.' });
   }
 
@@ -118,8 +125,10 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
     // }
     // req.login(user, (err) => { ... });
 
+    console.log(`[AUTH_DEBUG] Sending 200 response for /api/auth/verify-email-code (success)`);
     return res.status(200).json({ message: 'Email verified successfully.' /*, user: { email: user.email, id: user._id } */ });
   } else {
+    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (invalid code)`);
     return res.status(400).json({ message: 'Invalid verification code.' });
   }
 });
