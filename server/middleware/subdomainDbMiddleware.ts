@@ -107,8 +107,8 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
             req.path !== '/verify-email'                     // Don't block verification if provisioning is pending
             ) {
             // If provisioning is not complete and the current path is not an allowed exception,
-            // redirect to the provisioning in progress page.
-            return res.redirect(`/provisioning-in-progress`);
+            // redirect to the provisioning in progress page, passing the serverName.
+            return res.redirect(`/provisioning-in-progress?server=${serverName}`);
         }
     }
     

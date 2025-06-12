@@ -1,22 +1,33 @@
 import { Express, Request, Response } from 'express';
-import { Connection, Document, Model } from 'mongoose'; // Import Connection type
+import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mongoose for Types.ObjectId
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
 // Import the models. We will access their schemas via Model.schema
 import {
-  Player, // Assuming Player is the model exported from mongodb-schemas
+  Player,
   Staff,
   Ticket,
   Log,
   Settings
 } from '../models/mongodb-schemas';
-import { ModlServerSchema } from '../models/modl-global-schemas'; // Import ModlServerSchema
+import { ModlServerSchema } from '../models/modl-global-schemas';
 
 // Define an interface for the ModlServer document for type safety
 interface IModlServer extends Document {
   serverName: string;
+  customDomain: string;
+  adminEmail: string;
+  emailVerificationToken?: string | undefined;
+  emailVerified: boolean;
   provisioningStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
   databaseName?: string;
-  // Add other fields from ModlServerSchema as needed
+  // Mongoose Document provides _id. Explicitly typed here.
+  _id: mongoose.Types.ObjectId; 
+  // Mongoose Document provides save method.
+  // save: () => Promise<this & Document<any, any, any>>; // More precise type for save if needed
+  // Add any other fields from ModlServerSchema that are directly accessed
+  provisioningNotes?: string; 
+  updatedAt?: Date; // from schema
+  createdAt?: Date; // from schema
 }
 
 // TODO: Define a more robust initial data seeding function for new servers
@@ -65,7 +76,7 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
 
     let globalConnection: Connection;
     try {
-      globalConnection = await connectToGlobalModlDb(); // Ensure global connection
+      globalConnection = await connectToGlobalModlDb();
       const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
       const server = await ModlServerModel.findOne({ emailVerificationToken: token });
 
@@ -73,118 +84,35 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
         return res.status(404).json({ message: 'Invalid or expired verification token.' });
       }
 
+      // Case 1: Already verified
       if (server.emailVerified) {
-        // If already verified, redirect to panel and show a toast.
-        // The user might click an old link.
-        // Auto-login: This part requires session management. Assuming a function `logInUser` exists.
-        // This is a simplified example. Robust auto-login needs careful implementation.
-        if (req.logIn && server.adminEmail) { // req.logIn is from Passport
-            // Fetch or construct user object that passport expects for serialization
-            // This is a placeholder - you need to fetch the actual user from your users collection
-            // based on server.adminEmail or a related user ID if stored on ModlServer.
-            // For now, we'll assume a simplified user object can be created for the session.
-            // This part is highly dependent on your User model and how users are stored/managed globally.
-            // Let's assume you have a global User model.
-            // const UserModel = globalConnection.model('User'); // Hypothetical global user model
-            // const userToLogIn = await UserModel.findOne({ email: server.adminEmail });
-            // if (userToLogIn) { ... }
-            
-            // Simplified: For demonstration, creating a mock user object for login.
-            // In a real app, you MUST fetch the full user object that passport expects.
-            const mockUserForLogin = {
-                // _id: userToLogIn._id, // From actual user record
-                email: server.adminEmail,
-                // ... other necessary fields for req.user
-            };
-            // @ts-ignore
-            req.logIn(mockUserForLogin, async (err) => {
-                if (err) {
-                    console.error('Auto-login after email verification failed:', err);
-                    // Fallback: redirect without login, but still show success
-                    return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified successfully!`);
-                }
-
-                // Successfully logged in. Now, trigger provisioning if it's still pending.
-                if (server.provisioningStatus === 'pending') {
-                    try {
-                        // Connect to the specific server's DB for provisioning
-                        const serverDbConnection = await connectToServerDb(server.customDomain as string);
-                        await provisionNewServerInstance(serverDbConnection, server.customDomain as string, globalConnection, server._id.toString());
-                        server.provisioningStatus = 'completed'; // Assuming provisionNewServerInstance is synchronous for status update
-                                                              // or it handles its own status update internally.
-                                                              // For safety, explicitly mark as completed if provisionNewServerInstance succeeded.
-                        // No, provisionNewServerInstance updates the status itself.
-                    } catch (provisionError) {
-                        console.error(`Error during post-verification provisioning for ${server.customDomain}:`, provisionError);
-                        // Decide how to handle provisioning failure. Maybe redirect with an error toast.
-                        return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified, but panel setup encountered an issue. Please contact support.&provision_error=true`);
-                    }
-                }
-                await server.save(); // Save changes like provisioningStatus if updated here
-                return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified successfully! Panel is ready.`);
-            });
+        if (server.provisioningStatus === 'completed') {
+          // Verified and provisioned: redirect to their panel's root.
+          return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?message=email_already_verified_and_provisioned&toastType=info`);
         } else {
-            // Fallback if req.logIn is not available or user cannot be determined for login
-            console.warn('req.logIn not available or user details missing for auto-login during email verification.');
-            // Still proceed with verification and redirect
-            server.emailVerified = true;
-            server.emailVerificationToken = undefined; // Clear the token
-            // server.provisioningStatus remains 'pending' or as is, to be handled by middleware or first login
-            await server.save();
-            return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified successfully! You can now log in.`);
+          // Verified but provisioning not complete: redirect to provisioning page.
+          return res.redirect(`/provisioning-in-progress?server=${server.serverName}&message=email_already_verified_provisioning_pending&toastType=info`);
         }
-        return; // End execution after handling already-verified case or starting login
       }
 
+      // Case 2: Not yet verified - proceed with verification
       server.emailVerified = true;
       server.emailVerificationToken = undefined; // Clear the token
-      // server.provisioningStatus = 'pending'; // Set/confirm as pending, provisioning will be triggered.
-                                            // This is already handled by the registration logic usually.
-                                            // The key is that emailVerified is now true.
 
-      // Auto-login attempt after successful verification
-      if (req.logIn && server.adminEmail) {
-        // Similar to the "already verified" block, attempt to log the user in.
-        // Placeholder for fetching/constructing the user object for Passport's req.logIn
-        const mockUserForLogin = {
-            email: server.adminEmail,
-            // ... other necessary fields for req.user
-        };
-        // @ts-ignore
-        req.logIn(mockUserForLogin, async (err) => {
-            if (err) {
-                console.error('Auto-login after email verification failed:', err);
-                // Fallback: redirect without login, but still show success
-                await server.save(); // Save verification status
-                return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified successfully! Please log in.`);
-            }
-
-            // Successfully logged in. Now, trigger provisioning if it's still pending.
-            if (server.provisioningStatus === 'pending') {
-                try {
-                    const serverDbConnection = await connectToServerDb(server.customDomain as string);
-                    await provisionNewServerInstance(serverDbConnection, server.customDomain as string, globalConnection, server._id.toString());
-                    // provisionNewServerInstance handles updating the serverConfig's provisioningStatus to 'completed'.
-                } catch (provisionError) {
-                    console.error(`Error during post-verification provisioning for ${server.customDomain}:`, provisionError);
-                    await server.save(); // Save verification status even if provisioning fails
-                    return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified, but panel setup encountered an issue. Please contact support.&provision_error=true`);
-                }
-            }
-            await server.save(); // Save verification status and any changes by provisioning
-            return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified successfully! Panel is ready.`);
-        });
-      } else {
-        // Fallback if req.logIn is not available
-        await server.save();
-        return res.redirect(`http://${server.customDomain}.${process.env.DOMAIN || 'modl.gg'}/?email_verified=true&toast=Email verified successfully! You can now log in.`);
+      // Set provisioning to pending if it's not already started or completed.
+      // This ensures that if it was 'failed', it gets a chance to retry.
+      if (server.provisioningStatus !== 'completed' && server.provisioningStatus !== 'in-progress') {
+        server.provisioningStatus = 'pending';
       }
+      
+      await server.save();
+      
+      // After successful verification and status update, redirect to the provisioning page.
+      return res.redirect(`/provisioning-in-progress?server=${server.serverName}&status=verification_successful&toastType=success`);
 
     } catch (error: any) {
-      console.error('Error during email verification:', error);
-      // It's crucial to know which server this error pertains to, if possible, for debugging.
-      // However, with just a token, we might not know the server context if the token is invalid.
-      return res.status(500).json({ message: 'An error occurred during email verification. ', error: error.message });
+      console.error(`Error during email verification for token ${token}:`, error);
+      return res.status(500).json({ message: 'An error occurred during email verification.', details: error.message });
     }
   });
 
@@ -193,59 +121,79 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
     const { serverName } = req.params;
 
     if (!serverName) {
-      return res.status(400).json({ message: 'Server name is missing.' });
+      return res.status(400).json({ error: 'Server name is missing.' });
     }
-
+    
+    let globalConnection: Connection;
     try {
-      const ModlServer = await getModlServersModel();
-      const server = await ModlServer.findOne({ serverName: serverName });
+      globalConnection = await connectToGlobalModlDb();
+      const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
+      const server = await ModlServerModel.findOne({ serverName: serverName });
 
       if (!server) {
-        return res.status(404).json({ message: 'Server not found.' });
+        return res.status(404).json({ error: `Server '${serverName}' not found.` });
       }
 
       if (!server.emailVerified) {
-        return res.status(403).json({ message: 'Email not verified for this server.' });
+        // This state should ideally not be hit if /verify-email redirects correctly.
+        return res.status(403).json({ error: 'Email not verified for this server.', status: 'email_unverified' });
       }
 
       if (server.provisioningStatus === 'completed') {
-        return res.status(200).json({ status: 'completed', message: 'Server is provisioned.' });
+        return res.json({ status: 'completed', message: `Server '${serverName}' is provisioned and ready.` });
       }
 
       if (server.provisioningStatus === 'in-progress') {
-        return res.status(200).json({ status: 'in-progress', message: 'Provisioning is currently in progress.' });
+        return res.json({ status: 'in-progress', message: 'Provisioning is currently in progress. Please wait.' });
       }
 
-      // If pending, start provisioning
-      if (server.provisioningStatus === 'pending' || server.provisioningStatus === 'failed') {
-        server.provisioningStatus = 'in-progress';
+      // If status is 'pending', and email is verified, trigger provisioning.
+      if (server.provisioningStatus === 'pending') {
+        server.provisioningStatus = 'in-progress'; // Optimistically update
+        server.updatedAt = new Date();
         await server.save();
 
-        // Perform provisioning asynchronously
-        (async () => {
-          try {
-            const serverDbConnection = await connectToServerDb(serverName);
-            // Store the generated DB name if not already stored (connectToServerDb might formalize it)
-            // server.databaseName = serverDbConnection.name;
-            await provisionNewServerInstance(serverDbConnection, serverName, ModlServer.getConnection(), server._id.toString());
-            server.provisioningStatus = 'completed';
-            await server.save();
-            console.log(`Provisioning for server ${serverName} marked as completed.`);
-          } catch (provisionError) {
-            console.error(`Error during provisioning for ${serverName}:`, provisionError);
-            server.provisioningStatus = 'failed';
-            await server.save();
-          }
-        })();
+        // Asynchronously start the provisioning process.
+        // No await here for a quick response; client polls.
+        connectToServerDb(server.customDomain)
+          .then(async (serverDbConnection) => {
+            if (!server._id) { // Should always exist for a found document
+                console.error(`Critical: Server _id is undefined for ${server.serverName} after findOne. Cannot provision.`);
+                const freshServer = await ModlServerModel.findById(server._id); // Re-fetch to be safe
+                if (freshServer) {
+                    freshServer.provisioningStatus = 'failed';
+                    freshServer.provisioningNotes = 'Failed to start provisioning due to missing _id reference internally.';
+                    await freshServer.save();
+                }
+                return;
+            }
+            await provisionNewServerInstance(serverDbConnection, server.customDomain, globalConnection, server._id.toString());
+            console.log(`Provisioning process initiated via API for ${server.serverName}.`);
+          })
+          .catch(async (err) => {
+            console.error(`Error connecting to server DB or during provisioning for ${server.serverName}:`, err);
+            // Re-fetch to avoid versioning issues if server doc was modified elsewhere
+            const freshServer = await ModlServerModel.findById(server._id);
+            if (freshServer) {
+                freshServer.provisioningStatus = 'failed';
+                freshServer.provisioningNotes = err.message || 'An unexpected error occurred during provisioning initiation.';
+                freshServer.updatedAt = new Date();
+                await freshServer.save();
+            }
+          });
 
-        return res.status(202).json({ status: 'in-progress', message: 'Provisioning started.' });
+        return res.json({ status: 'in-progress', message: 'Provisioning started. Please refresh in a few moments.' });
       }
+      
+      // Handle 'failed' or any other unexpected status
+      return res.status(200).json({ // Return 200 so client can parse status
+          status: server.provisioningStatus || 'unknown', 
+          message: server.provisioningNotes || `Server is in an unexpected state: ${server.provisioningStatus}. Please contact support.` 
+      });
 
-      res.status(200).json({ status: server.provisioningStatus });
-
-    } catch (error) {
-      console.error('Provisioning status error:', error);
-      res.status(500).json({ message: 'Error fetching provisioning status.' });
+    } catch (error: any) {
+      console.error(`Error in /api/provisioning/status/${serverName}:`, error);
+      return res.status(500).json({ error: 'An internal error occurred while checking provisioning status.', details: error.message });
     }
   });
 }
