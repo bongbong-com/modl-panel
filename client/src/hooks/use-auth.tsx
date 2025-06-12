@@ -20,6 +20,7 @@ type AuthContextType = {
   requestEmailVerification: (email: string) => Promise<string>;
   request2FAVerification: (email: string) => Promise<string>;
   requestPasskeyAuthentication: (email: string) => Promise<boolean>;
+  updateUserDetails: (details: Partial<Pick<User, 'email' | 'username'>>) => Promise<boolean>; // Added updateUser
 };
 
 // Create the Auth Context with default values
@@ -152,6 +153,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Update user details function
+  const updateUserDetails = async (details: Partial<Pick<User, 'email' | 'username'>>): Promise<boolean> => {
+    if (!user) return false;
+    setIsLoading(true);
+
+    try {
+      // Simulate API call with 1 second delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const updatedUser = { ...user, ...details };
+
+      // If username changes, update profilePicture assuming it's derived from username
+      if (details.username && updatedUser.profilePicture?.includes(encodeURIComponent(user.username))) {
+        updatedUser.profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(details.username)}`;
+      }
+      
+      // Update user in localStorage
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      setIsLoading(false);
+
+      toast({
+        title: "Profile updated",
+        description: "Your account details have been successfully updated.",
+      });
+      return true;
+    } catch (error) {
+      setIsLoading(false);
+      toast({
+        title: "Update failed",
+        description: "An error occurred while updating your profile. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -161,7 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         requestEmailVerification,
         request2FAVerification,
-        requestPasskeyAuthentication
+        requestPasskeyAuthentication,
+        updateUserDetails, // Added updateUser
       }}
     >
       {children}
