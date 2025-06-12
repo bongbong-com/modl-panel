@@ -107,16 +107,16 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   } else { // Production logic
     actualDbNameForConnection = `${PANEL_DB_PREFIX}${serverName}`;
     connectionKeyInMap = serverName; // Use actual serverName as key in prod
-    console.log(`Production mode: Request for server '${serverName}', target DB '${actualDbNameForConnection}'.`); // Hidden
+    // console.log(`Production mode: Request for server '${serverName}', target DB '${actualDbNameForConnection}'.`); // Hidden
   }
 
   if (serverConnections.has(connectionKeyInMap)) {
     const existingConn = serverConnections.get(connectionKeyInMap)!;
     if (existingConn.readyState === 1) { // 1 === connected
-      console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${existingConn.name}).`);
+      // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${existingConn.name}).`);
       return existingConn;
     } else {
-      console.warn(`Found stale connection for key '${connectionKeyInMap}' (readyState: ${existingConn.readyState}). Removing to attempt reconnect.`); // Hidden
+      // console.warn(`Found stale connection for key '${connectionKeyInMap}' (readyState: ${existingConn.readyState}). Removing to attempt reconnect.`); // Hidden
       try {
         await existingConn.close();
       } catch (closeError) {
@@ -135,10 +135,10 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   if (serverConnections.has(connectionKeyInMap)) {
     const existingConnection = serverConnections.get(connectionKeyInMap)!;
     if (existingConnection.readyState === 1) { // 1 for connected
-      console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${actualDbNameForConnection}).`);
+      // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${actualDbNameForConnection}).`);
       return existingConnection;
     }
-    console.warn(`Found stale connection for key '${connectionKeyInMap}'. Attempting to remove and reconnect.`);
+    // console.warn(`Found stale connection for key '${connectionKeyInMap}'. Attempting to remove and reconnect.`);
     try {
       await existingConnection.close();
     } catch (closeError) {
@@ -153,7 +153,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
     registerTenantModels(newConnection); // Register models on the new connection
     await newConnection.openUri(serverDbUri);
 
-    console.log(`Successfully connected to database: '${actualDbNameForConnection}' (URI: ${serverDbUri}). Storing with key '${connectionKeyInMap}'.`);
+    // console.log(`Successfully connected to database: '${actualDbNameForConnection}' (URI: ${serverDbUri}). Storing with key '${connectionKeyInMap}'.`);
     serverConnections.set(connectionKeyInMap, newConnection);
     return newConnection;
   } catch (error) {
