@@ -77,8 +77,8 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     // Attach serverConfig to request for potential use in other routes or middleware
     // @ts-ignore
     req.serverConfig = serverConfig;
-    // @ts-ignore // Consistently set serverName if serverConfig is found
-    req.serverName = serverConfig.name;
+    // @ts-ignore // Consistently set serverName to the derived subdomain (customDomain) if serverConfig is found
+    req.serverName = serverName;
 
     // Define paths accessible *before* email verification for this specific panel
     const allowedPreVerificationPagePaths = [

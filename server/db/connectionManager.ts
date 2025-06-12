@@ -84,16 +84,11 @@ export async function getModlServersModel() {
  * @returns The Mongoose connection object for the server's database.
  */
 export async function connectToServerDb(serverName: string): Promise<Connection> {
-  if (IS_DEVELOPMENT) {
-    // In development, all tenants on localhost might share a single 'modl_test' DB
-    // or have individual test DBs. Current logic points to a shared 'modl_test'.
-    // console.log(`Development mode: Request for server '${serverName}', will use shared DB 'modl_test'.`);
-    const devConnectionKey = 'dev_shared_modl_test_connection';
-    if (serverConnections.has(devConnectionKey) && serverConnections.get(devConnectionKey)!.readyState === 1) {
-      // console.log(`Reusing existing connection for key '${devConnectionKey}' (DB: modl_test).`);
-      return serverConnections.get(devConnectionKey)!;
-    }
-  }
+  // if (IS_DEVELOPMENT) {
+  //   console.log(`Development mode: Request for server '${serverName}', target DB '${PANEL_DB_PREFIX}${serverName}'.`);
+  // } else {
+  //   console.log(`Production mode: Request for server '${serverName}', target DB '${PANEL_DB_PREFIX}${serverName}'.`);
+  // }
 
   let connectionKeyInMap: string;
   let serverDbUri: string;
@@ -118,7 +113,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   if (serverConnections.has(connectionKeyInMap)) {
     const existingConn = serverConnections.get(connectionKeyInMap)!;
     if (existingConn.readyState === 1) { // 1 === connected
-      console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${existingConn.name}).`);
+      // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${existingConn.name}).`);
       return existingConn;
     } else {
       console.warn(`Found stale connection for key '${connectionKeyInMap}' (readyState: ${existingConn.readyState}). Removing to attempt reconnect.`);
@@ -133,60 +128,41 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
 
   // Construct URI
   if (IS_DEVELOPMENT) {
-    const baseUri = GLOBAL_MODL_DB_URI;
-    if (!baseUri) {
-      const errorMessage = 'GLOBAL_MODL_DB_URI is not set in .env. This is required to construct the development database URI for modl_test.';
-      console.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-    try {
-      const uri = new URL(baseUri);
-      uri.pathname = `/${actualDbNameForConnection}`; // Set the database path, e.g., /modl_test
-      // Query parameters from GLOBAL_MODL_DB_URI (like replicaSet, authSource) are preserved by URL object.
-      serverDbUri = uri.toString();
-    } catch (urlParseError) {
-      console.warn(`Failed to parse GLOBAL_MODL_DB_URI ('${baseUri}') using URL constructor. Attempting fallback URI construction:`, urlParseError);
-      // Fallback for simpler URI strings or if URL parsing has issues.
-      // Assumes format like: mongodb://[credentials@]host[:port]/originalDbName[?options]
-      const questionMarkIndex = baseUri.indexOf('?');
-      const basePath = questionMarkIndex !== -1 ? baseUri.substring(0, questionMarkIndex) : baseUri;
-      const queryParams = questionMarkIndex !== -1 ? baseUri.substring(questionMarkIndex) : '';
-      const lastSlashIndex = basePath.lastIndexOf('/');
-      
-      // Ensure lastSlashIndex is not part of "mongodb://" or "mongodb+srv://"
-      let hostPartWithAuth = basePath;
-      if (lastSlashIndex > basePath.indexOf('://') + 2) { 
-          hostPartWithAuth = basePath.substring(0, lastSlashIndex);
-      } else {
-          // This case implies baseUri might be like "mongodb://host" without a DB name.
-          // This fallback might not be perfect for all URI formats without a path.
-          console.warn(`Fallback URI construction might be inaccurate for GLOBAL_MODL_DB_URI format: ${baseUri}`);
-      }
-      serverDbUri = `${hostPartWithAuth}/${actualDbNameForConnection}${queryParams}`;
-    }
-    console.log(`Constructed URI for dev DB '${actualDbNameForConnection}': ${serverDbUri}`);
-  } else { // Production URI construction
-    const mongoUriTemplate = process.env.MONGODB_URI_TEMPLATE;
-    if (!mongoUriTemplate) {
-        const errorMsg = "MONGODB_URI_TEMPLATE is not set in .env. This is required for production server DB connections.";
-        console.error(errorMsg);
-        throw new Error(errorMsg);
-    }
-    serverDbUri = mongoUriTemplate.replace('<dbName>', actualDbNameForConnection);
-    console.log(`Constructed URI for prod DB '${actualDbNameForConnection}': ${serverDbUri}`);
+    serverDbUri = `mongodb://localhost:27017/${actualDbNameForConnection}`;
+    // console.log(`Constructed URI for dev DB '${actualDbNameForConnection}': ${serverDbUri}`);
+  } else {
+    const mongoUser = process.env.PANEL_DB_USER;
+    const mongoPass = process.env.PANEL_DB_PASS;
+    const mongoHost = process.env.PANEL_DB_HOST;
+    const mongoAuthDb = process.env.PANEL_DB_AUTH_DB || 'admin';
+    serverDbUri = `mongodb://${mongoUser}:${mongoPass}@${mongoHost}/${actualDbNameForConnection}?authSource=${mongoAuthDb}`;
+    // console.log(`Constructed URI for prod DB '${actualDbNameForConnection}': ${serverDbUri}`);
   }
 
+  if (serverConnections.has(connectionKeyInMap)) {
+    const existingConnection = serverConnections.get(connectionKeyInMap)!;
+    if (existingConnection.readyState === 1) { // 1 for connected
+      // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${actualDbNameForConnection}).`);
+      return existingConnection;
+    }
+    // console.warn(`Found stale connection for key '${connectionKeyInMap}'. Attempting to remove and reconnect.`);
+    try {
+      await existingConnection.close();
+    } catch (closeError) {
+      console.error(`Error closing stale connection for ${connectionKeyInMap}:`, closeError);
+    }
+    serverConnections.delete(connectionKeyInMap);
+  }
+
+  // New connection logic
   try {
-    const conn = mongoose.createConnection(serverDbUri);
-    await conn.asPromise(); // Wait for the connection to establish
-    
-    console.log(`Successfully connected to database: '${conn.name}' (URI: ${serverDbUri}). Storing with key '${connectionKeyInMap}'.`);
-    
-    // Register tenant-specific models on this new connection
-    registerTenantModels(conn);
-    
-    serverConnections.set(connectionKeyInMap, conn);
-    return conn;
+    const newConnection = mongoose.createConnection(serverDbUri);
+    registerTenantModels(newConnection); // Register models on the new connection
+    await newConnection.openUri(serverDbUri);
+
+    // console.log(`Successfully connected to database: '${actualDbNameForConnection}' (URI: ${serverDbUri}). Storing with key '${connectionKeyInMap}'.`);
+    serverConnections.set(connectionKeyInMap, newConnection);
+    return newConnection;
   } catch (error) {
     console.error(`Error connecting to database (Target DB: ${actualDbNameForConnection}, URI: ${serverDbUri}, Connection Key: ${connectionKeyInMap}):`, error);
     throw error; 
