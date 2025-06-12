@@ -52,14 +52,17 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     return next(); // Not a panel subdomain recognized by this middleware's primary logic
   }
 
-  if (!serverName) {
-    // This means the hostname was not identified as a panel subdomain (e.g., it's the base domain, www.modl.gg, or a non-matching custom domain).
-    // The preceding logic should have already called next() for these cases.
-    // This check is a safeguard; if serverName is not set, it's not a panel request for this middleware to process further.
+  if (!serverName || serverName === "undefined") {
+    if (serverName === "undefined") {
+      console.warn(`[subdomainDbMiddleware] Blocked attempt to access panel with reserved name 'undefined' from hostname: ${hostname}`);
+    }
+    // Consider sending a specific error response if this path indicates a misconfiguration or bad request,
+    // instead of just calling next(), which might lead to generic 404s downstream.
+    // For now, maintaining existing behavior of calling next() if serverName is invalid.
     return next();
   }
 
-  // At this point, 'serverName' is the derived subdomain (e.g., "mypanel", "testlocal").
+  // At this point, 'serverName' is a non-empty, non-"undefined" derived string (e.g., "mypanel", "testlocal").
   // This derived 'serverName' must exist as a 'customDomain' in the database.
   let globalConnection: MongooseConnection;
   try {
