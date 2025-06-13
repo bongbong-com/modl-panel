@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Bell, 
   RefreshCw, 
@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useRecentActivity, useStats, ClientActivity } from '@/hooks/use-data';
+import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 
 type Activity = ClientActivity;
@@ -79,6 +80,24 @@ const StatCard = ({ title, value, change, changeText, color }: {
 
 const Home = () => {
   const [activityFilter, setActivityFilter] = useState("all");
+  const { toast } = useToast();
+  
+  // Check for provisioning success and show welcome toast
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('fromProvisioning') === 'true') {
+      toast({
+        title: "🎉 Welcome to modl!",
+        description: "Your server has been successfully provisioned and you're now logged in. Start by configuring your settings and inviting team members.",
+        duration: 8000,
+      });
+      
+      // Clean up URL parameter
+      urlParams.delete('fromProvisioning');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [toast]);
   
   // Fetch recent activity from the database
   const { data: recentActivityData, isLoading: isLoadingActivity, error: activityError } = useRecentActivity(20, 7);

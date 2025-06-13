@@ -173,17 +173,18 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
             server.provisioningSignInToken &&
             clientSignInToken === server.provisioningSignInToken &&
             server.provisioningSignInTokenExpiresAt &&
-            new Date() < new Date(server.provisioningSignInTokenExpiresAt)) {
-          
-          // Token is valid, attempt auto-login
+            new Date() < new Date(server.provisioningSignInTokenExpiresAt)) {          // Token is valid, attempt auto-login
           if (req.session && server.adminEmail) {
             const adminEmail = server.adminEmail;
             const username = adminEmail.split('@')[0] || 'admin';
 
-            req.session.email = adminEmail;
-            req.session.admin = true;
-            req.session.username = username;
-            req.session.userId = adminEmail;
+            // Type assertion to work around TypeScript language server issues
+            const session = req.session as any;
+            session.email = adminEmail;
+            session.admin = true;
+            session.username = username;
+            session.userId = adminEmail;
+            session.role = 'Admin'; // Set proper role for auth middleware
 
             try {
               await req.session.save();

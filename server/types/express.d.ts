@@ -9,8 +9,7 @@ declare global {
       email: string;
       username: string;
       role: string;
-    }
-    interface Request {
+    }    interface Request {
       serverDbConnection?: Connection;
       serverName?: string;
       user?: UserProfile; // For general user object, if populated by other means
@@ -19,6 +18,7 @@ declare global {
         email?: string;
         username?: string;
         role?: string;
+        admin?: boolean; // Add admin flag for provisioning flow
       };
       currentUser?: { // Add this for strongly-typed session user info
         userId: string;

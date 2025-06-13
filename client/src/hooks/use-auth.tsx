@@ -21,6 +21,7 @@ type AuthContextType = {
   requestEmailVerification: (email: string) => Promise<string | undefined>;
   request2FAVerification: (email: string) => Promise<string | undefined>; // Adjusted return type
   requestPasskeyAuthentication: (email: string) => Promise<boolean>; // This will now orchestrate the full FIDO login
+  refreshSession: () => Promise<void>; // Add refresh session function
 };
 
 // Create the Auth Context with default values
@@ -32,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
   // Check for existing user session on mount
   useEffect(() => {
     const checkSession = async () => {
@@ -59,7 +59,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     checkSession();
+
+    // Check if user is coming from provisioning and force session refresh
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('fromProvisioning') === 'true') {
+      // Remove the parameter from URL
+      urlParams.delete('fromProvisioning');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+      
+      // Force session refresh after a short delay
+      setTimeout(() => {
+        checkSession();
+      }, 1000);
+    }
   }, []);
+
+  // Function to manually refresh session
+  const refreshSession = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/session', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.isAuthenticated && data.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Request email verification code
   const requestEmailVerification = async (email: string): Promise<string | undefined> => {
@@ -330,7 +367,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       navigate('/auth'); // Redirect to login page
     }
   };
-
   return (
     <AuthContext.Provider
       value={{
@@ -340,7 +376,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         requestEmailVerification,
         request2FAVerification,
-        requestPasskeyAuthentication
+        requestPasskeyAuthentication,
+        refreshSession
       }}
     >
       {children}

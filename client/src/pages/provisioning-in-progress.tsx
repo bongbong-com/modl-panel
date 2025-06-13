@@ -47,14 +47,20 @@ const ProvisioningInProgressPage: React.FC = () => {
       const data = await response.json();
 
       // Use the message from the server directly, as it now includes auto-login status
-      setStatusMessage(data.message || `Server '${serverName}' status: ${data.status}`);
-
-      if (data.status === 'completed') {
+      setStatusMessage(data.message || `Server '${serverName}' status: ${data.status}`);      if (data.status === 'completed') {
         // Server message will indicate if auto-login happened.
-        // Redirect after a delay to allow user to read the message.
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 3000); // Slightly longer delay for potentially longer messages
+        // If auto-login was successful, force a window reload to ensure auth context is updated
+        if (data.user) {
+          setStatusMessage(data.message + ' Redirecting and refreshing session...');
+          setTimeout(() => {
+            window.location.href = '/?fromProvisioning=true';
+          }, 2000);
+        } else {
+          // Auto-login failed, redirect normally
+          setTimeout(() => {
+            window.location.href = '/auth?message=provisioning_complete_login_required';
+          }, 3000);
+        }
       } else if (data.status === 'in-progress') {
         setError(null);
         setRetryCount(0);

@@ -102,14 +102,19 @@ function Router() {
 }
 
 function App() {
+  const [location] = useLocation();
   const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
 
   useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
-    if (!hasSeenModal) {
+    const isOnHomePage = location === '/';
+    const isFromProvisioning = new URLSearchParams(window.location.search).get('fromProvisioning') === 'true';
+    
+    // Only show welcome modal on home page, not coming from provisioning
+    if (!hasSeenModal && isOnHomePage && !isFromProvisioning) {
       setWelcomeModalOpen(true);
     }
-  }, []);
+  }, [location]);
 
   const handleCloseWelcomeModal = () => {
     localStorage.setItem("hasSeenWelcomeModal", "true");
