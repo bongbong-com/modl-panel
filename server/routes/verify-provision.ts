@@ -1,5 +1,6 @@
 import { Express, Request, Response } from 'express';
 import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mongoose for Types.ObjectId
+import { randomBytes } from 'crypto';
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
 import {
   Player,
@@ -17,6 +18,8 @@ interface IModlServer extends Document {
   adminEmail: string;
   emailVerificationToken?: string | undefined;
   emailVerified: boolean;
+  provisioningSignInToken?: string;
+  provisioningSignInTokenExpiresAt?: Date;
   provisioningStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
   databaseName?: string;
   // Mongoose Document provides _id. Explicitly typed here.
@@ -120,18 +123,24 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
 
       // Case 2: Not yet verified - proceed with verification
       server.emailVerified = true;
-      server.emailVerificationToken = undefined; // Clear the token
+      server.emailVerificationToken = undefined; // Clear the email verification token
+
+      // Generate and store the provisioning sign-in token
+      const signInToken = randomBytes(32).toString('hex');
+      const signInTokenExpiry = new Date(Date.now() + 30 * 60 * 1000); // Token valid for 30 minutes
+
+      server.provisioningSignInToken = signInToken;
+      server.provisioningSignInTokenExpiresAt = signInTokenExpiry;
 
       // Set provisioning to pending if it's not already started or completed.
-      // This ensures that if it was 'failed', it gets a chance to retry.
       if (server.provisioningStatus !== 'completed' && server.provisioningStatus !== 'in-progress') {
         server.provisioningStatus = 'pending';
       }
       
       await server.save();
       
-      // After successful verification and status update, redirect to the provisioning page.
-      return res.redirect(`/provisioning-in-progress?server=${server.serverName}&status=verification_successful&toastType=success`);
+      // After successful verification and status update, redirect to the provisioning page with the sign-in token.
+      return res.redirect(`/provisioning-in-progress?server=${server.serverName}&signInToken=${signInToken}&status=verification_successful&toastType=success`);
 
     } catch (error: any) {
       console.error(`Error during email verification for token ${token}:`, error);
@@ -141,6 +150,7 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
 
   app.get('/api/provisioning/status/:serverName', async (req: Request, res: Response) => {
     const { serverName } = req.params;
+    const clientSignInToken = req.query.signInToken as string; // Get token from query
 
     if (!serverName) {
       return res.status(400).json({ error: 'Server name is missing.' });
@@ -162,7 +172,63 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
       }
 
       if (server.provisioningStatus === 'completed') {
-        return res.json({ status: 'completed', message: `Server '${serverName}' is provisioned and ready.` });
+        let autoLoginSuccess = false;
+        let autoLoginMessage = `Server '${serverName}' is provisioned and ready.`;
+        let responseUser = null;
+
+        if (clientSignInToken &&
+            server.provisioningSignInToken &&
+            clientSignInToken === server.provisioningSignInToken &&
+            server.provisioningSignInTokenExpiresAt &&
+            new Date() < new Date(server.provisioningSignInTokenExpiresAt)) {
+          
+          // Token is valid, attempt auto-login
+          if (req.session && server.adminEmail) {
+            const adminEmail = server.adminEmail;
+            const username = adminEmail.split('@')[0] || 'admin';
+
+            req.session.email = adminEmail;
+            req.session.admin = true;
+            req.session.username = username;
+            req.session.userId = adminEmail;
+
+            try {
+              await req.session.save();
+              autoLoginSuccess = true;
+              autoLoginMessage = `Server '${serverName}' is provisioned and you have been automatically logged in. Redirecting...`;
+              responseUser = { id: adminEmail, email: adminEmail, username: username, admin: true };
+              console.log(`[verify-provision] Admin user ${adminEmail} for server ${serverName} automatically logged in after provisioning with valid token.`);
+            } catch (sessionError: any) {
+              console.error(`[verify-provision] Session save error for ${adminEmail} after provisioning ${serverName} (token was valid):`, sessionError);
+              autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login failed due to session error: ${sessionError.message}`;
+            }
+          } else {
+            console.warn(`[verify-provision] Could not auto-login admin for ${serverName}. Session or adminEmail missing, though token was valid.`);
+            autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login setup error (session/email).`;
+          }
+        } else if (clientSignInToken) {
+          console.log(`[verify-provision] Auto-login for ${serverName} failed: Invalid, expired, or mismatched sign-in token.`);
+          autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login failed (invalid/expired token). Please log in manually.`;
+        } else {
+          console.log(`[verify-provision] Auto-login for ${serverName} skipped: No sign-in token provided by client.`);
+          // autoLoginMessage remains the default "provisioned and ready"
+        }
+
+        // Clear the provisioning sign-in token regardless of login success to prevent reuse
+        server.provisioningSignInToken = undefined;
+        server.provisioningSignInTokenExpiresAt = undefined;
+        try {
+          await server.save();
+        } catch (saveError: any) {
+          console.error(`[verify-provision] Error clearing provisioningSignInToken for ${serverName}:`, saveError);
+          // Non-critical for the response, but log it.
+        }
+        
+        return res.json({
+          status: 'completed',
+          message: autoLoginMessage,
+          user: responseUser // Will be null if auto-login failed or wasn't attempted
+        });
       }
 
       if (server.provisioningStatus === 'in-progress') {

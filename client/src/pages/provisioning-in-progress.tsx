@@ -10,9 +10,10 @@ const ProvisioningInProgressPage: React.FC = () => {
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 3;
 
-  // Get serverName from URL query parameter
+  // Get serverName and signInToken from URL query parameter
   const [searchParams] = useState(new URLSearchParams(window.location.search));
   const serverName = searchParams.get('server');
+  const signInToken = searchParams.get('signInToken'); // Get the signInToken
 
   const checkStatus = useCallback(async () => {
     if (!serverName) {
@@ -21,8 +22,11 @@ const ProvisioningInProgressPage: React.FC = () => {
       return;
     }
     try {
-      // API call is to the same subdomain, e.g., byteful.modl.gg/api/provisioning/status/byteful
-      const response = await fetch(`/api/provisioning/status/${serverName}`); 
+      let apiUrl = `/api/provisioning/status/${serverName}`;
+      if (signInToken) {
+        apiUrl += `?signInToken=${signInToken}`; // Append signInToken if present
+      }
+      const response = await fetch(apiUrl);
       
       if (!response.ok) {
         let errorData;
@@ -42,26 +46,27 @@ const ProvisioningInProgressPage: React.FC = () => {
       
       const data = await response.json();
 
-      if (data.status === 'completed') { // Updated to check data.status
-        setStatusMessage(`Server '${serverName}' is ready! Redirecting to dashboard...`);
+      // Use the message from the server directly, as it now includes auto-login status
+      setStatusMessage(data.message || `Server '${serverName}' status: ${data.status}`);
+
+      if (data.status === 'completed') {
+        // Server message will indicate if auto-login happened.
+        // Redirect after a delay to allow user to read the message.
         setTimeout(() => {
-          // Navigate to the root of the subdomain, which should be the panel homepage
-          window.location.href = '/'; 
-        }, 2000); // Short delay to read the message
-      } else if (data.status === 'in-progress') { // Added specific check for in-progress
-        setStatusMessage(data.message || 'Provisioning in progress, please wait...');
-        setError(null); 
-        setRetryCount(0); 
-        setTimeout(checkStatus, 3000); 
-      } else if (data.status === 'failed') { // Added specific check for failed
-        setError(data.message || 'Provisioning failed. Please contact support or try again.');
-        setStatusMessage('Failed to complete server setup.');
-      } else {
-        // Handle other statuses or unexpected responses
-        setStatusMessage(data.message || 'Checking server status...');
+          window.location.href = '/';
+        }, 3000); // Slightly longer delay for potentially longer messages
+      } else if (data.status === 'in-progress') {
         setError(null);
         setRetryCount(0);
-        setTimeout(checkStatus, 5000); // Poll again with a slightly longer delay for unknown status
+        setTimeout(checkStatus, 3000);
+      } else if (data.status === 'failed') {
+        setError(data.message || 'Provisioning failed. Please contact support or try again.');
+        // No automatic retry for failed status, user can click "Try Again"
+      } else {
+        // Handle other statuses or unexpected responses
+        setError(null);
+        setRetryCount(0);
+        setTimeout(checkStatus, 5000);
       }
     } catch (err: any) {
       console.error('Error checking provisioning status:', err);
@@ -74,7 +79,7 @@ const ProvisioningInProgressPage: React.FC = () => {
         setStatusMessage('Failed to complete server setup.');
       }
     }
-  }, [navigate, retryCount, serverName]); // Removed checkStatus from dependencies as it's defined in the callback
+  }, [navigate, retryCount, serverName, signInToken]); // Added signInToken to dependencies
 
   useEffect(() => {
     if (serverName) {
