@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkSession = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/auth/session');
+        const response = await fetch('/api/auth/session', { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           if (data.isAuthenticated && data.user) {
@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Backend now handles session creation.
       // After successful verification, fetch the session to get user data.
       try {
-        const sessionResponse = await fetch('/api/auth/session');
+        const sessionResponse = await fetch('/api/auth/session', { credentials: 'include' });
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           if (sessionData.isAuthenticated && sessionData.user) {

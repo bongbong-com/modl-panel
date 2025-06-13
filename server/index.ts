@@ -41,8 +41,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       }),
       cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-        sameSite: 'lax', // Or 'strict' depending on your needs
+        secure: isProduction, // Explicitly use the isProduction variable
+        sameSite: 'lax',
         maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
       }
     });
