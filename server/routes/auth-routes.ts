@@ -48,7 +48,6 @@ function generateNumericCode(length: number = 6): string {
 
 // Route to send email verification code
 router.post('/send-email-code', async (req: Request, res: Response) => {
-  console.log(`[AUTH_DEBUG] Received request for /api/auth/send-email-code with body:`, req.body);
   const { email } = req.body;
 
   if (!email) {
@@ -70,36 +69,29 @@ router.post('/send-email-code', async (req: Request, res: Response) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Verification code ${code} sent to ${email} via Postfix.`);
-    console.log(`[AUTH_DEBUG] Sending 200 response for /api/auth/send-email-code`);
     return res.status(200).json({ message: 'Verification code sent to your email.' });
   } catch (error) {
     console.error('Error sending verification email via Postfix:', error);
-    console.log(`[AUTH_DEBUG] Sending 500 response for /api/auth/send-email-code due to error`);
     return res.status(500).json({ message: 'Failed to send verification code.' });
   }
 });
 
 // Route to verify email code
 router.post('/verify-email-code', async (req: Request, res: Response) => {
-  console.log(`[AUTH_DEBUG] Received request for /api/auth/verify-email-code with body:`, req.body);
   const { email, code } = req.body;
 
   if (!email || !code) {
-    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (missing email or code)`);
     return res.status(400).json({ message: 'Email and code are required.' });
   }
 
   const storedEntry = emailVerificationCodes.get(email);
 
   if (!storedEntry) {
-    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (no stored entry)`);
     return res.status(400).json({ message: 'Invalid or expired verification code.' });
   }
 
   if (Date.now() > storedEntry.expiresAt) {
     emailVerificationCodes.delete(email);
-    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (code expired)`);
     return res.status(400).json({ message: 'Verification code has expired.' });
   }
 
@@ -114,7 +106,6 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
       const serverConfigAdminEmail = req.serverConfig?.adminEmail?.toLowerCase();
       if (email.toLowerCase() === serverConfigAdminEmail) {
         // This is the server admin, create a session for them
-        console.log(`[AUTH_DEBUG] Verified server admin email ${email}. Creating admin session.`);
         req.session.email = email;
         req.session.admin = true;
         const username = email.split('@')[0] || 'admin';
@@ -127,7 +118,6 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
           user: { id: email, email: email, username: username, admin: true }
         });
       } else {
-        console.log(`[AUTH_DEBUG] User not found for email ${email} in Staff collection and does not match server admin email.`);
         return res.status(404).json({ message: 'User not found after code verification.' });
       }
     } else {
@@ -139,14 +129,12 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
 
       await req.session.save();
 
-      console.log(`[AUTH_DEBUG] Session created for user ${user.username}. Sending 200 response for /api/auth/verify-email-code (success)`);
       return res.status(200).json({
         message: 'Email verified successfully. Logged in.',
         user: { id: user._id.toString(), email: user.email, username: user.username, admin: user.admin }
       });
     }
   } else {
-    console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (invalid code)`);
     return res.status(400).json({ message: 'Invalid verification code.' });
   }
 });
@@ -183,7 +171,6 @@ router.post('/verify-2fa-code', async (req: Request, res: Response) => {
 
       await req.session.save();
 
-      console.log(`[AUTH_DEBUG] Session created for user ${user.username} after 2FA.`);
       return res.status(200).json({
         message: '2FA code verified successfully. Logged in.',
         user: { id: user._id, email: user.email, username: user.username, admin: user.admin }
@@ -307,7 +294,6 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
 
       await req.session.save();
 
-      console.log(`[AUTH_DEBUG] Session created for user ${user.username} after FIDO login.`);
       return res.status(200).json({
         message: 'Passkey login successful. Logged in.',
         user: {

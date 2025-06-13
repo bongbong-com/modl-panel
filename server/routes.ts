@@ -1,9 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
-import mongoose from 'mongoose';
-import { storage } from "./storage";
-import { connectToMongoDB } from "./db/mongodb";
 import { setupApiRoutes } from "./api/routes";
 import { setupVerificationAndProvisioningRoutes } from './routes/verify-provision';
 import { connectToGlobalModlDb } from './db/connectionManager';
@@ -23,14 +20,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   try {
     globalDbConnection = await connectToGlobalModlDb();
-
-    const legacyMainDbConnected = await connectToMongoDB();
-    if (legacyMainDbConnected) {
-      console.log('Legacy main panel DB (mongoose.defaultConnection) connected successfully.');
-    } else {
-      console.log('Legacy main panel DB (mongoose.defaultConnection) might be using in-memory simulation or failed to connect.');
-    }
-
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
     console.log('Falling back to in-memory storage');
