@@ -9,6 +9,13 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// If running behind a reverse proxy (like Nginx, Cloudflare, etc.) in production,
+// trust the first proxy hop to correctly identify the protocol (HTTP/HTTPS).
+// This is important for 'secure' cookies.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1); // Adjust the number of hops if needed
+}
+
 // Session middleware setup
 const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
 const isProduction = process.env.NODE_ENV === 'production';
