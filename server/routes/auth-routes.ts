@@ -121,7 +121,9 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
     const StaffModel = req.serverDbConnection!.model('Staff');
     const user = await StaffModel.findOne({ email });
     if (!user) {
-      console.log(`[AUTH_DEBUG] User not found for email ${email} after code verification.`);
+      // @ts-ignore
+      const serverConfigAdminEmail = req.serverConfig?.adminEmail;
+      console.log(`[AUTH_DEBUG] User not found for email ${email} in Staff collection. req.serverConfig.adminEmail: ${serverConfigAdminEmail}`);
       return res.status(404).json({ message: 'User not found after code verification.' });
     }
 
