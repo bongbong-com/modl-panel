@@ -207,38 +207,40 @@ router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request,
 });
 
 router.post('/invitations/:id/resend', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
-    const { id } = req.params;
-    try {
-        const InvitationModel = req.serverDbConnection!.model('Invitation', Invitation.schema);
-        const invitation = await InvitationModel.findById(id);
+      try {
+        const db = req.serverDbConnection!;
+        const InvitationModel = db.model('Invitation');
+        const invitation = await InvitationModel.findById(req.params.id);
 
         if (!invitation) {
-            return res.status(404).json({ message: 'Invitation not found.' });
+          return res.status(404).send('Invitation not found');
         }
 
+        // Generate new token and expiry
         invitation.token = crypto.randomBytes(32).toString('hex');
         invitation.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
         await invitation.save();
 
-        const appDomain = process.env.APP_DOMAIN || "modl.gg";
+        // Resend email logic (copy from the invite route)
+        const appDomain = process.env.APP_DOMAIN || 'modl.gg';
         const invitationLink = `https://${req.subdomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
+        
         const mailOptions = {
-            from: '"modl" <noreply@cobl.gg>',
-            to: invitation.email,
-            subject: 'You have been invited to join the team!',
-            text: `Please accept your invitation by clicking the following link: ${invitationLink}`,
-            html: `<p>Please accept your invitation by clicking the following link: <a href="${invitationLink}">${invitationLink}</a></p>`,
+          from: '"modl" <noreply@cobl.gg>',
+          to: invitation.email,
+          subject: 'You have been invited to join the team!',
+          text: `Please accept your invitation by clicking the following link: ${invitationLink}`,
+          html: `<p>Please accept your invitation by clicking the following link: <a href="${invitationLink}">${invitationLink}</a></p>`,
         };
-
+    
         await transporter.sendMail(mailOptions);
 
-        res.status(200).json({ message: 'Invitation resent successfully.' });
-    } catch (error) {
+        res.status(200).send('Invitation resent successfully');
+      } catch (error) {
         console.error('Error resending invitation:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
+        res.status(500).send('Failed to resend invitation');
+      }
+    });
 
 router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
     const { id } = req.params;

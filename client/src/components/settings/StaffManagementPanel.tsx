@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import InviteStaffModal from './InviteStaffModal';
+import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface StaffMember {
@@ -24,6 +25,7 @@ const StaffManagementPanel = () => {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const handleInviteSent = () => {
     queryClient.invalidateQueries({ queryKey: ['staff'] });
@@ -61,13 +63,21 @@ const StaffManagementPanel = () => {
         method: 'POST',
       });
       if (!response.ok) {
-        throw new Error('Failed to resend invitation');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to resend invitation' }));
+        throw new Error(errorData.message);
       }
-      // Optionally, show a success toast to the user
+      toast({
+        title: 'Success',
+        description: 'Invitation resent successfully.',
+      });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     } catch (error) {
       console.error(error);
-      // Optionally, show an error toast
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -106,7 +116,7 @@ const StaffManagementPanel = () => {
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.role}</TableCell>
                     <TableCell>{member.status}</TableCell>
-                    <TableCell>{new Date(member.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -118,15 +128,15 @@ const StaffManagementPanel = () => {
                         <DropdownMenuContent align="end">
                           {member.status === 'Pending Invitation' ? (
                             <>
-                              <DropdownMenuItem onClick={() => handleResendInvitation(member._id)}>
+                              <DropdownMenuItem onSelect={() => handleResendInvitation(member._id)}>
                                 Resend Invitation
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openConfirmationDialog(member)}>
+                              <DropdownMenuItem onSelect={() => openConfirmationDialog(member)}>
                                 Cancel Invitation
                               </DropdownMenuItem>
                             </>
                           ) : (
-                            <DropdownMenuItem onClick={() => openConfirmationDialog(member)}>
+                            <DropdownMenuItem onSelect={() => openConfirmationDialog(member)}>
                               Remove Staff Member
                             </DropdownMenuItem>
                           )}
