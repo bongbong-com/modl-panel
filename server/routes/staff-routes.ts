@@ -102,7 +102,7 @@ router.get('/check-email/:email', async (req: Request<{ email: string }>, res: R
   }
 });
 
-router.get('/api/staff/check-username/:username', async (req: Request<{ username: string }>, res: Response) => {
+router.get('/check-username/:username', async (req: Request<{ username: string }>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staffMember = await Staff.findOne({ username: req.params.username });
@@ -115,7 +115,7 @@ router.get('/api/staff/check-username/:username', async (req: Request<{ username
 // Apply isAuthenticated middleware to all routes in this router AFTER public routes
 router.use(isAuthenticated);
 
-router.get('/api/staff', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staff = await Staff.find({}).select('-password -twoFaSecret -passkeys');
@@ -134,7 +134,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-router.post('/api/staff/invite', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   const { email, role } = req.body;
   const invitingUser = req.currentUser!;
 
@@ -185,7 +185,7 @@ router.post('/api/staff/invite', checkRole(['Super Admin', 'Admin']), async (req
   }
 });
 
-router.delete('/api/staff/:userId', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.delete('/:userId', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   const { userId } = req.params;
   const removerUser = req.currentUser!;
 
@@ -234,7 +234,7 @@ router.delete('/api/staff/:userId', checkRole(['Super Admin', 'Admin']), async (
   }
 });
 
-router.get('/api/staff/invitations/accept', async (req: Request, res: Response) => {
+router.get('/invitations/accept', async (req: Request, res: Response) => {
   const { token } = req.query;
 
   if (!token) {
@@ -279,7 +279,7 @@ router.get('/api/staff/invitations/accept', async (req: Request, res: Response) 
   }
 });
 
-router.get('/api/staff/:username', async (req: Request<{ username: string }>, res: Response) => {
+router.get('/:username', async (req: Request<{ username: string }>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staffMember = await Staff.findOne({ username: req.params.username })
@@ -302,7 +302,7 @@ interface CreateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
-router.post('/api/staff', async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
+router.post('/', async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const { email, username, profilePicture, role } = req.body;
@@ -340,7 +340,7 @@ interface UpdateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
-router.patch('/api/staff/:username', async (req: Request<{ username: string }, {}, UpdateStaffBody>, res: Response) => {
+router.patch('/:username', async (req: Request<{ username: string }, {}, UpdateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const { email, profilePicture, role } = req.body;
