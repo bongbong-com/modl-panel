@@ -114,7 +114,7 @@ const StaffManagementPanel = () => {
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.role}</TableCell>
                     <TableCell>{member.status}</TableCell>
-                    <TableCell>{member.createdAt}</TableCell>
+                    <TableCell>{new Date(member.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

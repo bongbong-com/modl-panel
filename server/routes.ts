@@ -32,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/appeals', appealRoutes);
   app.use('/api/players', playerRoutes);
   app.use('/api/settings', settingsRoutes);
-  app.use('/api/staff', subdomainDbMiddleware, staffRoutes);
+  app.use('/api/staff', staffRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/logs', logRoutes);
   app.use('/api/auth', authRoutes);
