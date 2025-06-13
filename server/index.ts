@@ -1,9 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MongoStore from "connect-mongo";
-import { registerRoutes } from "./routes"; // This should point to the updated routes.ts
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware"; // Import the middleware
+import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware";
 
 const app = express();
 app.use(express.json());
@@ -16,7 +16,6 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1); // Adjust the number of hops if needed
 }
 
-// Session middleware setup
 const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -24,15 +23,11 @@ const isProduction = process.env.NODE_ENV === 'production';
 // It needs to run before any routes that depend on req.serverDbConnection.
 app.use(subdomainDbMiddleware);
 
-// Dynamically configure session middleware based on serverDbConnection
 app.use((req: Request, res: Response, next: NextFunction) => {
   // @ts-ignore
   const serverDbConn = req.serverDbConnection;
   // @ts-ignore
   const mongoClient = serverDbConn && serverDbConn.getClient ? serverDbConn.getClient() : null;
-
-  // @ts-ignore
-  // console.log(`[SessionInit] Path: ${req.path}, serverDbConn valid: ${!!serverDbConn}, mongoClient valid: ${!!mongoClient}, serverDbConn readState: ${serverDbConn?.readyState}`);
 
   const cookieSettings = {
     httpOnly: true,
@@ -40,9 +35,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     sameSite: 'lax' as 'lax' | 'strict' | 'none' | undefined, // Type assertion for 'lax'
     maxAge: 14 * 24 * 60 * 60 * 1000
   };
-  // @ts-ignore
-  // console.log(`[SessionInit] Path: ${req.path}, isProduction: ${isProduction}, Cookie Settings: ${JSON.stringify(cookieSettings)}`);
-
 
   if (serverDbConn && mongoClient) {
     const serverSpecificSession = session({
@@ -51,51 +43,18 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       saveUninitialized: false,
       store: MongoStore.create({
         client: mongoClient, // Use the mongoClient variable that was already retrieved and checked
-        ttl: 14 * 24 * 60 * 60, // 14 days
-        autoRemove: 'native', // Default
-        // collectionName: 'sessions' // Default collection name is 'sessions'
+        ttl: 14 * 24 * 60 * 60,
+        autoRemove: 'native',
       }),
       cookie: cookieSettings
     });
-    serverSpecificSession(req, res, next); // Apply the session middleware for this request
+    serverSpecificSession(req, res, next);
   } else {
     // @ts-ignore
     log(`[Session] No valid serverDbConnection or mongoClient for path ${req.path} (serverDbConn: ${!!serverDbConn}, mongoClient: ${!!mongoClient}), skipping session initialization.`);
     next();
   }
 });
-
-/* // Commenting out the API request logger
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
-*/
 
 (async () => {
   const server = await registerRoutes(app);

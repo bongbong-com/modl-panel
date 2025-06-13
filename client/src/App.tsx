@@ -30,17 +30,17 @@ function Router() {
   const isAuthPage = location === '/auth';
   const isAppealsPage = location === '/appeals';
   const isPlayerTicketPage = location.startsWith('/player-ticket/');
-  const isProvisioningPage = location === '/provisioning-in-progress'; // Add this line
+  const isProvisioningPage = location === '/provisioning-in-progress';
 
   // Don't show navigation on auth page, appeals page, player ticket page, or provisioning page
-  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage) { // Add isProvisioningPage here
+  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage) {
     return (
       <main className="h-full">
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
-          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} /> {/* Ensure this route is here */}
+          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
         </Switch>
       </main>
     );

@@ -39,7 +39,7 @@ export async function verifyMinecraftApiKey(req: Request, res: Response, next: N
 
     const Settings = req.serverDbConnection.model('Settings');
     // If no match in env var, check database settings for the specific tenant
-    const settingsDoc = await Settings.findOne({}); // settingsDoc to avoid conflict with 'settings' variable name
+    const settingsDoc = await Settings.findOne({});
     
     // Check if settings exists and has the right structure
     if (!settingsDoc || !settingsDoc.settings) {

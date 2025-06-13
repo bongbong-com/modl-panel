@@ -1,5 +1,5 @@
-import mongoose, { Document, Schema } from \'mongoose\';
-import { Int32 } from \'mongodb\';
+import mongoose, { Document, Schema } from 'mongoose';
+import { Int32 } from 'mongodb';
 
 // Username Schema
 export interface IUsername extends Document {
@@ -56,7 +56,7 @@ const modificationSchema = new Schema<IModification>({
   issuerName: { type: String, required: true },
   issued: { type: Date, default: Date.now },
   effectiveDuration: { type: Number },
-  reason: { type: String } 
+  reason: { type: String }
 });
 
 // Punishment Schema
@@ -69,7 +69,7 @@ export interface IPunishment extends Document {
   modifications: IModification[];
   notes: INote[];
   attachedTicketIds: string[];
-  data?: Map<string, any>; 
+  data?: Map<string, any>;
 }
 const punishmentSchema = new Schema<IPunishment>({
   id: { type: String, required: true },
@@ -105,6 +105,4 @@ const playerSchemaDefinition = new Schema<IPlayer>({
   data: { type: Map, of: mongoose.Schema.Types.Mixed }
 });
 
-// Note: Models are typically compiled by the connection in a multi-tenant setup.
-// This file primarily exports interfaces and the schema definition.
 export const PlayerSchema = playerSchemaDefinition;

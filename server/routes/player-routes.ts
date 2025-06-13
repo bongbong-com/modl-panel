@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { Connection } from 'mongoose';
-import { createSystemLog } from './log-routes'; 
+import { Connection, Document } from 'mongoose';
+import { createSystemLog } from './log-routes';
 
 interface IIPInfo {
   status?: string;
@@ -69,7 +69,6 @@ interface IPlayer extends Document {
 
 const router = express.Router();
 
-// Middleware to check for serverDbConnection
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.serverDbConnection) {
     console.error('Player route accessed without serverDbConnection.');
@@ -88,7 +87,6 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Get all players
 router.get('/api/players', async (req: Request, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
@@ -100,7 +98,6 @@ router.get('/api/players', async (req: Request, res: Response) => {
   }
 });
 
-// Get player by UUID
 router.get('/api/players/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {

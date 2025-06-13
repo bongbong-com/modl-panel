@@ -21,9 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { usePlayers } from "@/hooks/use-data";
 import { useDashboard } from "@/contexts/DashboardContext";
-// Fix import: using direct path relative to src directory
 import PlayerWindow from "../../components/windows/PlayerWindow";
-// Import the server logo
 import serverLogo from "../../assets/server-logo.png";
 
 const Sidebar = () => {
@@ -81,7 +79,7 @@ const Sidebar = () => {
       closeTimeoutRef.current = null;
     }
 
-    // Set a 1000ms (1 second) delay before closing - allows user to move mouse to search panel
+    // Set a 300ms delay before closing - allows user to move mouse to search panel
     closeTimeoutRef.current = window.setTimeout(() => {
       // IMPORTANT: Check again if user is hovering over search during delay
       if (isHoveringSearch) {

@@ -58,7 +58,7 @@ const ResizableWindow = ({
   useEffect(() => {
     if (!isOpen || !windowRef.current || isInitialized) return;
     
-    // Use the global last known window configuration for player windows
+// Use the global last known window configuration for player windows
     if (id.startsWith('player-')) {
       // Apply the size from the last window 
       setSize(lastPlayerWindowConfig.size);
@@ -78,9 +78,7 @@ const ResizableWindow = ({
       }
       
       setIsInitialized(true);
-      return;
     }
-    
     // Center the window if initial position is percentage based
     if (typeof initialPosition.x === 'string' && initialPosition.x.includes('%')) {
       const windowWidth = windowRef.current.offsetWidth;

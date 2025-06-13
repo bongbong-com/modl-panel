@@ -1,32 +1,25 @@
-import { Int32 } from 'mongodb'; // Import Int32 from mongodb package
+import { Int32 } from 'mongodb';
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
-// ========================= OBJECT SCHEMAS =========================
-// These are referenced in collections
-
-// Username Schema
 const usernameSchema = new Schema({
   username: { type: String, required: true },
-  date: { type: Date, default: Date.now } // first login
+  date: { type: Date, default: Date.now }
 });
 
-// Note Schema (generic)
 const noteSchema = new Schema({
   text: { type: String, required: true },
-  date: { type: Date, default: Date.now }, // issued date
+  date: { type: Date, default: Date.now },
   issuerName: { type: String, required: true },
   issuerId: { type: String }
 });
 
-// Ticket Note Schema (specific for tickets)
 const ticketNoteSchema = new Schema({
   content: { type: String, required: true },
   author: { type: String, required: true },
   date: { type: Date, default: Date.now }
 });
 
-// IP Address Schema
 const ipAddressSchema = new Schema({
   ipAddress: { type: String, required: true },
   country: { type: String },
@@ -36,17 +29,15 @@ const ipAddressSchema = new Schema({
   logins: [{ type: Date }]
 });
 
-// Modification Schema
 const modificationSchema = new Schema({
   type: { type: String, required: true },
   issuerName: { type: String, required: true },
   issued: { type: Date, default: Date.now },
-  effectiveDuration: { type: Number } // long value in milliseconds
+  effectiveDuration: { type: Number }
 });
 
-// Punishment Schema
 const punishmentSchema = new Schema({
-  id: { type: String, required: true }, // 8-char alphanumeric
+  id: { type: String, required: true },
   issuerName: { type: String, required: true },
   issued: { type: Date, default: Date.now },
   started: { type: Date, default: Date.now },
@@ -54,87 +45,79 @@ const punishmentSchema = new Schema({
   modifications: [modificationSchema],
   notes: [noteSchema],
   attachedTicketIds: [{ type: String }],
-  data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible data
+  data: { type: Map, of: mongoose.Schema.Types.Mixed }
 });
 
-// Passkey Schema
 const passkeySchema = new Schema({
-  credentialID: { type: Buffer, required: true }, // Changed from String to Buffer
-  credentialPublicKey: { type: Buffer, required: true }, // Changed from String to Buffer
-  counter: { type: Number, required: true }, // Renamed from signCount and made required
-  transports: [{ type: String }], // Added transports array
-  aaguid: { type: String }, // Optional, from WebAuthn spec
+  credentialID: { type: Buffer, required: true },
+  credentialPublicKey: { type: Buffer, required: true },
+  counter: { type: Number, required: true },
+  transports: [{ type: String }],
+  aaguid: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
-// Reply Schema
 const replySchema = new Schema({
   name: { type: String, required: true },
   content: { type: String, required: true },
   type: { type: String, required: true },
   created: { type: Date, default: Date.now },
   staff: { type: Boolean, default: false },
-  action: { type: String } // Add action field for tracking ticket action status
+  action: { type: String }
 });
 
-// ========================= COLLECTION SCHEMAS =========================
-
-// Players Collection
 const playerSchema = new Schema({
-  _id: { type: String }, // Account ID (UUID), generated upon creation
+  _id: { type: String },
   minecraftUuid: { type: String, required: true, unique: true },
   usernames: [usernameSchema],
   notes: [noteSchema],
   ipList: [ipAddressSchema],
   punishments: [punishmentSchema],
   pendingNotifications: [{ type: String }],
-  data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible additional data
+  data: { type: Map, of: mongoose.Schema.Types.Mixed }
 });
 
-// Staff Collection
 const staffSchema = new Schema({
-  _id: { type: String }, // Custom staff ID
+  _id: { type: String },
   email: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  profilePicture: { type: String }, // URL or base64 encoded
+  profilePicture: { type: String },
   admin: { type: Boolean, default: false },
   twoFaSecret: { type: String },
   isTwoFactorEnabled: { type: Boolean, default: false },
-  passkeys: [passkeySchema] // Changed to an array of passkeySchema
+  passkeys: [passkeySchema]
 });
 
-// Tickets Collection
 const ticketSchema = new Schema({
-  _id: { type: String }, // Custom ID format: CATEGORY-[6 digit random numeric]
+  _id: { type: String },
   tags: [{ type: String }],
-  type: { 
-    type: String, 
-    required: true, 
+  type: {
+    type: String,
+    required: true,
     enum: ['bug', 'player', 'chat', 'appeal', 'staff', 'support'],
     default: 'bug'
   },
-  status: { 
-    type: String, 
-    required: true, 
+  status: {
+    type: String,
+    required: true,
     enum: ['Unfinished', 'Open', 'Closed'],
     default: 'Unfinished'
   },
   subject: { type: String, default: '' },
   created: { type: Date, default: Date.now },
-  creator: { type: String, required: true }, // Username of creator
-  creatorUuid: { type: String, required: true }, // UUID of creator
-  reportedPlayer: { type: String }, // Username of reported player (for player/chat reports)
-  reportedPlayerUuid: { type: String }, // UUID of reported player (for player/chat reports)
-  chatMessages: [{ type: String }], // For chat reports
+  creator: { type: String, required: true },
+  creatorUuid: { type: String, required: true },
+  reportedPlayer: { type: String },
+  reportedPlayerUuid: { type: String },
+  chatMessages: [{ type: String }],
   notes: [ticketNoteSchema],
   replies: [replySchema],
   locked: { type: Boolean, default: false },
-  formData: { type: Map, of: mongoose.Schema.Types.Mixed }, // Form responses
-  data: { type: Map, of: mongoose.Schema.Types.Mixed } // HashMap for flexible data
+  formData: { type: Map, of: mongoose.Schema.Types.Mixed },
+  data: { type: Map, of: mongoose.Schema.Types.Mixed }
 });
 
-// Logs Collection
 const logSchema = new Schema({
   created: { type: Date, default: Date.now },
   description: { type: String, required: true },
@@ -142,40 +125,36 @@ const logSchema = new Schema({
   source: { type: String, default: 'system' }
 });
 
-// Form Field Schema
 const formFieldSchema = new Schema({
   id: { type: String, required: true },
   label: { type: String, required: true },
-  type: { 
-    type: String, 
-    required: true, 
+  type: {
+    type: String,
+    required: true,
     enum: ['text', 'textarea', 'select', 'checkbox', 'radio']
   },
   required: { type: Boolean, default: false },
-  options: [{ type: String }], // For select, checkbox, radio types
+  options: [{ type: String }],
   placeholder: { type: String },
   helpText: { type: String }
 });
 
-// Form Template Schema
 const formTemplateSchema = new Schema({
-  ticketType: { 
-    type: String, 
-    required: true, 
-    enum: ['bug', 'player', 'chat', 'staff', 'support'] 
+  ticketType: {
+    type: String,
+    required: true,
+    enum: ['bug', 'player', 'chat', 'staff', 'support']
   },
   title: { type: String, required: true },
   description: { type: String },
   fields: [formFieldSchema]
 });
 
-// Settings Collection
 const settingsSchema = new Schema({
   formTemplates: [formTemplateSchema],
   settings: { type: Map, of: mongoose.Schema.Types.Mixed }
 });
 
-// Create and export models
 const Player = mongoose.model('Player', playerSchema);
 const Staff = mongoose.model('Staff', staffSchema);
 const Ticket = mongoose.model('Ticket', ticketSchema);
@@ -188,13 +167,11 @@ export {
   Ticket,
   Log,
   Settings,
-  // Export raw schemas
   playerSchema,
   staffSchema,
   ticketSchema,
   logSchema,
   settingsSchema,
-  // also export other schemas if they are needed by connectionManager for model registration
   usernameSchema,
   noteSchema,
   ticketNoteSchema,

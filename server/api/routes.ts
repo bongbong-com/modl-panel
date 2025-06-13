@@ -1,11 +1,9 @@
 import { Express, Request, Response } from 'express';
-// Models will be accessed via req.serverDbConnection.model(<ModelName>)
-import { createSystemLog } from '../routes/log-routes'; // IMPORTANT: createSystemLog in log-routes.ts must be refactored
+import { createSystemLog } from '../routes/log-routes';
 import { v4 as uuidv4 } from 'uuid';
-import { setupMinecraftRoutes } from '../routes/minecraft-routes'; // This would also need refactoring if it uses models directly
-import { Connection } from 'mongoose'; // Added for type hinting
+import { setupMinecraftRoutes } from '../routes/minecraft-routes';
+import { Connection } from 'mongoose';
 
-// Define interfaces for schema types to help with type safety for lambda parameters
 interface IUsername {
   username: string;
   date: Date;
@@ -21,14 +19,13 @@ interface IIPAddress {
   logins: Date[];
 }
 
-interface IPunishment { 
+interface IPunishment {
   id: string;
-  active?: boolean; // This field is used conceptually; actual active status might be derived from type/duration or data map
-  // ... other punishment fields from punishmentSchema
+  active?: boolean;
 }
 
 interface IReply {
-  _id?: any; // Mongoose _id
+  _id?: any;
   name: string;
   content: string;
   type: string;
@@ -86,10 +83,8 @@ export function setupPlayerRoutes(app: Express) {
           ? player.usernames[player.usernames.length - 1].username 
           : 'Unknown';
         
-        // Assuming 'active' is a derived property or stored in punishment.data
-        // For now, this logic is kept, but IPunishment.active is optional.
-        const status = player.punishments && player.punishments.some((p: IPunishment) => p.active) 
-          ? 'Banned' 
+        const status = player.punishments && player.punishments.some((p: IPunishment) => p.active)
+          ? 'Banned'
           : 'Active';
         
         return {
@@ -193,7 +188,6 @@ export function setupPlayerRoutes(app: Express) {
     try {
       const newPlayer = new Player(req.body);
       await newPlayer.save();
-      // IMPORTANT: createSystemLog call assumes it's refactored for (Connection, string, string)
       await createSystemLog(req.serverDbConnection, req.serverName, `Player ${req.body.usernames[0].username} created`);
       res.status(201).json(newPlayer);
     } catch (error) {
@@ -259,20 +253,18 @@ export function setupPlayerRoutes(app: Express) {
     const Player = req.serverDbConnection.model('Player');
     try {
       const uuid = req.params.uuid;
-      const note = req.body; // Assuming note structure matches the schema for player notes
+      const note = req.body;
       let playerDoc = await Player.findOne({
         $or: [
           { _id: uuid },
-          // { uuid: uuid }, // 'uuid' is not standard; _id or minecraftUuid are typical
           { minecraftUuid: uuid }
         ]
       });
       if (!playerDoc) {
         return res.status(404).json({ error: 'Player not found' });
       }
-      // Ensure playerDoc._id is used for findByIdAndUpdate
       playerDoc = await Player.findByIdAndUpdate(
-        playerDoc._id, 
+        playerDoc._id,
         { $push: { notes: note } },
         { new: true }
       );
@@ -388,7 +380,7 @@ export function setupTicketRoutes(app: Express) {
           staff: reply.staff,
           closedAs: reply.action
         })),
-        notes: ticket.notes, // Assuming notes are already in the desired format
+        notes: ticket.notes,
         tags: ticket.tags
       };
       res.json(transformedTicket);
@@ -532,7 +524,7 @@ export function setupTicketRoutes(app: Express) {
       await newTicket.save();
       await createSystemLog(req.serverDbConnection, req.serverName, `Staff application ticket ${ticketId} initialized by ${creatorInfo.latestUsername}`);
       res.status(201).json({ ticketId });
-    } catch (error) { // Corrected catch syntax
+    } catch (error) {
       console.error('Error creating staff application ticket:', error);
       res.status(500).json({ error: 'Failed to create staff application ticket' });
     }
@@ -603,7 +595,7 @@ export function setupTicketRoutes(app: Express) {
           $set: {
             status: 'Open',
             subject: subject,
-            formData: formData // Assuming formData is a Map or object compatible with schema
+            formData: formData
           },
           $push: { replies: initialMessage }
         },
@@ -638,7 +630,6 @@ export function setupTicketRoutes(app: Express) {
         const reply: IReply = req.body.newReply;
         if (reply.type === 'staff') reply.staff = true;
         
-        // Ensure $push.replies is initialized if not already
         if (!updateOperations.$push.replies) updateOperations.$push.replies = [];
         updateOperations.$push.replies.push(reply);
 
@@ -657,37 +648,30 @@ export function setupTicketRoutes(app: Express) {
       }
       
       if (req.body.newNote) {
-        // Assuming newNote has { content: string, author: string }
         const note = {
           content: req.body.newNote.content,
-          author: req.body.newNote.author, 
+          author: req.body.newNote.author,
           date: new Date()
         };
         if (!updateOperations.$push.notes) updateOperations.$push.notes = [];
         updateOperations.$push.notes.push(note);
       }
       
-      // Direct field updates
       if (req.body.status) updateOperations.$set.status = req.body.status;
       if (req.body.locked !== undefined) updateOperations.$set.locked = req.body.locked;
       if (req.body.tags) updateOperations.$set.tags = req.body.tags;
-      // For fields within 'data' Map (like priority, assignedTo)
       if (req.body.priority) updateOperations.$set['data.priority'] = req.body.priority;
       if (req.body.assignedTo) updateOperations.$set['data.assignedTo'] = req.body.assignedTo;
 
-      // Clean up empty $set or $push to avoid errors with empty update objects
       if (Object.keys(updateOperations.$set).length === 0) delete updateOperations.$set;
       if (Object.keys(updateOperations.$push).length === 0) delete updateOperations.$push;
       
-      // Only perform update if there are operations
       if (Object.keys(updateOperations).length === 0 || (Object.keys(updateOperations).length === 2 && !updateOperations.$set && !updateOperations.$push) ) {
-        return res.json(ticketToUpdate); // No actual updates to perform, return current ticket
+        return res.json(ticketToUpdate);
       }
 
       const updatedTicket = await Ticket.findByIdAndUpdate(id, updateOperations, { new: true });
-      // findByIdAndUpdate returns null if not found, but we checked with findById already.
-      // However, for safety, a check can be added.
-      if (!updatedTicket) return res.status(404).json({ error: 'Ticket not found during update' }); 
+      if (!updatedTicket) return res.status(404).json({ error: 'Ticket not found during update' });
 
       console.log(`Updated ticket ${id} - Locked status: ${updatedTicket.locked}`);
       await createSystemLog(req.serverDbConnection, req.serverName, `Ticket ${id} updated`);
@@ -733,7 +717,7 @@ export function setupAppealRoutes(app: Express) {
     try {
       const id = req.params.id;
       const appeal = await Ticket.findById(id);
-      if (!appeal || appeal.type !== 'appeal') { // Ensure it's an appeal
+      if (!appeal || appeal.type !== 'appeal') {
         return res.status(404).json({ error: 'Appeal not found or ticket is not an appeal' });
       }
 
@@ -788,20 +772,20 @@ export function setupAppealRoutes(app: Express) {
     const Ticket = req.serverDbConnection.model('Ticket');
     const Player = req.serverDbConnection.model('Player');
     try {
-      const ticketId = await generateTicketId(req.serverDbConnection, 'appeal'); 
+      const ticketId = await generateTicketId(req.serverDbConnection, 'appeal');
       const appealData = {
         _id: ticketId,
-        tags: ['appeal', ...(req.body.tags || [])], // Ensure 'appeal' tag is present
-        type: 'appeal', 
-        status: 'Open', // Default status for new appeals
+        tags: ['appeal', ...(req.body.tags || [])],
+        type: 'appeal',
+        status: 'Open',
         created: new Date(),
-        creator: req.body.username, // From request body
-        creatorUuid: req.body.playerUuid, // From request body
-        subject: req.body.subject || `Appeal for ${req.body.username}`, // Optional subject
+        creator: req.body.username,
+        creatorUuid: req.body.playerUuid,
+        subject: req.body.subject || `Appeal for ${req.body.username}`,
         replies: [
           {
             name: req.body.username,
-            content: req.body.content, // Main appeal content
+            content: req.body.content,
             type: 'player',
             created: new Date(),
             staff: false
@@ -816,7 +800,7 @@ export function setupAppealRoutes(app: Express) {
         ],
         notes: [],
         data: new Map([
-          ['status', 'Pending Review'], // Specific status for appeal workflow
+          ['status', 'Pending Review'],
           ['punishmentId', req.body.punishmentId],
           ['playerUuid', req.body.playerUuid],
           ['email', req.body.email]
@@ -893,8 +877,7 @@ export function setupAppealRoutes(app: Express) {
       if (Object.keys(updatePayload.$set).length === 0) delete updatePayload.$set;
 
       const appeal = await Ticket.findByIdAndUpdate(id, updatePayload, { new: true });
-      // Already checked existence, but double check update result
-      if (!appeal) return res.status(404).json({ error: 'Appeal not found during reply update' }); 
+      if (!appeal) return res.status(404).json({ error: 'Appeal not found during reply update' });
       
       await createSystemLog(req.serverDbConnection, req.serverName, `Reply added to appeal ${id}`);
       res.json(appeal);
@@ -914,7 +897,7 @@ export function setupAppealRoutes(app: Express) {
       const status = req.body.status;
       
       const appeal = await Ticket.findById(id);
-      if (!appeal || appeal.type !== 'appeal') { 
+      if (!appeal || appeal.type !== 'appeal') {
         return res.status(404).json({ error: 'Appeal not found or ticket is not an appeal' });
       }
 
@@ -929,9 +912,9 @@ export function setupAppealRoutes(app: Express) {
       const updatedAppeal = await Ticket.findByIdAndUpdate(
         id,
         {
-          $set: { 
-            status: status, // Update main ticket status
-            'data.status': status // Update appeal-specific status in data map
+          $set: {
+            status: status,
+            'data.status': status
           },
           $push: { replies: systemMessage }
         },
@@ -949,24 +932,8 @@ export function setupAppealRoutes(app: Express) {
   });
 }
 
-// Add the missing setupApiRoutes function
 export function setupApiRoutes(app: Express) {
   setupPlayerRoutes(app);
   setupTicketRoutes(app);
   setupAppealRoutes(app);
-  // If setupMinecraftRoutes was intended to be part of this centralized API setup,
-  // ensure it's correctly imported and called here.
-  // For now, assuming it's handled separately as per server/routes.ts structure.
 }
-
-// IMPORTANT Reminder:
-// The `createSystemLog` function, located in '../routes/log-routes.ts',
-// MUST be refactored to accept `(dbConnection: Connection, serverName: string, description: string, ...)`
-// and use the `dbConnection` to get the Log model for the specific tenant.
-// Example of how createSystemLog in log-routes.ts should be structured:
-//   import { Connection } from 'mongoose';
-//   export async function createSystemLog(dbConnection: Connection, serverName: string, description: string, level: string = 'info', sourceSystem: string = 'panel') {
-//     const Log = dbConnection.model('Log');
-//     const newLog = new Log({ description, level, source: sourceSystem, server: serverName, created: new Date() });
-//     await newLog.save();
-//   }
