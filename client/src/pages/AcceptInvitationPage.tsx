@@ -16,10 +16,11 @@ const AcceptInvitationPage = () => {
 
     const verifyToken = async () => {
       try {
-        const response = await fetch(`/api/staff/invitations/accept?token=${token}`);
+        const response = await fetch(`/api/staff/invitations/accept?token=${token}`, {
+          method: 'GET',
+        });
         if (response.ok) {
-          // The backend handles login and session creation.
-          // On success, we redirect to the dashboard.
+          setStatus('Invitation accepted! Redirecting...');
           window.location.href = '/';
         } else {
           const errorData = await response.json();
