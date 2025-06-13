@@ -866,7 +866,13 @@ const Settings = () => {
                           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Enabled</Badge>
                         ) : (
                           <Button
-                            onClick={() => setShowSetup2FA(true)}
+                            onClick={() => {
+                              toast({
+                                title: "Work In Progress",
+                                description: "This feature is currently not available.",
+                              });
+                              // setShowSetup2FA(true)
+                            }}
                             size="sm"
                           >
                             Set up 2FA
@@ -983,20 +989,20 @@ const Settings = () => {
                             <Button
                               variant="outline"
                               onClick={() => {
-                                setShowSetup2FA(false);
-                                setRecoveryCodesCopied(false);
+                                // setShowSetup2FA(false);
+                                // setRecoveryCodesCopied(false);
                               }}
                             >
                               Cancel
                             </Button>
                             <Button
                               onClick={() => {
-                                setHas2FA(true);
-                                setShowSetup2FA(false);
-                                toast({
-                                  title: "2FA Enabled",
-                                  description: "Two-factor authentication has been enabled for your account",
-                                });
+                                // setHas2FA(true);
+                                // setShowSetup2FA(false);
+                                // toast({
+                                //   title: "2FA Enabled",
+                                //   description: "Two-factor authentication has been enabled for your account",
+                                // });
                               }}
                               disabled={!recoveryCodesCopied}
                             >
@@ -1027,7 +1033,13 @@ const Settings = () => {
                           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Enabled</Badge>
                         ) : (
                           <Button
-                            onClick={() => setShowSetupPasskey(true)}
+                            onClick={() => { 
+                              toast({
+                                title: "Work In Progress",
+                                description: "This feature is currently not available.",
+                              });
+                              // setShowSetupPasskey(true)
+                            }}
                             size="sm"
                           >
                             Set up Passkey
@@ -1072,21 +1084,20 @@ const Settings = () => {
                           </Button>
                           <Button
                             onClick={() => {
-                              // Simulate FIDO2/WebAuthn registration
-                              toast({
-                                title: "FIDO Authentication",
-                                description: "Your browser would prompt for biometric verification here",
-                              });
+                              // toast({
+                              //   title: "FIDO Authentication",
+                              //   description: "Your browser would prompt for biometric verification here",
+                              // });
                               
                               // After successful registration
-                              setTimeout(() => {
-                                setHasPasskey(true);
-                                setShowSetupPasskey(false);
-                                toast({
-                                  title: "Passkey Registered",
-                                  description: "You can now sign in using your passkey"
-                                });
-                              }, 1500);
+                              // setTimeout(() => {
+                              //   setHasPasskey(true);
+                              //   setShowSetupPasskey(false);
+                              //   toast({
+                              //     title: "Passkey Registered",
+                              //     description: "You can now sign in using your passkey"
+                              //   });
+                              // }, 1500);
                             }}
                           >
                             Register Passkey
@@ -1096,9 +1107,9 @@ const Settings = () => {
                     )}
                   </div>
                   
-                  <Separator />
+                  {/* <Separator /> */}
                   
-                  {/* Account Recovery */}
+                  {/* Account Recovery
                   <div>
                     <h4 className="text-base font-medium mb-3">Account Recovery</h4>
                     <p className="text-sm text-muted-foreground mb-4">
@@ -1120,7 +1131,7 @@ const Settings = () => {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </TabsContent>
