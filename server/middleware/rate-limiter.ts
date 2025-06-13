@@ -81,10 +81,10 @@ export const strictRateLimit: RateLimitRequestHandler = rateLimit({
   }
 });
 
-// Medium rate limit for authentication endpoints: 10 requests per minute per IP
+// Medium rate limit for authentication endpoints: 5 requests per minute per IP
 export const authRateLimit: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Limit each IP to 10 requests per windowMs
+  max: 5, // Limit each IP to 5 requests per windowMs
   message: {
     error: 'Too many login attempts detected. For security reasons, please wait 1 minute before trying again.',
     retryAfter: 60,

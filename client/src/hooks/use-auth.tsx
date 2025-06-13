@@ -106,12 +106,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email }),
-      });
-      const data = await response.json();
+      });      const data = await response.json();
       if (!response.ok) {
+        // Handle rate limit responses which use 'error' field, fallback to 'message' field
+        const errorMessage = data.error || data.message || "Failed to send verification code.";
+        let description = errorMessage;
+        
+        // Add additional context for rate limit errors
+        if (response.status === 429) {
+          if (data.timeRemaining) {
+            description += ` Please wait ${data.timeRemaining} before trying again.`;
+          }
+          if (data.securityNote) {
+            description += ` ${data.securityNote}`;
+          }
+        }
+        
         toast({
-          title: "Error",
-          description: data.message || "Failed to send verification code.",
+          title: response.status === 429 ? "Rate Limit Exceeded" : "Error",
+          description: description,
           variant: "destructive",
         });
         return undefined;
@@ -156,14 +169,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email }),
-      });
-
-      const challengeData = await challengeResponse.json();
+      });      const challengeData = await challengeResponse.json();
 
       if (!challengeResponse.ok) {
+        // Handle rate limit responses which use 'error' field, fallback to 'message' field
+        const errorMessage = challengeData.error || challengeData.message || "Failed to get passkey challenge.";
+        let description = errorMessage;
+        
+        // Add additional context for rate limit errors
+        if (challengeResponse.status === 429) {
+          if (challengeData.timeRemaining) {
+            description += ` Please wait ${challengeData.timeRemaining} before trying again.`;
+          }
+          if (challengeData.securityNote) {
+            description += ` ${challengeData.securityNote}`;
+          }
+        }
+        
         toast({
-          title: "Passkey Error",
-          description: challengeData.message || "Failed to get passkey challenge.",
+          title: challengeResponse.status === 429 ? "Rate Limit Exceeded" : "Passkey Error",
+          description: description,
           variant: "destructive",
         });
         setIsLoading(false);
@@ -262,13 +287,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return false;
       }
-      
-      const data = await response.json();
+        const data = await response.json();
 
       if (!response.ok) {
+        // Handle rate limit responses which use 'error' field, fallback to 'message' field
+        const errorMessage = data.error || data.message || "An error occurred during login.";
+        let description = errorMessage;
+        
+        // Add additional context for rate limit errors
+        if (response.status === 429) {
+          if (data.timeRemaining) {
+            description += ` Please wait ${data.timeRemaining} before trying again.`;
+          }
+          if (data.securityNote) {
+            description += ` ${data.securityNote}`;
+          }
+        }
+        
         toast({
-          title: "Login Failed",
-          description: data.message || "An error occurred during login.",
+          title: response.status === 429 ? "Rate Limit Exceeded" : "Login Failed",
+          description: description,
           variant: "destructive",
         });
         setIsLoading(false);
