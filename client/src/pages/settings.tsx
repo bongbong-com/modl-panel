@@ -798,13 +798,15 @@ const Settings = () => {
                 <Tag className="h-4 w-4 mr-2" />
                 Ticket Tags
               </TabsTrigger>
-              <TabsTrigger
-                value="staff"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Staff Management
-              </TabsTrigger>
+              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+                <TabsTrigger
+                  value="staff"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Staff Management
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="account" className="space-y-6 p-6">

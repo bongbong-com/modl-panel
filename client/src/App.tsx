@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +24,7 @@ import AppealsPage from "@/pages/appeals";
 import ApiDocs from "@/pages/api-docs";
 import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
+import { WelcomeModal } from "@/components/layout/WelcomeModal";
 
 function Router() {
   const [location] = useLocation();
@@ -100,12 +102,27 @@ function Router() {
 }
 
 function App() {
+  const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
+
+  useEffect(() => {
+    const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
+    if (!hasSeenModal) {
+      setWelcomeModalOpen(true);
+    }
+  }, []);
+
+  const handleCloseWelcomeModal = () => {
+    localStorage.setItem("hasSeenWelcomeModal", "true");
+    setWelcomeModalOpen(false);
+  };
+
   return (
     <AuthProvider>
       <SidebarProvider>
         <DashboardProvider>
           <TooltipProvider>
             <Toaster />
+            <WelcomeModal isOpen={isWelcomeModalOpen} onClose={handleCloseWelcomeModal} />
             <Router />
           </TooltipProvider>
         </DashboardProvider>
