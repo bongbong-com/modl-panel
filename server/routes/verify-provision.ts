@@ -7,7 +7,8 @@ import {
   Staff,
   Ticket,
   Log,
-  Settings
+  Settings,
+  settingsSchema
 } from '../models/mongodb-schemas';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 
@@ -44,12 +45,11 @@ export async function provisionNewServerInstance(
   dbConnection.model('Staff', Staff.schema);
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
-  dbConnection.model('Settings', Settings.schema);
   // console.log(`Models registered on DB ${dbConnection.name} for ${serverName}.`);
 
   // Example: Seed initial settings
-  const SettingsModel = dbConnection.model('Settings');
-  const existingSettings = await SettingsModel.findOne();
+  const Settings = mongoose.model('Settings', settingsSchema);
+  const existingSettings = await Settings.findOne();
   const punishmentTypes = [
         { ordinal: 0, name: 'Kick', category: 'Gameplay' },
         { ordinal: 1, name: 'Manual Mute', category: 'Social' },
