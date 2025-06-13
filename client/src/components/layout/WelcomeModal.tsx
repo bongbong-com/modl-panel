@@ -24,10 +24,11 @@ import {
             </DialogDescription>
           </DialogHeader>
           <div>
-            <p>Start by downloading the modl plugin for your platform and configuring it with the API-Key found in the settings page.</p>
-            <p>You can invite team members, customize your experience, and setup 2FA/FIDO2 authentication in the settings page.</p>
-            <p></p>
-            <p>We are still beta testing so please report all bugs to us at discord.modl.gg or support@modl.gg</p>
+            <p>🖥️ Start by installing the modl plugin for your platform with the API-Key found on the settings page.</p>
+            <br />
+            <p>👨‍👨‍👦‍👦 You can invite team members, customize your experience, and setup 2FA in the settings page.</p>
+            <br />
+            <p>🐛 We are still beta testing so please report all bugs to us at discord.modl.gg or support@modl.gg</p>
           </div>
           <DialogFooter>
             <Button onClick={onClose}>Got it!</Button>
