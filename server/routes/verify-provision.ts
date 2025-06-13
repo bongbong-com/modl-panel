@@ -44,8 +44,8 @@ export async function provisionNewServerInstance(
   // Log default mongoose connection state for comparison
   console.log(`[verify-provision] Default Mongoose connection state: ${mongoose.connection.readyState}`);
   
-  const Settings = mongoose.model('Settings', settingsSchema);
-  console.log(`[verify-provision] 'Settings' model is associated with connection: ${Settings.db.name}, state: ${Settings.db.readyState}`);
+  const Settings = dbConnection.model('Settings'); // Use the tenant-specific connection
+  console.log(`[verify-provision] 'Settings' model is now associated with connection: ${Settings.db.name}, state: ${Settings.db.readyState}`);
   
   const existingSettings = await Settings.findOne();
   const punishmentTypes = [
