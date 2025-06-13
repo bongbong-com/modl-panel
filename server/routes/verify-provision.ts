@@ -7,7 +7,6 @@ import {
   Staff,
   Ticket,
   Log,
-  Settings,
   settingsSchema
 } from '../models/mongodb-schemas';
 import { ModlServerSchema } from '../models/modl-global-schemas';
@@ -45,11 +44,12 @@ export async function provisionNewServerInstance(
   dbConnection.model('Staff', Staff.schema);
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
+  dbConnection.model('Settings', settingsSchema); // Use the Settings schema directly
   // console.log(`Models registered on DB ${dbConnection.name} for ${serverName}.`);
 
   // Example: Seed initial settings
-  const Settings = mongoose.model('Settings', settingsSchema);
-  const existingSettings = await Settings.findOne();
+  const SettingsModel = dbConnection.model('Settings');
+  const existingSettings = await SettingsModel.findOne();
   const punishmentTypes = [
         { ordinal: 0, name: 'Kick', category: 'Gameplay' },
         { ordinal: 1, name: 'Manual Mute', category: 'Social' },
@@ -69,10 +69,12 @@ export async function provisionNewServerInstance(
         { ordinal: 15, name: 'Game Trading', category: 'Gameplay' },
         { ordinal: 16, name: 'Account Abuse', category: 'Gameplay' },
         { ordinal: 17, name: 'Scamming', category: 'Social' }
-      ];  if (!existingSettings) {
-    const settings = new Settings({
-      settings: new Map()
-    });
+      ];  
+      
+  if (!existingSettings) {
+    const settings = await SettingsModel.create({ settings: new Map([['initialSetup', true]]) });
+    // console.log(`Initial settings seeded for ${serverName}`);
+
     settings.settings!.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await settings.save();
     console.log('Initialized punishment types in settings');
