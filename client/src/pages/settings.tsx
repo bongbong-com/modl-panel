@@ -341,7 +341,7 @@ const Settings = () => {
     if (!settingsObject) return;
 
     justLoadedFromServerRef.current = true;
-    console.log("[SettingsPage] Applying settings from server to state");
+    // console.log("[SettingsPage] Applying settings from server to state"); // Removed
     
     // Use direct state setters to avoid triggering auto-save during load
     if (settingsObject.punishmentTypes) {
@@ -376,18 +376,18 @@ const Settings = () => {
     // After a short delay, reset the flag to allow auto-saving
     setTimeout(() => {
       justLoadedFromServerRef.current = false;
-      console.log("[SettingsPage] Initial load completed, auto-save enabled");
+      // console.log("[SettingsPage] Initial load completed, auto-save enabled"); // Removed
     }, 500);
-  }, []); 
+  }, []);
 
   // Save settings to backend
   const saveSettings = useCallback(async () => {
     if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current) {
-      console.log("[SettingsPage] Skipping auto-save during initial load");
+      // console.log("[SettingsPage] Skipping auto-save during initial load"); // Removed
       return; // Skip saving during initial load
     }
 
-    console.log("[SettingsPage] Auto-saving settings...");
+    // console.log("[SettingsPage] Auto-saving settings..."); // Removed
     setIsSaving(true);
     pendingChangesRef.current = false;
     
@@ -450,7 +450,7 @@ const Settings = () => {
   // Effect: Load settings from React Query into local component state
   useEffect(() => {
     if (isLoadingSettings || isFetchingSettings) {
-      console.log('[SettingsPage] settingsData is loading/fetching. Waiting...');
+      // console.log('[SettingsPage] settingsData is loading/fetching. Waiting...'); // Removed
       return;
     }
 
@@ -460,21 +460,21 @@ const Settings = () => {
     // console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData); // Already removed
 
     if (settingsData?.settings && Object.keys(settingsData.settings).length > 0 && !initialLoadCompletedRef.current) {
-      console.log('[SettingsPage] Valid settingsData.settings received for the first time. Applying to local state.');
+      // console.log('[SettingsPage] Valid settingsData.settings received for the first time. Applying to local state.'); // Removed
       applySettingsObjectToState(settingsData.settings); // Call directly
       
       // Capture settings for future reference and mark initial load as complete
       // This timeout ensures state updates from applySettingsObjectToState have settled
       // before capturing and enabling auto-save.
       setTimeout(() => {
-        console.log('[SettingsPage] Capturing initial settings snapshot after data load.');
+        // console.log('[SettingsPage] Capturing initial settings snapshot after data load.'); // Removed
         captureInitialSettings(); // Call directly
         initialLoadCompletedRef.current = true;
-        console.log('[SettingsPage] Initial load process fully complete after timeout.');
+        // console.log('[SettingsPage] Initial load process fully complete after timeout.'); // Removed
       }, 600); // Delay to ensure state updates propagate
     } else if (!settingsData?.settings && !initialLoadCompletedRef.current && !isLoadingSettings && !isFetchingSettings) {
       // This case handles if the API returns no settings (e.g. empty object) on the first load
-      console.log('[SettingsPage] No valid settings data received on first successful fetch, or data was empty. Marking initial load as complete.');
+      // console.log('[SettingsPage] No valid settings data received on first successful fetch, or data was empty. Marking initial load as complete.'); // Removed
       initialLoadCompletedRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -487,7 +487,7 @@ const Settings = () => {
       return;
     }
     
-    console.log("[SettingsPage] Settings changed, scheduling auto-save");
+    // console.log("[SettingsPage] Settings changed, scheduling auto-save"); // Removed
     
     // If there's a pending save, clear it
     if (saveTimeoutRef.current) {
@@ -559,7 +559,7 @@ const Settings = () => {
     if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current) {
       setPunishmentTypesState(value);
     } else {
-      console.log("[SettingsPage] Setting punishmentTypes and flagging for auto-save");
+      // console.log("[SettingsPage] Setting punishmentTypes and flagging for auto-save"); // Removed
       setPunishmentTypesState(value);
     }
   };
