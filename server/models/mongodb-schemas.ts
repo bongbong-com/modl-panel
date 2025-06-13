@@ -101,7 +101,7 @@ const staffSchema = new Schema({
   admin: { type: Boolean, default: false },
   twoFaSecret: { type: String },
   isTwoFactorEnabled: { type: Boolean, default: false },
-  passkeys: [{ type: passkeySchema }] // Changed to an array of passkeySchema
+  passkeys: [passkeySchema] // Changed to an array of passkeySchema
 });
 
 // Tickets Collection

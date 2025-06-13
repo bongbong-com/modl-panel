@@ -1,6 +1,7 @@
 // filepath: d:\bongbong\modl-panel\server\routes\settings-routes.ts
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument } from 'mongoose'; // Renamed Document to MongooseDocument
+import { isAuthenticated } from '../middleware/auth-middleware';
 
 // Define interfaces for settings structures
 interface IDurationDetail {
@@ -74,6 +75,9 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   }
   next();
 });
+
+// Apply isAuthenticated middleware to all routes in this router
+router.use(isAuthenticated);
 
 // Helper function to create default settings
 async function createDefaultSettings(dbConnection: Connection): Promise<ISettingsDocument> {

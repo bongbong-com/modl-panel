@@ -2,6 +2,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
+import { isAuthenticated } from '../middleware/auth-middleware';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 
 // Interfaces based on Mongoose schema and usage
@@ -42,16 +43,96 @@ const router = express.Router();
 
 // Middleware to check for serverDbConnection
 router.use((req: Request, res: Response, next: NextFunction) => {
+  // @ts-ignore
+  console.log(`[DEBUG] StaffRoutes: Router-level middleware ENTER. Path: ${req.path}. ServerName: ${req.serverName}. DB Connection valid: ${!!req.serverDbConnection}`);
   if (!req.serverDbConnection) {
-    // console.error('Database connection not found for this server.'); // Hidden
+    // @ts-ignore
+    console.error(`[DEBUG] StaffRoutes: Router-level middleware - NO DB CONNECTION. Path: ${req.path}. ServerName: ${req.serverName}. Responding 503.`);
     return res.status(503).json({ error: 'Service unavailable. Database connection not established for this server.' });
   }
   if (!req.serverName) {
-    // console.error('Server name not found in request.'); // Hidden
+    // @ts-ignore
+    console.error(`[DEBUG] StaffRoutes: Router-level middleware - NO SERVER NAME. Path: ${req.path}. Responding 500.`);
     return res.status(500).json({ error: 'Internal server error. Server name missing.' });
   }
+  // @ts-ignore
+  console.log(`[DEBUG] StaffRoutes: Router-level middleware - ALL CHECKS PASSED, calling next(). Path: ${req.path}. ServerName: ${req.serverName}`);
   next();
 });
+
+// Public routes - should be defined before authentication middleware
+
+router.get('/check-email/:email', async (req: Request<{ email: string }>, res: Response) => {
+  // @ts-ignore
+  console.log(`[DEBUG] StaffRoutes: /check-email/:email handler. ServerName: ${req.serverName}. DB Connection valid: ${!!req.serverDbConnection}. Path: ${req.path}. Params: ${JSON.stringify(req.params)}`);
+  try {
+    if (process.env.NODE_ENV === 'development') {
+      // @ts-ignore
+      console.log(`[DEBUG] StaffRoutes: /api/staff/check-email/:email - DEV MODE. Email: ${req.params.email}. ServerName: ${req.serverName}. DB Connection valid: ${!!req.serverDbConnection}`);
+      // In development mode, accept any email and assume no 2FA/FIDO for simplicity
+      return res.json({
+        exists: true,
+        isTwoFactorEnabled: false, // Default to false for any dev email
+        hasFidoPasskeys: false    // Default to false for any dev email
+      });
+    }
+
+    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
+    const requestedEmail = req.params.email.toLowerCase(); // Normalize requested email
+
+    // Try to find the user in the tenant's Staff collection
+    const staffMember = await Staff.findOne({ email: requestedEmail });
+
+    if (staffMember) {
+      const hasFidoPasskeys = !!(staffMember.passkeys && staffMember.passkeys.length > 0);
+      return res.json({
+        exists: true,
+        isTwoFactorEnabled: !!staffMember.isTwoFactorEnabled,
+        hasFidoPasskeys: hasFidoPasskeys
+      });
+    }
+
+    // If not found in Staff, check if it's the main admin email for this server
+    // This requires accessing the 'modl' database's 'servers' collection
+    try {
+      const ModlServer = mongoose.model<IModlServer>('Server', ModlServerSchema);
+      const serverConfig = await ModlServer.findOne({ serverName: req.serverName });
+
+      if (serverConfig && serverConfig.adminEmail.toLowerCase() === requestedEmail) {
+        // Main admin email for this server. Assume no 2FA/FIDO unless these are also stored in ModlServer
+        return res.json({
+          exists: true,
+          isTwoFactorEnabled: false, // Or fetch from serverConfig if available
+          hasFidoPasskeys: false     // Or fetch from serverConfig if available
+        });
+      }
+    } catch (globalDbError) {
+      console.error(`[Server: ${req.serverName}] Error fetching server config from global DB:`, globalDbError);
+      // Continue to "not found" if global DB access fails, to not break login for regular staff
+    }
+
+    // If not a staff member and not the dynamic admin email
+    return res.json({ exists: false, isTwoFactorEnabled: false, hasFidoPasskeys: false });
+
+  } catch (error) {
+    // console.error(`[Server: ${req.serverName}] Error checking email:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/api/staff/check-username/:username', async (req: Request<{ username: string }>, res: Response) => {
+  try {
+    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
+    const staffMember = await Staff.findOne({ username: req.params.username });
+    res.json({ exists: !!staffMember });
+  } catch (error) {
+    // console.error(`[Server: ${req.serverName}] Error checking username:`, error); // Hidden
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Apply isAuthenticated middleware to all routes in this router AFTER public routes
+router.use(isAuthenticated);
 
 // Get all staff
 router.get('/api/staff', async (req: Request, res: Response) => {
@@ -139,17 +220,15 @@ router.patch('/api/staff/:username', async (req: Request<{ username: string }, {
       return res.status(404).json({ error: 'Staff member not found' });
     }
     
-    // Authentication check
-    if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized. Please log in.' });
-    }
-    const loggedInUser = req.user as Express.User; // Assuming Express.User is globally available
+    // The isAuthenticated middleware now handles the primary authentication check.
+    // Authorization logic below will use req.session data.
+    // Ensure req.session.username and req.session.admin are available from the session.
 
     let changesMade = false;
 
     // Authorization for email change
     if (email !== undefined && email !== staffMember.email) {
-      if (loggedInUser.username !== staffMember.username) {
+      if (req.currentUser!.username !== staffMember.username) {
         return res.status(403).json({ error: 'Forbidden: You can only change your own email address.' });
       }
       // Check if new email is already in use by another user
@@ -163,7 +242,7 @@ router.patch('/api/staff/:username', async (req: Request<{ username: string }, {
 
     // Authorization for profile picture change
     if (profilePicture !== undefined && profilePicture !== staffMember.profilePicture) {
-      if (loggedInUser.username !== staffMember.username && !loggedInUser.admin) {
+      if (req.currentUser!.username !== staffMember.username && !req.currentUser!.admin) {
         return res.status(403).json({ error: 'Forbidden: You can only change your own profile picture, or an admin must perform this action.' });
       }
       staffMember.profilePicture = profilePicture;
@@ -172,7 +251,7 @@ router.patch('/api/staff/:username', async (req: Request<{ username: string }, {
 
     // Authorization for admin status change
     if (admin !== undefined && admin !== staffMember.admin) {
-      if (!loggedInUser.admin) {
+      if (!req.currentUser!.admin) {
         return res.status(403).json({ error: 'Forbidden: Only administrators can change admin status.' });
       }
       staffMember.admin = admin;
@@ -237,69 +316,6 @@ interface AddPasskeyBody {
 // });
 
 
-router.get('/api/staff/check-email/:email', async (req: Request<{ email: string }>, res: Response) => {
-  try {
-    if (process.env.NODE_ENV === 'development') {
-      // In development mode, accept any email and assume no 2FA/FIDO for simplicity
-      return res.json({
-        exists: true,
-        isTwoFactorEnabled: false, // Default to false for any dev email
-        hasFidoPasskeys: false    // Default to false for any dev email
-      });
-    }
-
-    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const requestedEmail = req.params.email.toLowerCase(); // Normalize requested email
-
-    // Try to find the user in the tenant's Staff collection
-    const staffMember = await Staff.findOne({ email: requestedEmail });
-
-    if (staffMember) {
-      const hasFidoPasskeys = !!(staffMember.passkeys && staffMember.passkeys.length > 0);
-      return res.json({
-        exists: true,
-        isTwoFactorEnabled: !!staffMember.isTwoFactorEnabled,
-        hasFidoPasskeys: hasFidoPasskeys
-      });
-    }
-
-    // If not found in Staff, check if it's the main admin email for this server
-    // This requires accessing the 'modl' database's 'servers' collection
-    try {
-      const ModlServer = mongoose.model<IModlServer>('Server', ModlServerSchema);
-      const serverConfig = await ModlServer.findOne({ serverName: req.serverName });
-
-      if (serverConfig && serverConfig.adminEmail.toLowerCase() === requestedEmail) {
-        // Main admin email for this server. Assume no 2FA/FIDO unless these are also stored in ModlServer
-        return res.json({
-          exists: true,
-          isTwoFactorEnabled: false, // Or fetch from serverConfig if available
-          hasFidoPasskeys: false     // Or fetch from serverConfig if available
-        });
-      }
-    } catch (globalDbError) {
-      console.error(`[Server: ${req.serverName}] Error fetching server config from global DB:`, globalDbError);
-      // Continue to "not found" if global DB access fails, to not break login for regular staff
-    }
-
-    // If not a staff member and not the dynamic admin email
-    return res.json({ exists: false, isTwoFactorEnabled: false, hasFidoPasskeys: false });
-
-  } catch (error) {
-    // console.error(`[Server: ${req.serverName}] Error checking email:`, error); // Hidden
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-router.get('/api/staff/check-username/:username', async (req: Request<{ username: string }>, res: Response) => {
-  try {
-    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const staffMember = await Staff.findOne({ username: req.params.username });
-    res.json({ exists: !!staffMember });
-  } catch (error) {
-    // console.error(`[Server: ${req.serverName}] Error checking username:`, error); // Hidden
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// These routes have been moved to before the isAuthenticated middleware
 
 export default router;

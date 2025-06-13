@@ -35,20 +35,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check for existing user session on mount
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkSession = async () => {
+      setIsLoading(true);
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        const response = await fetch('/api/auth/session');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.isAuthenticated && data.user) {
+            setUser(data.user);
+          } else {
+            setUser(null);
+          }
+        } else {
+          // If session check fails (e.g., 401), ensure user is null
+          setUser(null);
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
+        console.error('Error checking session:', error);
+        setUser(null); // Ensure user is null on network error
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkAuth();
+    checkSession();
   }, []);
 
   // Request email verification code
@@ -223,25 +233,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Assuming the backend /verify-email-code returns user info upon successful verification
-      // For now, we'll create a demo user object as the backend doesn't fully log in yet.
-      // In a real app, `data` would contain the actual user object or session token.
-      const loggedInUser: User = data.user || { // Fallback to demo user if backend doesn't return full user yet
-        _id: "verified-user-id",
-        email: email,
-        username: email.split('@')[0],
-        profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}`,
-        admin: true // Assuming admin for now
-      };
-      
-      localStorage.setItem('user', JSON.stringify(loggedInUser));
-      setUser(loggedInUser);
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${loggedInUser.username}!`,
-      });
-      setIsLoading(false);
-      return true;
+      // Backend now handles session creation.
+      // After successful verification, fetch the session to get user data.
+      try {
+        const sessionResponse = await fetch('/api/auth/session');
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          if (sessionData.isAuthenticated && sessionData.user) {
+            setUser(sessionData.user);
+            toast({
+              title: "Login Successful",
+              description: `Welcome back, ${sessionData.user.username}!`,
+            });
+            setIsLoading(false);
+            return true;
+          } else {
+            // This case should ideally not happen if login verification was successful
+            // and session was established.
+            toast({
+              title: "Login Failed",
+              description: "Session could not be established after login.",
+              variant: "destructive",
+            });
+            setUser(null);
+            setIsLoading(false);
+            return false;
+          }
+        } else {
+          toast({
+            title: "Login Failed",
+            description: "Failed to retrieve session information after login.",
+            variant: "destructive",
+          });
+          setUser(null);
+          setIsLoading(false);
+          return false;
+        }
+      } catch (sessionError) {
+        console.error("Error fetching session after login:", sessionError);
+        toast({
+          title: "Login Error",
+          description: "An error occurred while fetching session information.",
+          variant: "destructive",
+        });
+        setUser(null);
+        setIsLoading(false);
+        return false;
+      }
 
     } catch (error) {
       console.error("Login error:", error);
@@ -256,19 +294,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Logout function
-  const logout = () => {
-    // Remove user from localStorage and state
-    localStorage.removeItem('user');
-    setUser(null);
-
-    // Redirect to login page
-    navigate('/auth');
-
-    // Show success message
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) {
+        // Even if logout API fails, clear client-side state
+        const errorData = await response.json().catch(() => ({ message: "Failed to logout on server." }));
+        toast({
+          title: "Logout Error",
+          description: errorData.message || "Server logout failed. Client session cleared.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Logged out",
+          description: "You have been successfully logged out.",
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout Error",
+        description: "An unexpected error occurred during logout. Client session cleared.",
+        variant: "destructive",
+      });
+    } finally {
+      setUser(null);
+      setIsLoading(false);
+      navigate('/auth'); // Redirect to login page
+    }
   };
 
   return (

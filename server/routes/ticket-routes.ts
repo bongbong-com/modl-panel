@@ -2,6 +2,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
 import { createSystemLog } from './log-routes'; // Import from .ts file
+import { isAuthenticated } from '../middleware/auth-middleware';
 
 // Interfaces based on Mongoose schema and usage
 interface INote {
@@ -50,6 +51,9 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   }
   next();
 });
+
+// Apply isAuthenticated middleware to all routes in this router
+router.use(isAuthenticated);
 
 // Get all tickets
 router.get('/api/tickets', async (req: Request, res: Response) => {

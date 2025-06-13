@@ -36,8 +36,32 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
   let serverName: string | undefined = undefined; // This will hold the derived subdomain
 
   if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
-    serverName = 'testlocal'; // For local dev, 'testlocal' is the conventional subdomain
-    return next();
+    serverName = 'testlocal';
+    // @ts-ignore
+    req.serverName = serverName;
+
+    try {
+      // @ts-ignore
+      req.serverDbConnection = await connectToServerDb(serverName);
+      // @ts-ignore
+      console.log(`[DEBUG] SubdomainMiddleware: DEV MODE (localhost) - Connected to DB for ${serverName}. DB Connection valid: ${!!req.serverDbConnection}`);
+      // For local development, bypass ModlServer lookup and assume email is verified.
+      // @ts-ignore
+      req.serverConfig = {
+        customDomain: serverName,
+        emailVerified: true,
+        // Add any other essential serverConfig properties that might be accessed downstream,
+        // with default/mock values suitable for local development.
+        // For example, if provisioningStatus is checked:
+        // provisioningStatus: 'completed'
+      };
+      return next(); // Bypass the rest of the middleware for localhost
+    } catch (dbConnectError: any) {
+      // @ts-ignore
+      console.error(`[DEBUG] SubdomainMiddleware: DEV MODE (localhost) - Failed to connect to DB for ${serverName}. Error:`, dbConnectError.message);
+      // @ts-ignore
+      return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${serverName} (localhost development).` });
+    }
   } else if (hostname.endsWith(`.${DOMAIN}`)) {
     const parts = hostname.split('.');
     const baseDomainParts = DOMAIN.split('.').length;
@@ -63,37 +87,57 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     return next();
   }
 
+  // @ts-ignore
+  req.serverName = serverName; // Set serverName on the request now that it's determined
+
   // At this point, 'serverName' is a non-empty, non-"undefined" derived string (e.g., "mypanel", "testlocal").
   // This derived 'serverName' must exist as a 'customDomain' in the database.
   let globalConnection: MongooseConnection;
   try {
     globalConnection = await connectToGlobalModlDb();
     const ModlServerModel = globalConnection.model('ModlServer', ModlServerSchema);
-    
-    const serverConfig = await ModlServerModel.findOne({ customDomain: serverName });
+    // @ts-ignore
+    const serverConfig = await ModlServerModel.findOne({ customDomain: req.serverName });
 
     if (!serverConfig) {
-      return res.status(404).send(`Panel for '${serverName}' is not configured or does not exist.`);
+      // @ts-ignore
+      return res.status(404).send(`Panel for '${req.serverName}' is not configured or does not exist.`);
     }
 
     // @ts-ignore
     req.serverConfig = serverConfig;
-    // @ts-ignore // Consistently set serverName to the derived subdomain (customDomain) if serverConfig is found
-    req.serverName = serverName;
+
+    // Attempt to connect to the server-specific DB IF serverConfig was found
+    // This needs to happen before email verification checks for routes that need DB but are public.
+    try {
+      // @ts-ignore
+      req.serverDbConnection = await connectToServerDb(req.serverName);
+    } catch (dbConnectError: any) {
+      // @ts-ignore
+      console.error(`[DEBUG] SubdomainMiddleware: connectToServerDb CATCH block for ${req.serverName}. Error:`, dbConnectError.message);
+      // @ts-ignore
+      console.error(`[SubdomainMiddleware] Failed to connect to DB for ${req.serverName}:`, dbConnectError.message);
+      // @ts-ignore
+      return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${req.serverName}.` });
+    }
+
+    // @ts-ignore
+    console.log(`[DEBUG] SubdomainMiddleware: Before final next() for ${req.serverName}. Path: ${req.path}. DB Connection valid: ${!!req.serverDbConnection}`);
 
     // Define paths accessible *before* email verification for this specific panel
     const allowedPreVerificationPagePaths = [
         '/pending-verification',      // Example page: "Check your email to verify"
         '/resend-verification',       // Example page or API endpoint to resend verification
-        '/verify-email'               // The actual verification link target (GET request)
+        '/verify-email' // The actual verification link target (GET request)
     ];
     // API prefixes/paths related to authentication & verification that should always be accessible
     const alwaysAllowedApiPatterns = [
-        '/api/auth/',                 // Covers all auth routes like /api/auth/login, /api/auth/register
-        '/api/request-email-verification' // Specific endpoint to request a new verification token
+        '/api/auth/', // Covers all auth routes like /api/auth/login, /api/auth/register
+        '/api/request-email-verification', // Specific endpoint to request a new verification token
+        '/api/staff/check-email'      // This route needs DB but is pre-auth
     ];
 
-    const isPathAllowedPreVerification = 
+    const isPathAllowedPreVerification =
         allowedPreVerificationPagePaths.includes(req.path) ||
         alwaysAllowedApiPatterns.some(pattern => req.path.startsWith(pattern));
 
@@ -101,27 +145,21 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       // User is trying to access a panel resource that requires email verification,
       // but their email for this panel is not verified, and the path is not exempt.
       if (req.path.startsWith('/api/')) {
-        // For API requests, return JSON 404
-        return res.status(404).json({ message: 'Panel access denied. Email verification required.' });
+        // For API requests, return JSON 403
+        return res.status(403).json({ message: 'Panel access denied. Email verification required.' });
       } else {
-        // For browser navigation, return a 404 page/message.
-        // A redirect to a specific "please verify your email" page might offer better UX.
-        // e.g., return res.redirect(`http://${serverConfig.customDomain}.${DOMAIN}/auth/verify-prompt`);
-        return res.status(404).send('Panel not accessible. Please verify your email or check the URL.');
+        // For browser navigation, return a 403 page/message.
+        return res.status(403).send('Panel not accessible. Please verify your email.');
       }
-    }
-    
-    // If email is verified, proceed to connect to server-specific DB
-    if (serverConfig.emailVerified) {
-      // @ts-ignore
-      req.serverDbConnection = await connectToServerDb(serverName); // Ensure derived serverName is used here
-      // req.serverName is already set
     }
     
     next();
 
   } catch (error: any) {
-    console.error(`[ERROR] Subdomain middleware for ${hostname} (derived subdomain ${serverName}): ${error.message}`);
+    // @ts-ignore
+    const currentServerName = req.serverName || serverName; // Get the most available serverName for logging
+    // @ts-ignore
+    console.error(`[ERROR] Subdomain middleware for ${hostname} (derived subdomain ${currentServerName}): ${error.message}`);
     // Avoid exposing raw error details to the client for security.
     return res.status(500).send('An internal error occurred while processing your panel request.');
   }

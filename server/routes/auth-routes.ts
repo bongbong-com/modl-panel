@@ -116,17 +116,25 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
   if (storedEntry.code === code) {
     emailVerificationCodes.delete(email); // Code verified, remove it
 
-    // Here, you would typically proceed with login, generate a session/JWT token
-    // For now, just confirm verification.
-    // Example: Find user and log them in (requires passport or similar setup from auth.ts)
-    // const user = await Staff.findOne({ email });
-    // if (!user) {
-    //   return res.status(404).json({ message: 'User not found after code verification.' });
-    // }
-    // req.login(user, (err) => { ... });
+    const user = await Staff.findOne({ email });
+    if (!user) {
+      console.log(`[AUTH_DEBUG] User not found for email ${email} after code verification.`);
+      return res.status(404).json({ message: 'User not found after code verification.' });
+    }
 
-    console.log(`[AUTH_DEBUG] Sending 200 response for /api/auth/verify-email-code (success)`);
-    return res.status(200).json({ message: 'Email verified successfully.' /*, user: { email: user.email, id: user._id } */ });
+    // Store user information in session
+    req.session.userId = user._id.toString();
+    req.session.email = user.email;
+    req.session.username = user.username;
+    req.session.admin = user.admin;
+
+    await req.session.save(); // Ensure session is saved before responding
+
+    console.log(`[AUTH_DEBUG] Session created for user ${user.username}. Sending 200 response for /api/auth/verify-email-code (success)`);
+    return res.status(200).json({
+      message: 'Email verified successfully. Logged in.',
+      user: { id: user._id, email: user.email, username: user.username, admin: user.admin }
+    });
   } else {
     console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (invalid code)`);
     return res.status(400).json({ message: 'Invalid verification code.' });
@@ -155,19 +163,19 @@ router.post('/verify-2fa-code', async (req: Request, res: Response) => {
     const isValid = authenticator.verify({ token: code, secret: user.twoFaSecret });
 
     if (isValid) {
-      // Here, you would typically proceed with login, generate a session/JWT token
-      // For now, just confirm verification.
-      // This part should align with how session/token generation is handled in /verify-email-code
-      // Example:
-      // req.login(user, (err) => {
-      //   if (err) {
-      //     console.error('2FA Login error:', err);
-      //     return res.status(500).json({ message: 'Session error after 2FA verification.' });
-      //   }
-      //   return res.status(200).json({ message: '2FA code verified successfully.', user: { email: user.email, id: user._id, username: user.username, admin: user.admin } });
-      // });
-      // For now, returning a simplified user object
-      return res.status(200).json({ message: '2FA code verified successfully.', user: { email: user.email, username: user.username, id: user._id, admin: user.admin } });
+      // Store user information in session
+      req.session.userId = user._id.toString();
+      req.session.email = user.email;
+      req.session.username = user.username;
+      req.session.admin = user.admin;
+
+      await req.session.save(); // Ensure session is saved before responding
+
+      console.log(`[AUTH_DEBUG] Session created for user ${user.username} after 2FA.`);
+      return res.status(200).json({
+        message: '2FA code verified successfully. Logged in.',
+        user: { id: user._id, email: user.email, username: user.username, admin: user.admin }
+      });
     } else {
       return res.status(400).json({ message: 'Invalid 2FA code.' });
     }
@@ -277,16 +285,22 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
 
       fidoChallenges.delete(email); // Clean up challenge
 
-      // TODO: Implement session/JWT generation similar to password or 2FA login
-      // For now, return user info as a placeholder for successful login
+      // Store user information in session
+      req.session.userId = user._id.toString();
+      req.session.email = user.email;
+      req.session.username = user.username;
+      req.session.admin = user.admin;
+
+      await req.session.save(); // Ensure session is saved before responding
+
+      console.log(`[AUTH_DEBUG] Session created for user ${user.username} after FIDO login.`);
       return res.status(200).json({
-        message: 'Passkey login successful.',
+        message: 'Passkey login successful. Logged in.',
         user: {
           id: user._id,
           email: user.email,
           username: user.username,
           admin: user.admin,
-          // Include other necessary user fields for the session
         },
       });
     } else {
@@ -297,6 +311,36 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
     fidoChallenges.delete(email); // Clean up challenge on error
     return res.status(500).json({ message: error.message || 'Failed to verify passkey.' });
   }
+});
+
+// Route to check session status
+router.get('/session', (req: Request, res: Response) => {
+  if (req.session && req.session.userId) {
+    return res.status(200).json({
+      isAuthenticated: true,
+      user: {
+        id: req.session.userId,
+        email: req.session.email,
+        username: req.session.username,
+        admin: req.session.admin,
+      },
+    });
+  } else {
+    return res.status(200).json({ isAuthenticated: false });
+  }
+});
+
+// Route to logout and destroy session
+router.post('/logout', (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Session destruction error:', err);
+      return res.status(500).json({ message: 'Could not log out, please try again.' });
+    }
+    // Session cookie is typically cleared by session middleware on destroy
+    // If specific cookie clearing is needed: res.clearCookie('connect.sid'); // Replace 'connect.sid' if using a different session cookie name
+    return res.status(200).json({ message: 'Logged out successfully.' });
+  });
 });
 
 export default router;

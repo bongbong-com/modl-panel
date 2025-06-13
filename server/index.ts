@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import MongoStore from "connect-mongo";
 import { registerRoutes } from "./routes"; // This should point to the updated routes.ts
 import { setupVite, serveStatic, log } from "./vite";
 import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware"; // Import the middleware
@@ -6,6 +8,27 @@ import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware"; // I
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session middleware setup
+const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
+const isProduction = process.env.NODE_ENV === 'production';
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || "your-very-secure-secret-here", // Replace with a strong secret in .env
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: MONGODB_URI,
+    ttl: 14 * 24 * 60 * 60, // 14 days
+    autoRemove: 'native' // Default
+  }),
+  cookie: {
+    httpOnly: true,
+    secure: isProduction, // Use secure cookies in production
+    sameSite: 'lax', // Or 'strict' depending on your needs
+    maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+  }
+}));
 
 // Apply the subdomain DB middleware early in the stack,
 // but after static assets or general purpose parsers if any were before.
