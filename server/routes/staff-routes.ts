@@ -117,9 +117,29 @@ router.use(isAuthenticated);
 
 router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   try {
-    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const staff = await Staff.find({}).select('-password -twoFaSecret -passkeys');
-    res.json(staff);
+    const db = req.serverDbConnection!;
+    const UserModel = db.model('Staff');
+    const InvitationModel = db.model('Invitation');
+
+    const users = await UserModel.find({});
+    const invitations = await InvitationModel.find({ status: 'pending' });
+
+    const staff = users.map(user => ({
+      ...user.toObject(),
+      status: 'Active'
+    }));
+
+    const pendingInvitations = invitations.map(invitation => ({
+      _id: invitation._id,
+      email: invitation.email,
+      role: invitation.role,
+      createdAt: invitation.createdAt,
+      status: 'Pending Invitation'
+    }));
+
+    const allStaff = [...staff, ...pendingInvitations];
+
+    res.json(allStaff);
   } catch (error) {
     console.error('Error fetching staff:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -150,7 +170,7 @@ router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request,
     }
 
     const InvitationModel = req.serverDbConnection!.model('Invitation', Invitation.schema);
-    const existingInvitation = await InvitationModel.findOne({ email });
+    const existingInvitation = await InvitationModel.findOne({ email, status: 'pending' });
     if (existingInvitation) {
       return res.status(409).json({ message: 'An invitation for this email is already pending.' });
     }

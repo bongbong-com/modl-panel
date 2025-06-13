@@ -15,6 +15,6 @@ const invitationSchema = new Schema({
     enum: ['pending', 'accepted'],
     default: 'pending',
   },
-});
+}, { timestamps: true });
 
 export const Invitation = mongoose.model('Invitation', invitationSchema);
