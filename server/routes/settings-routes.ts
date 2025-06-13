@@ -315,7 +315,7 @@ async function createDefaultSettings(dbConnection: Connection): Promise<Hydrated
   }
 }
 
-router.get('/api/settings', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
@@ -332,7 +332,7 @@ router.get('/api/settings', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/api/settings', async (req: Request, res: Response) => {
+router.patch('/', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
@@ -357,7 +357,7 @@ router.patch('/api/settings', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/api/settings/reset', async (req: Request, res: Response) => {
+router.post('/reset', async (req: Request, res: Response) => {
   try {
     const SettingsModel = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     await SettingsModel.deleteOne({});
@@ -369,7 +369,7 @@ router.post('/api/settings/reset', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/api/settings/:key', async (req: Request<{ key: string }>, res: Response) => {
+router.get('/:key', async (req: Request<{ key: string }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
@@ -382,7 +382,7 @@ router.get('/api/settings/:key', async (req: Request<{ key: string }>, res: Resp
   }
 });
 
-router.put('/api/settings/:key', async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
+router.put('/:key', async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
