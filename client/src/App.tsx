@@ -103,15 +103,30 @@ function Router() {
 
 function App() {
   const [location] = useLocation();
-  const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
-
-  useEffect(() => {
+  const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);  useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
     const isOnHomePage = location === '/';
     const isFromProvisioning = new URLSearchParams(window.location.search).get('fromProvisioning') === 'true';
     
-    // Only show welcome modal on home page, not coming from provisioning
-    if (!hasSeenModal && isOnHomePage && !isFromProvisioning) {
+    // Explicitly exclude certain pages from showing the welcome modal
+    const excludedPages = ['/auth', '/appeals', '/provisioning-in-progress'];
+    const isOnExcludedPage = excludedPages.some(page => location.startsWith(page));
+    const isOnPlayerTicketPage = location.startsWith('/player-ticket/');
+    const isOnAcceptInvitationPage = location.startsWith('/accept-invitation');
+    
+    // Hide welcome modal if not on home page
+    if (!isOnHomePage) {
+      setWelcomeModalOpen(false);
+      return;
+    }
+    
+    // Only show welcome modal on home page, not coming from provisioning, and not on excluded pages
+    if (!hasSeenModal && 
+        isOnHomePage && 
+        !isFromProvisioning && 
+        !isOnExcludedPage && 
+        !isOnPlayerTicketPage && 
+        !isOnAcceptInvitationPage) {
       setWelcomeModalOpen(true);
     }
   }, [location]);
