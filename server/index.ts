@@ -20,14 +20,21 @@ app.use(subdomainDbMiddleware);
 // Dynamically configure session middleware based on serverDbConnection
 app.use((req: Request, res: Response, next: NextFunction) => {
   // @ts-ignore
-  if (req.serverDbConnection && req.serverDbConnection.getClient) {
+  const serverDbConn = req.serverDbConnection;
+  // @ts-ignore
+  const mongoClient = serverDbConn && serverDbConn.getClient ? serverDbConn.getClient() : null;
+
+  // @ts-ignore
+  // console.log(`[SessionInit] Path: ${req.path}, serverDbConn valid: ${!!serverDbConn}, mongoClient valid: ${!!mongoClient}, serverDbConn readState: ${serverDbConn?.readyState}`);
+
+
+  if (serverDbConn && mongoClient) {
     const serverSpecificSession = session({
       secret: process.env.SESSION_SECRET || "your-very-secure-secret-here",
       resave: false,
       saveUninitialized: false,
       store: MongoStore.create({
-        // @ts-ignore
-        mongooseConnection: req.serverDbConnection, // Use the Mongoose connection directly
+        client: mongoClient, // Use the mongoClient variable that was already retrieved and checked
         ttl: 14 * 24 * 60 * 60, // 14 days
         autoRemove: 'native', // Default
         // collectionName: 'sessions' // Default collection name is 'sessions'
@@ -41,10 +48,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     });
     serverSpecificSession(req, res, next); // Apply the session middleware for this request
   } else {
-    // If no serverDbConnection is available (e.g., for global routes or errors),
-    // proceed without session capabilities for this request.
-    // Alternatively, a default in-memory session could be used here if necessary for some paths.
-    log(`[Session] No serverDbConnection for path ${req.path}, skipping session initialization.`);
+    // @ts-ignore
+    log(`[Session] No valid serverDbConnection or mongoClient for path ${req.path} (serverDbConn: ${!!serverDbConn}, mongoClient: ${!!mongoClient}), skipping session initialization.`);
     next();
   }
 });
