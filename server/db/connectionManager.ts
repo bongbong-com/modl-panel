@@ -7,6 +7,7 @@ import {
   settingsSchema,
   logSchema
 } from '../models/mongodb-schemas';
+import { invitationSchema } from '../models/invitation-schema';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 
 dotenv.config();
@@ -26,6 +27,7 @@ const tenantSchemas: Record<string, mongoose.Schema<any>> = {
   Staff: staffSchema,
   Settings: settingsSchema,
   Log: logSchema,
+  Invitation: invitationSchema,
 };
 
 function registerTenantModels(connection: Connection): void {
