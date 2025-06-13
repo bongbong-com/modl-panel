@@ -6,6 +6,7 @@ import {
   Staff,
   Ticket,
   Log,
+  Settings,
   settingsSchema
 } from '../models/mongodb-schemas';
 import { ModlServerSchema } from '../models/modl-global-schemas';
@@ -66,12 +67,10 @@ export async function provisionNewServerInstance(
         { ordinal: 15, name: 'Game Trading', category: 'Gameplay' },
         { ordinal: 16, name: 'Account Abuse', category: 'Gameplay' },
         { ordinal: 17, name: 'Scamming', category: 'Social' }
-      ];  
-      
-  if (!existingSettings) {
-    const settings = await SettingsModel.create({ settings: new Map([['initialSetup', true]]) });
-    // console.log(`Initial settings seeded for ${serverName}`);
-
+      ];  if (!existingSettings) {
+    const settings = new Settings({
+      settings: new Map()
+    });
     settings.settings!.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await settings.save();
     console.log('Initialized punishment types in settings');
