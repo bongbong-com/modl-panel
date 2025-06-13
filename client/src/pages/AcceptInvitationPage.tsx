@@ -1,12 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import PageContainer from '@/components/layout/PageContainer';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 const AcceptInvitationPage = () => {
   const [status, setStatus] = useState('Verifying your invitation...');
   const [, navigate] = useLocation();
+  const { user, isLoading } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
+    if (isLoading) {
+      return; // Wait for the auth state to be determined
+    }
+
+    if (user) {
+      toast({
+        title: 'Already logged in',
+        description: 'You cannot accept an invitation while logged in.',
+        variant: 'destructive',
+      });
+      navigate('/');
+      return;
+    }
+
     const token = new URLSearchParams(window.location.search).get('token');
 
     if (!token) {
@@ -32,7 +50,7 @@ const AcceptInvitationPage = () => {
     };
 
     verifyToken();
-  }, [navigate]);
+  }, [user, isLoading, navigate, toast]);
 
   return (
     <PageContainer>

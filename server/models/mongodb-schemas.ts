@@ -69,7 +69,6 @@ const playerSchema = new Schema({
 });
 
 const staffSchema = new Schema({
-  _id: { type: String },
   email: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
   profilePicture: { type: String },
