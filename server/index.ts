@@ -13,27 +13,41 @@ app.use(express.urlencoded({ extended: false }));
 const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
 const isProduction = process.env.NODE_ENV === 'production';
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || "your-very-secure-secret-here", // Replace with a strong secret in .env
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: MONGODB_URI,
-    ttl: 14 * 24 * 60 * 60, // 14 days
-    autoRemove: 'native' // Default
-  }),
-  cookie: {
-    httpOnly: true,
-    secure: isProduction, // Use secure cookies in production
-    sameSite: 'lax', // Or 'strict' depending on your needs
-    maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
-  }
-}));
-
-// Apply the subdomain DB middleware early in the stack,
-// but after static assets or general purpose parsers if any were before.
+// Apply the subdomain DB middleware early in the stack.
 // It needs to run before any routes that depend on req.serverDbConnection.
 app.use(subdomainDbMiddleware);
+
+// Dynamically configure session middleware based on serverDbConnection
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // @ts-ignore
+  if (req.serverDbConnection && req.serverDbConnection.getClient) {
+    const serverSpecificSession = session({
+      secret: process.env.SESSION_SECRET || "your-very-secure-secret-here",
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({
+        // @ts-ignore
+        client: req.serverDbConnection.getClient(), // Use the MongoDB client from the Mongoose connection
+        ttl: 14 * 24 * 60 * 60, // 14 days
+        autoRemove: 'native', // Default
+        // collectionName: 'sessions' // Default collection name is 'sessions'
+      }),
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        sameSite: 'lax', // Or 'strict' depending on your needs
+        maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+      }
+    });
+    serverSpecificSession(req, res, next); // Apply the session middleware for this request
+  } else {
+    // If no serverDbConnection is available (e.g., for global routes or errors),
+    // proceed without session capabilities for this request.
+    // Alternatively, a default in-memory session could be used here if necessary for some paths.
+    log(`[Session] No serverDbConnection for path ${req.path}, skipping session initialization.`);
+    next();
+  }
+});
 
 /* // Commenting out the API request logger
 app.use((req, res, next) => {
