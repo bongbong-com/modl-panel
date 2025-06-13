@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await fetch('/api/auth/send-email-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email }),
       });
       const data = await response.json();
@@ -116,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const challengeResponse = await fetch('/api/auth/fido-login-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email }),
       });
 
@@ -185,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
+          credentials: 'include',
         });
       } else if (authMethod === 'passkey') {
         if (!assertionResponse) {
@@ -197,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
+          credentials: 'include',
         });
       } else if (authMethod === '2fa') {
         if (!code) {
@@ -209,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
+          credentials: 'include',
         });
       } else {
         toast({ title: "Error", description: "Unsupported authentication method.", variant: "destructive" });
@@ -297,7 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       if (!response.ok) {
         // Even if logout API fails, clear client-side state
         const errorData = await response.json().catch(() => ({ message: "Failed to logout on server." }));

@@ -27,6 +27,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // @ts-ignore
   // console.log(`[SessionInit] Path: ${req.path}, serverDbConn valid: ${!!serverDbConn}, mongoClient valid: ${!!mongoClient}, serverDbConn readState: ${serverDbConn?.readyState}`);
 
+  const cookieSettings = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax' as 'lax' | 'strict' | 'none' | undefined, // Type assertion for 'lax'
+    maxAge: 14 * 24 * 60 * 60 * 1000
+  };
+  // @ts-ignore
+  console.log(`[SessionInit] Path: ${req.path}, isProduction: ${isProduction}, Cookie Settings: ${JSON.stringify(cookieSettings)}`);
+
 
   if (serverDbConn && mongoClient) {
     const serverSpecificSession = session({
@@ -39,12 +48,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
         autoRemove: 'native', // Default
         // collectionName: 'sessions' // Default collection name is 'sessions'
       }),
-      cookie: {
-        httpOnly: true,
-        secure: isProduction, // Explicitly use the isProduction variable
-        sameSite: 'lax',
-        maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
-      }
+      cookie: cookieSettings
     });
     serverSpecificSession(req, res, next); // Apply the session middleware for this request
   } else {
