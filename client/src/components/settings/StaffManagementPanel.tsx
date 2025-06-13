@@ -55,6 +55,22 @@ const StaffManagementPanel = () => {
     }
   };
 
+  const handleResendInvitation = async (staffId: string) => {
+    try {
+      const response = await fetch(`/api/staff/invitations/${staffId}/resend`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to resend invitation');
+      }
+      // Optionally, show a success toast to the user
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    } catch (error) {
+      console.error(error);
+      // Optionally, show an error toast
+    }
+  };
+
   return (
     <>
       <Card>
@@ -100,9 +116,20 @@ const StaffManagementPanel = () => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openConfirmationDialog(member)}>
-                            Remove Staff Member
-                          </DropdownMenuItem>
+                          {member.status === 'Pending Invitation' ? (
+                            <>
+                              <DropdownMenuItem onClick={() => handleResendInvitation(member._id)}>
+                                Resend Invitation
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openConfirmationDialog(member)}>
+                                Cancel Invitation
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <DropdownMenuItem onClick={() => openConfirmationDialog(member)}>
+                              Remove Staff Member
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -125,12 +152,16 @@ const StaffManagementPanel = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove {selectedStaffMember?.email}? This will revoke all their access immediately and cannot be undone.
+              {selectedStaffMember?.status === 'Pending Invitation'
+                ? `Are you sure you want to cancel the invitation for ${selectedStaffMember?.email}?`
+                : `Are you sure you want to remove ${selectedStaffMember?.email}? This will revoke all their access immediately and cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedStaffMember(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemove}>Remove</AlertDialogAction>
+            <AlertDialogAction onClick={handleRemove}>
+              {selectedStaffMember?.status === 'Pending Invitation' ? 'Confirm' : 'Remove'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

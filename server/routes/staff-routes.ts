@@ -133,8 +133,8 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
       _id: invitation._id,
       email: invitation.email,
       role: invitation.role,
-      date: invitation.createdAt, // Use createdAt for the date
-      status: 'Pending' // Set status to 'Pending'
+      createdAt: invitation.createdAt,
+      status: 'Pending Invitation'
     }));
 
     const allStaff = [...staff, ...pendingInvitations];
@@ -206,53 +206,92 @@ router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request,
   }
 });
 
-router.delete('/:userId', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  const removerUser = req.currentUser!;
+router.post('/invitations/:id/resend', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        const InvitationModel = req.serverDbConnection!.model('Invitation', Invitation.schema);
+        const invitation = await InvitationModel.findById(id);
 
-  try {
-    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const userToRemove = await Staff.findById(userId);
-
-    if (!userToRemove) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    if (removerUser.role === 'Admin' && (userToRemove.role === 'Admin' || userToRemove.role === 'Super Admin')) {
-      return res.status(403).json({ message: 'Admins can only remove Moderators and Helpers.' });
-    }
-
-    if (removerUser.userId === userId) {
-      return res.status(400).json({ message: 'You cannot remove yourself.' });
-    }
-
-    await Staff.findByIdAndDelete(userId);
-
-    // Invalidate sessions for the removed user
-    // This is a simplified example. In a real-world scenario, you might have a more robust session management system.
-    // @ts-ignore
-    const sessionStore = req.sessionStore;
-    sessionStore.all((err: any, sessions: { [x: string]: any; }) => {
-      if (err) {
-        console.error('Error fetching sessions:', err);
-        return;
-      }
-      Object.keys(sessions).forEach(sid => {
-        if (sessions[sid].userId === userId) {
-          sessionStore.destroy(sid, (err: any) => {
-            if (err) {
-              console.error(`Error destroying session ${sid}:`, err);
-            }
-          });
+        if (!invitation) {
+            return res.status(404).json({ message: 'Invitation not found.' });
         }
-      });
-    });
 
-    res.status(200).json({ message: 'User removed successfully.' });
-  } catch (error) {
-    console.error('Error removing staff:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+        invitation.token = crypto.randomBytes(32).toString('hex');
+        invitation.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        await invitation.save();
+
+        const appDomain = process.env.APP_DOMAIN || "modl.gg";
+        const invitationLink = `https://${req.subdomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
+        const mailOptions = {
+            from: '"modl" <noreply@cobl.gg>',
+            to: invitation.email,
+            subject: 'You have been invited to join the team!',
+            text: `Please accept your invitation by clicking the following link: ${invitationLink}`,
+            html: `<p>Please accept your invitation by clicking the following link: <a href="${invitationLink}">${invitationLink}</a></p>`,
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({ message: 'Invitation resent successfully.' });
+    } catch (error) {
+        console.error('Error resending invitation:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const removerUser = req.currentUser!;
+
+    try {
+        const InvitationModel = req.serverDbConnection!.model('Invitation');
+        const invitationResult = await InvitationModel.deleteOne({ _id: id });
+
+        if (invitationResult.deletedCount > 0) {
+            return res.status(200).json({ message: 'Invitation cancelled successfully.' });
+        }
+
+        const Staff = req.serverDbConnection!.model<IStaff>('Staff');
+        const userToRemove = await Staff.findById(id);
+
+        if (!userToRemove) {
+            return res.status(404).json({ message: 'User or invitation not found.' });
+        }
+
+        if (removerUser.role === 'Admin' && (userToRemove.role === 'Admin' || userToRemove.role === 'Super Admin')) {
+            return res.status(403).json({ message: 'Admins can only remove Moderators and Helpers.' });
+        }
+
+        if (removerUser.userId === id) {
+            return res.status(400).json({ message: 'You cannot remove yourself.' });
+        }
+
+        await Staff.findByIdAndDelete(id);
+
+        // Invalidate sessions for the removed user
+        const sessionStore = req.sessionStore;
+        sessionStore.all((err: any, sessions: { [x: string]: any; }) => {
+            if (err) {
+                console.error('Error fetching sessions:', err);
+                return;
+            }
+            Object.keys(sessions).forEach(sid => {
+                if (sessions[sid].userId === id) {
+                    sessionStore.destroy(sid, (err: any) => {
+                        if (err) {
+                            console.error(`Error destroying session ${sid}:`, err);
+                        }
+                    });
+                }
+            });
+        });
+
+        res.status(200).json({ message: 'User removed successfully.' });
+    } catch (error) {
+        console.error('Error removing staff:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 router.get('/invitations/accept', async (req: Request, res: Response) => {
