@@ -116,6 +116,9 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
   if (storedEntry.code === code) {
     emailVerificationCodes.delete(email); // Code verified, remove it
 
+    // @ts-ignore
+    console.log(`[AUTH_DEBUG] Inside /verify-email-code for ${email}. req.serverDbConnection name: ${req.serverDbConnection?.name}, readyState: ${req.serverDbConnection?.readyState}`);
+
     const user = await Staff.findOne({ email });
     if (!user) {
       console.log(`[AUTH_DEBUG] User not found for email ${email} after code verification.`);
