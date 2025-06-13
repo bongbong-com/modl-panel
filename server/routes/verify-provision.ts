@@ -50,10 +50,40 @@ export async function provisionNewServerInstance(
   // Example: Seed initial settings
   const SettingsModel = dbConnection.model('Settings');
   const existingSettings = await SettingsModel.findOne();
+  const punishmentTypes = [
+        { ordinal: 0, name: 'Kick', category: 'Gameplay' },
+        { ordinal: 1, name: 'Manual Mute', category: 'Social' },
+        { ordinal: 2, name: 'Manual Ban', category: 'Gameplay' },
+        { ordinal: 3, name: 'Security Ban', category: 'Gameplay' },
+        { ordinal: 4, name: 'Linked Ban', category: 'Gameplay' },
+        { ordinal: 5, name: 'Blacklist', category: 'Gameplay' },
+        { ordinal: 6, name: 'Bad Skin', category: 'Social' },
+        { ordinal: 7, name: 'Bad Name', category: 'Social' },
+        { ordinal: 8, name: 'Chat Abuse', category: 'Social' },
+        { ordinal: 9, name: 'Anti Social', category: 'Social' },
+        { ordinal: 10, name: 'Targeting', category: 'Social' },
+        { ordinal: 11, name: 'Bad Content', category: 'Social' },
+        { ordinal: 12, name: 'Team Abuse', category: 'Gameplay' },
+        { ordinal: 13, name: 'Game Abuse', category: 'Gameplay' },
+        { ordinal: 14, name: 'Cheating', category: 'Gameplay' },
+        { ordinal: 15, name: 'Game Trading', category: 'Gameplay' },
+        { ordinal: 16, name: 'Account Abuse', category: 'Gameplay' },
+        { ordinal: 17, name: 'Scamming', category: 'Social' }
+      ];
+
   if (!existingSettings) {
-    await SettingsModel.create({ settings: new Map([['initialSetup', true]]) });
-    // console.log(`Initial settings seeded for ${serverName}`);
+    const settings = new Settings({
+      settings: new Map()
+    });
+    settings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+    await settings.save();
+    console.log('Initialized punishment types in settings');
+  } else if (!existingSettings.settings.has('punishmentTypes')) {
+    existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+    await existingSettings.save();
+    console.log('Added punishment types to existing settings');
   }
+    
 
   // After successful provisioning, update the ModlServer document in the global DB
   const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
