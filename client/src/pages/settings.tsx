@@ -344,7 +344,10 @@ const Settings = () => {
     console.log("[SettingsPage] Applying settings from server to state");
     
     // Use direct state setters to avoid triggering auto-save during load
-    if (settingsObject.punishmentTypes) setPunishmentTypesState(JSON.parse(JSON.stringify(settingsObject.punishmentTypes)));
+    if (settingsObject.punishmentTypes) {
+      const pt = settingsObject.punishmentTypes;
+      setPunishmentTypesState(typeof pt === 'string' ? JSON.parse(pt) : JSON.parse(JSON.stringify(pt)));
+    }
     if (settingsObject.statusThresholds) setStatusThresholdsState(JSON.parse(JSON.stringify(settingsObject.statusThresholds)));
     if (settingsObject.aiModeration !== undefined) setAiModerationState(settingsObject.aiModeration);
     if (settingsObject.aiChat !== undefined) setAiChatState(settingsObject.aiChat);
@@ -354,9 +357,18 @@ const Settings = () => {
     if (settingsObject.toxicity !== undefined) setToxicityState(settingsObject.toxicity);
     if (settingsObject.spam !== undefined) setSpamState(settingsObject.spam);
     if (settingsObject.automated !== undefined) setAutomatedState(settingsObject.automated);
-    if (settingsObject.bugReportTags) setBugReportTagsState(JSON.parse(JSON.stringify(settingsObject.bugReportTags)));
-    if (settingsObject.playerReportTags) setPlayerReportTagsState(JSON.parse(JSON.stringify(settingsObject.playerReportTags)));
-    if (settingsObject.appealTags) setAppealTagsState(JSON.parse(JSON.stringify(settingsObject.appealTags)));
+    if (settingsObject.bugReportTags) {
+      const brt = settingsObject.bugReportTags;
+      setBugReportTagsState(typeof brt === 'string' ? JSON.parse(brt) : JSON.parse(JSON.stringify(brt)));
+    }
+    if (settingsObject.playerReportTags) {
+      const prt = settingsObject.playerReportTags;
+      setPlayerReportTagsState(typeof prt === 'string' ? JSON.parse(prt) : JSON.parse(JSON.stringify(prt)));
+    }
+    if (settingsObject.appealTags) {
+      const at = settingsObject.appealTags;
+      setAppealTagsState(typeof at === 'string' ? JSON.parse(at) : JSON.parse(JSON.stringify(at)));
+    }
     if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
     if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
     if (settingsObject.hasPasskey !== undefined) setHasPasskeyState(settingsObject.hasPasskey);
