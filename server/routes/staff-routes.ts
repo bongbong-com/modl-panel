@@ -3,7 +3,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { ModlServerSchema } from '../models/modl-global-schemas';
+// ModlServerSchema is not directly used here anymore for model creation
+// import { ModlServerSchema } from '../models/modl-global-schemas';
+import { getModlServersModel } from '../db/connectionManager';
 
 // Interfaces based on Mongoose schema and usage
 interface IPasskey {
@@ -95,7 +97,7 @@ router.get('/check-email/:email', async (req: Request<{ email: string }>, res: R
     // If not found in Staff, check if it's the main admin email for this server
     // This requires accessing the 'modl' database's 'servers' collection
     try {
-      const ModlServer = mongoose.model<IModlServer>('Server', ModlServerSchema);
+      const ModlServer = await getModlServersModel();
       const serverConfig = await ModlServer.findOne({ serverName: req.serverName });
 
       if (serverConfig && serverConfig.adminEmail.toLowerCase() === requestedEmail) {
