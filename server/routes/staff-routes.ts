@@ -167,7 +167,8 @@ router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request,
 
     await newInvitation.save();
 
-    const invitationLink = `https://localhost:5173/accept-invitation?token=${token}`;
+    const appDomain = process.env.APP_DOMAIN || "modl.gg";
+    const invitationLink = `https://${req.subdomain}.${appDomain}/accept-invitation?token=${token}`;
     const mailOptions = {
       from: '"modl" <noreply@cobl.gg>',
       to: email,
