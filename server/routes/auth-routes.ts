@@ -122,24 +122,41 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
     const user = await StaffModel.findOne({ email });
     if (!user) {
       // @ts-ignore
-      const serverConfigAdminEmail = req.serverConfig?.adminEmail;
-      console.log(`[AUTH_DEBUG] User not found for email ${email} in Staff collection. req.serverConfig.adminEmail: ${serverConfigAdminEmail}`);
-      return res.status(404).json({ message: 'User not found after code verification.' });
+      const serverConfigAdminEmail = req.serverConfig?.adminEmail?.toLowerCase();
+      if (email.toLowerCase() === serverConfigAdminEmail) {
+        // This is the server admin, create a session for them
+        console.log(`[AUTH_DEBUG] Verified server admin email ${email}. Creating admin session.`);
+        req.session.email = email;
+        req.session.admin = true;
+        // Derive username and userId for admin session
+        const username = email.split('@')[0] || 'admin';
+        req.session.username = username;
+        req.session.userId = email; // Using email as userId for global admin
+
+        await req.session.save();
+        return res.status(200).json({
+          message: 'Admin email verified successfully. Logged in.',
+          user: { id: email, email: email, username: username, admin: true }
+        });
+      } else {
+        console.log(`[AUTH_DEBUG] User not found for email ${email} in Staff collection and does not match server admin email.`);
+        return res.status(404).json({ message: 'User not found after code verification.' });
+      }
+    } else {
+      // Store user information in session for regular staff member
+      req.session.userId = user._id.toString();
+      req.session.email = user.email;
+      req.session.username = user.username;
+      req.session.admin = user.admin;
+
+      await req.session.save(); // Ensure session is saved before responding
+
+      console.log(`[AUTH_DEBUG] Session created for user ${user.username}. Sending 200 response for /api/auth/verify-email-code (success)`);
+      return res.status(200).json({
+        message: 'Email verified successfully. Logged in.',
+        user: { id: user._id.toString(), email: user.email, username: user.username, admin: user.admin }
+      });
     }
-
-    // Store user information in session
-    req.session.userId = user._id.toString();
-    req.session.email = user.email;
-    req.session.username = user.username;
-    req.session.admin = user.admin;
-
-    await req.session.save(); // Ensure session is saved before responding
-
-    console.log(`[AUTH_DEBUG] Session created for user ${user.username}. Sending 200 response for /api/auth/verify-email-code (success)`);
-    return res.status(200).json({
-      message: 'Email verified successfully. Logged in.',
-      user: { id: user._id, email: user.email, username: user.username, admin: user.admin }
-    });
   } else {
     console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (invalid code)`);
     return res.status(400).json({ message: 'Invalid verification code.' });
