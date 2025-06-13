@@ -9,6 +9,7 @@ import {
 } from '@simplewebauthn/server';
 import type { GenerateAssertionOptionsOpts } from '@simplewebauthn/server';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
+import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
 
 
 const rpID = 'localhost';
@@ -47,7 +48,7 @@ function generateNumericCode(length: number = 6): string {
 }
 
 // Route to send email verification code
-router.post('/send-email-code', async (req: Request, res: Response) => {
+router.post('/send-email-code', strictRateLimit, async (req: Request, res: Response) => {
   const { email } = req.body;
 
   if (!email) {
@@ -77,7 +78,7 @@ router.post('/send-email-code', async (req: Request, res: Response) => {
 });
 
 // Route to verify email code
-router.post('/verify-email-code', async (req: Request, res: Response) => {
+router.post('/verify-email-code', authRateLimit, async (req: Request, res: Response) => {
   const { email, code } = req.body;
 
   if (!email || !code) {
@@ -148,7 +149,7 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
 });
 
 // Route to verify 2FA code
-router.post('/verify-2fa-code', async (req: Request, res: Response) => {
+router.post('/verify-2fa-code', authRateLimit, async (req: Request, res: Response) => {
   const { email, code } = req.body;
 
   if (!email || !code) {
@@ -197,7 +198,7 @@ router.post('/verify-2fa-code', async (req: Request, res: Response) => {
 });
 
 // Route to generate FIDO assertion options (challenge) for login
-router.post('/fido-login-challenge', async (req: Request, res: Response) => {
+router.post('/fido-login-challenge', authRateLimit, async (req: Request, res: Response) => {
   const { email } = req.body;
 
   if (!email) {
@@ -243,7 +244,7 @@ router.post('/fido-login-challenge', async (req: Request, res: Response) => {
 });
 
 // Route to verify FIDO assertion for login
-router.post('/fido-login-verify', async (req: Request, res: Response) => {
+router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Response) => {
   const { email, assertionResponse } = req.body;
 
   if (!email || !assertionResponse) {

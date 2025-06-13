@@ -11,6 +11,7 @@ import {
   settingsSchema
 } from '../models/mongodb-schemas';
 import { ModlServerSchema } from '../models/modl-global-schemas';
+import { strictRateLimit } from '../middleware/rate-limiter';
 
 interface IModlServer extends Document {
   serverName: string;
@@ -86,7 +87,7 @@ export async function provisionNewServerInstance(
 }
 
 export function setupVerificationAndProvisioningRoutes(app: Express) {
-  app.get('/verify-email', async (req: Request, res: Response) => {
+  app.get('/verify-email', strictRateLimit, async (req: Request, res: Response) => {
     const token = req.query.token as string;
 
     if (!token) {

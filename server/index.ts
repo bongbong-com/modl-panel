@@ -4,6 +4,7 @@ import MongoStore from "connect-mongo";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware";
+import { globalRateLimit } from "./middleware/rate-limiter";
 
 const app = express();
 app.use(express.json());
@@ -11,10 +12,13 @@ app.use(express.urlencoded({ extended: false }));
 
 // If running behind a reverse proxy (like Nginx, Cloudflare, etc.) in production,
 // trust the first proxy hop to correctly identify the protocol (HTTP/HTTPS).
-// This is important for 'secure' cookies.
+// This is important for 'secure' cookies and rate limiting by IP.
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1); // Adjust the number of hops if needed
 }
+
+// Apply global rate limiting to all requests
+app.use(globalRateLimit);
 
 const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
 const isProduction = process.env.NODE_ENV === 'production';

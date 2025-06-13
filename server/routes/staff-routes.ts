@@ -6,6 +6,7 @@ import { checkRole } from '../middleware/role-middleware';
 import { Invitation } from '../models/invitation-schema';
 import nodemailer from 'nodemailer';
 import { getModlServersModel } from '../db/connectionManager';
+import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
 
 interface IPasskey {
   credentialID: Buffer; // Changed from string, made required
@@ -112,7 +113,7 @@ router.get('/check-username/:username', async (req: Request<{ username: string }
   }
 });
 
-router.get('/invitations/accept', async (req: Request, res: Response) => {
+router.get('/invitations/accept', strictRateLimit, async (req: Request, res: Response) => {
   const { token } = req.query;
 
   if (!token) {
@@ -199,7 +200,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   const { email, role } = req.body;
   const invitingUser = req.currentUser!;
 
@@ -252,7 +253,7 @@ router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request,
   }
 });
 
-router.post('/invitations/:id/resend', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invitations/:id/resend', authRateLimit, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
       try {
         const db = req.serverDbConnection!;
         const InvitationModel = db.model('Invitation');
