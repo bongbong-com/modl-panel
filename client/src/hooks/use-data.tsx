@@ -215,12 +215,27 @@ export function useSettings() {
   return useQuery({
     queryKey: ['/api/settings'],
     queryFn: async () => {
-      const res = await fetch('/api/settings');
-      if (!res.ok) {
-        throw new Error('Failed to fetch settings');
+      console.log('[useSettings] Fetching /api/settings...');
+      try {
+        const res = await fetch('/api/settings');
+        console.log('[useSettings] Response status:', res.status, res.statusText);
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => 'Could not read error response text');
+          console.error('[useSettings] Fetch failed:', res.status, errorText);
+          throw new Error(`Failed to fetch settings. Status: ${res.status}. Response: ${errorText}`);
+        }
+
+        const responseText = await res.text();
+        console.log('[useSettings] Raw response text:', responseText);
+
+        const data = JSON.parse(responseText);
+        console.log('[useSettings] Parsed data:', data);
+        return data;
+      } catch (error) {
+        console.error('[useSettings] Error in queryFn:', error);
+        throw error; // Re-throw to let React Query handle it
       }
-      const data = await res.json();
-      return data;
     },
     // Modified options to improve behavior when returning to settings page
     staleTime: 0, // Consider data stale immediately - this ensures refetch when returning to the page
