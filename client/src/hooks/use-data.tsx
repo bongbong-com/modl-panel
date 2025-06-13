@@ -215,25 +215,25 @@ export function useSettings() {
   return useQuery({
     queryKey: ['/api/settings'],
     queryFn: async () => {
-      console.log('[useSettings] Fetching /api/settings...');
+      // console.log('[useSettings] Fetching /api/settings...'); // Removed
       try {
         const res = await fetch('/api/settings');
-        console.log('[useSettings] Response status:', res.status, res.statusText);
+        // console.log('[useSettings] Response status:', res.status, res.statusText); // Removed
 
         if (!res.ok) {
           const errorText = await res.text().catch(() => 'Could not read error response text');
-          console.error('[useSettings] Fetch failed:', res.status, errorText);
+          // console.error('[useSettings] Fetch failed:', res.status, errorText); // Removed
           throw new Error(`Failed to fetch settings. Status: ${res.status}. Response: ${errorText}`);
         }
 
         const responseText = await res.text();
-        console.log('[useSettings] Raw response text:', responseText);
+        // console.log('[useSettings] Raw response text:', responseText); // Removed
 
         const data = JSON.parse(responseText);
-        console.log('[useSettings] Parsed data:', data);
+        // console.log('[useSettings] Parsed data:', data); // Removed
         return data;
       } catch (error) {
-        console.error('[useSettings] Error in queryFn:', error);
+        // console.error('[useSettings] Error in queryFn:', error); // Removed
         throw error; // Re-throw to let React Query handle it
       }
     },

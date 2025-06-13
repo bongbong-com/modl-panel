@@ -455,24 +455,30 @@ const Settings = () => {
     }
 
     // Log the raw settingsData received from the hook
-    console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData);
+    // console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData); // Removed
 
-    if (!initialLoadCompletedRef.current) {
-      if (settingsData?.settings && Object.keys(settingsData.settings).length > 0) {
-        console.log('[SettingsPage] Valid settingsData.settings received. Applying to local state.');
-        applySettingsObjectToState(settingsData.settings);
-        
-        // Capture settings for future reference
-        setTimeout(() => {
-          captureInitialSettings();
-          initialLoadCompletedRef.current = true;
-        }, 600);
-      } else {
-        console.log('[SettingsPage] No valid settings data received (or settingsData.settings is empty/undefined). Raw data was logged above. Marking initial load as complete anyway.');
+    // console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData); // Already removed
+
+    if (settingsData?.settings && Object.keys(settingsData.settings).length > 0 && !initialLoadCompletedRef.current) {
+      console.log('[SettingsPage] Valid settingsData.settings received for the first time. Applying to local state.');
+      applySettingsObjectToState(settingsData.settings); // Call directly
+      
+      // Capture settings for future reference and mark initial load as complete
+      // This timeout ensures state updates from applySettingsObjectToState have settled
+      // before capturing and enabling auto-save.
+      setTimeout(() => {
+        console.log('[SettingsPage] Capturing initial settings snapshot after data load.');
+        captureInitialSettings(); // Call directly
         initialLoadCompletedRef.current = true;
-      }
+        console.log('[SettingsPage] Initial load process fully complete after timeout.');
+      }, 600); // Delay to ensure state updates propagate
+    } else if (!settingsData?.settings && !initialLoadCompletedRef.current && !isLoadingSettings && !isFetchingSettings) {
+      // This case handles if the API returns no settings (e.g. empty object) on the first load
+      console.log('[SettingsPage] No valid settings data received on first successful fetch, or data was empty. Marking initial load as complete.');
+      initialLoadCompletedRef.current = true;
     }
-  }, [settingsData, isLoadingSettings, isFetchingSettings, applySettingsObjectToState, captureInitialSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsData, isLoadingSettings, isFetchingSettings]); // Removed applySettingsObjectToState and captureInitialSettings
 
   // Debounced auto-save effect - only trigger when settings change after initial load
   useEffect(() => {
