@@ -61,16 +61,14 @@ export async function provisionNewServerInstance(
         { ordinal: 15, name: 'Game Trading', category: 'Gameplay' },
         { ordinal: 16, name: 'Account Abuse', category: 'Gameplay' },
         { ordinal: 17, name: 'Scamming', category: 'Social' }
-      ];
-
-  if (!existingSettings) {
+      ];  if (!existingSettings) {
     const settings = new Settings({
       settings: new Map()
     });
-    settings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+    settings.settings!.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await settings.save();
     console.log('Initialized punishment types in settings');
-  } else if (!existingSettings.settings.has('punishmentTypes')) {
+  } else if (existingSettings.settings && !existingSettings.settings.has('punishmentTypes')) {
     existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await existingSettings.save();
     console.log('Added punishment types to existing settings');
