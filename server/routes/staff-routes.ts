@@ -133,8 +133,8 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
       _id: invitation._id,
       email: invitation.email,
       role: invitation.role,
-      createdAt: invitation.createdAt,
-      status: 'Pending Invitation'
+      date: invitation.createdAt, // Use createdAt for the date
+      status: 'Pending' // Set status to 'Pending'
     }));
 
     const allStaff = [...staff, ...pendingInvitations];
