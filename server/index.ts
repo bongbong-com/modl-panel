@@ -27,7 +27,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       saveUninitialized: false,
       store: MongoStore.create({
         // @ts-ignore
-        client: req.serverDbConnection.getClient(), // Use the MongoDB client from the Mongoose connection
+        mongooseConnection: req.serverDbConnection, // Use the Mongoose connection directly
         ttl: 14 * 24 * 60 * 60, // 14 days
         autoRemove: 'native', // Default
         // collectionName: 'sessions' // Default collection name is 'sessions'
