@@ -344,7 +344,7 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
 // Route to check session status
 router.get('/session', (req: Request, res: Response) => {
   // @ts-ignore
-  console.log(`[AUTH_DEBUG] /api/auth/session called. Cookies: ${JSON.stringify(req.headers.cookie)}, Session ID: ${req.sessionID}, Session UserID: ${req.session?.userId}, Full session: ${JSON.stringify(req.session)}`);
+  // console.log(`[AUTH_DEBUG] /api/auth/session called. Cookies: ${JSON.stringify(req.headers.cookie)}, Session ID: ${req.sessionID}, Session UserID: ${req.session?.userId}, Full session: ${JSON.stringify(req.session)}`);
   if (req.session && req.session.userId) {
     return res.status(200).json({
       isAuthenticated: true,

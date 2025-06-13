@@ -41,7 +41,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     maxAge: 14 * 24 * 60 * 60 * 1000
   };
   // @ts-ignore
-  console.log(`[SessionInit] Path: ${req.path}, isProduction: ${isProduction}, Cookie Settings: ${JSON.stringify(cookieSettings)}`);
+  // console.log(`[SessionInit] Path: ${req.path}, isProduction: ${isProduction}, Cookie Settings: ${JSON.stringify(cookieSettings)}`);
 
 
   if (serverDbConn && mongoClient) {
