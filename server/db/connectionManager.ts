@@ -126,12 +126,14 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   try {
     const newConnection = mongoose.createConnection(serverDbUri);
     registerTenantModels(newConnection);
+    console.log(`[connectionManager] Attempting to connect to URI: ${serverDbUri} for DB: ${actualDbNameForConnection}, Key: ${connectionKeyInMap}`);
     await newConnection.openUri(serverDbUri);
+    console.log(`[connectionManager] Successfully connected to URI: ${serverDbUri} for DB: ${actualDbNameForConnection}, Key: ${connectionKeyInMap}. Connection state: ${newConnection.readyState}`);
 
     serverConnections.set(connectionKeyInMap, newConnection);
     return newConnection;
   } catch (error) {
-    console.error(`Error connecting to database (Target DB: ${actualDbNameForConnection}, URI: ${serverDbUri}, Connection Key: ${connectionKeyInMap}):`, error);
+    console.error(`[connectionManager] Error connecting to database (Target DB: ${actualDbNameForConnection}, URI: ${serverDbUri}, Connection Key: ${connectionKeyInMap}):`, error);
     throw error;
   }
 }

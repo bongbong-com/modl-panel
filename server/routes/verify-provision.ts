@@ -40,7 +40,13 @@ export async function provisionNewServerInstance(
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
 
+  console.log(`[verify-provision] Provisioning for server: ${serverName}. DB Connection name: ${dbConnection.name}, state: ${dbConnection.readyState}`);
+  // Log default mongoose connection state for comparison
+  console.log(`[verify-provision] Default Mongoose connection state: ${mongoose.connection.readyState}`);
+  
   const Settings = mongoose.model('Settings', settingsSchema);
+  console.log(`[verify-provision] 'Settings' model is associated with connection: ${Settings.db.name}, state: ${Settings.db.readyState}`);
+  
   const existingSettings = await Settings.findOne();
   const punishmentTypes = [
         { ordinal: 0, name: 'Kick', category: 'Gameplay' },

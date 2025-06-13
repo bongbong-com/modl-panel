@@ -1,6 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
-import { createSystemLog } from './log-routes'; // Import from .ts file
 import { isAuthenticated } from '../middleware/auth-middleware';
 
 interface INote {
