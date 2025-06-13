@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.admin !== undefined) {
+  if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.role !== undefined) {
     // User is authenticated and session has all required fields
     req.currentUser = {
       userId: req.session.userId,
       email: req.session.email,
       username: req.session.username,
-      admin: req.session.admin,
+      role: req.session.role,
     };
     return next();
   } else {

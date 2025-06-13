@@ -48,15 +48,6 @@ const punishmentSchema = new Schema({
   data: { type: Map, of: mongoose.Schema.Types.Mixed }
 });
 
-const passkeySchema = new Schema({
-  credentialID: { type: Buffer, required: true },
-  credentialPublicKey: { type: Buffer, required: true },
-  counter: { type: Number, required: true },
-  transports: [{ type: String }],
-  aaguid: { type: String },
-  createdAt: { type: Date, default: Date.now }
-});
-
 const replySchema = new Schema({
   name: { type: String, required: true },
   content: { type: String, required: true },
@@ -81,13 +72,13 @@ const staffSchema = new Schema({
   _id: { type: String },
   email: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
   profilePicture: { type: String },
-  admin: { type: Boolean, default: false },
-  twoFaSecret: { type: String },
-  isTwoFactorEnabled: { type: Boolean, default: false },
-  passkeys: [passkeySchema]
-});
+  role: {
+    type: String,
+    required: true,
+    enum: ['Super Admin', 'Admin', 'Moderator', 'Helper'],
+  }
+}, { timestamps: true });
 
 const ticketSchema = new Schema({
   _id: { type: String },
@@ -178,7 +169,6 @@ export {
   ipAddressSchema,
   modificationSchema,
   punishmentSchema,
-  passkeySchema,
   replySchema,
   formFieldSchema,
   formTemplateSchema

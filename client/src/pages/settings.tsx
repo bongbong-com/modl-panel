@@ -20,6 +20,7 @@ import { useBeforeUnload } from 'react-router-dom';
 import { useLocation } from "wouter"; // For wouter navigation
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from '@/hooks/use-auth';
+import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -1765,12 +1766,14 @@ const Settings = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="staff">
-              <CardContent className="p-6">
+            <TabsContent value="staff" className="p-6">
+              {(user?.role === 'Super Admin' || user?.role === 'Admin') ? (
+                <StaffManagementPanel />
+              ) : (
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
-                  <p className="text-muted-foreground">Staff Management Panel</p>
+                  <p className="text-muted-foreground">You do not have permission to view this page.</p>
                 </div>
-              </CardContent>
+              )}
             </TabsContent>
           </Tabs>
         </Card>

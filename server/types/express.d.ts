@@ -8,7 +8,7 @@ declare global {
       id: string;
       email: string;
       username: string;
-      admin: boolean;
+      role: string;
     }
     interface Request {
       serverDbConnection?: Connection;
@@ -18,13 +18,13 @@ declare global {
         userId?: string;
         email?: string;
         username?: string;
-        admin?: boolean;
+        role?: string;
       };
       currentUser?: { // Add this for strongly-typed session user info
         userId: string;
         email: string;
         username: string;
-        admin: boolean;
+        role: string;
       };
     }
   }

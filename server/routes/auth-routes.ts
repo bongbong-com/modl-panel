@@ -109,7 +109,7 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
         // @ts-ignore
         req.session.email = email;
         // @ts-ignore
-        req.session.admin = true;
+        req.session.role = 'Super Admin';
         const username = email.split('@')[0] || 'admin';
         // @ts-ignore
         req.session.username = username;
@@ -119,7 +119,7 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
         await req.session.save();
         return res.status(200).json({
           message: 'Admin email verified successfully. Logged in.',
-          user: { id: email, email: email, username: username, admin: true }
+          user: { id: email, email: email, username: username, role: 'Super Admin' }
         });
       } else {
         return res.status(404).json({ message: 'User not found after code verification.' });
@@ -133,13 +133,13 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
       // @ts-ignore
       req.session.username = user.username;
       // @ts-ignore
-      req.session.admin = user.admin;
+      req.session.role = user.role;
 
       await req.session.save();
 
       return res.status(200).json({
         message: 'Email verified successfully. Logged in.',
-        user: { id: user._id.toString(), email: user.email, username: user.username, admin: user.admin }
+        user: { id: user._id.toString(), email: user.email, username: user.username, role: user.role }
       });
     }
   } else {
@@ -179,13 +179,13 @@ router.post('/verify-2fa-code', async (req: Request, res: Response) => {
       // @ts-ignore
       req.session.username = user.username;
       // @ts-ignore
-      req.session.admin = user.admin;
+      req.session.role = user.role;
 
       await req.session.save();
 
       return res.status(200).json({
         message: '2FA code verified successfully. Logged in.',
-        user: { id: user._id, email: user.email, username: user.username, admin: user.admin }
+        user: { id: user._id, email: user.email, username: user.username, role: user.role }
       });
     } else {
       return res.status(400).json({ message: 'Invalid 2FA code.' });
@@ -306,7 +306,7 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
       // @ts-ignore
       req.session.username = user.username;
       // @ts-ignore
-      req.session.admin = user.admin;
+      req.session.role = user.role;
 
       await req.session.save();
 
@@ -316,7 +316,7 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
           id: user._id,
           email: user.email,
           username: user.username,
-          admin: user.admin,
+          role: user.role,
         },
       });
     } else {
@@ -342,7 +342,7 @@ router.get('/session', (req: Request, res: Response) => {
         // @ts-ignore
         username: req.session.username,
         // @ts-ignore
-        admin: req.session.admin,
+        role: req.session.role,
       },
     });
   } else {

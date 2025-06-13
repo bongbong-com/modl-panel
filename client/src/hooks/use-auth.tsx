@@ -9,7 +9,7 @@ interface User {
   email: string;
   username: string;
   profilePicture?: string;
-  admin: boolean;
+  role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
 // Define the AuthContext type

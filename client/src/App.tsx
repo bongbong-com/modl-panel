@@ -22,6 +22,7 @@ import AuthPage from "@/pages/auth-page";
 import AppealsPage from "@/pages/appeals";
 import ApiDocs from "@/pages/api-docs";
 import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
+import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 
 function Router() {
   const [location] = useLocation();
@@ -31,9 +32,10 @@ function Router() {
   const isAppealsPage = location === '/appeals';
   const isPlayerTicketPage = location.startsWith('/player-ticket/');
   const isProvisioningPage = location === '/provisioning-in-progress';
+  const isAcceptInvitationPage = location.startsWith('/accept-invitation');
 
   // Don't show navigation on auth page, appeals page, player ticket page, or provisioning page
-  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage) {
+  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage || isAcceptInvitationPage) {
     return (
       <main className="h-full">
         <Switch>
@@ -41,6 +43,7 @@ function Router() {
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+          <Route path="/accept-invitation" component={AcceptInvitationPage} />
         </Switch>
       </main>
     );
