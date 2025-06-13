@@ -105,9 +105,6 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${req.serverName}.` });
     }
 
-    // @ts-ignore
-    console.log(`[DEBUG] SubdomainMiddleware: Before final next() for ${req.serverName}. Path: ${req.path}. DB Connection valid: ${!!req.serverDbConnection}`);
-
     const allowedPreVerificationPagePaths = [
         '/pending-verification',
         '/resend-verification',

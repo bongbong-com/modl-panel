@@ -442,6 +442,9 @@ const Settings = () => {
       return;
     }
 
+    // Log the raw settingsData received from the hook
+    console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData);
+
     if (!initialLoadCompletedRef.current) {
       if (settingsData?.settings && Object.keys(settingsData.settings).length > 0) {
         console.log('[SettingsPage] Valid settingsData.settings received. Applying to local state.');
@@ -453,7 +456,7 @@ const Settings = () => {
           initialLoadCompletedRef.current = true;
         }, 600);
       } else {
-        console.log('[SettingsPage] No valid settings data received, marking initial load as complete anyway');
+        console.log('[SettingsPage] No valid settings data received (or settingsData.settings is empty/undefined). Raw data was logged above. Marking initial load as complete anyway.');
         initialLoadCompletedRef.current = true;
       }
     }

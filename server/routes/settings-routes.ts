@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { Connection, Document as MongooseDocument } from 'mongoose'; // Renamed Document to MongooseDocument
+import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose'; // Renamed Document to MongooseDocument, Added HydratedDocument
 import { isAuthenticated } from '../middleware/auth-middleware';
 
 interface IDurationDetail {
@@ -72,7 +72,7 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 
 router.use(isAuthenticated);
 
-async function createDefaultSettings(dbConnection: Connection): Promise<ISettingsDocument> {
+async function createDefaultSettings(dbConnection: Connection): Promise<HydratedDocument<ISettingsDocument>> {
   try {
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const defaultSettingsMap = new Map<string, any>();
@@ -322,7 +322,11 @@ router.get('/api/settings', async (req: Request, res: Response) => {
     if (!settingsDoc) {
       settingsDoc = await createDefaultSettings(req.serverDbConnection!);
     }
-    res.json(settingsDoc ? settingsDoc.settings : {});
+    if (!settingsDoc) { // Should not happen if createDefaultSettings is successful
+        return res.status(500).json({ error: 'Failed to retrieve or create settings document' });
+    }
+    // Convert Map to object and wrap in a 'settings' key
+    res.json({ settings: Object.fromEntries(settingsDoc.settings) });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -335,6 +339,10 @@ router.patch('/api/settings', async (req: Request, res: Response) => {
     if (!settingsDoc) {
       settingsDoc = await createDefaultSettings(req.serverDbConnection!);
     }
+
+    if (!settingsDoc) { // Should not happen
+        return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
+    }
     
     for (const key in req.body) {
       if (Object.prototype.hasOwnProperty.call(req.body, key)) {
@@ -342,7 +350,8 @@ router.patch('/api/settings', async (req: Request, res: Response) => {
       }
     }
     await settingsDoc.save();
-    res.json(settingsDoc.settings);
+    // Convert Map to object and wrap in a 'settings' key
+    res.json({ settings: Object.fromEntries(settingsDoc.settings) });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -353,7 +362,8 @@ router.post('/api/settings/reset', async (req: Request, res: Response) => {
     const SettingsModel = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     await SettingsModel.deleteOne({});
     const defaultSettings = await createDefaultSettings(req.serverDbConnection!);
-    res.json(defaultSettings.settings);
+    // Convert Map to object and wrap in a 'settings' key
+    res.json({ settings: Object.fromEntries(defaultSettings.settings) });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -378,6 +388,9 @@ router.put('/api/settings/:key', async (req: Request<{ key: string }, {}, { valu
     let settingsDoc = await Settings.findOne({});
     if (!settingsDoc) {
       settingsDoc = await createDefaultSettings(req.serverDbConnection!);
+    }
+    if (!settingsDoc) { // Should not happen
+        return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
     }
     settingsDoc.settings.set(req.params.key, req.body.value);
     await settingsDoc.save();

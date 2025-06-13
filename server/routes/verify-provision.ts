@@ -43,12 +43,7 @@ export async function provisionNewServerInstance(
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
 
-  console.log(`[verify-provision] Provisioning for server: ${serverName}. DB Connection name: ${dbConnection.name}, state: ${dbConnection.readyState}`);
-  // Log default mongoose connection state for comparison
-  console.log(`[verify-provision] Default Mongoose connection state: ${mongoose.connection.readyState}`);
-  
-  const Settings = dbConnection.model('Settings'); // Use the tenant-specific connection
-  console.log(`[verify-provision] 'Settings' model is now associated with connection: ${Settings.db.name}, state: ${Settings.db.readyState}`);
+  const Settings = dbConnection.model('Settings');
   
   const existingSettings = await Settings.findOne();
   const punishmentTypes = [
@@ -76,11 +71,9 @@ export async function provisionNewServerInstance(
     });
     settings.settings!.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await settings.save();
-    console.log('Initialized punishment types in settings');
   } else if (existingSettings.settings && !existingSettings.settings.has('punishmentTypes')) {
     existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await existingSettings.save();
-    console.log('Added punishment types to existing settings');
   }
     
 
@@ -197,7 +190,6 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
               autoLoginSuccess = true;
               autoLoginMessage = `Server '${serverName}' is provisioned and you have been automatically logged in. Redirecting...`;
               responseUser = { id: adminEmail, email: adminEmail, username: username, admin: true };
-              console.log(`[verify-provision] Admin user ${adminEmail} for server ${serverName} automatically logged in after provisioning with valid token.`);
             } catch (sessionError: any) {
               console.error(`[verify-provision] Session save error for ${adminEmail} after provisioning ${serverName} (token was valid):`, sessionError);
               autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login failed due to session error: ${sessionError.message}`;
@@ -207,11 +199,7 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
             autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login setup error (session/email).`;
           }
         } else if (clientSignInToken) {
-          console.log(`[verify-provision] Auto-login for ${serverName} failed: Invalid, expired, or mismatched sign-in token.`);
           autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login failed (invalid/expired token). Please log in manually.`;
-        } else {
-          console.log(`[verify-provision] Auto-login for ${serverName} skipped: No sign-in token provided by client.`);
-          // autoLoginMessage remains the default "provisioned and ready"
         }
 
         // Clear the provisioning sign-in token regardless of login success to prevent reuse
@@ -256,7 +244,6 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
                 return;
             }
             await provisionNewServerInstance(serverDbConnection, server.customDomain, globalConnection, server._id.toString());
-            console.log(`Provisioning process initiated via API for ${server.serverName}.`);
           })
           .catch(async (err) => {
             console.error(`Error connecting to server DB or during provisioning for ${server.serverName}:`, err);
