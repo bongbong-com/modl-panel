@@ -23,8 +23,12 @@ export const globalRateLimit: RateLimitRequestHandler = rateLimit({
   handler: (req, res) => {
     console.log(`[RATE LIMIT] Global rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
     res.status(429).json({
-      error: 'Too many requests from this IP, please try again later.',
-      retryAfter: 60
+      error: 'You have exceeded the maximum number of requests allowed. Please slow down and try again in a minute.',
+      retryAfter: 60,
+      timeRemaining: '1 minute',
+      rateLimit: '200 requests per minute',
+      nextAttemptAt: new Date(Date.now() + 60000).toISOString(),
+      message: 'This limit helps ensure fair usage for all users and protects server performance.'
     });
   }
 });
@@ -34,8 +38,9 @@ export const strictRateLimit: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 1, // Limit each IP to 1 request per windowMs
   message: {
-    error: 'Rate limit exceeded for this sensitive endpoint. Please wait before trying again.',
-    retryAfter: 60
+    error: 'Only one request allowed per minute for this endpoint. Please wait before trying again.',
+    retryAfter: 60,
+    details: 'This strict limit helps prevent abuse of sensitive operations.'
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -45,10 +50,33 @@ export const strictRateLimit: RateLimitRequestHandler = rateLimit({
     return req.ip || req.connection.remoteAddress || 'unknown';
   },
   handler: (req, res) => {
+    const endpoint = req.path;
+    let userFriendlyMessage = '';
+    let securityNote = '';
+
+    // Customize message based on endpoint
+    if (endpoint.includes('verify-email')) {
+      userFriendlyMessage = 'Email verification can only be attempted once per minute. Please wait before trying again.';
+      securityNote = 'This prevents automated attacks on the email verification system.';
+    } else if (endpoint.includes('send-email-code')) {
+      userFriendlyMessage = 'Verification emails can only be requested once per minute. Please check your inbox and wait before requesting another.';
+      securityNote = 'This prevents email spam and protects our email delivery system.';
+    } else if (endpoint.includes('accept')) {
+      userFriendlyMessage = 'Invitation acceptance can only be attempted once per minute. Please wait before trying again.';
+      securityNote = 'This prevents abuse of the invitation system.';
+    } else {
+      userFriendlyMessage = 'This sensitive operation is limited to once per minute. Please wait before trying again.';
+      securityNote = 'Strict rate limiting helps protect against automated attacks.';
+    }
+
     console.log(`[RATE LIMIT] Strict rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
     res.status(429).json({
-      error: 'Rate limit exceeded for this sensitive endpoint. Please wait before trying again.',
-      retryAfter: 60
+      error: userFriendlyMessage,
+      retryAfter: 60,
+      timeRemaining: '1 minute',
+      securityNote: securityNote,
+      nextAttemptAt: new Date(Date.now() + 60000).toISOString(),
+      rateLimit: '1 request per minute'
     });
   }
 });
@@ -58,8 +86,9 @@ export const authRateLimit: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 10, // Limit each IP to 10 requests per windowMs
   message: {
-    error: 'Too many authentication attempts from this IP, please try again later.',
-    retryAfter: 60
+    error: 'Too many login attempts detected. For security reasons, please wait 1 minute before trying again.',
+    retryAfter: 60,
+    details: 'This protection helps prevent unauthorized access to your account.'
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -69,10 +98,38 @@ export const authRateLimit: RateLimitRequestHandler = rateLimit({
     return req.ip || req.connection.remoteAddress || 'unknown';
   },
   handler: (req, res) => {
+    const endpoint = req.path;
+    let userFriendlyMessage = '';
+    let securityNote = '';
+
+    // Customize message based on endpoint
+    if (endpoint.includes('send-email-code')) {
+      userFriendlyMessage = 'Too many email verification requests. Please wait 1 minute before requesting another code.';
+      securityNote = 'This helps prevent email spam and protects your account.';
+    } else if (endpoint.includes('verify-email-code')) {
+      userFriendlyMessage = 'Too many login code attempts. Please wait 1 minute before trying again.';
+      securityNote = 'Multiple failed attempts may indicate suspicious activity. Please ensure you are using the correct verification code.';
+    } else if (endpoint.includes('verify-2fa-code')) {
+      userFriendlyMessage = 'Too many 2FA verification attempts. Please wait 1 minute before trying again.';
+      securityNote = 'This protection helps secure your two-factor authentication setup.';
+    } else if (endpoint.includes('fido-login')) {
+      userFriendlyMessage = 'Too many passkey authentication attempts. Please wait 1 minute before trying again.';
+      securityNote = 'This helps protect against unauthorized passkey usage attempts.';
+    } else if (endpoint.includes('invite')) {
+      userFriendlyMessage = 'Too many staff invitation requests. Please wait 1 minute before sending another invitation.';
+      securityNote = 'This prevents spam and ensures proper invitation management.';
+    } else {
+      userFriendlyMessage = 'Too many authentication attempts. Please wait 1 minute before trying again.';
+      securityNote = 'This security measure helps protect against unauthorized access attempts.';
+    }
+
     console.log(`[RATE LIMIT] Auth rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
     res.status(429).json({
-      error: 'Too many authentication attempts from this IP, please try again later.',
-      retryAfter: 60
+      error: userFriendlyMessage,
+      retryAfter: 60,
+      timeRemaining: '1 minute',
+      securityNote: securityNote,
+      nextAttemptAt: new Date(Date.now() + 60000).toISOString()
     });
   }
 });
