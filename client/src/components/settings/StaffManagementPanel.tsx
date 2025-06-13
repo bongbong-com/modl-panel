@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,54 +32,51 @@ const StaffManagementPanel = () => {
     queryClient.invalidateQueries({ queryKey: ['staff'] });
   };
 
+  const { mutate: removeStaff } = useMutation({
+    mutationFn: (id: string) => axios.delete(`/api/staff/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast({ title: 'Success', description: 'Staff member has been removed.' });
+      setIsAlertOpen(false);
+      setSelectedStaffMember(null);
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to remove staff member.', variant: 'destructive' });
+      setIsAlertOpen(false);
+      setSelectedStaffMember(null);
+    }
+  });
+
+  const { mutate: resendInvitation } = useMutation({
+      mutationFn: (staffId: string) => axios.post(`/api/staff/invitations/${staffId}/resend`),
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['staff'] });
+          toast({
+              title: 'Success',
+              description: 'Invitation resent successfully.',
+          });
+      },
+      onError: (error: any) => {
+          toast({
+              title: 'Error',
+              description: error?.response?.data?.message || 'Failed to resend invitation.',
+              variant: 'destructive',
+          });
+      },
+  });
+
   const openConfirmationDialog = (member: StaffMember) => {
     setSelectedStaffMember(member);
     setIsAlertOpen(true);
   };
 
-  const handleRemove = async () => {
+  const handleRemove = () => {
     if (!selectedStaffMember) return;
-
-    try {
-      const response = await fetch(`/api/staff/${selectedStaffMember._id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to remove staff member');
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsAlertOpen(false);
-      setSelectedStaffMember(null);
-    }
+    removeStaff(selectedStaffMember._id);
   };
 
-  const handleResendInvitation = async (staffId: string) => {
-    try {
-      const response = await fetch(`/api/staff/invitations/${staffId}/resend`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to resend invitation' }));
-        throw new Error(errorData.message);
-      }
-      toast({
-        title: 'Success',
-        description: 'Invitation resent successfully.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Error',
-        description: (error as Error).message,
-        variant: 'destructive',
-      });
-    }
+  const handleResendInvitation = (staffId: string) => {
+    resendInvitation(staffId);
   };
 
   return (
@@ -116,7 +114,7 @@ const StaffManagementPanel = () => {
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.role}</TableCell>
                     <TableCell>{member.status}</TableCell>
-                    <TableCell>{member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{member.createdAt}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

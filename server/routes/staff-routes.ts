@@ -188,7 +188,7 @@ router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request,
     await newInvitation.save();
 
     const appDomain = process.env.APP_DOMAIN || "modl.gg";
-    const invitationLink = `https://${req.subdomain}.${appDomain}/accept-invitation?token=${token}`;
+    const invitationLink = `https://${req.serverInfo.customDomain}.${appDomain}/accept-invitation?token=${token}`;
     const mailOptions = {
       from: '"modl" <noreply@cobl.gg>',
       to: email,
@@ -223,7 +223,7 @@ router.post('/invitations/:id/resend', checkRole(['Super Admin', 'Admin']), asyn
 
         // Resend email logic (copy from the invite route)
         const appDomain = process.env.APP_DOMAIN || 'modl.gg';
-        const invitationLink = `https://${req.subdomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
+        const invitationLink = `https://${req.serverInfo.customDomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
         
         const mailOptions = {
           from: '"modl" <noreply@cobl.gg>',
