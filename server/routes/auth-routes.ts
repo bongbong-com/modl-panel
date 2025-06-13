@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import nodemailer from 'nodemailer';
-import { Staff } from '../models/mongodb-schemas';
+// Staff model will be obtained from req.serverDbConnection
+// import { Staff } from '../models/mongodb-schemas';
 import { randomBytes } from 'crypto';
 import { authenticator } from 'otplib';
 import {
@@ -117,9 +118,8 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
     emailVerificationCodes.delete(email); // Code verified, remove it
 
     // @ts-ignore
-    console.log(`[AUTH_DEBUG] Inside /verify-email-code for ${email}. req.serverDbConnection name: ${req.serverDbConnection?.name}, readyState: ${req.serverDbConnection?.readyState}`);
-
-    const user = await Staff.findOne({ email });
+    const StaffModel = req.serverDbConnection!.model('Staff');
+    const user = await StaffModel.findOne({ email });
     if (!user) {
       console.log(`[AUTH_DEBUG] User not found for email ${email} after code verification.`);
       return res.status(404).json({ message: 'User not found after code verification.' });
@@ -153,7 +153,9 @@ router.post('/verify-2fa-code', async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await Staff.findOne({ email });
+    // @ts-ignore
+    const StaffModel = req.serverDbConnection!.model('Staff');
+    const user = await StaffModel.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
@@ -197,7 +199,9 @@ router.post('/fido-login-challenge', async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await Staff.findOne({ email });
+    // @ts-ignore
+    const StaffModel = req.serverDbConnection!.model('Staff');
+    const user = await StaffModel.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
@@ -253,7 +257,9 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await Staff.findOne({ email });
+    // @ts-ignore
+    const StaffModel = req.serverDbConnection!.model('Staff');
+    const user = await StaffModel.findOne({ email });
     if (!user || !user.passkeys || user.passkeys.length === 0) {
       return res.status(404).json({ message: 'User or passkeys not found.' });
     }
