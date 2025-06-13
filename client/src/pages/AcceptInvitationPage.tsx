@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import PageContainer from '@/components/layout/PageContainer';
 
 const AcceptInvitationPage = () => {
   const [status, setStatus] = useState('Verifying your invitation...');
-  const location = useLocation();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   useEffect(() => {
-    const token = new URLSearchParams(location.search).get('token');
+    const token = new URLSearchParams(window.location.search).get('token');
 
     if (!token) {
       setStatus('This invitation link is invalid or has expired.');
@@ -21,7 +20,7 @@ const AcceptInvitationPage = () => {
         if (response.ok) {
           // The backend handles login and session creation.
           // On success, we redirect to the dashboard.
-          navigate('/');
+          window.location.href = '/';
         } else {
           const errorData = await response.json();
           setStatus(errorData.message || 'This invitation link is invalid or has expired.');
@@ -32,7 +31,7 @@ const AcceptInvitationPage = () => {
     };
 
     verifyToken();
-  }, [location, navigate]);
+  }, [navigate]);
 
   return (
     <PageContainer>
