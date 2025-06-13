@@ -29,7 +29,7 @@ interface PunishmentType {
   isCustomizable: boolean;
   ordinal: number;
   durations?: {
-    low: { 
+    low: {
       first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
       medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
       habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
@@ -250,7 +250,7 @@ const Settings = () => {
   ]);
   const [newPunishmentName, setNewPunishmentNameState] = useState('');
   const [newPunishmentCategory, setNewPunishmentCategoryState] = useState<'Gameplay' | 'Social'>('Gameplay');
-  
+
   // Threshold values for player status levels
   const [statusThresholds, setStatusThresholdsState] = useState<StatusThresholds>({
     gameplay: {
@@ -262,13 +262,13 @@ const Settings = () => {
       habitual: 8  // 8+ points = habitual offender
     }
   });
-  
+
   // Selected punishment for editing
   const [selectedPunishment, setSelectedPunishmentState] = useState<PunishmentType | null>(null);
-  
+
   // State to control visibility of core punishment types
   const [showCorePunishments, setShowCorePunishmentsState] = useState(false);
-  
+
   // Sliders state
   const [toxicity, setToxicityState] = useState(75);
   const [spam, setSpamState] = useState(60);
@@ -279,7 +279,7 @@ const Settings = () => {
   const [aiBan, setAiBanState] = useState(true);
   const [staffOverride, setStaffOverrideState] = useState(true);
   const [requireApproval, setRequireApprovalState] = useState(true);
-  
+
   // Tags state for each ticket category
   const [bugReportTags, setBugReportTagsState] = useState<string[]>([
     'UI Issue', 'Server', 'Performance', 'Crash', 'Game Mechanics'
@@ -290,19 +290,19 @@ const Settings = () => {
   const [appealTags, setAppealTagsState] = useState<string[]>([
     'Ban Appeal', 'Mute Appeal', 'False Positive', 'Second Chance'
   ]);
-  
+
   // For new tag input
   const [newBugTag, setNewBugTagState] = useState('');
   const [newPlayerTag, setNewPlayerTagState] = useState('');
   const [newAppealTag, setNewAppealTagState] = useState('');
-  
+
   // Security tab states
   const [has2FA, setHas2FAState] = useState(false);
   const [hasPasskey, setHasPasskeyState] = useState(false);
   const [showSetup2FA, setShowSetup2FAState] = useState(false);
   const [showSetupPasskey, setShowSetupPasskeyState] = useState(false);
   const [recoveryCodesCopied, setRecoveryCodesCopiedState] = useState(false);
-  
+
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
   const [currentEmail, setCurrentEmail] = useState('');
@@ -342,7 +342,7 @@ const Settings = () => {
 
     justLoadedFromServerRef.current = true;
     // console.log("[SettingsPage] Applying settings from server to state"); // Removed
-    
+
     // Use direct state setters to avoid triggering auto-save during load
     if (settingsObject.punishmentTypes) {
       const pt = settingsObject.punishmentTypes;
@@ -372,7 +372,7 @@ const Settings = () => {
     if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
     if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
     if (settingsObject.hasPasskey !== undefined) setHasPasskeyState(settingsObject.hasPasskey);
-    
+
     // After a short delay, reset the flag to allow auto-saving
     setTimeout(() => {
       justLoadedFromServerRef.current = false;
@@ -390,7 +390,7 @@ const Settings = () => {
     // console.log("[SettingsPage] Auto-saving settings..."); // Removed
     setIsSaving(true);
     pendingChangesRef.current = false;
-    
+
     try {
       const settingsToSave = {
         punishmentTypes,
@@ -418,7 +418,7 @@ const Settings = () => {
         },
         body: JSON.stringify(settingsToSave)
       });
-      
+
       if (response.ok) {
         // Don't invalidate the query here - it causes a loop
         // await queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
@@ -442,8 +442,8 @@ const Settings = () => {
       setIsSaving(false);
     }
   }, [
-    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride, 
-    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags, 
+    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride,
+    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags,
     appealTags, mongodbUri, has2FA, hasPasskey, toast
   ]);
 
@@ -462,7 +462,7 @@ const Settings = () => {
     if (settingsData?.settings && Object.keys(settingsData.settings).length > 0 && !initialLoadCompletedRef.current) {
       // console.log('[SettingsPage] Valid settingsData.settings received for the first time. Applying to local state.'); // Removed
       applySettingsObjectToState(settingsData.settings); // Call directly
-      
+
       // Capture settings for future reference and mark initial load as complete
       // This timeout ensures state updates from applySettingsObjectToState have settled
       // before capturing and enabling auto-save.
@@ -486,9 +486,9 @@ const Settings = () => {
     if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current || isLoadingSettings || isFetchingSettings) {
       return;
     }
-    
+
     // console.log("[SettingsPage] Settings changed, scheduling auto-save"); // Removed
-    
+
     // If there's a pending save, clear it
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -496,7 +496,7 @@ const Settings = () => {
 
     // Set a flag that we have pending changes
     pendingChangesRef.current = true;
-    
+
     // Schedule a new save
     saveTimeoutRef.current = setTimeout(() => {
       if (pendingChangesRef.current) {
@@ -510,8 +510,8 @@ const Settings = () => {
       }
     };
   }, [
-    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride, 
-    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags, 
+    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride,
+    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags,
     appealTags, mongodbUri, has2FA, hasPasskey, isLoadingSettings, isFetchingSettings,
     saveSettings
   ]);
@@ -523,9 +523,9 @@ const Settings = () => {
         setDbConnectionStatus(false);
         return;
       }
-      
+
       setIsTestingConnection(true);
-      
+
       try {
         const response = await fetch('/api/settings/test-database', {
           method: 'POST',
@@ -534,9 +534,9 @@ const Settings = () => {
           },
           body: JSON.stringify({ uri: mongodbUri })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.connected) {
           setDbConnectionStatus(true);
         } else {
@@ -641,13 +641,13 @@ const Settings = () => {
     if (newPunishmentName.trim()) {
       const newId = Math.max(...punishmentTypes.map(pt => pt.id)) + 1;
       const newOrdinal = Math.max(...punishmentTypes.map(pt => pt.ordinal)) + 1;
-      
+
       // Default durations and points based on category
       const defaultUnit = 'hours' as 'hours' | 'days' | 'weeks' | 'months';
-      
+
       // Helper function to create duration objects
       const createDuration = (value: number) => ({ value, unit: defaultUnit });
-      
+
       const defaultGameplayDurations = {
         low: {
           first: createDuration(24),
@@ -665,7 +665,7 @@ const Settings = () => {
           habitual: createDuration(720)
         }
       };
-      
+
       const defaultSocialDurations = {
         low: {
           first: createDuration(24),
@@ -683,10 +683,10 @@ const Settings = () => {
           habitual: createDuration(336)
         }
       };
-      
+
       const defaultGameplayPoints = 4;
       const defaultSocialPoints = 3;
-      
+
       const newPunishment = {
         id: newId,
         name: newPunishmentName.trim(),
@@ -716,10 +716,10 @@ const Settings = () => {
   // Format the last saved time
   const formatLastSaved = () => {
     if (!lastSaved) return "Not saved yet";
-    
+
     const now = new Date();
     const diffSeconds = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
-    
+
     if (diffSeconds < 60) {
       return "Just now";
     } else if (diffSeconds < 3600) {
@@ -758,9 +758,9 @@ const Settings = () => {
             ) : null}
           </div>
         </div>
-        
+
         <Card className="overflow-visible">
-          <Tabs defaultValue="ai">
+          <Tabs defaultValue="account">
             <TabsList className="w-full h-full justify-start rounded-none bg-transparent border-b border-border overflow-x-auto mx-1">
               <TabsTrigger
                 value="account"
@@ -776,43 +776,36 @@ const Settings = () => {
                 <Bot className="h-4 w-4 mr-2" />
                 AI Settings
               </TabsTrigger>
-              <TabsTrigger 
-                value="chat" 
+              <TabsTrigger
+                value="chat"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Chat Filter
               </TabsTrigger>
-              <TabsTrigger 
-                value="punishment" 
+              <TabsTrigger
+                value="punishment"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Scale className="h-4 w-4 mr-2" />
                 Punishment Types
               </TabsTrigger>
-              <TabsTrigger 
-                value="tags" 
+              <TabsTrigger
+                value="tags"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Tag className="h-4 w-4 mr-2" />
                 Ticket Tags
               </TabsTrigger>
-              <TabsTrigger 
-                value="staff" 
+              <TabsTrigger
+                value="staff"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Shield className="h-4 w-4 mr-2" />
                 Staff Management
               </TabsTrigger>
-              <TabsTrigger 
-                value="general" 
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <Globe className="h-4 w-4 mr-2" />
-                General
-              </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="account" className="space-y-6 p-6">
               <div>
                 <h3 className="text-lg font-medium mb-4">Account Information</h3>
@@ -827,7 +820,16 @@ const Settings = () => {
                       placeholder="Enter your email address"
                     />
                   </div>
-                  <Button>Change Email</Button>
+                  <Button
+                    onClick={() => {
+                      toast({
+                        title: "Work In Progress",
+                        description: "This feature is currently not available.",
+                      });
+                    }}
+                  >
+                    Change Email
+                  </Button>
                 </div>
               </div>
               <Separator />
@@ -847,7 +849,7 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground mb-6">
                   Enhance your account security by enabling multi-factor authentication methods.
                 </p>
-                
+
                 <div className="space-y-8">
                   {/* Two-Factor Authentication */}
                   <div className="space-y-4">
@@ -880,11 +882,11 @@ const Settings = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {showSetup2FA && (
                       <div className="bg-muted/50 p-5 rounded-lg space-y-4 mt-2">
                         <h5 className="font-medium">Set up Two-Factor Authentication</h5>
-                        
+
                         <div className="space-y-4">
                           <div className="flex flex-col items-center justify-center space-y-3 p-4 bg-background rounded-md">
                             <div className="w-44 h-44 bg-white p-2 rounded-md flex items-center justify-center">
@@ -895,7 +897,7 @@ const Settings = () => {
                               Scan this QR code with your authentication app (Google Authenticator, Authy, etc.)
                             </p>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <Label htmlFor="backup-code">Secret Key (if you can't scan the QR code)</Label>
                             <div className="relative">
@@ -921,7 +923,7 @@ const Settings = () => {
                               </Button>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <Label htmlFor="verification-code">Enter verification code to confirm</Label>
                             <Input
@@ -931,7 +933,7 @@ const Settings = () => {
                               maxLength={6}
                             />
                           </div>
-                          
+
                           {!recoveryCodesCopied ? (
                             <div className="space-y-2">
                               <Label>Recovery Codes</Label>
@@ -971,7 +973,7 @@ const Settings = () => {
                                 Copy Recovery Codes
                               </Button>
                             </div>
-) : (
+                          ) : (
                             <div className="bg-green-50 border border-green-200 rounded-md p-3">
                               <div className="flex items-start">
                                 <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
@@ -984,7 +986,7 @@ const Settings = () => {
                               </div>
                             </div>
                           )}
-                          
+
                           <div className="flex justify-between">
                             <Button
                               variant="outline"
@@ -1013,9 +1015,9 @@ const Settings = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   <Separator />
-                  
+
                   {/* Passkey Authentication */}
                   <div className="space-y-4">
                     <div className="flex items-start justify-between">
@@ -1033,7 +1035,7 @@ const Settings = () => {
                           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Enabled</Badge>
                         ) : (
                           <Button
-                            onClick={() => { 
+                            onClick={() => {
                               toast({
                                 title: "Work In Progress",
                                 description: "This feature is currently not available.",
@@ -1047,11 +1049,11 @@ const Settings = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {showSetupPasskey && (
                       <div className="bg-muted/50 p-5 rounded-lg space-y-4 mt-2">
                         <h5 className="font-medium">Set up Passkey Authentication</h5>
-                        
+
                         <div className="flex flex-col items-center justify-center gap-4 p-6 bg-background rounded-lg">
                           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
                             <Fingerprint className="h-10 w-10 text-primary" />
@@ -1063,7 +1065,7 @@ const Settings = () => {
                               security key to create a passkey for this account.
                             </p>
                           </div>
-                          
+
                           <div className="bg-primary/5 rounded-md p-4 w-full">
                             <h5 className="text-sm font-medium mb-2">Compatible with:</h5>
                             <ul className="text-xs text-muted-foreground space-y-1">
@@ -1074,7 +1076,7 @@ const Settings = () => {
                             </ul>
                           </div>
                         </div>
-                        
+
                         <div className="flex justify-between mt-6">
                           <Button
                             variant="outline"
@@ -1088,7 +1090,7 @@ const Settings = () => {
                               //   title: "FIDO Authentication",
                               //   description: "Your browser would prompt for biometric verification here",
                               // });
-                              
+
                               // After successful registration
                               // setTimeout(() => {
                               //   setHasPasskey(true);
@@ -1106,9 +1108,9 @@ const Settings = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* <Separator /> */}
-                  
+
                   {/* Account Recovery
                   <div>
                     <h4 className="text-base font-medium mb-3">Account Recovery</h4>
@@ -1145,41 +1147,41 @@ const Settings = () => {
                       <Label htmlFor="ai-moderation" className="font-medium">Enable AI Moderation</Label>
                       <p className="text-sm text-muted-foreground mt-1">Allow AI to automatically moderate chat and player actions</p>
                     </div>
-                    <Switch 
-                      id="ai-moderation" 
+                    <Switch
+                      id="ai-moderation"
                       checked={aiModeration}
                       onCheckedChange={setAiModeration}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="ai-chat" className="font-medium">AI Chat Monitoring</Label>
                       <p className="text-sm text-muted-foreground mt-1">Monitor chat for toxic behavior and prohibited content</p>
                     </div>
-                    <Switch 
-                      id="ai-chat" 
+                    <Switch
+                      id="ai-chat"
                       checked={aiChat}
                       onCheckedChange={setAiChat}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="ai-ban" className="font-medium">AI Ban Detection</Label>
                       <p className="text-sm text-muted-foreground mt-1">Detect ban evasion attempts automatically</p>
                     </div>
-                    <Switch 
-                      id="ai-ban" 
+                    <Switch
+                      id="ai-ban"
                       checked={aiBan}
                       onCheckedChange={setAiBan}
                     />
                   </div>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div>
                 <h3 className="text-lg font-medium mb-4">AI Sensitivity Settings</h3>
                 <div className="space-y-6">
@@ -1188,11 +1190,11 @@ const Settings = () => {
                       <Label htmlFor="toxicity-slider">Toxicity Detection</Label>
                       <span className="text-sm text-muted-foreground">{toxicity}%</span>
                     </div>
-                    <Slider 
+                    <Slider
                       id="toxicity-slider"
-                      value={[toxicity]} 
-                      min={0} 
-                      max={100} 
+                      value={[toxicity]}
+                      min={0}
+                      max={100}
                       step={1}
                       onValueChange={values => setToxicity(values[0])}
                       className="py-4"
@@ -1202,17 +1204,17 @@ const Settings = () => {
                       <span>Strict</span>
                     </div>
                   </div>
-                  
+
                   <div>
                     <div className="flex justify-between mb-1">
                       <Label htmlFor="spam-slider">Spam Detection</Label>
                       <span className="text-sm text-muted-foreground">{spam}%</span>
                     </div>
-                    <Slider 
+                    <Slider
                       id="spam-slider"
-                      value={[spam]} 
-                      min={0} 
-                      max={100} 
+                      value={[spam]}
+                      min={0}
+                      max={100}
                       step={1}
                       onValueChange={values => setSpam(values[0])}
                       className="py-4"
@@ -1222,17 +1224,17 @@ const Settings = () => {
                       <span>Strict</span>
                     </div>
                   </div>
-                  
+
                   <div>
                     <div className="flex justify-between mb-1">
                       <Label htmlFor="automated-slider">Automated Response</Label>
                       <span className="text-sm text-muted-foreground">{automated}%</span>
                     </div>
-                    <Slider 
+                    <Slider
                       id="automated-slider"
-                      value={[automated]} 
-                      min={0} 
-                      max={100} 
+                      value={[automated]}
+                      min={0}
+                      max={100}
                       step={1}
                       onValueChange={values => setAutomated(values[0])}
                       className="py-4"
@@ -1244,9 +1246,9 @@ const Settings = () => {
                   </div>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div>
                 <h3 className="text-lg font-medium mb-4">Staff Override</h3>
                 <div className="space-y-4">
@@ -1255,20 +1257,20 @@ const Settings = () => {
                       <Label htmlFor="staff-override" className="font-medium">Staff Override of AI Decisions</Label>
                       <p className="text-sm text-muted-foreground mt-1">Allow staff to override AI moderation decisions</p>
                     </div>
-                    <Switch 
-                      id="staff-override" 
+                    <Switch
+                      id="staff-override"
                       checked={staffOverride}
                       onCheckedChange={setStaffOverride}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <Label htmlFor="require-approval" className="font-medium">Require Approval for AI Bans</Label>
                       <p className="text-sm text-muted-foreground mt-1">Require staff approval for AI-initiated bans</p>
                     </div>
-                    <Switch 
-                      id="require-approval" 
+                    <Switch
+                      id="require-approval"
                       checked={requireApproval}
                       onCheckedChange={setRequireApproval}
                     />
@@ -1276,7 +1278,7 @@ const Settings = () => {
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="chat">
               <CardContent className="p-6">
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
@@ -1284,7 +1286,7 @@ const Settings = () => {
                 </div>
               </CardContent>
             </TabsContent>
-            
+
             <TabsContent value="punishment" className="space-y-6 p-6">
               {/* Status Thresholds Section MOVED HERE */}
               <div>
@@ -1292,7 +1294,7 @@ const Settings = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   Configure the point thresholds for determining a player's offender status. Higher thresholds make it harder to reach medium and habitual status.
                 </p>
-                
+
                 <div className="grid grid-cols-2 gap-6 mb-6">
                   <div className="space-y-4 border rounded-md p-4">
                     <h5 className="font-medium flex items-center">
@@ -1320,7 +1322,7 @@ const Settings = () => {
                           }))}
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <Label htmlFor="gameplay-habitual">Habitual Offender</Label>
@@ -1343,7 +1345,7 @@ const Settings = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4 border rounded-md p-4">
                     <h5 className="font-medium flex items-center">
                       <MessageCircle className="h-4 w-4 mr-2 text-blue-500" />
@@ -1370,7 +1372,7 @@ const Settings = () => {
                           }))}
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <Label htmlFor="social-habitual">Habitual Offender</Label>
@@ -1394,7 +1396,7 @@ const Settings = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-muted/30 p-4 rounded-md mb-6">
                   <h5 className="text-sm font-medium mb-1">About Offender Status</h5>
                   <p className="text-xs text-muted-foreground">
@@ -1403,7 +1405,7 @@ const Settings = () => {
                   </p>
                 </div>
               </div>
-              
+
               <Separator />
 
               <div>
@@ -1429,7 +1431,7 @@ const Settings = () => {
                       {showCorePunishments ? 'Hide' : 'Show'}
                     </Button>
                   </div>
-                  
+
                   {showCorePunishments && (
                     <div className="space-y-2 mb-6">
                       {punishmentTypes
@@ -1445,17 +1447,17 @@ const Settings = () => {
                             </div>
                           </div>
                         ))
-                    }
+                      }
                     </div>
                   )}
-                  
+
                   {!showCorePunishments && (
                     <div className="text-sm text-muted-foreground mb-6">
                       Click 'Show' to view core punishment types that cannot be modified or removed.
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex gap-4 mb-8">
                   <div className="w-1/2">
                     <h4 className="text-base font-medium mb-3 flex items-center">
@@ -1501,7 +1503,7 @@ const Settings = () => {
                       }
                     </div>
                   </div>
-                  
+
                   <div className="w-1/2">
                     <h4 className="text-base font-medium mb-3 flex items-center">
                       <MessageCircle className="h-4 w-4 mr-2 text-blue-500" />
@@ -1547,9 +1549,9 @@ const Settings = () => {
                     </div>
                   </div>
                 </div>
-                                
+
                 <Separator className="my-6" />
-                
+
                 <div className="space-y-4">
                   <h4 className="text-base font-medium">Add New Punishment Type</h4>
                   <div className="flex gap-3 items-end">
@@ -1577,7 +1579,7 @@ const Settings = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button 
+                    <Button
                       onClick={addPunishmentType}
                       disabled={!newPunishmentName.trim()}
                     >
@@ -1586,25 +1588,25 @@ const Settings = () => {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="bg-muted/30 p-4 rounded-md mt-6">
                   <h4 className="text-sm font-medium mb-2">About Punishment Types</h4>
                   <p className="text-xs text-muted-foreground">
-                    Punishment types are used throughout the system for player moderation. The ordinal values (numbers) 
-                    are used for storage and should remain consistent. Core punishment types (Kick, Manual Mute, 
+                    Punishment types are used throughout the system for player moderation. The ordinal values (numbers)
+                    are used for storage and should remain consistent. Core punishment types (Kick, Manual Mute,
                     Manual Ban, Security Ban, Linked Ban, and Blacklist) cannot be modified or removed.
                   </p>
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="tags" className="space-y-6 p-6">
               <div>
                 <h3 className="text-lg font-medium mb-4">Ticket Tag Management</h3>
                 <p className="text-sm text-muted-foreground mb-6">
                   Customize tags for different ticket categories. These tags will appear as options when staff respond to tickets.
                 </p>
-                
+
                 <div className="space-y-8">
                   {/* Bug Report Tags */}
                   <div className="space-y-3">
@@ -1613,10 +1615,10 @@ const Settings = () => {
                       {bugReportTags.map((tag, index) => (
                         <Badge key={index} variant="outline" className="py-1.5 pl-3 pr-2 flex items-center gap-1 bg-background">
                           {tag}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-4 w-4 rounded-full hover:bg-muted ml-1" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 rounded-full hover:bg-muted ml-1"
                             onClick={() => {
                               setBugReportTags(bugReportTags.filter((_, i) => i !== index));
                             }}
@@ -1628,8 +1630,8 @@ const Settings = () => {
 
                     </div>
                     <div className="flex gap-2 items-center">
-                      <Input 
-                        placeholder="New tag name" 
+                      <Input
+                        placeholder="New tag name"
                         className="max-w-xs"
                         value={newBugTag}
                         onChange={(e) => setNewBugTag(e.target.value)}
@@ -1640,8 +1642,8 @@ const Settings = () => {
                           }
                         }}
                       />
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => {
                           if (newBugTag.trim()) {
                             setBugReportTags([...bugReportTags, newBugTag.trim()]);
@@ -1655,9 +1657,9 @@ const Settings = () => {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   {/* Player Report Tags */}
                   <div className="space-y-3">
                     <h4 className="text-base font-medium">Player Report Tags</h4>
@@ -1665,10 +1667,10 @@ const Settings = () => {
                       {playerReportTags.map((tag, index) => (
                         <Badge key={index} variant="outline" className="py-1.5 pl-3 pr-2 flex items-center gap-1 bg-background">
                           {tag}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-4 w-4 rounded-full hover:bg-muted ml-1" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 rounded-full hover:bg-muted ml-1"
                             onClick={() => {
                               setPlayerReportTags(playerReportTags.filter((_, i) => i !== index));
                             }}
@@ -1680,8 +1682,8 @@ const Settings = () => {
 
                     </div>
                     <div className="flex gap-2 items-center">
-                      <Input 
-                        placeholder="New tag name" 
+                      <Input
+                        placeholder="New tag name"
                         className="max-w-xs"
                         value={newPlayerTag}
                         onChange={(e) => setNewPlayerTag(e.target.value)}
@@ -1692,8 +1694,8 @@ const Settings = () => {
                           }
                         }}
                       />
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => {
                           if (newPlayerTag.trim()) {
                             setPlayerReportTags([...playerReportTags, newPlayerTag.trim()]);
@@ -1707,9 +1709,9 @@ const Settings = () => {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   {/* Appeal Tags */}
                   <div className="space-y-3">
                     <h4 className="text-base font-medium">Appeal Tags</h4>
@@ -1717,10 +1719,10 @@ const Settings = () => {
                       {appealTags.map((tag, index) => (
                         <Badge key={index} variant="outline" className="py-1.5 pl-3 pr-2 flex items-center gap-1 bg-background">
                           {tag}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-4 w-4 rounded-full hover:bg-muted ml-1" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 rounded-full hover:bg-muted ml-1"
                             onClick={() => {
                               setAppealTags(appealTags.filter((_, i) => i !== index));
                             }}
@@ -1732,8 +1734,8 @@ const Settings = () => {
 
                     </div>
                     <div className="flex gap-2 items-center">
-                      <Input 
-                        placeholder="New tag name" 
+                      <Input
+                        placeholder="New tag name"
                         className="max-w-xs"
                         value={newAppealTag}
                         onChange={(e) => setNewAppealTag(e.target.value)}
@@ -1744,8 +1746,8 @@ const Settings = () => {
                           }
                         }}
                       />
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         onClick={() => {
                           if (newAppealTag.trim()) {
                             setAppealTags([...appealTags, newAppealTag.trim()]);
@@ -1762,7 +1764,7 @@ const Settings = () => {
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="staff">
               <CardContent className="p-6">
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
@@ -1770,120 +1772,9 @@ const Settings = () => {
                 </div>
               </CardContent>
             </TabsContent>
-            
-            
-            <TabsContent value="general">
-              <CardContent className="p-6">
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">System Settings</h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="site-name">Site Name</Label>
-                          <Input id="site-name" defaultValue="Game Moderation Panel" />
-                          <p className="text-xs text-muted-foreground">The name displayed in the title bar and header.</p>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="admin-email">Admin Email</Label>
-                          <Input id="admin-email" defaultValue="admin@example.com" type="email" />
-                          <p className="text-xs text-muted-foreground">Primary contact for system notifications.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Database Configuration</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-3 w-3 rounded-full ${dbConnectionStatus ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span>{dbConnectionStatus ? 'Connected to MongoDB' : 'Not connected to MongoDB'}</span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="mongodb-uri">MongoDB Connection URI</Label>
-                        <Input 
-                          id="mongodb-uri" 
-                          type="password" 
-                          placeholder="mongodb+srv://username:password@cluster.mongodb.net/database"
-                          value={mongodbUri}
-                          onChange={(e) => setMongodbUri(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          The connection string for your MongoDB database. This will be stored as an environment secret.
-                        </p>
-                      </div>
-                      
-                      <Button 
-                        onClick={async () => {
-                          if (!mongodbUri.trim()) {
-                            toast({
-                              title: "Error",
-                              description: "Please enter a MongoDB connection URI",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          
-                          setIsTestingConnection(true);
-                          toast({
-                            title: "Testing Connection",
-                            description: "Attempting to connect to MongoDB..."
-                          });
-                          
-                          try {
-                            const response = await fetch('/api/settings/test-database', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json'
-                              },
-                              body: JSON.stringify({ uri: mongodbUri })
-                            });
-                            
-                            const data = await response.json();
-                            
-                            if (data.connected) {
-                              setDbConnectionStatus(true);
-                              toast({
-                                title: "Connection Successful",
-                                description: data.message || "Successfully connected to MongoDB"
-                              });
-                            } else {
-                              setDbConnectionStatus(false);
-                              toast({
-                                title: "Connection Failed",
-                                description: data.message || "Failed to connect to MongoDB",
-                                variant: "destructive"
-                              });
-                            }
-                          } catch (error) {
-                            setDbConnectionStatus(false);
-                            toast({
-                              title: "Connection Error",
-                              description: "An error occurred while testing the connection",
-                              variant: "destructive"
-                            });
-                            console.error("Database connection test error:", error);
-                          } finally {
-                            setIsTestingConnection(false);
-                          }
-                        }} 
-                        disabled={isTestingConnection}
-                      >
-                        {isTestingConnection ? "Testing..." : "Test Connection"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </TabsContent>
           </Tabs>
         </Card>
-        
+
         {/* Punishment Configuration Dialog */}
         {selectedPunishment && (
           <Dialog open={Boolean(selectedPunishment)} onOpenChange={() => setSelectedPunishmentState(null)}>
@@ -1896,7 +1787,7 @@ const Settings = () => {
                   Adjust the settings for the punishment type "{selectedPunishment.name}".
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-4">
                 {/* Punishment Name and Category */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1908,7 +1799,7 @@ const Settings = () => {
                       onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, name: e.target.value } : null)}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="edit-punishment-category">Category</Label>
                     <Select
@@ -1925,7 +1816,7 @@ const Settings = () => {
                     </Select>
                   </div>
                 </div>
-                
+
                 {/* Durations and Points Configuration */}
                 <div className="space-y-4">
                   <div>
@@ -1933,7 +1824,7 @@ const Settings = () => {
                     <p className="text-sm text-muted-foreground mb-4">
                       Set the durations and units for low, regular, and severe levels of this punishment.
                     </p>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Low Severity */}
                       <div className="space-y-2">
@@ -1956,12 +1847,12 @@ const Settings = () => {
                                       ...prev,
                                       durations: {
                                         ...prev.durations,
-                                        low: { 
-                                          ...prev.durations.low, 
-                                          [offenseType]: { 
+                                        low: {
+                                          ...prev.durations.low,
+                                          [offenseType]: {
                                             ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                            value 
-                                          } 
+                                            value
+                                          }
                                         }
                                       }
                                     } : null);
@@ -1976,19 +1867,19 @@ const Settings = () => {
                                       ...prev,
                                       durations: {
                                         ...prev.durations,
-                                        low: { 
-                                          ...prev.durations.low, 
-                                          [offenseType]: { 
+                                        low: {
+                                          ...prev.durations.low,
+                                          [offenseType]: {
                                             ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
                                             unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                          } 
+                                          }
                                         }
                                       }
                                     } : null);
                                   }}
                                 >
                                   <SelectTrigger className="w-[120px]">
-                                    <SelectValue/>
+                                    <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="hours">Hours</SelectItem>
@@ -2002,7 +1893,7 @@ const Settings = () => {
                           ))}
                         </div>
                       </div>
-                      
+
                       {/* Regular Severity */}
                       <div className="space-y-2">
                         <Label className="font-medium">Regular Severity Durations</Label>
@@ -2024,12 +1915,12 @@ const Settings = () => {
                                       ...prev,
                                       durations: {
                                         ...prev.durations,
-                                        regular: { 
-                                          ...prev.durations.regular, 
-                                          [offenseType]: { 
+                                        regular: {
+                                          ...prev.durations.regular,
+                                          [offenseType]: {
                                             ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                            value 
-                                          } 
+                                            value
+                                          }
                                         }
                                       }
                                     } : null);
@@ -2044,19 +1935,19 @@ const Settings = () => {
                                       ...prev,
                                       durations: {
                                         ...prev.durations,
-                                        regular: { 
-                                          ...prev.durations.regular, 
-                                          [offenseType]: { 
+                                        regular: {
+                                          ...prev.durations.regular,
+                                          [offenseType]: {
                                             ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
                                             unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                          } 
+                                          }
                                         }
                                       }
                                     } : null);
                                   }}
                                 >
                                   <SelectTrigger className="w-[120px]">
-                                    <SelectValue/>
+                                    <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="hours">Hours</SelectItem>
@@ -2070,12 +1961,12 @@ const Settings = () => {
                           ))}
                         </div>
                       </div>
-                      
+
                       {/* Severe Severity */}
                       <div className="space-y-2">
-                                               <Label className="font-medium">Severe Severity Durations</Label>
+                        <Label className="font-medium">Severe Severity Durations</Label>
                         <div className="space-y-3 p-2 border rounded-md">
-                                                   {['first', 'medium', 'habitual'].map((offenseType) => (
+                          {['first', 'medium', 'habitual'].map((offenseType) => (
                             <div key={`severe-${offenseType}`}>
                               <Label htmlFor={`severe-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
                                 {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
@@ -2085,7 +1976,7 @@ const Settings = () => {
                                   id={`severe-${offenseType}-${selectedPunishment.id}`}
                                   type="number"
                                   min="0"
-                                 
+
                                   value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.value || ''}
                                   onChange={(e) => {
                                     const value = Number(e.target.value);
@@ -2093,12 +1984,12 @@ const Settings = () => {
                                       ...prev,
                                       durations: {
                                         ...prev.durations,
-                                        severe: { 
-                                          ...prev.durations.severe, 
-                                          [offenseType]: { 
+                                        severe: {
+                                          ...prev.durations.severe,
+                                          [offenseType]: {
                                             ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                            value 
-                                          } 
+                                            value
+                                          }
                                         }
                                       }
                                     } : null);
@@ -2113,19 +2004,19 @@ const Settings = () => {
                                       ...prev,
                                       durations: {
                                         ...prev.durations,
-                                        severe: { 
-                                          ...prev.durations.severe, 
-                                          [offenseType]: { 
+                                        severe: {
+                                          ...prev.durations.severe,
+                                          [offenseType]: {
                                             ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
                                             unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                          } 
+                                          }
                                         }
                                       }
                                     } : null);
                                   }}
                                 >
                                   <SelectTrigger className="w-[120px]">
-                                    <SelectValue/>
+                                    <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="hours">Hours</SelectItem>
@@ -2141,13 +2032,13 @@ const Settings = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <h4 className="text-base font-medium mb-2">Points</h4>
                     <p className="text-sm text-muted-foreground mb-4">
                       Set the points for this punishment.
                     </p>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2 md:col-span-1"> {/* Adjusted to take less space */}
                         <Label className="font-medium">Points Value</Label>
@@ -2172,19 +2063,19 @@ const Settings = () => {
                   </div>
                 </div>
               </div>
-              
+
               <DialogFooter className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setSelectedPunishment(null)}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     // Save updates to the punishment type
                     if (selectedPunishment) {
-                      setPunishmentTypes(prev => 
+                      setPunishmentTypes(prev =>
                         prev.map(pt => pt.id === selectedPunishment.id ? selectedPunishment : pt)
                       );
                       toast({
@@ -2203,7 +2094,7 @@ const Settings = () => {
           </Dialog>
         )}
       </div>
-      </PageContainer>
+    </PageContainer>
   );
 };
 
