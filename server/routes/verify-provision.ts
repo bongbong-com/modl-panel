@@ -1,7 +1,6 @@
 import { Express, Request, Response } from 'express';
 import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mongoose for Types.ObjectId
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
-// Import the models. We will access their schemas via Model.schema
 import {
   Player,
   Staff,
@@ -11,7 +10,6 @@ import {
 } from '../models/mongodb-schemas';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 
-// Define an interface for the ModlServer document for type safety
 interface IModlServer extends Document {
   serverName: string;
   customDomain: string;
@@ -30,26 +28,25 @@ interface IModlServer extends Document {
   createdAt?: Date; // from schema
 }
 
-// TODO: Define a more robust initial data seeding function for new servers
 export async function provisionNewServerInstance(
-  dbConnection: Connection, 
+  dbConnection: Connection,
   serverName: string,
   globalConnection: Connection, // Added globalConnection parameter
   serverConfigId: string // Added serverConfigId to update the document
 ) {
-  // console.log(`Starting provisioning for ${serverName} using DB: ${dbConnection.name}...`);
-
-  // Register models on the server-specific connection using their schemas
   dbConnection.model('Player', Player.schema);
   dbConnection.model('Staff', Staff.schema);
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
-  dbConnection.model('Settings', settingsSchema); // Use the Settings schema directly
-  // console.log(`Models registered on DB ${dbConnection.name} for ${serverName}.`);
 
-  // Example: Seed initial settings
-  const SettingsModel = dbConnection.model('Settings');
-  const existingSettings = await SettingsModel.findOne();
+  console.log(`[verify-provision] Provisioning for server: ${serverName}. DB Connection name: ${dbConnection.name}, state: ${dbConnection.readyState}`);
+  // Log default mongoose connection state for comparison
+  console.log(`[verify-provision] Default Mongoose connection state: ${mongoose.connection.readyState}`);
+  
+  const Settings = dbConnection.model('Settings'); // Use the tenant-specific connection
+  console.log(`[verify-provision] 'Settings' model is now associated with connection: ${Settings.db.name}, state: ${Settings.db.readyState}`);
+  
+  const existingSettings = await Settings.findOne();
   const punishmentTypes = [
         { ordinal: 0, name: 'Kick', category: 'Gameplay' },
         { ordinal: 1, name: 'Manual Mute', category: 'Social' },
@@ -85,18 +82,15 @@ export async function provisionNewServerInstance(
   }
     
 
-  // After successful provisioning, update the ModlServer document in the global DB
   const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
   await ModlServerModel.findByIdAndUpdate(serverConfigId, {
     provisioningStatus: 'completed',
     databaseName: dbConnection.name, // Store the actual database name used
     updatedAt: new Date()
   });
-  // console.log(`Provisioning status updated to 'completed' for ${serverName}`);
 }
 
 export function setupVerificationAndProvisioningRoutes(app: Express) {
-  // Route to handle email verification
   app.get('/verify-email', async (req: Request, res: Response) => {
     const token = req.query.token as string;
 
@@ -146,7 +140,6 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
     }
   });
 
-  // Route to check provisioning status and trigger provisioning if needed
   app.get('/api/provisioning/status/:serverName', async (req: Request, res: Response) => {
     const { serverName } = req.params;
 

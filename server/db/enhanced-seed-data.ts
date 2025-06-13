@@ -242,10 +242,10 @@ export async function seedEnhancedDatabase() {
       
       for (let j = 0; j < usernameCount; j++) {
         const usernameDate = randomDate(lastDate, currentDate);
-        const historicalUsername = j === usernameCount - 1 ? 
-          username : 
+        const historicalUsername = j === usernameCount - 1 ?
+          username :
           `${usernameBase}${Math.floor(Math.random() * 1000)}`;
-          
+
         usernames.push({
           username: historicalUsername,
           date: usernameDate
@@ -315,7 +315,6 @@ export async function seedEnhancedDatabase() {
         
         punishments.push({
           id: generatePunishmentId(),
-          // Use ordinal for type instead of string name
           type_ordinal: randomPunishmentType.ordinal,
           issuerId: staffId,
           issuerName: staffName,
@@ -343,17 +342,8 @@ export async function seedEnhancedDatabase() {
     const tickets = [];
     
     for (let i = 0; i < 15; i++) {
-      // Map old ticket types to new ticket type enum values
-      const typeMap = {
-        'bug': 'bug',
-        'player': 'player',
-        'chat': 'chat',
-        'appeal': 'appeal'
-      };
-      
       const oldType = randomItem(ticketTypes);
-      // Convert to new type format, defaulting to 'bug' if not in map
-      const type = typeMap[oldType as keyof typeof typeMap] || 'bug';
+      const type = oldType === 'appeal' ? 'appeal' : oldType === 'player' ? 'player' : oldType === 'chat' ? 'chat' : 'bug';
       
       const ticketId = `${oldType.toUpperCase()}-${Math.floor(100000 + Math.random() * 900000)}`;
       const creationDate = randomDate(new Date(new Date().getFullYear() - 1, 0, 1), new Date());
@@ -396,7 +386,7 @@ export async function seedEnhancedDatabase() {
       
       // Add system message for assignment if more than one reply
       if (replyCount > 1) {
-        const assignmentDate = new Date(lastReplyDate.getTime() + 1000 * 60 * 30); // 30 minutes later
+        const assignmentDate = new Date(lastReplyDate.getTime() + 1000 * 60 * 30);
         const staffName = staffNames.length > 0 ? randomItem(staffNames) : defaultStaffName;
         
         replies.push({
@@ -504,15 +494,13 @@ export async function seedEnhancedDatabase() {
         subject: data.get('subject') as string || 'No Subject',
         created: creationDate,
         creator: creatorUsername,
-        creatorUuid: creatorUuid, // Add the creatorUuid field
+        creatorUuid: creatorUuid,
         locked: false,
         tags,
         replies,
         notes,
-        // Include reportedPlayer/reportedPlayerUuid for player/chat tickets
         reportedPlayer: data.get('relatedPlayer') as string,
         reportedPlayerUuid: data.get('relatedPlayerId') as string,
-        // Convert data map to formData map for compatibility
         formData: data
       });
     }
@@ -535,7 +523,6 @@ export async function seedEnhancedDatabase() {
       
       // Logs for punishments
       for (const punishment of player.punishments) {
-        // Get the punishment type name from the ordinal
         const punishmentType = punishmentTypes.find(pt => pt.ordinal === punishment.type_ordinal);
         const typeName = punishmentType ? punishmentType.name : `Unknown Type (${punishment.type_ordinal})`;
         

@@ -1,7 +1,5 @@
 import { Router, Request, Response } from 'express';
 import nodemailer from 'nodemailer';
-// Staff model will be obtained from req.serverDbConnection
-// import { Staff } from '../models/mongodb-schemas';
 import { randomBytes } from 'crypto';
 import { authenticator } from 'otplib';
 import {
@@ -13,21 +11,19 @@ import type { GenerateAssertionOptionsOpts } from '@simplewebauthn/server';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
 
 
-// Relying Party ID and expected origin - replace with your actual domain in production
-const rpID = 'localhost'; // This should match your domain
+const rpID = 'localhost';
 const expectedOrigin = process.env.NODE_ENV === 'production'
-  ? `https://${process.env.APP_DOMAIN}` // Assuming you have APP_DOMAIN in .env
-  : 'http://localhost:5173'; // Common Vite dev server port
+  ? `https://${process.env.APP_DOMAIN}`
+  : 'http://localhost:5173';
 
 const router = Router();
 
-// Configure nodemailer for local Postfix
 const transporter = nodemailer.createTransport({
   host: 'localhost',
   port: 25,
-  secure: false, // true for 465, false for other ports
+  secure: false,
   tls: {
-    rejectUnauthorized: false // Necessary for self-signed certs or no TLS
+    rejectUnauthorized: false
   }
 });
 
@@ -37,11 +33,10 @@ interface EmailCodeEntry {
   expiresAt: number;
 }
 
-// In-memory store for email verification codes (replace with a persistent store in production)
 const emailVerificationCodes = new Map<string, EmailCodeEntry>();
 const fidoChallenges = new Map<string, { challenge: string, email: string, expiresAt: number }>();
-const CODE_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
-const CHALLENGE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes for FIDO challenges
+const CODE_EXPIRY_MS = 15 * 60 * 1000;
+const CHALLENGE_EXPIRY_MS = 5 * 60 * 1000;
 
 function generateNumericCode(length: number = 6): string {
   let code = '';
@@ -59,12 +54,6 @@ router.post('/send-email-code', async (req: Request, res: Response) => {
   if (!email) {
     return res.status(400).json({ message: 'Email is required.' });
   }
-
-  // Optional: Validate if email exists in your system (e.g., Staff collection)
-  // const user = await Staff.findOne({ email });
-  // if (!user) {
-  //   return res.status(404).json({ message: 'Email not found.' });
-  // }
 
   const code = generateNumericCode();
   const expiresAt = Date.now() + CODE_EXPIRY_MS;
@@ -109,13 +98,13 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
   }
 
   if (Date.now() > storedEntry.expiresAt) {
-    emailVerificationCodes.delete(email); // Clean up expired code
+    emailVerificationCodes.delete(email);
     console.log(`[AUTH_DEBUG] Sending 400 response for /api/auth/verify-email-code (code expired)`);
     return res.status(400).json({ message: 'Verification code has expired.' });
   }
 
   if (storedEntry.code === code) {
-    emailVerificationCodes.delete(email); // Code verified, remove it
+    emailVerificationCodes.delete(email);
 
     // @ts-ignore
     const StaffModel = req.serverDbConnection!.model('Staff');
@@ -128,10 +117,9 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
         console.log(`[AUTH_DEBUG] Verified server admin email ${email}. Creating admin session.`);
         req.session.email = email;
         req.session.admin = true;
-        // Derive username and userId for admin session
         const username = email.split('@')[0] || 'admin';
         req.session.username = username;
-        req.session.userId = email; // Using email as userId for global admin
+        req.session.userId = email;
 
         await req.session.save();
         return res.status(200).json({
@@ -149,7 +137,7 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
       req.session.username = user.username;
       req.session.admin = user.admin;
 
-      await req.session.save(); // Ensure session is saved before responding
+      await req.session.save();
 
       console.log(`[AUTH_DEBUG] Session created for user ${user.username}. Sending 200 response for /api/auth/verify-email-code (success)`);
       return res.status(200).json({
@@ -193,7 +181,7 @@ router.post('/verify-2fa-code', async (req: Request, res: Response) => {
       req.session.username = user.username;
       req.session.admin = user.admin;
 
-      await req.session.save(); // Ensure session is saved before responding
+      await req.session.save();
 
       console.log(`[AUTH_DEBUG] Session created for user ${user.username} after 2FA.`);
       return res.status(200).json({
@@ -234,7 +222,7 @@ router.post('/fido-login-challenge', async (req: Request, res: Response) => {
       allowCredentials: user.passkeys.map(pk => ({
         id: pk.credentialID,
         type: 'public-key',
-        transports: pk.transports as AuthenticatorTransportFuture[] | undefined, // Cast if necessary
+        transports: pk.transports as AuthenticatorTransportFuture[] | undefined,
       })),
       userVerification: 'preferred',
       rpID,
@@ -242,8 +230,7 @@ router.post('/fido-login-challenge', async (req: Request, res: Response) => {
 
     const options = await generateAuthenticationOptions(opts);
 
-    // Store the challenge for verification
-    fidoChallenges.set(email, { // Using email as key for simplicity, consider user ID if available
+    fidoChallenges.set(email, {
       challenge: options.challenge,
       email,
       expiresAt: Date.now() + CHALLENGE_EXPIRY_MS,
@@ -303,7 +290,7 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
         counter: authenticator.counter,
         transports: authenticator.transports as AuthenticatorTransportFuture[] | undefined,
       },
-      requireUserVerification: true, // Or 'preferred' or 'discouraged' based on your policy
+      requireUserVerification: true,
     });
 
     if (verification.verified) {
@@ -311,15 +298,14 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
       authenticator.counter = verification.assertionInfo.newCounter;
       await user.save();
 
-      fidoChallenges.delete(email); // Clean up challenge
+      fidoChallenges.delete(email);
 
-      // Store user information in session
       req.session.userId = user._id.toString();
       req.session.email = user.email;
       req.session.username = user.username;
       req.session.admin = user.admin;
 
-      await req.session.save(); // Ensure session is saved before responding
+      await req.session.save();
 
       console.log(`[AUTH_DEBUG] Session created for user ${user.username} after FIDO login.`);
       return res.status(200).json({
@@ -336,15 +322,12 @@ router.post('/fido-login-verify', async (req: Request, res: Response) => {
     }
   } catch (error: any) {
     console.error('Error verifying FIDO assertion:', error);
-    fidoChallenges.delete(email); // Clean up challenge on error
+    fidoChallenges.delete(email);
     return res.status(500).json({ message: error.message || 'Failed to verify passkey.' });
   }
 });
 
-// Route to check session status
 router.get('/session', (req: Request, res: Response) => {
-  // @ts-ignore
-  // console.log(`[AUTH_DEBUG] /api/auth/session called. Cookies: ${JSON.stringify(req.headers.cookie)}, Session ID: ${req.sessionID}, Session UserID: ${req.session?.userId}, Full session: ${JSON.stringify(req.session)}`);
   if (req.session && req.session.userId) {
     return res.status(200).json({
       isAuthenticated: true,
@@ -367,8 +350,6 @@ router.post('/logout', (req: Request, res: Response) => {
       console.error('Session destruction error:', err);
       return res.status(500).json({ message: 'Could not log out, please try again.' });
     }
-    // Session cookie is typically cleared by session middleware on destroy
-    // If specific cookie clearing is needed: res.clearCookie('connect.sid'); // Replace 'connect.sid' if using a different session cookie name
     return res.status(200).json({ message: 'Logged out successfully.' });
   });
 });

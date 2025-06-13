@@ -21,8 +21,4 @@ ModlServerSchema.pre('save', function(next) {
   next();
 });
 
-// Note: This model will be used with a connection to the 'modl' database,
-// not the panel's default operational database.
-// const ModlServer = mongoose.model('Server', ModlServerSchema); // We will create the model dynamically via the connection manager
-
 export { ModlServerSchema };

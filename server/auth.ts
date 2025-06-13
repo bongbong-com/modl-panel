@@ -32,7 +32,6 @@ async function hashPassword(password: string) {
 
 async function comparePasswords(supplied: string, stored: string) {
   try {
-    // Check if the stored password is in the correct format
     if (!stored || !stored.includes(".")) {
       console.error("Invalid stored password format");
       return false;
@@ -51,7 +50,6 @@ async function comparePasswords(supplied: string, stored: string) {
 // For demo purposes - normally you would store and verify these properly
 const verificationCodes = new Map<string, string>();
 
-// Generate a random 6-digit code
 function generateVerificationCode(email: string): string {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   verificationCodes.set(email, code);
@@ -85,7 +83,6 @@ export function setupAuth(app: Express) {
       passReqToCallback: true
     }, async (req, username, password, done) => {
       try {
-        // Check verification method from request
         const { verificationMethod, verificationCode } = req.body;
         
         // Always use admin user for demo
@@ -145,7 +142,6 @@ export function setupAuth(app: Express) {
     try {
       const { username, email, password } = req.body;
       
-      // Check if user already exists
       const existingUser = await Staff.findOne({
         $or: [{ username }, { email }]
       });
@@ -156,22 +152,19 @@ export function setupAuth(app: Express) {
         });
       }
       
-      // Create new user
       const hashedPassword = await hashPassword(password);
       const newUser = new Staff({
         username,
         email,
         password: hashedPassword,
-        admin: false, // Default to regular staff
+        admin: false,
         profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`
       });
       
       await newUser.save();
       
-      // Log registration
       await createSystemLog(`New staff member registered: ${username}`);
       
-      // Log user in
       req.login(
         {
           _id: newUser._id,
@@ -198,7 +191,6 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Request email verification code
   app.post("/api/request-email-verification", async (req, res) => {
     const { email } = req.body;
     
@@ -208,7 +200,7 @@ export function setupAuth(app: Express) {
       
       console.log(`Demo mode: Email verification requested for ${email}. Code: ${code}`);
       
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "Verification code sent",
         // For demo purposes only! Don't send the code back in production
         code
@@ -216,14 +208,13 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error("Error requesting email verification:", error);
       // Even on error, return success in demo mode
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "Verification code sent",
         code: "123456"
       });
     }
   });
 
-  // Request 2FA verification code
   app.post("/api/request-2fa-verification", async (req, res) => {
     const { email } = req.body;
     
@@ -233,7 +224,7 @@ export function setupAuth(app: Express) {
       
       console.log(`Demo mode: 2FA verification requested for ${email}. Code: ${code}`);
       
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "2FA verification required",
         // For demo purposes only! Don't send the code back in production
         code
@@ -241,14 +232,13 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error("Error with 2FA verification:", error);
       // Even on error, return success in demo mode
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "2FA verification required",
         code: "123456"
       });
     }
   });
 
-  // Request passkey authentication
   app.post("/api/request-passkey-auth", async (req, res) => {
     const { email } = req.body;
     
@@ -256,14 +246,14 @@ export function setupAuth(app: Express) {
       // Demo mode - always succeed regardless of email
       console.log(`Demo mode: Passkey authentication requested for ${email}`);
       
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "Passkey authentication initiated",
         challenge: "simulated-passkey-challenge"
       });
     } catch (error) {
       console.error("Error with passkey authentication:", error);
       // Even on error, return success in demo mode
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "Passkey authentication initiated",
         challenge: "simulated-passkey-challenge"
       });

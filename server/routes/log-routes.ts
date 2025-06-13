@@ -1,25 +1,13 @@
 import { Router } from 'express';
 import { Connection, Document } from 'mongoose';
 
-// This interface should align with the actual Log schema defined in mongodb-schemas.ts
 interface ILogDocument extends Document {
   description: string;
   level: string;
   source: string;
   created: Date;
-  // Any other fields from the Log schema should be added here
 }
 
-/**
- * Creates a system log entry.
- * Assumes 'Log' model (based on Log.schema from mongodb-schemas) is registered on dbConnection.
- * @param dbConnection Mongoose connection for the tenant. Can be null or undefined.
- * @param serverName Name of the server instance. Can be null or undefined.
- * @param description Description of the system event.
- * @param level Log level ('info', 'warning', 'error', 'moderation'). Defaults to 'info'.
- * @param source Source of the log (e.g., 'system', 'staff username'). Defaults to 'system'.
- * @returns A promise that resolves to the created log document or null if an error occurs or dbConnection is not provided.
- */
 export async function createSystemLog(
   dbConnection: Connection | undefined | null,
   serverName: string | undefined | null,
@@ -34,7 +22,6 @@ export async function createSystemLog(
     return null;
   }
   try {
-    // Retrieve the 'Log' model, assuming it's been registered on this specific dbConnection
     const LogModel = dbConnection.model<ILogDocument>('Log');
     const logEntry = new LogModel({
       description,
@@ -43,7 +30,7 @@ export async function createSystemLog(
       created: new Date(),
     });
     await logEntry.save();
-    const serverIdMessage = serverName || dbConnection.name; // Use connection name as fallback for logging
+    const serverIdMessage = serverName || dbConnection.name;
     console.log(`LOG (${serverIdMessage}): ${description} [${level}, ${source}]`);
     return logEntry;
   } catch (error) {
@@ -63,7 +50,6 @@ router.get('/', async (req, res) => {
 
   try {
     const LogModel = req.serverDbConnection.model<ILogDocument>('Log');
-    // Fetch logs, sort by creation date descending, limit to 100 or a query param
     const limit = parseInt(req.query.limit as string) || 100;
     const logs = await LogModel.find().sort({ created: -1 }).limit(limit);
     res.json(logs);
@@ -73,4 +59,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-export default router; // Export the router
+export default router;

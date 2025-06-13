@@ -2,9 +2,8 @@ import { Connection, Types, Document } from 'mongoose'; // Added Types, Document
 import { Request, Response, NextFunction, Express } from 'express'; // Added Express for app type
 import { v4 as uuidv4 } from 'uuid'; // For generating new player UUIDs
 import { createSystemLog } from './log-routes'; // Import createSystemLog
-import { verifyMinecraftApiKey } from '../middleware/api-auth'; // Assuming this middleware exists
+import { verifyMinecraftApiKey } from '../middleware/api-auth';
 
-// Define interfaces based on Mongoose schemas for strong typing
 interface IUsername {
   username: string;
   date: Date;
@@ -110,12 +109,10 @@ function isPunishmentActive(punishment: IPunishment): boolean {
   return true;
 }
 
-// Define the router for Minecraft API routes
 export function setupMinecraftRoutes(app: Express) {
   // Apply API key verification middleware to all Minecraft routes
   app.use('/minecraft', verifyMinecraftApiKey);
 
-  // Middleware to ensure serverDbConnection is available
   app.use('/minecraft', (req: Request, res: Response, next: NextFunction) => {
     if (!req.serverDbConnection) {
       console.error('Minecraft route accessed without serverDbConnection.');
@@ -293,7 +290,7 @@ export function setupMinecraftRoutes(app: Express) {
       if (activeMutes.length === 0 && unstartedMutes.length > 0) {
         const muteToStart = unstartedMutes[0];
         muteToStart.started = new Date();
-        await player.save(); // Save changes to the player
+        await player.save();
         await createSystemLog(serverDbConnection, serverName, `Auto-started mute ID ${muteToStart.id} for ${player.usernames[0].username} (${player.minecraftUuid}) on login.`, 'moderation', 'system-login');
       }
 

@@ -1,13 +1,13 @@
 import dotenv from 'dotenv';
-import mongoose, { Connection } from 'mongoose'; // Removed Schema from here as it's not directly used in this way after changes
+import mongoose, { Connection } from 'mongoose';
 import {
   playerSchema,
   ticketSchema,
   staffSchema,
   settingsSchema,
-  logSchema // Ensure logSchema is imported from mongodb-schemas
+  logSchema
 } from '../models/mongodb-schemas';
-import { ModlServerSchema } from '../models/modl-global-schemas'; // Correct import for ModlServerSchema
+import { ModlServerSchema } from '../models/modl-global-schemas';
 
 dotenv.config();
 
@@ -26,15 +26,11 @@ const tenantSchemas: Record<string, mongoose.Schema<any>> = {
   Staff: staffSchema,
   Settings: settingsSchema,
   Log: logSchema,
-  // Appeal model might be derived or part of another schema, or handled differently.
-  // If appeals are stored in the tickets collection with a specific type, 
-  // then TicketSchema is already covering it.
 };
 
 function registerTenantModels(connection: Connection): void {
   for (const modelName in tenantSchemas) {
     if (Object.prototype.hasOwnProperty.call(tenantSchemas, modelName) && tenantSchemas[modelName]) {
-      // console.log(`Registering model '${modelName}' on connection for DB: '${connection.name}'`);
       connection.model(modelName, tenantSchemas[modelName]);
     } else {
       console.warn(`Schema for model '${modelName}' not found or not provided, skipping registration for DB: '${connection.name}'.`);
@@ -59,14 +55,12 @@ export async function connectToGlobalModlDb(): Promise<Connection> {
     console.log('Successfully connected to Global MODL Database.');
     globalModlConnection = conn;
 
-    // Register models on this global connection
-    conn.model('Server', ModlServerSchema); // For the 'servers' collection
-    // conn.model('Log', logSchema);          // For panel-main system logs
+    conn.model('Server', ModlServerSchema);
 
     return conn;
   } catch (error) {
     console.error('Error connecting to Global MODL Database:', error);
-    throw error; // Re-throw the error to be caught by the caller
+    throw error;
   }
 }
 
@@ -84,39 +78,23 @@ export async function getModlServersModel() {
  * @returns The Mongoose connection object for the server's database.
  */
 export async function connectToServerDb(serverName: string): Promise<Connection> {
-  // if (IS_DEVELOPMENT) {
-  //   console.log(`Development mode: Request for server '${serverName}', target DB '${PANEL_DB_PREFIX}${serverName}'.`);
-  // } else {
-  //   console.log(`Production mode: Request for server '${serverName}', target DB '${PANEL_DB_PREFIX}${serverName}'.`);
-  // }
-
   let connectionKeyInMap: string;
   let serverDbUri: string;
   let actualDbNameForConnection: string;
-  // const isDevelopment = process.env.NODE_ENV === 'development';
-  // Use the already defined IS_DEVELOPMENT
-  // const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
-
 
   if (IS_DEVELOPMENT) {
     actualDbNameForConnection = 'modl_test';
-    // In development, all serverName instances share a single connection to 'modl_test'.
-    // Use a fixed key in the map for this shared connection.
     connectionKeyInMap = 'dev_shared_modl_test_connection';
-    // console.log(`Development mode: Request for server '${serverName}', will use shared DB '${actualDbNameForConnection}'.`); // Hidden
-  } else { // Production logic
+  } else {
     actualDbNameForConnection = `${PANEL_DB_PREFIX}${serverName}`;
-    connectionKeyInMap = serverName; // Use actual serverName as key in prod
-    // console.log(`Production mode: Request for server '${serverName}', target DB '${actualDbNameForConnection}'.`); // Hidden
+    connectionKeyInMap = serverName;
   }
 
   if (serverConnections.has(connectionKeyInMap)) {
     const existingConn = serverConnections.get(connectionKeyInMap)!;
-    if (existingConn.readyState === 1) { // 1 === connected
-      // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${existingConn.name}).`);
+    if (existingConn.readyState === 1) {
       return existingConn;
     } else {
-      // console.warn(`Found stale connection for key '${connectionKeyInMap}' (readyState: ${existingConn.readyState}). Removing to attempt reconnect.`); // Hidden
       try {
         await existingConn.close();
       } catch (closeError) {
@@ -134,11 +112,9 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
 
   if (serverConnections.has(connectionKeyInMap)) {
     const existingConnection = serverConnections.get(connectionKeyInMap)!;
-    if (existingConnection.readyState === 1) { // 1 for connected
-      // console.log(`Reusing existing connection for key '${connectionKeyInMap}' (DB: ${actualDbNameForConnection}).`);
+    if (existingConnection.readyState === 1) {
       return existingConnection;
     }
-    // console.warn(`Found stale connection for key '${connectionKeyInMap}'. Attempting to remove and reconnect.`);
     try {
       await existingConnection.close();
     } catch (closeError) {
@@ -147,17 +123,17 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
     serverConnections.delete(connectionKeyInMap);
   }
 
-  // New connection logic
   try {
     const newConnection = mongoose.createConnection(serverDbUri);
-    registerTenantModels(newConnection); // Register models on the new connection
+    registerTenantModels(newConnection);
+    console.log(`[connectionManager] Attempting to connect to URI: ${serverDbUri} for DB: ${actualDbNameForConnection}, Key: ${connectionKeyInMap}`);
     await newConnection.openUri(serverDbUri);
+    console.log(`[connectionManager] Successfully connected to URI: ${serverDbUri} for DB: ${actualDbNameForConnection}, Key: ${connectionKeyInMap}. Connection state: ${newConnection.readyState}`);
 
-    // console.log(`Successfully connected to database: '${actualDbNameForConnection}' (URI: ${serverDbUri}). Storing with key '${connectionKeyInMap}'.`);
     serverConnections.set(connectionKeyInMap, newConnection);
     return newConnection;
   } catch (error) {
-    console.error(`Error connecting to database (Target DB: ${actualDbNameForConnection}, URI: ${serverDbUri}, Connection Key: ${connectionKeyInMap}):`, error);
+    console.error(`[connectionManager] Error connecting to database (Target DB: ${actualDbNameForConnection}, URI: ${serverDbUri}, Connection Key: ${connectionKeyInMap}):`, error);
     throw error;
   }
 }
@@ -171,10 +147,6 @@ export async function closeServerDbConnection(serverName: string): Promise<void>
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (isDevelopment) {
-    // In dev, all serverNames use the same shared connection key.
-    // If an individual serverName is passed, we map it to the shared key.
-    // However, this function is typically called by closeAllConnections with the actual map keys.
-    // If called directly with a serverName, it should resolve to the shared key.
     keyToClose = 'dev_shared_modl_test_connection';
     console.log(`Development mode: close request for '${serverName}', targeting shared key '${keyToClose}'.`);
   } else {
@@ -213,7 +185,6 @@ export async function closeAllConnections(): Promise<void> {
   console.log('All database connections closed.');
 }
 
-// Ensure connections are closed gracefully on application shutdown
 process.on('SIGINT', async () => {
   await closeAllConnections();
   process.exit(0);

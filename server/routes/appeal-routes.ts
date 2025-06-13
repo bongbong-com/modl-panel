@@ -1,8 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document, Types, Model } from 'mongoose';
-import { createSystemLog } from './log-routes'; // Ensure this path is correct
+import { createSystemLog } from './log-routes';
 
-// Interfaces based on expected Mongoose Schemas (adjust as per actual schemas)
 interface ITicketData extends Map<string, any> {
   punishmentId?: string;
   playerUuid?: string;
@@ -31,7 +30,7 @@ interface ITicket extends Document {
   updatedAt?: Date;
   creator: string;
   creatorUuid: string;
-  notes: any[]; // Consider a more specific type, e.g., INote[]
+  notes: any[];
   replies: IReply[];
   data: ITicketData;
   locked?: boolean;
@@ -49,14 +48,12 @@ interface IPunishmentInPlayer {
   attachedTicketIds: string[];
   modifications: IPunishmentModification[];
   data: Map<string, any>;
-  // other punishment fields
 }
 
 interface IPlayer extends Document {
   minecraftUuid: string;
   usernames: { username: string; date: Date }[];
   punishments: IPunishmentInPlayer[];
-  // other player fields
 }
 
 const router = express.Router();
@@ -130,9 +127,9 @@ router.post('/api/appeals', async (req: Request, res: Response) => {
       email,
       reason,
       evidence,
-      additionalData // This could be an object with various form fields
+      additionalData
     } = req.body;
-
+    
     if (!punishmentId || !playerUuid || !email || !reason) {
         return res.status(400).json({ error: 'Missing required fields: punishmentId, playerUuid, email, reason' });
     }
@@ -292,7 +289,6 @@ router.patch('/api/appeals/:id/status', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Ticket is not an appeal' });
     }
 
-    // let logMessage = `Appeal ${appeal._id} updated by ${staffUsername || 'System'}.`; // For createSystemLog
     const changes: string[] = [];
 
     if (status && appeal.status !== status) {
