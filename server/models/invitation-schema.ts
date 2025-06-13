@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
-const invitationSchema = new Schema({
+export const invitationSchema = new Schema({
   email: { type: String, required: true, unique: true },
   role: {
     type: String,
