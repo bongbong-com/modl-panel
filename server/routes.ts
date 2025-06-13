@@ -14,7 +14,6 @@ import ticketRoutes from './routes/ticket-routes';
 import logRoutes from './routes/log-routes';
 import authRoutes from './routes/auth-routes';
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
-import subdomainDbMiddleware from "./middleware/subdomainDbMiddleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   let globalDbConnection: MongooseConnection | undefined = undefined;

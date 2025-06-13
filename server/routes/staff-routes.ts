@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware';
-import subdomainDbMiddleware from '../middleware/subdomainDbMiddleware';
 import { Invitation } from '../models/invitation-schema';
 import nodemailer from 'nodemailer';
 import { getModlServersModel } from '../db/connectionManager';
@@ -155,7 +154,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-router.post('/invite', subdomainDbMiddleware, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invite', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   const { email, role } = req.body;
   const invitingUser = req.currentUser!;
 
@@ -207,7 +206,7 @@ router.post('/invite', subdomainDbMiddleware, checkRole(['Super Admin', 'Admin']
   }
 });
 
-router.post('/invitations/:id/resend', subdomainDbMiddleware, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invitations/:id/resend', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
       try {
         const db = req.serverDbConnection!;
         const InvitationModel = db.model('Invitation');
@@ -224,7 +223,7 @@ router.post('/invitations/:id/resend', subdomainDbMiddleware, checkRole(['Super 
 
         // Resend email logic (copy from the invite route)
         const appDomain = process.env.APP_DOMAIN || 'modl.gg';
-        const invitationLink = `https://${req.serverInfo.customDomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
+        const invitationLink = `https://${req.subdomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
         
         const mailOptions = {
           from: '"modl" <noreply@cobl.gg>',
