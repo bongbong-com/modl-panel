@@ -185,14 +185,15 @@ export function useCreateAppeal() {
 // Staff-related hooks
 export function useStaff() {
   return useQuery({
-    queryKey: ['/api/staff'],
+    queryKey: ['staff'],
     queryFn: async () => {
       const res = await fetch('/api/staff');
       if (!res.ok) {
         throw new Error('Failed to fetch staff');
       }
       return res.json();
-    }
+    },
+    staleTime: 1000 * 60, // 1 minute
   });
 }
 
