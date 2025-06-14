@@ -7,8 +7,21 @@ import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware";
 import { globalRateLimit } from "./middleware/rate-limiter";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// The Stripe webhook needs a raw body, so we can't use express.json() globally for all routes.
+// We'll apply it conditionally, excluding the webhook route.
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/billing/stripe-webhooks') {
+    return next();
+  }
+  return express.json()(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/billing/stripe-webhooks') {
+    return next();
+  }
+  return express.urlencoded({ extended: false })(req, res, next);
+});
 
 // If running behind a reverse proxy (like Nginx, Cloudflare, etc.) in production,
 // trust the first proxy hop to correctly identify the protocol (HTTP/HTTPS).

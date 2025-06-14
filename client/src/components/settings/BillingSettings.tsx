@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import { useBillingStatus } from '@/hooks/use-data';
+import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Initialize Stripe with the publishable key
@@ -13,6 +14,21 @@ const BillingSettings = () => {
   const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+
+    if (sessionId) {
+      toast({
+        title: 'Payment Successful!',
+        description: 'Your subscription has been activated.',
+        variant: 'default',
+      });
+      queryClient.invalidateQueries({ queryKey: ['billingStatus'] });
+    }
+  }, [queryClient, toast]);
 
   const handleCreateCheckoutSession = async () => {
     setIsLoading(true);
