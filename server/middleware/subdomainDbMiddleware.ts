@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Connection as MongooseConnection } from 'mongoose';
 import { connectToGlobalModlDb, connectToServerDb } from '../db/connectionManager';
 import { ModlServerSchema } from '../models/modl-global-schemas';
+import { reservedSubdomains } from '../config/reserved-subdomains';
 
 const DOMAIN = process.env.DOMAIN || 'modl.gg';
 const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
@@ -64,6 +65,12 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       return next();
     }
   } else {
+    return next();
+  }
+
+  // Bypass this middleware if we're on a reserved subdomain, which means functionality is gonna be different.
+  // We don't want to initialize any databases off of this!
+  if (reservedSubdomains.includes(serverName.toLowerCase())) {
     return next();
   }
 
