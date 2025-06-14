@@ -27,6 +27,11 @@ const BillingSettings = () => {
         variant: 'default',
       });
       queryClient.invalidateQueries({ queryKey: ['billingStatus'] });
+      
+      // Clean up the URL by removing the session_id query parameter
+      urlParams.delete('session_id');
+      const newUrl = `${window.location.pathname}${urlParams.toString() ? `?${urlParams.toString()}` : ''}`;
+      window.history.replaceState({}, '', newUrl);
     }
   }, [queryClient, toast]);
 
