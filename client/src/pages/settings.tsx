@@ -808,15 +808,6 @@ const Settings = () => {
                   Staff Management
                 </TabsTrigger>
               )}
-              {user?.role === 'Super Admin' && (
-                <TabsTrigger
-                  value="billing"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Billing
-                </TabsTrigger>
-              )}
             </TabsList>
 
             <TabsContent value="account" className="space-y-6 p-6">
@@ -1788,15 +1779,6 @@ const Settings = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="billing" className="p-6">
-              {user?.role === 'Super Admin' ? (
-                <BillingSettings />
-              ) : (
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
-                  <p className="text-muted-foreground">You do not have permission to view this page.</p>
-                </div>
-              )}
-            </TabsContent>
           </Tabs>
         </Card>
 

@@ -15,7 +15,6 @@ import logRoutes from './routes/log-routes';
 import authRoutes from './routes/auth-routes';
 import billingRoutes from './routes/billing-routes';
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
-// import { checkPremiumAccess } from "./middleware/premium-access-middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   let globalDbConnection: MongooseConnection | undefined = undefined;

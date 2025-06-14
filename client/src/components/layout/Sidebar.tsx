@@ -288,10 +288,6 @@ const Sidebar = () => {
                   }
 
                   // Regular menu items
-                  const isPremiumFeature = ["Audit", "Tickets"].includes(item.name);
-                  const isPremium = billingStatus?.plan_type === 'premium' && billingStatus?.subscription_status === 'active';
-                  const isDisabled = isPremiumFeature && !isPremium;
-                
                   return (
                     <li key={item.path}>
                       <Tooltip>
@@ -303,10 +299,8 @@ const Sidebar = () => {
                               "w-full h-10",
                               isActive &&
                                 "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20",
-                              isDisabled && "opacity-50 cursor-not-allowed"
                             )}
-                            onClick={isDisabled ? undefined : item.onClick}
-                            disabled={isDisabled}
+                            onClick={item.onClick}
                           >
                             <div className="relative">
                               {item.icon}
@@ -323,7 +317,6 @@ const Sidebar = () => {
                         </TooltipTrigger>
                         <TooltipContent side="right">
                           {item.name}
-                          {isDisabled && <Badge variant="destructive" className="ml-2">Premium</Badge>}
                         </TooltipContent>
                       </Tooltip>
                     </li>
