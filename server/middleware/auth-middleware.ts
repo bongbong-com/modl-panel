@@ -1,6 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 
+export const BYPASS_DEV_AUTH: boolean = true;
+
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
+    req.currentUser = {
+      userId: 'dev-user-id',
+      email: 'dev@example.com',
+      username: 'devuser',
+      role: 'Super Admin',
+    };
+    return next();
+  }
+
   if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.role !== undefined) {
     // User is authenticated and session has all required fields
     req.currentUser = {

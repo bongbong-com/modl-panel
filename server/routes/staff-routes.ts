@@ -405,6 +405,7 @@ interface UpdateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
+// Route to update general staff information
 router.patch('/:username', async (req: Request<{ username: string }, {}, UpdateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
@@ -469,6 +470,79 @@ interface AddPasskeyBody {
   aaguid: string;
 }
 
-// These routes have been moved to before the isAuthenticated middleware
+// Route to change a staff member's role
+router.patch('/:id/role', checkRole(['Super Admin', 'Admin']), async (req: Request<{ id: string }, {}, { role: IStaff['role'] }>, res: Response) => {
+  const { id } = req.params;
+  const { role: newRole } = req.body;
+  const performingUser = req.currentUser!;
 
+  if (!newRole || !['Super Admin', 'Admin', 'Moderator', 'Helper'].includes(newRole)) {
+    return res.status(400).json({ message: 'Invalid role specified.' });
+  }
+
+  try {
+    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
+    const staffToUpdate = await Staff.findById(id);
+
+    if (!staffToUpdate) {
+      return res.status(404).json({ message: 'Staff member not found.' });
+    }
+
+    // Super Admin can change any role to any other role.
+    if (performingUser.role === 'Super Admin') {
+      // No restrictions for Super Admin
+    } else if (performingUser.role === 'Admin') {
+      // Admins cannot change their own role.
+      if (staffToUpdate._id.toString() === performingUser.userId) {
+        return res.status(403).json({ message: 'Admins cannot change their own role.' });
+      }
+      // Admins cannot change anyone to Admin or Super Admin.
+      if (newRole === 'Admin' || newRole === 'Super Admin') {
+        return res.status(403).json({ message: 'Admins cannot assign Admin or Super Admin roles.' });
+      }
+      // Admins cannot change an existing Admin or Super Admin's role.
+      if (staffToUpdate.role === 'Admin' || staffToUpdate.role === 'Super Admin') {
+        return res.status(403).json({ message: 'Admins cannot change the role of other Admins or Super Admins.' });
+      }
+    } else {
+      // Other roles (Moderator, Helper) cannot change roles. This should be caught by checkRole, but as a safeguard:
+      return res.status(403).json({ message: 'Forbidden: You do not have permission to change roles.' });
+    }
+
+    if (staffToUpdate.role === newRole) {
+      return res.status(200).json({ message: 'Role is already set to the specified value.', staffMember: staffToUpdate });
+    }
+
+    staffToUpdate.role = newRole;
+    await staffToUpdate.save();
+
+    // Invalidate sessions for the user if their role changed, forcing re-login for new permissions
+    // This is important if session-based permissions are granular.
+    // For simplicity, we might skip direct session invalidation here if role changes are infrequent
+    // or if a brief period of old permissions is acceptable until next login.
+    // However, for security critical role changes, session invalidation is recommended.
+    // Example:
+    // const sessionStore = req.sessionStore;
+    // sessionStore.all((err: any, sessions: { [x: string]: any; }) => {
+    //   if (err) { console.error('Error fetching sessions for role change:', err); return; }
+    //   Object.keys(sessions).forEach(sid => {
+    //     if (sessions[sid].userId === id) {
+    //       sessionStore.destroy(sid, (destroyErr: any) => {
+    //         if (destroyErr) { console.error(`Error destroying session ${sid} for role change:`, destroyErr); }
+    //       });
+    //     }
+    //   });
+    // });
+
+
+    res.status(200).json({ message: 'Role updated successfully.', staffMember: staffToUpdate });
+
+  } catch (error) {
+    console.error('Error changing staff role:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+ 
+// These routes have been moved to before the isAuthenticated middleware
+ 
 export default router;

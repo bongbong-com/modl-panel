@@ -1,4 +1,5 @@
 import rateLimit, { type RateLimitRequestHandler } from 'express-rate-limit';
+import { type Request } from 'express';
 
 // Global rate limit: 200 requests per minute per IP
 export const globalRateLimit: RateLimitRequestHandler = rateLimit({
@@ -14,6 +15,8 @@ export const globalRateLimit: RateLimitRequestHandler = rateLimit({
   skipSuccessfulRequests: false,
   // Skip failed responses from the count
   skipFailedRequests: false,
+  // Skip requests that are not to API endpoints
+  skip: (req: Request) => !req.path.startsWith('/api'),
   // Custom key generator to use IP address
   keyGenerator: (req) => {
     // Use forwarded IP if behind a proxy, otherwise use connection remote address
@@ -23,12 +26,12 @@ export const globalRateLimit: RateLimitRequestHandler = rateLimit({
   handler: (req, res) => {
     console.log(`[RATE LIMIT] Global rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
     res.status(429).json({
-      error: 'You have exceeded the maximum number of requests allowed. Please slow down and try again in a minute.',
+      error: 'You have exceeded the maximum number of API requests allowed. Please slow down and try again in a minute.',
       retryAfter: 60,
       timeRemaining: '1 minute',
-      rateLimit: '200 requests per minute',
+      rateLimit: '200 API requests per minute',
       nextAttemptAt: new Date(Date.now() + 60000).toISOString(),
-      message: 'This limit helps ensure fair usage for all users and protects server performance.'
+      message: 'This limit helps ensure fair usage for all users and protects server performance for API endpoints.'
     });
   }
 });

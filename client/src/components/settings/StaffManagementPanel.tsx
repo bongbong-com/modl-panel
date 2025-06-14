@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import ChangeRoleModal from './ChangeRoleModal'; // Import the new modal
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useStaff } from '@/hooks/use-data';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Plus, PlusIcon, RefreshCw } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import InviteStaffModal from './InviteStaffModal';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +23,10 @@ interface StaffMember {
 
 const StaffManagementPanel = () => {
   const { data: staff, isLoading, error } = useStaff();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const { user: currentUser } = useAuth();
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isRemoveAlertOpen, setIsRemoveAlertOpen] = useState(false);
+  const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
   const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -33,7 +37,12 @@ const StaffManagementPanel = () => {
 
   const openConfirmationDialog = (member: StaffMember) => {
     setSelectedStaffMember(member);
-    setIsAlertOpen(true);
+    setIsRemoveAlertOpen(true);
+  };
+
+  const openChangeRoleModal = (member: StaffMember) => {
+    setSelectedStaffMember(member);
+    setIsChangeRoleModalOpen(true);
   };
 
   const handleRemove = async () => {
@@ -52,7 +61,7 @@ const StaffManagementPanel = () => {
     } catch (error) {
       console.error(error);
     } finally {
-      setIsAlertOpen(false);
+      setIsRemoveAlertOpen(false);
       setSelectedStaffMember(null);
     }
   };
@@ -87,7 +96,12 @@ const StaffManagementPanel = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Staff Management</CardTitle>
-            <Button onClick={() => setIsModalOpen(true)}>Invite New Staff Member</Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['staff'] })}>
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button onClick={() => setIsInviteModalOpen(true)}>Invite</Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -136,9 +150,16 @@ const StaffManagementPanel = () => {
                               </DropdownMenuItem>
                             </>
                           ) : (
-                            <DropdownMenuItem onSelect={() => openConfirmationDialog(member)}>
-                              Remove Staff Member
-                            </DropdownMenuItem>
+                            <>
+                              {currentUser && (currentUser.role === 'Super Admin' || (currentUser.role === 'Admin' && (member.role === 'Moderator' || member.role === 'Helper'))) && (
+                                <DropdownMenuItem onSelect={() => openChangeRoleModal(member)}>
+                                  Change Role
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onSelect={() => openConfirmationDialog(member)}>
+                                Remove Staff Member
+                              </DropdownMenuItem>
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -153,11 +174,19 @@ const StaffManagementPanel = () => {
         </CardContent>
       </Card>
       <InviteStaffModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
         onInviteSent={handleInviteSent}
       />
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+      <ChangeRoleModal
+        isOpen={isChangeRoleModalOpen}
+        onClose={() => {
+          setIsChangeRoleModalOpen(false);
+          setSelectedStaffMember(null);
+        }}
+        staffMember={selectedStaffMember}
+      />
+      <AlertDialog open={isRemoveAlertOpen} onOpenChange={setIsRemoveAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>

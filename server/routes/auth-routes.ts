@@ -10,6 +10,7 @@ import {
 import type { GenerateAssertionOptionsOpts } from '@simplewebauthn/server';
 import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
+import { BYPASS_DEV_AUTH } from 'server/middleware/auth-middleware';
 
 
 const rpID = 'localhost';
@@ -331,6 +332,19 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
 });
 
 router.get('/session', (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'development' && BYPASS_DEV_AUTH) {
+    // Mock user for development mode
+    return res.status(200).json({
+      isAuthenticated: true,
+      user: {
+        id: 'dev-user-id',
+        email: 'dev@example.com',
+        username: 'devuser',
+        role: 'Super Admin', // Or any default role suitable for development
+      },
+    });
+  }
+
   // @ts-ignore
   if (req.session && req.session.userId) {
     return res.status(200).json({

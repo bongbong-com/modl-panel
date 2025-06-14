@@ -44,8 +44,6 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       // @ts-ignore
       req.serverDbConnection = await connectToServerDb(serverName);
       // @ts-ignore
-      console.log(`[DEBUG] SubdomainMiddleware: DEV MODE (localhost) - Connected to DB for ${serverName}. DB Connection valid: ${!!req.serverDbConnection}`);
-      // @ts-ignore
       req.serverConfig = {
         customDomain: serverName,
         emailVerified: true,
