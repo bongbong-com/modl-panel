@@ -3,14 +3,18 @@ import { Request, Response, NextFunction } from 'express';
 export const BYPASS_DEV_AUTH: boolean = true;
 
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  // This middleware is currently disabled
-  if (BYPASS_DEV_AUTH) {
+  if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
+    req.currentUser = {
+      userId: 'dev-user-id',
+      email: 'dev@example.com',
+      username: 'devuser',
+      role: 'Super Admin',
+      plan_type: 'premium',
+      subscription_status: 'active',
+    };
+    
     return next();
   }
-
-  console.log('isAuthenticated middleware triggered');
-  console.log('Session:', req.session);
-  console.log('Cookies:', req.headers.cookie);
 
   if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.role !== undefined && req.session.plan_type !== undefined && req.session.subscription_status !== undefined) {
     // User is authenticated and session has all required fields
