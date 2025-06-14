@@ -20,10 +20,19 @@ const ModlServerSchema = new Schema({
     type: String,
     enum: ['free', 'premium'],
     default: 'free'
-  },
-  subscription_status: {
+  },  subscription_status: {
     type: String,
-    enum: ['active', 'canceled', 'past_due', 'inactive'],
+    enum: [
+      'active', 
+      'canceled', 
+      'incomplete', 
+      'incomplete_expired', 
+      'past_due', 
+      'trialing', 
+      'unpaid', 
+      'paused',
+      'inactive'
+    ],
     default: 'inactive'
   },
   current_period_end: { type: Date },

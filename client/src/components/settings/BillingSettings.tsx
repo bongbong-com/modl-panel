@@ -6,6 +6,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useBillingStatus } from '@/hooks/use-data';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RefreshCw } from 'lucide-react';
 
 // Initialize Stripe with the publishable key
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -98,6 +99,27 @@ const BillingSettings = () => {
     }
   };
 
+  const handleRefreshBillingStatus = async () => {
+    setIsLoading(true);
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['/api/billing/status'] });
+      toast({
+        title: 'Billing Status Refreshed',
+        description: 'Your billing information has been updated.',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Error refreshing billing status:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not refresh billing status. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderSubscriptionState = () => {
     if (isBillingLoading) {
       return (
@@ -107,9 +129,7 @@ const BillingSettings = () => {
           <Skeleton className="h-10 w-32 mt-4" />
         </div>
       );
-    }
-
-    const { subscription_status, current_period_end } = billingStatus || {};
+    }    const { subscription_status, current_period_end } = billingStatus || {};
 
     if (!subscription_status || ['inactive', 'incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(subscription_status)) {
       return (
@@ -150,14 +170,41 @@ const BillingSettings = () => {
       );
     }
 
+    // Handle other Stripe statuses that might indicate cancellation or issues
+    if (['paused', 'unpaid'].includes(subscription_status)) {
+      return (
+        <div>
+          <CardDescription>Your <strong>premium</strong> plan has an issue.</CardDescription>
+          <p className="text-sm text-muted-foreground mt-2">
+            Status: {subscription_status}. Please update your payment method or contact support.
+          </p>
+          <Button onClick={handleCreatePortalSession} className="mt-4" disabled={isLoading}>
+            {isLoading ? 'Processing...' : 'Manage Billing'}
+          </Button>
+        </div>
+      );
+    }
+
     return <p>Loading subscription details...</p>;
   };
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Billing</CardTitle>
-        <CardDescription>Manage your subscription and billing details.</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Billing</CardTitle>
+            <CardDescription>Manage your subscription and billing details.</CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshBillingStatus}
+            disabled={isLoading || isBillingLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {renderSubscriptionState()}
