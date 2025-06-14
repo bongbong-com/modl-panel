@@ -9,17 +9,21 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
       email: 'dev@example.com',
       username: 'devuser',
       role: 'Super Admin',
+      plan_type: 'premium',
+      subscription_status: 'active',
     };
     return next();
   }
 
-  if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.role !== undefined) {
+  if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.role !== undefined && req.session.plan_type !== undefined && req.session.subscription_status !== undefined) {
     // User is authenticated and session has all required fields
     req.currentUser = {
       userId: req.session.userId,
       email: req.session.email,
       username: req.session.username,
       role: req.session.role,
+      plan_type: req.session.plan_type,
+      subscription_status: req.session.subscription_status,
     };
     return next();
   } else {

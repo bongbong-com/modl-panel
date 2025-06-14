@@ -23,11 +23,13 @@ import { usePlayers } from "@/hooks/use-data";
 import { useDashboard } from "@/contexts/DashboardContext";
 import PlayerWindow from "../../components/windows/PlayerWindow";
 import serverLogo from "../../assets/server-logo.png";
+import { useAuth } from "@/hooks/use-auth";
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
   const { openLookupWindow: openDashboardLookupWindow } = useDashboard();
   const [location, navigate] = useLocation();
+  const { isPremium } = useAuth();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -287,6 +289,9 @@ const Sidebar = () => {
                   }
 
                   // Regular menu items
+                  const isPremiumFeature = ["Audit", "Tickets"].includes(item.name);
+                  const isDisabled = isPremiumFeature && !isPremium();
+
                   return (
                     <li key={item.path}>
                       <Tooltip>
@@ -298,8 +303,10 @@ const Sidebar = () => {
                               "w-full h-10",
                               isActive &&
                                 "bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary/20",
+                              isDisabled && "opacity-50 cursor-not-allowed"
                             )}
-                            onClick={item.onClick}
+                            onClick={isDisabled ? undefined : item.onClick}
+                            disabled={isDisabled}
                           >
                             <div className="relative">
                               {item.icon}
@@ -316,6 +323,7 @@ const Sidebar = () => {
                         </TooltipTrigger>
                         <TooltipContent side="right">
                           {item.name}
+                          {isDisabled && <Badge variant="destructive" className="ml-2">Premium</Badge>}
                         </TooltipContent>
                       </Tooltip>
                     </li>

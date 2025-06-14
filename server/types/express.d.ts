@@ -18,6 +18,8 @@ declare global {
         email?: string;
         username?: string;
         role?: string;
+        plan_type?: string;
+        subscription_status?: string;
         admin?: boolean; // Add admin flag for provisioning flow
       };
       currentUser?: { // Add this for strongly-typed session user info
@@ -25,7 +27,10 @@ declare global {
         email: string;
         username: string;
         role: string;
+        plan_type: string;
+        subscription_status: string;
       };
+      staffId?: string;
     }
   }
 }

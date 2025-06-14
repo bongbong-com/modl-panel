@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut } from 'lucide-react';
+import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -21,6 +21,7 @@ import { useLocation } from "wouter"; // For wouter navigation
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from '@/hooks/use-auth';
 import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
+import BillingSettings from '@/components/settings/BillingSettings';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -805,6 +806,15 @@ const Settings = () => {
                 >
                   <Shield className="h-4 w-4 mr-2" />
                   Staff Management
+                </TabsTrigger>
+              )}
+              {user?.role === 'Super Admin' && (
+                <TabsTrigger
+                  value="billing"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Billing
                 </TabsTrigger>
               )}
             </TabsList>
@@ -1771,6 +1781,16 @@ const Settings = () => {
             <TabsContent value="staff" className="p-6">
               {(user?.role === 'Super Admin' || user?.role === 'Admin') ? (
                 <StaffManagementPanel />
+              ) : (
+                <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
+                  <p className="text-muted-foreground">You do not have permission to view this page.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="billing" className="p-6">
+              {user?.role === 'Super Admin' ? (
+                <BillingSettings />
               ) : (
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
                   <p className="text-muted-foreground">You do not have permission to view this page.</p>
