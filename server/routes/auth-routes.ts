@@ -117,6 +117,10 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
         req.session.username = username;
         // @ts-ignore
         req.session.userId = email;
+        // @ts-ignore
+        req.session.plan_type = 'premium';
+        // @ts-ignore
+        req.session.subscription_status = 'active';
 
         await req.session.save();
         return res.status(200).json({
@@ -136,6 +140,10 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
+      // @ts-ignore
+      req.session.plan_type = user.plan_type || 'free';
+      // @ts-ignore
+      req.session.subscription_status = user.subscription_status || 'inactive';
 
       await req.session.save();
 
@@ -182,6 +190,10 @@ router.post('/verify-2fa-code', authRateLimit, async (req: Request, res: Respons
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
+      // @ts-ignore
+      req.session.plan_type = user.plan_type || 'free';
+      // @ts-ignore
+      req.session.subscription_status = user.subscription_status || 'inactive';
 
       await req.session.save();
 
@@ -309,6 +321,10 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
+      // @ts-ignore
+      req.session.plan_type = user.plan_type || 'free';
+      // @ts-ignore
+      req.session.subscription_status = user.subscription_status || 'inactive';
 
       await req.session.save();
 
