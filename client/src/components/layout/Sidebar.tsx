@@ -19,17 +19,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { usePlayers } from "@/hooks/use-data";
+import { usePlayers, useBillingStatus } from "@/hooks/use-data";
 import { useDashboard } from "@/contexts/DashboardContext";
 import PlayerWindow from "../../components/windows/PlayerWindow";
 import serverLogo from "../../assets/server-logo.png";
-import { useAuth } from "@/hooks/use-auth";
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
   const { openLookupWindow: openDashboardLookupWindow } = useDashboard();
   const [location, navigate] = useLocation();
-  const { isPremium } = useAuth();
+  const { data: billingStatus } = useBillingStatus();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -290,8 +289,9 @@ const Sidebar = () => {
 
                   // Regular menu items
                   const isPremiumFeature = ["Audit", "Tickets"].includes(item.name);
-                  const isDisabled = isPremiumFeature && !isPremium();
-
+                  const isPremium = billingStatus?.plan_type === 'premium' && billingStatus?.subscription_status === 'active';
+                  const isDisabled = isPremiumFeature && !isPremium;
+                
                   return (
                     <li key={item.path}>
                       <Tooltip>

@@ -14,6 +14,19 @@ const ModlServerSchema = new Schema({
   provisioningStatus: { type: String, enum: ['pending', 'in-progress', 'completed', 'failed'], default: 'pending' }, // To track provisioning
   databaseName: { type: String }, // To store the name of the server's dedicated DB
   provisioningNotes: { type: String }, // To store any notes or error messages during provisioning
+  stripe_customer_id: { type: String, unique: true, sparse: true },
+  stripe_subscription_id: { type: String, unique: true, sparse: true },
+  plan_type: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free'
+  },
+  subscription_status: {
+    type: String,
+    enum: ['active', 'canceled', 'past_due', 'inactive'],
+    default: 'inactive'
+  },
+  current_period_end: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { collection: 'servers' }); // Explicitly set the collection name

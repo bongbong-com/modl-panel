@@ -299,6 +299,21 @@ export function useRecentActivity(limit: number = 20, days: number = 7) {
   });
 }
 
+// Billing-related hooks
+export function useBillingStatus() {
+  return useQuery({
+    queryKey: ['/api/billing/status'],
+    queryFn: async () => {
+      const res = await fetch('/api/billing/status');
+      if (!res.ok) {
+        throw new Error('Failed to fetch billing status');
+      }
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
 // Punishment hooks
 export function useApplyPunishment() {
   return useMutation({

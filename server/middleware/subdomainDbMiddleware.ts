@@ -45,7 +45,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       // @ts-ignore
       req.serverDbConnection = await connectToServerDb(serverName);
       // @ts-ignore
-      req.serverConfig = {
+      req.modlServer = {
         customDomain: serverName,
         emailVerified: true,
       };
@@ -96,7 +96,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     }
 
     // @ts-ignore
-    req.serverConfig = serverConfig;
+    req.modlServer = serverConfig;
 
     try {
       // @ts-ignore

@@ -1,22 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
+import { useBillingStatus } from '@/hooks/use-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Initialize Stripe with the publishable key
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const BillingSettings = () => {
-  const { user, refreshSession } = useAuth();
+  const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    // Refresh session when component mounts to get latest subscription status
-    refreshSession();
-  }, []);
 
   const handleCreateCheckoutSession = async (priceId: string) => {
     setIsLoading(true);
@@ -83,10 +79,19 @@ const BillingSettings = () => {
   };
 
   const renderSubscriptionState = () => {
-    // Assuming the user object from useAuth contains the subscription details
-    const { plan_type, subscription_status, current_period_end } = user || {};
+    if (isBillingLoading) {
+      return (
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-10 w-32 mt-4" />
+        </div>
+      );
+    }
 
-    if (!subscription_status || subscription_status === 'incomplete' || subscription_status === 'incomplete_expired' || subscription_status === 'past_due' || subscription_status === 'unpaid') {
+    const { subscription_status, current_period_end } = billingStatus || {};
+
+    if (!subscription_status || ['inactive', 'incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(subscription_status)) {
       return (
         <div>
           <CardDescription>You do not have an active subscription. Upgrade to unlock premium features.</CardDescription>

@@ -1,5 +1,6 @@
 export const reservedSubdomains = [
   'payments',
+  'payment',
   'api',
   'app',
   'status',

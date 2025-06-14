@@ -1,62 +1,110 @@
 import express from 'express';
 import Stripe from 'stripe';
-import { Staff } from '../models/mongodb-schemas';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { checkPremiumAccess } from '../middleware/premium-access-middleware';
+import { connectToGlobalModlDb } from '../db/connectionManager';
+import { ModlServerSchema } from '../models/modl-global-schemas';
 
 const router = express.Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-04-10',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-router.post('/create-checkout-session', isAuthenticated, checkPremiumAccess, async (req, res) => {
+router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
   const { priceId } = req.body;
-  const staffId = req.currentUser!.userId;
+  const serverName = req.serverName;
+
+  if (!serverName) {
+    return res.status(400).send('Server name not found in request.');
+  }
 
   try {
-    const staff = await Staff.findById(staffId);
-    if (!staff) {
-      return res.status(404).send('Staff not found');
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.model('ModlServer', ModlServerSchema);
+    const server = await Server.findOne({ customDomain: serverName });
+
+    if (!server) {
+      return res.status(404).send('Server not found');
+    }
+
+    let customerId = server.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: server.adminEmail,
+        name: server.serverName,
+        metadata: {
+          serverName: server.customDomain,
+        },
+      });
+      customerId = customer.id;
+      server.stripe_customer_id = customerId;
+      await server.save();
     }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      customer: staff.stripe_customer_id,
+      line_items: [{ price: priceId, quantity: 1 }],
+      customer: customerId,
       success_url: `${process.env.CLIENT_URL}/settings?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/settings`,
     });
 
     res.send({ sessionId: session.id });
   } catch (error) {
-    console.error(error);
+    console.error('Error creating checkout session:', error);
     res.status(500).send('Internal Server Error');
   }
 });
 
-router.post('/create-portal-session', isAuthenticated, checkPremiumAccess, async (req, res) => {
-  const staffId = req.currentUser!.userId;
+router.post('/create-portal-session', isAuthenticated, async (req, res) => {
+  const serverName = req.serverName;
+
+  if (!serverName) {
+    return res.status(400).send('Server name not found in request.');
+  }
 
   try {
-    const staff = await Staff.findById(staffId);
-    if (!staff || !staff.stripe_customer_id) {
-      return res.status(404).send('Staff or customer ID not found');
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.model('ModlServer', ModlServerSchema);
+    const server = await Server.findOne({ customDomain: serverName });
+
+    if (!server || !server.stripe_customer_id) {
+      return res.status(404).send('Server or customer ID not found');
     }
 
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: staff.stripe_customer_id,
+      customer: server.stripe_customer_id,
       return_url: `${process.env.CLIENT_URL}/settings`,
     });
 
     res.send({ url: portalSession.url });
   } catch (error) {
-    console.error(error);
+    console.error('Error creating portal session:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+router.get('/status', isAuthenticated, async (req, res) => {
+  const serverName = req.serverName;
+
+  if (!serverName) {
+    return res.status(400).send('Server name not found in request.');
+  }
+
+  try {
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.model('ModlServer', ModlServerSchema);
+    const server = await Server.findOne({ customDomain: serverName });
+
+    if (!server) {
+      return res.status(404).send('Server not found');
+    }
+
+    res.send({
+      plan_type: server.plan_type,
+      subscription_status: server.subscription_status,
+      current_period_end: server.current_period_end,
+    });
+  } catch (error) {
+    console.error('Error fetching billing status:', error);
     res.status(500).send('Internal Server Error');
   }
 });
@@ -71,10 +119,13 @@ router.post('/stripe-webhooks', express.raw({ type: 'application/json' }), async
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  const globalDb = await connectToGlobalModlDb();
+  const Server = globalDb.model('ModlServer', ModlServerSchema);
+
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      await Staff.findOneAndUpdate(
+      await Server.findOneAndUpdate(
         { stripe_customer_id: session.customer as string },
         {
           stripe_subscription_id: session.subscription as string,
@@ -85,7 +136,7 @@ router.post('/stripe-webhooks', express.raw({ type: 'application/json' }), async
     }
     case 'customer.subscription.updated': {
       const subscription = event.data.object as Stripe.Subscription;
-      await Staff.findOneAndUpdate(
+      await Server.findOneAndUpdate(
         { stripe_subscription_id: subscription.id },
         {
           subscription_status: subscription.status,
@@ -97,7 +148,7 @@ router.post('/stripe-webhooks', express.raw({ type: 'application/json' }), async
     }
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
-      await Staff.findOneAndUpdate(
+      await Server.findOneAndUpdate(
         { stripe_subscription_id: subscription.id },
         {
           subscription_status: 'canceled',

@@ -77,14 +77,6 @@ const staffSchema = new Schema({
     required: true,
     enum: ['Super Admin', 'Admin', 'Moderator', 'Helper'],
   },
-  stripe_customer_id: { type: String },
-  stripe_subscription_id: { type: String },
-  plan_type: {
-    type: String,
-    enum: ['hobby', 'pro', 'enterprise'],
-  },
-  subscription_status: { type: String },
-  current_period_end: { type: Date },
 }, { timestamps: true });
 
 const ticketSchema = new Schema({

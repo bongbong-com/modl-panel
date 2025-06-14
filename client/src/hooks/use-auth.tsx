@@ -10,16 +10,12 @@ interface User {
   username: string;
   profilePicture?: string;
   role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
-  plan_type?: 'hobby' | 'pro' | 'enterprise';
-  subscription_status?: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'trialing' | 'unpaid';
-  current_period_end?: string;
 }
 
 // Define the AuthContext type
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
-  isPremium: () => boolean;
   login: (email: string, authMethod: string, code?: string, assertionResponse?: AuthenticationResponseJSON) => Promise<boolean>;
   logout: () => void;
   requestEmailVerification: (email: string) => Promise<string | undefined>;
@@ -80,10 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Function to manually refresh session
-  const isPremium = () => {
-    return user?.plan_type === 'premium' && user?.subscription_status === 'active';
-  };
-
   const refreshSession = async () => {
     setIsLoading(true);
     try {
@@ -418,7 +410,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isPremium,
         login,
         logout,
         requestEmailVerification,

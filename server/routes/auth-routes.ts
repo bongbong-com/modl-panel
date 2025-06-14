@@ -105,7 +105,7 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
     const user = await StaffModel.findOne({ email });
     if (!user) {
       // @ts-ignore
-      const serverConfigAdminEmail = req.serverConfig?.adminEmail?.toLowerCase();
+      const serverConfigAdminEmail = req.modlServer?.adminEmail?.toLowerCase();
       if (email.toLowerCase() === serverConfigAdminEmail) {
         // This is the server admin, create a session for them
         // @ts-ignore
