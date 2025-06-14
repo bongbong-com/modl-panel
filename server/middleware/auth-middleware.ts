@@ -8,6 +8,10 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
     return next();
   }
 
+  console.log('isAuthenticated middleware triggered');
+  console.log('Session:', req.session);
+  console.log('Cookies:', req.headers.cookie);
+
   if (req.session && req.session.userId && req.session.email && req.session.username !== undefined && req.session.role !== undefined && req.session.plan_type !== undefined && req.session.subscription_status !== undefined) {
     // User is authenticated and session has all required fields
     req.currentUser = {
