@@ -5,12 +5,13 @@ import { authenticator } from 'otplib';
 import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
-  VerifiedAssertionResponse,
+  VerifiedAuthenticationResponse,
 } from '@simplewebauthn/server';
-import type { GenerateAssertionOptionsOpts } from '@simplewebauthn/server';
-import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
+import type { GenerateAuthenticationOptionsOpts } from '@simplewebauthn/server';
+import type { AuthenticatorTransport } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
 import { BYPASS_DEV_AUTH } from 'server/middleware/auth-middleware';
+import { getModlServersModel } from '../db/connectionManager';
 
 
 const rpID = 'localhost';
@@ -48,6 +49,54 @@ function generateNumericCode(length: number = 6): string {
   return code;
 }
 
+router.get('/check-email/:email', async (req: Request<{ email: string }>, res: Response) => {
+  try {
+    if (process.env.NODE_ENV === 'development') {
+      // In development mode, accept any email and assume no 2FA/FIDO for simplicity
+      return res.json({
+        exists: true,
+        isTwoFactorEnabled: false, // Default to false for any dev email
+        hasFidoPasskeys: false    // Default to false for any dev email
+      });
+    }
+
+    const Staff = req.serverDbConnection!.model('Staff');
+    const requestedEmail = req.params.email.toLowerCase(); // Normalize requested email
+
+    const staffMember = await Staff.findOne({ email: requestedEmail });
+
+    if (staffMember) {
+      const hasFidoPasskeys = !!(staffMember.passkeys && staffMember.passkeys.length > 0);
+      return res.json({
+        exists: true,
+        isTwoFactorEnabled: !!staffMember.isTwoFactorEnabled,
+        hasFidoPasskeys: hasFidoPasskeys
+      });
+    }
+
+    try {
+      const ModlServer = await getModlServersModel();
+      const serverConfig = await ModlServer.findOne({ serverName: req.serverName });
+
+      if (serverConfig && serverConfig.adminEmail.toLowerCase() === requestedEmail) {
+        // Main admin email for this server. Assume no 2FA/FIDO unless these are also stored in ModlServer
+        return res.json({
+          exists: true,
+          isTwoFactorEnabled: false, // Or fetch from serverConfig if available
+          hasFidoPasskeys: false     // Or fetch from serverConfig if available
+        });
+      }
+    } catch (globalDbError) {
+      console.error(`[Server: ${req.serverName}] Error fetching server config from global DB:`, globalDbError);
+      // Continue to "not found" if global DB access fails, to not break login for regular staff
+    }
+
+    return res.json({ exists: false, isTwoFactorEnabled: false, hasFidoPasskeys: false });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // Route to send email verification code
 router.post('/send-email-code', strictRateLimit, async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -231,11 +280,11 @@ router.post('/fido-login-challenge', authRateLimit, async (req: Request, res: Re
       return res.status(400).json({ message: 'No passkeys registered for this user.' });
     }
 
-    const opts: GenerateAssertionOptionsOpts = {
-      allowCredentials: user.passkeys.map(pk => ({
+    const opts: GenerateAuthenticationOptionsOpts = {
+      allowCredentials: user.passkeys.map((pk: any) => ({
         id: pk.credentialID,
         type: 'public-key',
-        transports: pk.transports as AuthenticatorTransportFuture[] | undefined,
+        transports: pk.transports as AuthenticatorTransport[] | undefined,
       })),
       userVerification: 'preferred',
       rpID,
@@ -284,7 +333,7 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
     }
 
     // Find the authenticator that was used
-    const authenticator = user.passkeys.find(pk =>
+    const authenticator = user.passkeys.find((pk: any) =>
       Buffer.from(assertionResponse.id, 'base64url').equals(pk.credentialID)
     );
 
@@ -292,7 +341,7 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
       return res.status(400).json({ message: 'Authenticator not recognized for this user.' });
     }
 
-    const verification = await verifyAuthenticationResponse({
+    const verification: VerifiedAuthenticationResponse = await verifyAuthenticationResponse({
       response: assertionResponse,
       expectedChallenge: storedChallengeEntry.challenge,
       expectedOrigin,
@@ -301,14 +350,14 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
         credentialID: authenticator.credentialID,
         credentialPublicKey: authenticator.credentialPublicKey,
         counter: authenticator.counter,
-        transports: authenticator.transports as AuthenticatorTransportFuture[] | undefined,
+        transports: authenticator.transports as AuthenticatorTransport[] | undefined,
       },
       requireUserVerification: true,
     });
 
     if (verification.verified) {
       // Update the authenticator counter
-      authenticator.counter = verification.assertionInfo.newCounter;
+      authenticator.counter = verification.authenticationInfo.newCounter;
       await user.save();
 
       fidoChallenges.delete(email);

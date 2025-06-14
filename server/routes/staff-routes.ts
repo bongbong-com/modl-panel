@@ -54,55 +54,6 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 
 // Public routes - should be defined before authentication middleware
 
-router.get('/check-email/:email', async (req: Request<{ email: string }>, res: Response) => {
-  try {
-    if (process.env.NODE_ENV === 'development') {
-      // In development mode, accept any email and assume no 2FA/FIDO for simplicity
-      return res.json({
-        exists: true,
-        isTwoFactorEnabled: false, // Default to false for any dev email
-        hasFidoPasskeys: false    // Default to false for any dev email
-      });
-    }
-
-    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const requestedEmail = req.params.email.toLowerCase(); // Normalize requested email
-
-    const staffMember = await Staff.findOne({ email: requestedEmail });
-
-    if (staffMember) {
-      const hasFidoPasskeys = !!(staffMember.passkeys && staffMember.passkeys.length > 0);
-      return res.json({
-        exists: true,
-        isTwoFactorEnabled: !!staffMember.isTwoFactorEnabled,
-        hasFidoPasskeys: hasFidoPasskeys
-      });
-    }
-
-    try {
-      const ModlServer = await getModlServersModel();
-      const serverConfig = await ModlServer.findOne({ serverName: req.serverName });
-
-      if (serverConfig && serverConfig.adminEmail.toLowerCase() === requestedEmail) {
-        // Main admin email for this server. Assume no 2FA/FIDO unless these are also stored in ModlServer
-        return res.json({
-          exists: true,
-          isTwoFactorEnabled: false, // Or fetch from serverConfig if available
-          hasFidoPasskeys: false     // Or fetch from serverConfig if available
-        });
-      }
-    } catch (globalDbError) {
-      console.error(`[Server: ${req.serverName}] Error fetching server config from global DB:`, globalDbError);
-      // Continue to "not found" if global DB access fails, to not break login for regular staff
-    }
-
-    return res.json({ exists: false, isTwoFactorEnabled: false, hasFidoPasskeys: false });
-
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 router.get('/check-username/:username', async (req: Request<{ username: string }>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
