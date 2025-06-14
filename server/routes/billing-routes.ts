@@ -9,21 +9,13 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
   const { priceId } = req.body;
-  const serverName = req.serverName;
+  const server = req.modlServer;
 
-  if (!serverName) {
-    return res.status(400).send('Server name not found in request.');
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
   }
 
   try {
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.model('ModlServer', ModlServerSchema);
-    const server = await Server.findOne({ customDomain: serverName });
-
-    if (!server) {
-      return res.status(404).send('Server not found');
-    }
-
     let customerId = server.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -43,8 +35,8 @@ router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       customer: customerId,
-      success_url: `${process.env.CLIENT_URL}/settings?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/settings`,
+      success_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings`,
     });
 
     res.send({ sessionId: session.id });
@@ -55,24 +47,20 @@ router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
 });
 
 router.post('/create-portal-session', isAuthenticated, async (req, res) => {
-  const serverName = req.serverName;
+  const server = req.modlServer;
 
-  if (!serverName) {
-    return res.status(400).send('Server name not found in request.');
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
   }
 
   try {
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.model('ModlServer', ModlServerSchema);
-    const server = await Server.findOne({ customDomain: serverName });
-
-    if (!server || !server.stripe_customer_id) {
-      return res.status(404).send('Server or customer ID not found');
+    if (!server.stripe_customer_id) {
+      return res.status(404).send('Customer ID not found for server');
     }
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: server.stripe_customer_id,
-      return_url: `${process.env.CLIENT_URL}/settings`,
+      return_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings`,
     });
 
     res.send({ url: portalSession.url });
@@ -83,21 +71,13 @@ router.post('/create-portal-session', isAuthenticated, async (req, res) => {
 });
 
 router.get('/status', isAuthenticated, async (req, res) => {
-  const serverName = req.serverName;
+  const server = req.modlServer;
 
-  if (!serverName) {
-    return res.status(400).send('Server name not found in request.');
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
   }
 
   try {
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.model('ModlServer', ModlServerSchema);
-    const server = await Server.findOne({ customDomain: serverName });
-
-    if (!server) {
-      return res.status(404).send('Server not found');
-    }
-
     res.send({
       plan_type: server.plan_type,
       subscription_status: server.subscription_status,
