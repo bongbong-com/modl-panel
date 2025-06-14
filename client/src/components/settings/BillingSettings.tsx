@@ -17,6 +17,7 @@ const BillingSettings = () => {
   const handleCreateCheckoutSession = async () => {
     setIsLoading(true);
     try {
+      console.log('Stripe Key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? 'Loaded' : 'MISSING');
       const response = await fetch('/api/billing/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -24,21 +25,31 @@ const BillingSettings = () => {
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session');
-      }
+      const responseText = await response.text();
+      console.log('Raw server response:', responseText);
 
-      const { sessionId } = await response.json();
+      if (!response.ok) {
+        throw new Error(`Failed to create checkout session: ${responseText}`);
+      }
+      
+      const { sessionId } = JSON.parse(responseText);
+      console.log('Parsed sessionId:', sessionId);
+
       const stripe = await stripePromise;
-      if (stripe) {
+      console.log('Stripe.js object:', stripe);
+
+      if (stripe && sessionId) {
         const { error } = await stripe.redirectToCheckout({ sessionId });
         if (error) {
+          console.error('Stripe redirectToCheckout error:', error);
           toast({
             title: 'Error',
             description: error.message || 'Failed to redirect to Stripe Checkout.',
             variant: 'destructive',
           });
         }
+      } else {
+        throw new Error('Stripe.js not loaded or sessionId is missing.');
       }
     } catch (error) {
       console.error(error);
@@ -122,7 +133,7 @@ const BillingSettings = () => {
           <p className="text-sm text-muted-foreground mt-2">
             Your access will end on {new Date(current_period_end).toLocaleDateString()}.
           </p>
-          <Button onClick={() => handleCreateCheckoutSession('price_1PZd6JRxp65QJvYg5tQyZk5r')} className="mt-4" disabled={isLoading}>
+          <Button onClick={handleCreateCheckoutSession} className="mt-4" disabled={isLoading}>
             {isLoading ? 'Processing...' : 'Resubscribe'}
           </Button>
         </div>
