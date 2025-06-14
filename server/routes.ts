@@ -15,7 +15,7 @@ import logRoutes from './routes/log-routes';
 import authRoutes from './routes/auth-routes';
 import billingRoutes from './routes/billing-routes';
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
-import { checkPremiumAccess } from "./middleware/premium-access-middleware";
+// import { checkPremiumAccess } from "./middleware/premium-access-middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   let globalDbConnection: MongooseConnection | undefined = undefined;
@@ -30,12 +30,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupApiRoutes(app);
   setupVerificationAndProvisioningRoutes(app);
 
-  app.use('/api/appeals', checkPremiumAccess, appealRoutes);
-  app.use('/api/players', checkPremiumAccess, playerRoutes);
-  app.use('/api/settings', checkPremiumAccess, settingsRoutes);
-  app.use('/api/staff', checkPremiumAccess, staffRoutes);
-  app.use('/api/tickets', checkPremiumAccess, ticketRoutes);
-  app.use('/api/logs', checkPremiumAccess, logRoutes);
+  app.use('/api/appeals', appealRoutes);
+  app.use('/api/players', playerRoutes);
+  app.use('/api/settings', settingsRoutes);
+  app.use('/api/staff', staffRoutes);
+  app.use('/api/tickets', ticketRoutes);
+  app.use('/api/logs', logRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/billing', billingRoutes);
   
