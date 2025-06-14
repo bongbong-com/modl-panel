@@ -140,14 +140,18 @@ const BillingSettings = () => {
           </Button>
         </div>
       );
-    }
-
-    if (subscription_status === 'active' || subscription_status === 'trialing') {
+    }    if (subscription_status === 'active' || subscription_status === 'trialing') {
       return (
         <div>
           <CardDescription>You are currently on the <strong>premium</strong> plan.</CardDescription>
           <p className="text-sm text-muted-foreground mt-2">
-            {subscription_status === 'trialing' ? 'Your trial ends on' : 'Your subscription will renew on'} {new Date(current_period_end).toLocaleDateString()}.
+            {current_period_end && current_period_end !== 'null' ? (
+              <>
+                {subscription_status === 'trialing' ? 'Your trial ends on' : 'Your subscription will renew on'} {new Date(current_period_end).toLocaleDateString()}.
+              </>
+            ) : (
+              'Your subscription is active.'
+            )}
           </p>
           <Button onClick={handleCreatePortalSession} className="mt-4" disabled={isLoading}>
             {isLoading ? 'Processing...' : 'Manage Billing'}
@@ -161,7 +165,11 @@ const BillingSettings = () => {
         <div>
           <CardDescription>Your <strong>premium</strong> plan is canceled.</CardDescription>
           <p className="text-sm text-muted-foreground mt-2">
-            Your access will end on {new Date(current_period_end).toLocaleDateString()}.
+            {current_period_end && current_period_end !== 'null' ? (
+              <>Your access will end on {new Date(current_period_end).toLocaleDateString()}.</>
+            ) : (
+              'Your subscription has been canceled.'
+            )}
           </p>
           <Button onClick={() => handleCreateCheckoutSession()} className="mt-4" disabled={isLoading}>
             {isLoading ? 'Processing...' : 'Resubscribe'}

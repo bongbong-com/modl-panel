@@ -121,23 +121,26 @@ router.get('/status', isAuthenticated, async (req, res) => {
                 periodEndDate = null;
               }
             }
-            
-            const updateData: any = {
+              const updateData: any = {
               subscription_status: subscription.status,
             };
             
             if (periodEndDate) {
               updateData.current_period_end = periodEndDate;
+            } else if (subscription.status === 'canceled') {
+              // For canceled subscriptions, set current_period_end to null
+              updateData.current_period_end = null;
             }
             
             await Server.findOneAndUpdate(
               { _id: server._id },
               updateData
             );
-            
-            currentStatus = subscription.status;
+              currentStatus = subscription.status;
             if (periodEndDate) {
               currentPeriodEnd = periodEndDate;
+            } else if (subscription.status === 'canceled') {
+              currentPeriodEnd = undefined;
             }
           }
         } catch (stripeError) {
@@ -259,14 +262,12 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
 
           const updateData: any = {
             subscription_status: subscription.status,
-          };
-
-          // Only update current_period_end if we have a valid date
+          };          // Only update current_period_end if we have a valid date
           if (periodEndDate) {
             updateData.current_period_end = periodEndDate;
           } else if (subscription.status === 'canceled') {
-            // For canceled subscriptions, remove the current_period_end if it exists
-            updateData.$unset = { current_period_end: 1 };
+            // For canceled subscriptions, set current_period_end to null
+            updateData.current_period_end = null;
           }
 
           await Server.findOneAndUpdate(
@@ -286,13 +287,12 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
         console.log(`[WEBHOOK] Processing subscription.deleted: ${subscription.id}`);
         
         const server = await Server.findOne({ stripe_subscription_id: subscription.id });
-        if (server) {
-          await Server.findOneAndUpdate(
+        if (server) {          await Server.findOneAndUpdate(
             { _id: server._id },
             {
               subscription_status: 'canceled',
               plan_type: 'free',
-              $unset: { current_period_end: 1 }
+              current_period_end: null
             }
           );
           console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription deleted`);
