@@ -76,7 +76,7 @@ const AuthPage = () => {
   const onLoginSubmit = async (values: LoginFormValues) => {
     if (loginStep === 'email') {
       try {
-        const emailCheckResponse = await fetch(`/api/staff/check-email/${encodeURIComponent(values.email)}`);
+        const emailCheckResponse = await fetch(`/api/auth/check-email/${encodeURIComponent(values.email)}`);
         if (!emailCheckResponse.ok) {
           toast({ title: "Error", description: "Could not verify email. Please try again.", variant: "destructive" });
           return;
