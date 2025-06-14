@@ -67,6 +67,14 @@ const Settings = () => {
   const [, navigateWouter] = useLocation();
   const { user, logout } = useAuth();
   const mainContentClass = "ml-[32px] pl-8";
+  const [activeTab, setActiveTab] = useState('account');
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('session_id') && user?.role === 'Super Admin') {
+      setActiveTab('billing');
+    }
+  }, [user]);
 
   // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -762,7 +770,7 @@ const Settings = () => {
         </div>
 
         <Card className="overflow-visible">
-          <Tabs defaultValue="account">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full h-full justify-start rounded-none bg-transparent border-b border-border overflow-x-auto mx-1">
               <TabsTrigger
                 value="account"
@@ -799,13 +807,15 @@ const Settings = () => {
                 <Tag className="h-4 w-4 mr-2" />
                 Ticket Tags
               </TabsTrigger>
-              <TabsTrigger
-                value="billing"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Billing
-              </TabsTrigger>
+              {user?.role === 'Super Admin' && (
+                <TabsTrigger
+                  value="billing"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Billing
+                </TabsTrigger>
+              )}
               {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
                 <TabsTrigger
                   value="staff"
@@ -1786,9 +1796,11 @@ const Settings = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="billing" className="space-y-6 p-6">
-              <BillingSettings />
-            </TabsContent>
+            {user?.role === 'Super Admin' && (
+              <TabsContent value="billing" className="space-y-6 p-6">
+                <BillingSettings />
+              </TabsContent>
+            )}
 
           </Tabs>
         </Card>
