@@ -5,9 +5,20 @@ import { connectToGlobalModlDb } from '../db/connectionManager';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 
 const router = express.Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+// Initialize Stripe only if keys are available
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+} else {
+  console.warn('STRIPE_SECRET_KEY not found. Billing features will be disabled.');
+}
 
 router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).send('Billing service unavailable. Stripe not configured.');
+  }
+  
   const server = req.modlServer;
 
   if (!server) {
@@ -46,6 +57,10 @@ router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
 });
 
 router.post('/create-portal-session', isAuthenticated, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).send('Billing service unavailable. Stripe not configured.');
+  }
+  
   const server = req.modlServer;
 
   if (!server) {
@@ -82,31 +97,53 @@ router.get('/status', isAuthenticated, async (req, res) => {
     let currentPeriodEnd = server.current_period_end;
     
     if (server.stripe_subscription_id && (!currentStatus || currentStatus === 'active')) {
-      try {
-        const subscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id);
-        console.log(`[BILLING STATUS] Stripe subscription status: ${subscription.status}, DB status: ${server.subscription_status}`);
-        
-        // If there's a discrepancy, update our database
-        if (subscription.status !== server.subscription_status) {
-          console.log(`[BILLING STATUS] Status mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${subscription.status}`);
+      if (!stripe) {
+        console.warn('[BILLING STATUS] Cannot sync with Stripe - Stripe not configured');
+      } else {
+        try {
+          const subscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id) as any;
+          console.log(`[BILLING STATUS] Stripe subscription status: ${subscription.status}, DB status: ${server.subscription_status}`);
           
-          const globalDb = await connectToGlobalModlDb();
-          const Server = globalDb.model('ModlServer', ModlServerSchema);
-          
-          await Server.findOneAndUpdate(
-            { _id: server._id },
-            {
-              subscription_status: subscription.status,
-              current_period_end: new Date(subscription.current_period_end * 1000),
+          // If there's a discrepancy, update our database
+          if (subscription.status !== server.subscription_status) {
+            console.log(`[BILLING STATUS] Status mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${subscription.status}`);
+            
+            const globalDb = await connectToGlobalModlDb();
+            const Server = globalDb.model('ModlServer', ModlServerSchema);
+            
+            // Validate current_period_end before creating Date object
+            let periodEndDate = null;
+            if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
+              periodEndDate = new Date(subscription.current_period_end * 1000);
+              // Validate the date is valid
+              if (isNaN(periodEndDate.getTime())) {
+                console.error(`[BILLING STATUS] Invalid date from Stripe timestamp: ${subscription.current_period_end}`);
+                periodEndDate = null;
+              }
             }
-          );
-          
-          currentStatus = subscription.status;
-          currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+            
+            const updateData: any = {
+              subscription_status: subscription.status,
+            };
+            
+            if (periodEndDate) {
+              updateData.current_period_end = periodEndDate;
+            }
+            
+            await Server.findOneAndUpdate(
+              { _id: server._id },
+              updateData
+            );
+            
+            currentStatus = subscription.status;
+            if (periodEndDate) {
+              currentPeriodEnd = periodEndDate;
+            }
+          }
+        } catch (stripeError) {
+          console.error('Error fetching subscription from Stripe:', stripeError);
+          // Continue with database values if Stripe API fails
         }
-      } catch (stripeError) {
-        console.error('Error fetching subscription from Stripe:', stripeError);
-        // Continue with database values if Stripe API fails
       }
     }
 
@@ -121,76 +158,174 @@ router.get('/status', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/stripe-webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
+// Mock endpoint for testing when Stripe is not configured
+router.post('/debug-status/:customDomain', async (req, res) => {
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig!, process.env.STRIPE_WEBHOOK_SECRET!);
-  } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    const { customDomain } = req.params;
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.model('ModlServer', ModlServerSchema);
+    
+    const server = await Server.findOne({ customDomain });
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+
+    res.json({
+      customDomain: server.customDomain,
+      subscription_status: server.subscription_status,
+      current_period_end: server.current_period_end,
+      stripe_customer_id: server.stripe_customer_id,
+      stripe_subscription_id: server.stripe_subscription_id,
+      plan_type: server.plan_type
+    });
+  } catch (error) {
+    console.error('Error fetching debug status:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  console.log(`[STRIPE WEBHOOK] Received event: ${event.type}`);
-
-  const globalDb = await connectToGlobalModlDb();
-  const Server = globalDb.model('ModlServer', ModlServerSchema);
-
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-      console.log(`[STRIPE WEBHOOK] Checkout completed for customer: ${session.customer}`);
-      const updateResult = await Server.findOneAndUpdate(
-        { stripe_customer_id: session.customer as string },
-        {
-          stripe_subscription_id: session.subscription as string,
-          subscription_status: 'active',
-        },
-        { new: true }
-      );
-      console.log(`[STRIPE WEBHOOK] Updated server:`, updateResult?.customDomain);
-      break;
-    }
-    case 'customer.subscription.updated': {
-      const subscription = event.data.object as Stripe.Subscription;
-      console.log(`[STRIPE WEBHOOK] Subscription updated:`, {
-        id: subscription.id,
-        status: subscription.status,
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        current_period_end: subscription.current_period_end
-      });
-      
-      const updateResult = await Server.findOneAndUpdate(
-        { stripe_subscription_id: subscription.id },
-        {
-          subscription_status: subscription.status,
-          plan_type: subscription.items.data[0]?.price?.lookup_key || 'premium',
-          current_period_end: new Date(subscription.current_period_end * 1000),
-        },
-        { new: true }
-      );
-      console.log(`[STRIPE WEBHOOK] Updated server subscription status to: ${subscription.status} for server: ${updateResult?.customDomain}`);
-      break;
-    }
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
-      console.log(`[STRIPE WEBHOOK] Subscription deleted: ${subscription.id}`);
-      const updateResult = await Server.findOneAndUpdate(
-        { stripe_subscription_id: subscription.id },
-        {
-          subscription_status: 'canceled',
-        },
-        { new: true }
-      );
-      console.log(`[STRIPE WEBHOOK] Marked subscription as canceled for server: ${updateResult?.customDomain}`);
-      break;
-    }
-    default:
-      console.log(`[STRIPE WEBHOOK] Unhandled event type: ${event.type}`);
-  }
-
-  res.status(200).send();
 });
 
 export default router;
+
+// Stripe webhook handler - this needs to be separate from the authenticated routes
+const webhookRouter = express.Router();
+
+// Webhook handler for Stripe events
+webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripe) {
+    console.warn('[WEBHOOK] Stripe not configured, ignoring webhook');
+    return res.status(503).send('Stripe not configured');
+  }
+
+  if (!webhookSecret) {
+    console.error('[WEBHOOK] STRIPE_WEBHOOK_SECRET not configured');
+    return res.status(500).send('Webhook secret not configured');
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig as string, webhookSecret);
+    console.log(`[WEBHOOK] Received Stripe event: ${event.type}`);
+  } catch (err: any) {
+    console.error('[WEBHOOK] Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.model('ModlServer', ModlServerSchema);
+
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`[WEBHOOK] Processing checkout.session.completed for customer: ${session.customer}`);
+        
+        if (session.customer && session.subscription) {
+          const server = await Server.findOne({ stripe_customer_id: session.customer });
+          if (server) {
+            await Server.findOneAndUpdate(
+              { _id: server._id },
+              {
+                stripe_subscription_id: session.subscription,
+                subscription_status: 'active',
+                plan_type: 'premium' // Assuming checkout means premium plan
+              }
+            );
+            console.log(`[WEBHOOK] Updated server ${server.customDomain} - checkout completed`);
+          } else {
+            console.warn(`[WEBHOOK] No server found for customer: ${session.customer}`);
+          }
+        }
+        break;
+      }      case 'customer.subscription.updated': {
+        const subscription = event.data.object as any; // Use any to access Stripe properties
+        console.log(`[WEBHOOK] Processing subscription.updated: ${subscription.id}, status: ${subscription.status}`);
+        
+        const server = await Server.findOne({ stripe_subscription_id: subscription.id });
+        if (server) {
+          // Validate and convert current_period_end
+          let periodEndDate = null;
+          if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
+            periodEndDate = new Date(subscription.current_period_end * 1000);
+            // Validate the date is valid
+            if (isNaN(periodEndDate.getTime())) {
+              console.error(`[WEBHOOK] Invalid date from Stripe timestamp: ${subscription.current_period_end}`);
+              periodEndDate = null;
+            }
+          }
+
+          const updateData: any = {
+            subscription_status: subscription.status,
+          };
+
+          // Only update current_period_end if we have a valid date
+          if (periodEndDate) {
+            updateData.current_period_end = periodEndDate;
+          } else if (subscription.status === 'canceled') {
+            // For canceled subscriptions, remove the current_period_end if it exists
+            updateData.$unset = { current_period_end: 1 };
+          }
+
+          await Server.findOneAndUpdate(
+            { _id: server._id },
+            updateData
+          );
+          
+          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription status: ${subscription.status}`);
+        } else {
+          console.warn(`[WEBHOOK] No server found for subscription: ${subscription.id}`);
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as any; // Use any to access Stripe properties
+        console.log(`[WEBHOOK] Processing subscription.deleted: ${subscription.id}`);
+        
+        const server = await Server.findOne({ stripe_subscription_id: subscription.id });
+        if (server) {
+          await Server.findOneAndUpdate(
+            { _id: server._id },
+            {
+              subscription_status: 'canceled',
+              plan_type: 'free',
+              $unset: { current_period_end: 1 }
+            }
+          );
+          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription deleted`);
+        } else {
+          console.warn(`[WEBHOOK] No server found for deleted subscription: ${subscription.id}`);
+        }
+        break;
+      }      case 'invoice.payment_failed': {
+        const invoice = event.data.object as any; // Use any to access Stripe properties
+        console.log(`[WEBHOOK] Processing payment_failed for customer: ${invoice.customer}`);
+        
+        if (invoice.subscription) {
+          const server = await Server.findOne({ stripe_subscription_id: invoice.subscription });
+          if (server) {
+            await Server.findOneAndUpdate(
+              { _id: server._id },
+              { subscription_status: 'past_due' }
+            );
+            console.log(`[WEBHOOK] Updated server ${server.customDomain} - payment failed`);
+          }
+        }
+        break;
+      }
+
+      default:
+        console.log(`[WEBHOOK] Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('[WEBHOOK] Error processing webhook:', error);
+    res.status(500).send('Webhook processing error');
+  }
+});
+
+export { webhookRouter };
