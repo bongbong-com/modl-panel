@@ -14,15 +14,14 @@ const BillingSettings = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateCheckoutSession = async (priceId: string) => {
+  const handleCreateCheckoutSession = async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/billing/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ priceId }),
+        }
       });
 
       if (!response.ok) {
@@ -95,7 +94,7 @@ const BillingSettings = () => {
       return (
         <div>
           <CardDescription>You do not have an active subscription. Upgrade to unlock premium features.</CardDescription>
-          <Button onClick={() => handleCreateCheckoutSession('price_1PZd6JRxp65QJvYg5tQyZk5r')} className="mt-4" disabled={isLoading}>
+          <Button onClick={() => handleCreateCheckoutSession()} className="mt-4" disabled={isLoading}>
             {isLoading ? 'Processing...' : 'Upgrade to Premium'}
           </Button>
         </div>

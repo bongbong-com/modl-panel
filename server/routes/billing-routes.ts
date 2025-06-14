@@ -8,7 +8,6 @@ const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
-  const { priceId } = req.body;
   const server = req.modlServer;
 
   if (!server) {
@@ -33,7 +32,7 @@ router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       customer: customerId,
       success_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings`,
