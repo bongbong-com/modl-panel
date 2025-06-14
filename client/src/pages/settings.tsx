@@ -799,6 +799,13 @@ const Settings = () => {
                 <Tag className="h-4 w-4 mr-2" />
                 Ticket Tags
               </TabsTrigger>
+              <TabsTrigger
+                value="billing"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Billing
+              </TabsTrigger>
               {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
                 <TabsTrigger
                   value="staff"
@@ -1777,6 +1784,10 @@ const Settings = () => {
                   <p className="text-muted-foreground">You do not have permission to view this page.</p>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="billing" className="space-y-6 p-6">
+              <BillingSettings />
             </TabsContent>
 
           </Tabs>
