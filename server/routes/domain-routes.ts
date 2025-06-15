@@ -7,6 +7,8 @@ import dns from 'dns';
 import { promisify } from 'util';
 import https from 'https';
 import { IncomingMessage } from 'http';
+import fs from 'fs/promises';
+import path from 'path';
 
 const router = express.Router();
 const resolveCname = promisify(dns.resolveCname);
@@ -235,10 +237,6 @@ async function checkDomainStatus(customDomain: string, originalSubdomain: string
 // Helper function to check domain accessibility
 async function checkDomainAccessibility(domain: string): Promise<boolean> {
   try {
-    // Use the built-in fetch if available (Node 18+) or implement a basic HTTP check
-    const https = require('https');
-    const http = require('http');
-    
     return new Promise((resolve) => {
       const options = {
         hostname: domain,
@@ -268,16 +266,14 @@ async function checkDomainAccessibility(domain: string): Promise<boolean> {
 
 // Helper function to generate Caddy configuration
 async function generateCaddyConfig(customDomain: string, originalSubdomain: string): Promise<void> {
-  const fs = require('fs').promises;
-  const path = require('path');
-  
   try {
     const caddyConfigDir = process.env.CADDY_CONFIG_DIR || '/etc/caddy/conf.d';
     const configFile = path.join(caddyConfigDir, `${customDomain}.conf`);
     
+    const appPort = process.env.PORT || '5000';
     const config = `
 ${customDomain} {
-    reverse_proxy localhost:5173 {
+    reverse_proxy localhost:${appPort} {
         header_up Host {http.request.host}
         header_up X-Real-IP {http.request.remote}
         header_up X-Forwarded-For {http.request.remote}
