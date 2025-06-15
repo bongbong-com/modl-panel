@@ -14,6 +14,7 @@ import ticketRoutes from './routes/ticket-routes';
 import logRoutes from './routes/log-routes';
 import authRoutes from './routes/auth-routes';
 import billingRoutes, { webhookRouter } from './routes/billing-routes';
+import domainRoutes from './routes/domain-routes';
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -32,6 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/appeals', appealRoutes);
   app.use('/api/players', playerRoutes);
   app.use('/api/settings', settingsRoutes);
+  app.use('/api/settings/domain', domainRoutes);
   app.use('/api/staff', staffRoutes);
   app.use('/api/tickets', ticketRoutes);
   app.use('/api/logs', logRoutes);  app.use('/api/auth', authRoutes);

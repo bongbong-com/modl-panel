@@ -36,6 +36,15 @@ const ModlServerSchema = new Schema({
     default: 'inactive'
   },
   current_period_end: { type: Date },
+  // Custom domain configuration
+  customDomain_override: { type: String, unique: true, sparse: true }, // User's custom domain
+  customDomain_status: { 
+    type: String, 
+    enum: ['pending', 'active', 'error', 'verifying'], 
+    default: 'pending' 
+  },
+  customDomain_lastChecked: { type: Date },
+  customDomain_error: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { collection: 'servers' }); // Explicitly set the collection name

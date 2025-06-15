@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAuth } from '@/hooks/use-auth';
 import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
 import BillingSettings from '@/components/settings/BillingSettings';
+import DomainSettings from '@/components/settings/DomainSettings';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -807,6 +808,15 @@ const Settings = () => {
                 <Tag className="h-4 w-4 mr-2" />
                 Ticket Tags
               </TabsTrigger>
+              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+                <TabsTrigger
+                  value="domain"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  Custom Domain
+                </TabsTrigger>
+              )}
               {user?.role === 'Super Admin' && (
                 <TabsTrigger
                   value="billing"
@@ -1784,6 +1794,10 @@ const Settings = () => {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="domain" className="p-6">
+              <DomainSettings />
             </TabsContent>
 
             <TabsContent value="staff" className="p-6">

@@ -15,6 +15,11 @@ interface IModlServer extends Document {
   stripe_subscription_id?: string;
   subscription_status: 'active' | 'canceled' | 'past_due' | 'inactive';
   current_period_end?: Date;
+  // Custom domain fields
+  customDomain_override?: string;
+  customDomain_status?: 'pending' | 'active' | 'error' | 'verifying';
+  customDomain_lastChecked?: Date;
+  customDomain_error?: string;
 }
 declare global {
   namespace Express {
