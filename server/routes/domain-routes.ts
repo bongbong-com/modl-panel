@@ -9,6 +9,7 @@ import https from 'https';
 import { IncomingMessage } from 'http';
 import fs from 'fs/promises';
 import path from 'path';
+import { exec } from 'child_process';
 
 const router = express.Router();
 const resolveCname = promisify(dns.resolveCname);
@@ -271,7 +272,9 @@ async function generateCaddyConfig(customDomain: string, originalSubdomain: stri
     const configFile = path.join(caddyConfigDir, `${customDomain}.conf`);
     
     const appPort = process.env.PORT || '5000';
-    const config = `
+    const config = `# Custom domain configuration for ${customDomain}
+# Note: *.modl.gg domains use wildcard certificates and don't need individual configs
+
 ${customDomain} {
     reverse_proxy localhost:${appPort} {
         header_up Host {http.request.host}
@@ -280,7 +283,7 @@ ${customDomain} {
         header_up X-Forwarded-Proto {http.request.scheme}
     }
     
-    # Enable automatic HTTPS
+    # Enable automatic HTTPS for custom domain
     tls {
         issuer acme {
             email admin@modl.gg
@@ -325,9 +328,6 @@ ${customDomain} {
 
 // Helper function to remove Caddy configuration
 async function removeCaddyConfig(customDomain: string): Promise<void> {
-  const fs = require('fs').promises;
-  const path = require('path');
-  
   try {
     const caddyConfigDir = process.env.CADDY_CONFIG_DIR || '/etc/caddy/conf.d';
     const configFile = path.join(caddyConfigDir, `${customDomain}.conf`);
@@ -352,8 +352,6 @@ async function removeCaddyConfig(customDomain: string): Promise<void> {
 
 // Helper function to reload Caddy configuration
 async function reloadCaddyConfig(): Promise<void> {
-  const { exec } = require('child_process');
-  const { promisify } = require('util');
   const execAsync = promisify(exec);
   
   try {

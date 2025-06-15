@@ -432,10 +432,11 @@ const DomainSettings: React.FC = () => {
               <AlertTitle>How it works</AlertTitle>
               <AlertDescription>
                 <ul className="list-disc pl-5 space-y-1 mt-2">
-                  <li>Caddy automatically requests SSL certificates from Let's Encrypt</li>
+                  <li>Caddy automatically requests individual SSL certificates from Let's Encrypt for custom domains</li>
                   <li>Certificates are renewed automatically before expiration</li>
                   <li>HTTPS is enforced for all traffic to your custom domain</li>
                   <li>HTTP requests are automatically redirected to HTTPS</li>
+                  <li>Note: *.modl.gg domains already have wildcard SSL certificates configured</li>
                 </ul>
               </AlertDescription>
             </Alert>
