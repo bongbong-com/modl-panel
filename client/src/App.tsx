@@ -30,26 +30,109 @@ import { WelcomeModal } from "@/components/layout/WelcomeModal";
 import KnowledgebasePage from "@/pages/KnowledgebasePage";
 import ArticleDetailPage from "@/pages/ArticleDetailPage";
 
-// DEBUGGING: Simplified Router to isolate KB page issue
 function Router() {
-  // const [location] = useLocation(); // Temporarily comment out if it causes issues even here
-  // const isMobile = useIsMobile(); // Temporarily comment out
+  const [location] = useLocation();
+  const isMobile = useIsMobile();
 
-  // Directly return the Switch for KB pages
+  // Handle public Knowledgebase routes first
+  // Check if the location is NOT part of the admin panel, auth, appeals, etc.
+  const isAdminPanelRoute = location.startsWith("/panel");
+  const isAuthPage = location === '/auth' || location === '/panel/auth';
+  const isAppealsPage = location === '/appeals'; // Assuming appeals is not under /panel
+  const isPlayerTicketPage = location.startsWith('/player-ticket/'); // Assuming player-ticket is not under /panel
+  const isProvisioningPage = location === '/provisioning-in-progress';
+  const isAcceptInvitationPage = location.startsWith('/accept-invitation');
+
+  if (!isAdminPanelRoute && !isAuthPage && !isAppealsPage && !isPlayerTicketPage && !isProvisioningPage && !isAcceptInvitationPage) {
+    return (
+      <main className="h-full bg-background"> {/* Basic wrapper for public pages */}
+        <Switch>
+          <Route path="/:articleSlug" component={ArticleDetailPage} />
+          <Route path="/" component={KnowledgebasePage} />
+          {/* Fallback for unmatched public routes, ensure it's placed after specific public routes */}
+          {/* <Route component={NotFound} />  Consider if a global NotFound is better */}
+        </Switch>
+      </main>
+    );
+  }
+  
+  // Don't show navigation on auth page, appeals page, player ticket page, or provisioning page
+  // Note: isAuthPage now covers /auth and /panel/auth
+  if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage || isAcceptInvitationPage) {
+    return (
+      <main className="h-full">
+        <Switch>
+          <AuthRoute path="/auth" component={AuthPage} />
+          <Route path="/appeals" component={AppealsPage} />
+          <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+          <Route path="/accept-invitation" component={AcceptInvitationPage} />
+        </Switch>
+      </main>
+    );
+  }
+
+  // Mobile version
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full bg-background">
+        <main className="flex-1 overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar pb-16">
+          <Switch>
+            <ProtectedRoute path="/panel" component={Home} />
+            <ProtectedRoute path="/panel/lookup" component={LookupPage} />
+            <ProtectedRoute path="/panel/player/:uuid" component={PlayerDetailPage} />
+            <ProtectedRoute path="/panel/tickets" component={Tickets} />
+            <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
+            <ProtectedRoute path="/panel/audit" component={Audit} />
+            <ProtectedRoute path="/panel/settings" component={Settings} />
+            <ProtectedRoute path="/panel/api-docs" component={ApiDocs} />
+            <AuthRoute path="/panel/auth" component={AuthPage} />
+            {/* These routes are assumed to be outside /panel */}
+            <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
+            <Route path="/appeals" component={AppealsPage} />
+            <Route path="/player-ticket/:id" component={PlayerTicket} />
+            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+            <Route path="/accept-invitation" component={AcceptInvitationPage} />
+            {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
+            <Route path="/:articleSlug" component={ArticleDetailPage} />
+            <Route path="/" component={KnowledgebasePage} />
+            <Route component={NotFound} />
+          </Switch>
+        </main>
+        { location.startsWith("/panel") && <MobileNavbar /> }
+      </div>
+    );
+  }
+
+  // Desktop version
   return (
-    <main className="h-full bg-background">
-      <Switch>
-        <Route path="/:articleSlug" component={ArticleDetailPage} />
-        <Route path="/" component={KnowledgebasePage} />
-        {/* Add other routes here if needed for basic testing, or a NotFound */}
-        {/* For now, let's keep it minimal */}
-         <ProtectedRoute path="/panel" component={Home} /> {/* Keep one panel route for comparison */}
-         <Route component={NotFound} />
-      </Switch>
-    </main>
+    <div className="flex h-full overflow-hidden bg-background">
+      { location.startsWith("/panel") && <Sidebar /> }
+      <main className={`flex-1 ${location.startsWith("/panel") ? 'pl-24' : ''} overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar`}>
+        <Switch>
+          <ProtectedRoute path="/panel" component={Home} />
+          <ProtectedRoute path="/panel/lookup" component={Lookup} />
+          <ProtectedRoute path="/panel/tickets" component={Tickets} />
+          <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
+          <ProtectedRoute path="/panel/audit" component={Audit} />
+          <ProtectedRoute path="/panel/settings" component={Settings} />
+          <ProtectedRoute path="/panel/api-docs" component={ApiDocs} />
+          <AuthRoute path="/panel/auth" component={AuthPage} />
+           {/* These routes are assumed to be outside /panel */}
+          <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
+          <Route path="/appeals" component={AppealsPage} />
+          <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+          <Route path="/accept-invitation" component={AcceptInvitationPage} />
+          {/* Public KB routes for desktop, if accessed directly and not caught by earlier block */}
+          <Route path="/:articleSlug" component={ArticleDetailPage} />
+          <Route path="/" component={KnowledgebasePage} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
+    </div>
   );
 }
-// END DEBUGGING SECTION
 
 function App() {
   const [location] = useLocation();
