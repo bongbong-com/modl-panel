@@ -45,12 +45,12 @@ router.get('/', async (req, res) => {
       res.json({
         customDomain,
         status,
-        originalDomain: `${server.customDomain}.modl.gg`
+        originalDomain: `${server.customDomain}.cobl.gg`
       });
     } else {
       res.json({
         customDomain: null,
-        originalDomain: `${server.customDomain}.modl.gg`
+        originalDomain: `${server.customDomain}.cobl.gg`
       });
     }
   } catch (error) {
