@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose'; // Renamed Document to MongooseDocument, Added HydratedDocument
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { handleCloudflareCustomDomain, verifyCloudflareCustomDomain, deleteCloudflareCustomDomain } from '../api/cloudflare';
+import domainRoutes from './domain-routes';
 
 interface IDurationDetail {
   value: number;
@@ -72,6 +72,9 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 router.use(isAuthenticated);
+
+// Mount domain routes
+router.use('/domain', domainRoutes);
 
 async function createDefaultSettings(dbConnection: Connection): Promise<HydratedDocument<ISettingsDocument>> {
   try {
@@ -398,105 +401,6 @@ router.put('/:key', async (req: Request<{ key: string }, {}, { value: any }>, re
     res.json({ key: req.params.key, value: settingsDoc.settings.get(req.params.key) });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// --- Custom Domain Management (Cloudflare) ---
-// POST /settings/domain - Create or update a custom domain for this server
-router.post('/domain', async (req: Request, res: Response) => {
-  try {
-    const { customDomain } = req.body;
-    const server = req.modlServer;
-    if (!server) {
-      return res.status(400).json({ error: 'Server context not found' });
-    }
-    if (!customDomain || typeof customDomain !== 'string') {
-      return res.status(400).json({ error: 'Invalid domain name' });
-    }
-    // Check if domain is already in use by another server
-    const globalDb = req.serverDbConnection!;
-    const ServerModel = globalDb.model('ModlServer');
-    const existingServer = await ServerModel.findOne({ 
-      customDomain_override: customDomain,
-      _id: { $ne: server._id }
-    });
-    if (existingServer) {
-      return res.status(409).json({ error: 'Domain is already in use by another server' });
-    }
-    // Call Cloudflare API to create the custom hostname
-    const cfResult = await handleCloudflareCustomDomain(customDomain, server._id);
-    // Update server configuration
-    await ServerModel.findByIdAndUpdate(server._id, {
-      customDomain_override: customDomain,
-      customDomain_status: 'pending',
-      customDomain_lastChecked: new Date(),
-      customDomain_error: null
-    });
-    res.json({
-      message: 'Domain configuration started. Please set up the CNAME record and then click Verify.',
-      status: {
-        domain: customDomain,
-        status: 'pending',
-        cnameConfigured: false,
-        sslStatus: 'pending',
-        lastChecked: new Date().toISOString(),
-        error: undefined
-      },
-      cloudflare: cfResult
-    });
-  } catch (error: any) {
-    console.error('Error configuring custom domain:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
-  }
-});
-
-// POST /settings/domain/verify - Verify DNS and activate SSL for the custom domain
-router.post('/domain/verify', async (req: Request, res: Response) => {
-  try {
-    const { domain } = req.body;
-    const server = req.modlServer;
-    if (!server) {
-      return res.status(400).json({ error: 'Server context not found' });
-    }
-    // Call Cloudflare API to verify and activate the custom hostname
-    const verifyResult = await verifyCloudflareCustomDomain(domain, server._id);
-    // Update server status in database
-    const globalDb = req.serverDbConnection!;
-    const ServerModel = globalDb.model('ModlServer');
-    await ServerModel.findByIdAndUpdate(server._id, {
-      customDomain_status: verifyResult.status,
-      customDomain_lastChecked: new Date(),
-      customDomain_error: verifyResult.error || null
-    });
-    res.json({ status: verifyResult });
-  } catch (error: any) {
-    console.error('Error verifying custom domain:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
-  }
-});
-
-// DELETE /settings/domain - Remove the custom domain and Cloudflare hostname
-router.delete('/domain', async (req: Request, res: Response) => {
-  try {
-    const server = req.modlServer;
-    if (!server) {
-      return res.status(400).json({ error: 'Server context not found' });
-    }
-    // Call Cloudflare API to delete the custom hostname
-    await deleteCloudflareCustomDomain(server.customDomain_override, server._id);
-    // Remove custom domain from server config
-    const globalDb = req.serverDbConnection!;
-    const ServerModel = globalDb.model('ModlServer');
-    await ServerModel.findByIdAndUpdate(server._id, {
-      customDomain_override: null,
-      customDomain_status: 'pending',
-      customDomain_lastChecked: new Date(),
-      customDomain_error: null
-    });
-    res.json({ message: 'Custom domain removed.' });
-  } catch (error: any) {
-    console.error('Error removing custom domain:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
