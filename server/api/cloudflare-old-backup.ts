@@ -130,6 +130,64 @@ export interface CustomHostnameListResponse {
   };
 }
 
+// Enhanced error handling for Cloudflare API
+export class CloudflareError extends Error {
+  public code?: number;
+  public cfErrorCode?: number;
+  public cfErrorMessage?: string;
+
+  constructor(message: string, code?: number, cfError?: { code: number; message: string }) {
+    super(message);
+    this.name = 'CloudflareError';
+    this.code = code;
+    this.cfErrorCode = cfError?.code;
+    this.cfErrorMessage = cfError?.message;
+  }
+}
+
+// Helper function to extract and format Cloudflare errors
+function handleCloudflareError(error: any): never {
+  if (error.response?.data?.errors?.length > 0) {
+    const cfError = error.response.data.errors[0];
+    throw new CloudflareError(
+      cfError.message || 'Cloudflare API error',
+      error.response.status,
+      cfError
+    );
+  }
+  
+  if (error.response?.status) {
+    throw new CloudflareError(
+      `HTTP ${error.response.status}: ${error.response.statusText || 'Unknown error'}`,
+      error.response.status
+    );
+  }
+  
+  throw new CloudflareError(error?.message || 'Unknown Cloudflare API error');
+}
+
+// Validate environment variables
+export function validateCloudflareConfig(): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (!CLOUDFLARE_API_TOKEN) {
+    errors.push('CLOUDFLARE_API_TOKEN environment variable is not set');
+  } else if (!CLOUDFLARE_API_TOKEN.startsWith('_')) {
+    errors.push('CLOUDFLARE_API_TOKEN appears to be invalid (should start with underscore)');
+  }
+  
+  if (!CLOUDFLARE_ZONE_ID) {
+    errors.push('CLOUDFLARE_ZONE_ID environment variable is not set');
+  } else if (!/^[a-f0-9]{32}$/.test(CLOUDFLARE_ZONE_ID)) {
+    errors.push('CLOUDFLARE_ZONE_ID appears to be invalid (should be 32 character hex string)');
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
 // Create a custom hostname (domain) in Cloudflare
 export async function createCustomHostname(domain: string, serverId: string): Promise<CloudflareCustomHostname> {
   try {
@@ -398,67 +456,4 @@ export async function updateDomainStatuses(serverDbConnection: any) {
       try {
         const cloudflareStatus = await getCustomHostname(server.customDomain_override);
         
-        if (cloudflareStatus) {
-          let newStatus = server.customDomain_status;
-          let newError = server.customDomain_error;
-
-          // Update status based on Cloudflare data
-          switch (cloudflareStatus.ssl.status) {
-            case 'active':
-              newStatus = 'active';
-              newError = null;
-              break;
-            case 'pending_validation':
-            case 'pending_certificate':
-            case 'initializing':
-              newStatus = 'verifying';
-              break;
-            case 'expired':
-              newStatus = 'error';
-              newError = 'SSL certificate has expired';
-              break;
-            default:
-              if (cloudflareStatus.ssl.validation_errors && cloudflareStatus.ssl.validation_errors.length > 0) {
-                newStatus = 'error';
-                newError = cloudflareStatus.ssl.validation_errors.map(e => e.message).join(', ');
-              }
-          }
-
-          // Update if status changed
-          if (newStatus !== server.customDomain_status || newError !== server.customDomain_error) {
-            await ServerModel.findByIdAndUpdate(server._id, {
-              customDomain_status: newStatus,
-              customDomain_lastChecked: new Date(),
-              customDomain_error: newError,
-              customDomain_cloudflareId: cloudflareStatus.id
-            });
-            
-            console.log(`Updated ${server.customDomain_override}: ${server.customDomain_status} -> ${newStatus}`);
-          }
-        }
-      } catch (error: any) {
-        console.error(`Failed to update status for ${server.customDomain_override}:`, error.message);
-      }
-    }
-  } catch (error: any) {
-    console.error('Error in updateDomainStatuses:', error);
-  }
-}
-
-// Function to start periodic status updates
-export function startDomainStatusUpdater(serverDbConnection: any, intervalMinutes: number = 10) {
-  console.log(`Starting domain status updater with ${intervalMinutes} minute intervals`);
-  
-  // Run immediately
-  updateDomainStatuses(serverDbConnection);
-  
-  // Then run periodically
-  return setInterval(() => {
-    updateDomainStatuses(serverDbConnection);
-  }, intervalMinutes * 60 * 1000);
-}
-
-// Legacy function names for backward compatibility
-export const handleCloudflareCustomDomain = createCustomHostname;
-export const verifyCloudflareCustomDomain = verifyCustomHostname;
-export const deleteCloudflareCustomDomain = deleteCustomHostname;
+        if
