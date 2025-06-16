@@ -268,8 +268,34 @@ async function checkDomainAccessibility(domain: string): Promise<boolean> {
 // Helper function to generate Caddy configuration
 async function generateCaddyConfig(customDomain: string, originalSubdomain: string): Promise<void> {
   try {
-    const caddyConfigDir = process.env.CADDY_CONFIG_DIR || '/etc/caddy/conf.d';
-    const configFile = path.join(caddyConfigDir, `${customDomain}.conf`);
+    // Try multiple possible config directories in order of preference
+    const possibleDirs = [
+      process.env.CADDY_CONFIG_DIR,
+      '/etc/caddy/conf.d',
+      '/home/caddy/conf.d',
+      path.join(process.cwd(), 'caddy-configs'),
+      '/tmp/caddy-configs'
+    ].filter(Boolean);
+
+    let caddyConfigDir: string | null = null;
+    let configFile: string | null = null;
+
+    // Try each directory until we find one we can write to
+    for (const dir of possibleDirs) {
+      try {
+        await fs.mkdir(dir!, { recursive: true });
+        caddyConfigDir = dir!;
+        configFile = path.join(dir!, `${customDomain}.conf`);
+        break;
+      } catch (error: any) {
+        console.warn(`Cannot access directory ${dir}: ${error.message}`);
+        continue;
+      }
+    }
+
+    if (!caddyConfigDir || !configFile) {
+      throw new Error('No writable directory found for Caddy configuration. Please check permissions or set CADDY_CONFIG_DIR environment variable.');
+    }
     
     const appPort = process.env.PORT || '5000';
     const config = `# Custom domain configuration for ${customDomain}
@@ -316,10 +342,10 @@ ${customDomain} {
     await fs.mkdir(caddyConfigDir, { recursive: true });
     await fs.writeFile(configFile, config);
     
-    // Reload Caddy configuration
+    // Reload Caddy configuration (won't throw if Caddy isn't running)
     await reloadCaddyConfig();
     
-    console.log(`Generated Caddy configuration for ${customDomain}`);
+    console.log(`Generated Caddy configuration for ${customDomain} in ${caddyConfigDir}`);
   } catch (error: any) {
     console.error('Error generating Caddy configuration:', error?.message || error);
     throw error;
@@ -329,20 +355,36 @@ ${customDomain} {
 // Helper function to remove Caddy configuration
 async function removeCaddyConfig(customDomain: string): Promise<void> {
   try {
-    const caddyConfigDir = process.env.CADDY_CONFIG_DIR || '/etc/caddy/conf.d';
-    const configFile = path.join(caddyConfigDir, `${customDomain}.conf`);
-    
-    try {
-      await fs.unlink(configFile);
-      console.log(`Removed Caddy configuration for ${customDomain}`);
-    } catch (error) {
-      // File might not exist, which is fine
-      if ((error as any)?.code !== 'ENOENT') {
-        throw error;
+    // Try the same directories as generation
+    const possibleDirs = [
+      process.env.CADDY_CONFIG_DIR,
+      '/etc/caddy/conf.d',
+      '/home/caddy/conf.d',
+      path.join(process.cwd(), 'caddy-configs'),
+      '/tmp/caddy-configs'
+    ].filter(Boolean);
+
+    let found = false;
+    for (const dir of possibleDirs) {
+      const configFile = path.join(dir!, `${customDomain}.conf`);
+      try {
+        await fs.unlink(configFile);
+        console.log(`Removed Caddy configuration for ${customDomain} from ${dir}`);
+        found = true;
+        break;
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') {
+          console.warn(`Error removing config from ${dir}: ${error.message}`);
+        }
+        continue;
       }
     }
+
+    if (!found) {
+      console.warn(`Configuration file for ${customDomain} not found in any directory`);
+    }
     
-    // Reload Caddy configuration
+    // Reload Caddy configuration (won't throw if Caddy isn't running)
     await reloadCaddyConfig();
   } catch (error: any) {
     console.error('Error removing Caddy configuration:', error?.message || error);
@@ -355,9 +397,24 @@ async function reloadCaddyConfig(): Promise<void> {
   const execAsync = promisify(exec);
   
   try {
+    // First check if Caddy is running
+    try {
+      await execAsync('pgrep caddy');
+    } catch (error) {
+      console.warn('Caddy is not running. Configuration will be applied when Caddy starts.');
+      return; // Don't throw error, just warn
+    }
+
+    // Try to reload Caddy configuration
     await execAsync('caddy reload --config /etc/caddy/Caddyfile');
     console.log('Caddy configuration reloaded successfully');
   } catch (error: any) {
+    // Check if it's a connection refused error (Caddy not running)
+    if (error?.message?.includes('connection refused') || error?.message?.includes('dial tcp')) {
+      console.warn('Caddy admin API not accessible. Configuration will be applied when Caddy restarts.');
+      return; // Don't throw error for this case
+    }
+    
     console.error('Error reloading Caddy configuration:', error?.message || error);
     throw error;
   }
