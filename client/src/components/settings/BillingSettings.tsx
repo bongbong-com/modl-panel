@@ -39,7 +39,7 @@ const BillingSettings = () => {
   const handleCreateCheckoutSession = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/billing/create-checkout-session', {
+      const response = await fetch('/api/panel/billing/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ const BillingSettings = () => {
   const handleCreatePortalSession = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/billing/create-portal-session', {
+      const response = await fetch('/api/panel/billing/create-portal-session', {
         method: 'POST',
       });
 
