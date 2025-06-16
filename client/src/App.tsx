@@ -31,7 +31,9 @@ import KnowledgebasePage from "@/pages/KnowledgebasePage";
 import ArticleDetailPage from "@/pages/ArticleDetailPage";
 
 function Router() {
+  console.log('[App.tsx Router] Before useLocation');
   const [location] = useLocation();
+  console.log('[App.tsx Router] After useLocation, location:', location);
   const isMobile = useIsMobile();
 
   // Handle public Knowledgebase routes first
