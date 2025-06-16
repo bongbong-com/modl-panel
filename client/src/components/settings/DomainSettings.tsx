@@ -432,9 +432,9 @@ const DomainSettings: React.FC = () => {
               <AlertTitle>How it works</AlertTitle>
               <AlertDescription>
                 <ul className="list-disc pl-5 space-y-1 mt-2">
-                  <li>Certbot automatically requests individual SSL certificates from Let's Encrypt for custom domains</li>
-                  <li>Certificates are renewed automatically before expiration using cron jobs</li>
-                  <li>Nginx handles HTTPS termination and proxy forwarding to the application</li>
+                  <li>Cloudflare automatically provisions SSL certificates for your custom domain</li>
+                  <li>Certificates are managed and renewed by Cloudflare</li>
+                  <li>Cloudflare handles HTTPS termination and proxy forwarding to the application</li>
                   <li>HTTP requests are automatically redirected to HTTPS</li>
                   <li>Note: *.cobl.gg domains already have wildcard SSL certificates configured</li>
                 </ul>
@@ -493,6 +493,7 @@ const DomainSettings: React.FC = () => {
                 <li>• Your panel will remain accessible via the original subdomain</li>
                 <li>• Custom domain can be removed at any time without affecting functionality</li>
                 <li>• Only Super Admins and Admins can configure custom domains</li>
+                <li>• SSL and DNS validation are managed automatically by Cloudflare after CNAME setup</li>
               </ul>
             </div>
           </div>
