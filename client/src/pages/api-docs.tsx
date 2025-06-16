@@ -27,40 +27,40 @@ const ApiDocs = () => {
       routes: [
         {
           method: 'GET',
-          path: '/api/players',
+          path: '/api/panel/players',
           description: 'Retrieve a list of all players',
           responseType: 'Array<Player>'
         },
         {
           method: 'GET',
-          path: '/api/players/:uuid',
+          path: '/api/panel/players/:uuid',
           description: 'Get detailed information about a specific player',
           responseType: 'Player'
         },
         {
           method: 'POST',
-          path: '/api/players',
+          path: '/api/panel/players',
           description: 'Create a new player record',
           requestType: 'Player',
           responseType: 'Player'
         },
         {
           method: 'PATCH',
-          path: '/api/players/:uuid',
+          path: '/api/panel/players/:uuid',
           description: 'Update a player\'s information',
           requestType: 'Partial<Player>',
           responseType: 'Player'
         },
         {
           method: 'POST',
-          path: '/api/players/:uuid/punishments',
+          path: '/api/panel/players/:uuid/punishments',
           description: 'Apply a punishment to a player',
           requestType: 'Punishment',
           responseType: 'Player'
         },
         {
           method: 'POST',
-          path: '/api/players/:uuid/notes',
+          path: '/api/panel/players/:uuid/notes',
           description: 'Add a note to a player\'s record',
           requestType: 'Note',
           responseType: 'Player'
@@ -74,61 +74,61 @@ const ApiDocs = () => {
       routes: [
         {
           method: 'GET',
-          path: '/api/tickets',
+          path: '/api/panel/tickets',
           description: 'Retrieve a list of all tickets',
           responseType: 'Array<Ticket>'
         },
         {
           method: 'GET',
-          path: '/api/tickets/:id',
+          path: '/api/panel/tickets/:id',
           description: 'Get detailed information about a specific ticket',
           responseType: 'Ticket'
         },
         {
           method: 'POST',
-          path: '/api/tickets/bug',
+          path: '/api/panel/tickets/bug',
           description: 'Create a new bug report ticket',
           requestType: 'BugReportForm',
           responseType: 'Ticket'
         },
         {
           method: 'POST',
-          path: '/api/tickets/player',
+          path: '/api/panel/tickets/player',
           description: 'Create a new player report ticket',
           requestType: 'PlayerReportForm',
           responseType: 'Ticket'
         },
         {
           method: 'POST',
-          path: '/api/tickets/chat',
+          path: '/api/panel/tickets/chat',
           description: 'Create a new chat report ticket',
           requestType: 'ChatReportForm',
           responseType: 'Ticket'
         },
         {
           method: 'POST',
-          path: '/api/tickets/staff',
+          path: '/api/panel/tickets/staff',
           description: 'Create a new staff application ticket',
           requestType: 'StaffApplicationForm',
           responseType: 'Ticket'
         },
         {
           method: 'POST',
-          path: '/api/tickets/support',
+          path: '/api/panel/tickets/support',
           description: 'Create a new general support ticket',
           requestType: 'SupportForm',
           responseType: 'Ticket'
         },
         {
           method: 'POST',
-          path: '/api/tickets/:id/submit',
+          path: '/api/panel/tickets/:id/submit',
           description: 'Submit an unfinished ticket',
           requestType: 'TicketForm',
           responseType: 'Ticket'
         },
         {
           method: 'PATCH',
-          path: '/api/tickets/:id',
+          path: '/api/panel/tickets/:id',
           description: 'Update ticket status or add a reply',
           requestType: 'TicketUpdate',
           responseType: 'Ticket'
@@ -142,39 +142,39 @@ const ApiDocs = () => {
       routes: [
         {
           method: 'GET',
-          path: '/api/appeals',
+          path: '/api/panel/appeals',
           description: 'Retrieve a list of all appeals',
           responseType: 'Array<Appeal>'
         },
         {
           method: 'GET',
-          path: '/api/appeals/:id',
+          path: '/api/panel/appeals/:id',
           description: 'Get detailed information about a specific appeal',
           responseType: 'Appeal'
         },
         {
           method: 'GET',
-          path: '/api/appeals/punishment/:id',
+          path: '/api/panel/appeals/punishment/:id',
           description: 'Get appeals related to a specific punishment',
           responseType: 'Array<Appeal>'
         },
         {
           method: 'POST',
-          path: '/api/appeals',
+          path: '/api/panel/appeals',
           description: 'Create a new appeal',
           requestType: 'AppealForm',
           responseType: 'Appeal'
         },
         {
           method: 'POST',
-          path: '/api/appeals/:id/reply',
+          path: '/api/panel/appeals/:id/reply',
           description: 'Add a reply to an appeal',
           requestType: 'AppealReply',
           responseType: 'Appeal'
         },
         {
           method: 'PATCH',
-          path: '/api/appeals/:id/status',
+          path: '/api/panel/appeals/:id/status',
           description: 'Update an appeal\'s status',
           requestType: '{ status: "Accepted" | "Rejected" | "Pending" }',
           responseType: 'Appeal'
@@ -188,13 +188,13 @@ const ApiDocs = () => {
       routes: [
         {
           method: 'GET',
-          path: '/api/logs',
+          path: '/api/panel/logs',
           description: 'Retrieve system logs with optional filtering',
           responseType: 'Array<Log>'
         },
         {
           method: 'POST',
-          path: '/api/logs',
+          path: '/api/panel/logs',
           description: 'Create a new system log entry',
           requestType: 'Log',
           responseType: 'Log'
@@ -208,13 +208,13 @@ const ApiDocs = () => {
       routes: [
         {
           method: 'GET',
-          path: '/api/staff',
+          path: '/api/panel/staff',
           description: 'Retrieve a list of all staff members',
           responseType: 'Array<StaffMember>'
         },
         {
           method: 'GET',
-          path: '/api/staff/:id',
+          path: '/api/panel/staff/:id',
           description: 'Get detailed information about a specific staff member',
           responseType: 'StaffMember'
         }
@@ -227,13 +227,13 @@ const ApiDocs = () => {
       routes: [
         {
           method: 'GET',
-          path: '/api/settings',
+          path: '/api/panel/settings',
           description: 'Retrieve current system settings',
           responseType: 'Settings'
         },
         {
           method: 'PATCH',
-          path: '/api/settings',
+          path: '/api/panel/settings',
           description: 'Update system settings',
           requestType: 'Partial<Settings>',
           responseType: 'Settings'

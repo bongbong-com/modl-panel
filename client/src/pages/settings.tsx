@@ -423,7 +423,7 @@ const Settings = () => {
         hasPasskey,
       };
 
-      const response = await fetch('/api/settings', {
+      const response = await fetch('/api/panel/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -539,7 +539,7 @@ const Settings = () => {
       setIsTestingConnection(true);
 
       try {
-        const response = await fetch('/api/settings/test-database', {
+        const response = await fetch('/api/panel/settings/test-database', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
