@@ -92,11 +92,10 @@ router.post(
 router.get(
   '/categories',
   isAuthenticated,
-  // checkRole(['Super Admin', 'Admin']), // Any authenticated staff can list for the panel
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req);
-      // const KnowledgebaseArticle = getKnowledgebaseArticleModel(req); // Not needed if populating
 
       const categories = await KnowledgebaseCategory.find().sort({ ordinal: 1 }).populate({
         path: 'articles', // Virtual populate field name from schema
@@ -133,7 +132,7 @@ router.get(
 router.get(
   '/categories/:categoryId',
   isAuthenticated,
-  // checkRole(['Super Admin', 'Admin']), // Any authenticated staff can view for the panel
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req);
@@ -393,7 +392,7 @@ router.post(
 router.get(
   '/categories/:categoryId/articles/:articleId',
   isAuthenticated, // Or make public if needed, adjust authorize accordingly
-  // checkRole(['Super Admin', 'Admin']), // Any authenticated staff can view for the panel
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseArticle = getKnowledgebaseArticleModel(req);
