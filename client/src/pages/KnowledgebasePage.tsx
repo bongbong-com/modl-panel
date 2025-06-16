@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'wouter'; // Changed from react-router-dom to wouter
+import React, { useState, useEffect, useContext } from 'react';
+import { Link, RouterContext } from 'wouter'; // Changed from react-router-dom to wouter
 import SearchBar from '@/components/knowledgebase/SearchBar';
 import CategoryDisplay from '@/components/knowledgebase/CategoryDisplay';
 import PageContainer from '@/components/layout/PageContainer';
@@ -22,6 +22,8 @@ interface CategoryWithArticles {
 }
 
 const KnowledgebasePage: React.FC = () => {
+  const routerCtx = useContext(RouterContext);
+  console.log('[KnowledgebasePage] RouterContext value:', routerCtx);
   const [categories, setCategories] = useState<CategoryWithArticles[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<ArticleStub[]>([]);
