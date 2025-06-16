@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { handleCloudflareCustomDomain, verifyCloudflareCustomDomain, deleteCloudflareCustomDomain } from '../api/cloudflare';
 import { Types } from 'mongoose';
+import { ModlServerSchema } from '../models/modl-global-schemas';
 
 interface IModlServer {
   _id: Types.ObjectId;
@@ -50,6 +51,10 @@ router.post('/', async (req: Request, res: Response) => {
     }
     // Check if domain is already in use by another server
     const globalDb = req.serverDbConnection!;
+    // Register the ModlServer schema if not already registered
+    if (!globalDb.models.ModlServer) {
+      globalDb.model('ModlServer', ModlServerSchema);
+    }
     const ServerModel = globalDb.model('ModlServer');
     const existingServer = await ServerModel.findOne({ 
       customDomain_override: customDomain,
@@ -97,6 +102,10 @@ router.post('/verify', async (req: Request, res: Response) => {
     const verifyResult = await verifyCloudflareCustomDomain(domain, server._id.toString());
     // Update server status in database
     const globalDb = req.serverDbConnection!;
+    // Register the ModlServer schema if not already registered
+    if (!globalDb.models.ModlServer) {
+      globalDb.model('ModlServer', ModlServerSchema);
+    }
     const ServerModel = globalDb.model('ModlServer');
     await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_status: verifyResult.status,
@@ -124,6 +133,10 @@ router.delete('/', async (req: Request, res: Response) => {
     await deleteCloudflareCustomDomain(server.customDomain_override, server._id.toString());
     // Remove custom domain from server config
     const globalDb = req.serverDbConnection!;
+    // Register the ModlServer schema if not already registered
+    if (!globalDb.models.ModlServer) {
+      globalDb.model('ModlServer', ModlServerSchema);
+    }
     const ServerModel = globalDb.model('ModlServer');
     await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_override: null,
