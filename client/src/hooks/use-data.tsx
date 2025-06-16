@@ -251,9 +251,9 @@ export function useSettings() {
 // System stats hooks
 export function useStats() {
   return useQuery({
-    queryKey: ['/api/stats'],
+    queryKey: ['/api/panel/stats'],
     queryFn: async () => {
-      const res = await fetch('/api/stats');
+      const res = await fetch('/api/panel/stats');
       if (!res.ok) {
         throw new Error('Failed to fetch stats');
       }
@@ -284,9 +284,9 @@ export interface ClientActivity {
 // Recent Activity Hook
 export function useRecentActivity(limit: number = 20, days: number = 7) {
   return useQuery<ClientActivity[]>({
-    queryKey: ['/api/activity/recent', limit, days],
+    queryKey: ['/api/panel/activity/recent', limit, days],
     queryFn: async () => {
-      const res = await fetch(`/api/activity/recent?limit=${limit}&days=${days}`);
+      const res = await fetch(`/api/panel/activity/recent?limit=${limit}&days=${days}`);
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: 'Failed to fetch recent activity and could not parse error response.' }));
         throw new Error(errorData.message || 'Failed to fetch recent activity');
@@ -302,9 +302,9 @@ export function useRecentActivity(limit: number = 20, days: number = 7) {
 // Billing-related hooks
 export function useBillingStatus() {
   return useQuery({
-    queryKey: ['/api/billing/status'],
+    queryKey: ['/api/panel/billing/status'],
     queryFn: async () => {
-      const res = await fetch('/api/billing/status');
+      const res = await fetch('/api/panel/billing/status');
       if (!res.ok) {
         throw new Error('Failed to fetch billing status');
       }

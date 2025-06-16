@@ -27,7 +27,7 @@ const BillingSettings = () => {
         description: 'Your subscription has been activated.',
         variant: 'default',
       });
-      queryClient.invalidateQueries({ queryKey: ['billingStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
       
       // Clean up the URL by removing the session_id query parameter
       urlParams.delete('session_id');
@@ -102,7 +102,7 @@ const BillingSettings = () => {
   const handleRefreshBillingStatus = async () => {
     setIsLoading(true);
     try {
-      await queryClient.invalidateQueries({ queryKey: ['/api/billing/status'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
       toast({
         title: 'Billing Status Refreshed',
         description: 'Your billing information has been updated.',
