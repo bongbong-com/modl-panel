@@ -93,8 +93,9 @@ router.post('/', async (req, res) => {
       customDomain_lastChecked: new Date()
     });
 
-    // Generate Caddy configuration
-    await generateCaddyConfig(customDomain, server.customDomain);
+    // Generate Nginx configuration and request SSL certificate
+    await generateNginxConfig(customDomain, server.customDomain);
+    await requestSSLCertificate(customDomain);
 
     const status: DomainStatus = {
       domain: customDomain,
@@ -137,8 +138,8 @@ router.post('/verify', async (req, res) => {
     });
 
     if (status.cnameConfigured && status.status !== 'active') {
-      // Trigger SSL certificate generation
-      await triggerSSLGeneration(domain);
+      // Request SSL certificate with Certbot
+      await requestSSLCertificate(domain);
       status.status = 'verifying';
     }
 
@@ -161,8 +162,9 @@ router.delete('/', async (req, res) => {
     const customDomain = server.customDomain_override;
     
     if (customDomain) {
-      // Remove Caddy configuration
-      await removeCaddyConfig(customDomain);
+      // Remove Nginx configuration and SSL certificate
+      await removeNginxConfig(customDomain);
+      await revokeSSLCertificate(customDomain);
       
       // Update server configuration
       const globalDb = await connectToGlobalModlDb();
@@ -204,7 +206,7 @@ async function checkDomainStatus(customDomain: string, originalSubdomain: string
   try {
     // Check CNAME record
     const cnameRecords = await resolveCname(customDomain);
-    const expectedTarget = `${originalSubdomain}.modl.gg`;
+    const expectedTarget = `${originalSubdomain}.cobl.gg`;
     
     status.cnameConfigured = cnameRecords.some(record => 
       record.toLowerCase() === expectedTarget.toLowerCase()
@@ -265,26 +267,26 @@ async function checkDomainAccessibility(domain: string): Promise<boolean> {
   }
 }
 
-// Helper function to generate Caddy configuration
-async function generateCaddyConfig(customDomain: string, originalSubdomain: string): Promise<void> {
+// Helper function to generate Nginx configuration
+async function generateNginxConfig(customDomain: string, originalSubdomain: string): Promise<void> {
   try {
     // Try multiple possible config directories in order of preference
     const possibleDirs = [
-      process.env.CADDY_CONFIG_DIR,
-      '/etc/caddy/conf.d',
-      '/home/caddy/conf.d',
-      path.join(process.cwd(), 'caddy-configs'),
-      '/tmp/caddy-configs'
+      process.env.NGINX_CONFIG_DIR,
+      '/etc/nginx/sites-available',
+      '/etc/nginx/conf.d',
+      path.join(process.cwd(), 'nginx-configs'),
+      '/tmp/nginx-configs'
     ].filter(Boolean);
 
-    let caddyConfigDir: string | null = null;
+    let nginxConfigDir: string | null = null;
     let configFile: string | null = null;
 
     // Try each directory until we find one we can write to
     for (const dir of possibleDirs) {
       try {
         await fs.mkdir(dir!, { recursive: true });
-        caddyConfigDir = dir!;
+        nginxConfigDir = dir!;
         configFile = path.join(dir!, `${customDomain}.conf`);
         break;
       } catch (error: any) {
@@ -293,75 +295,125 @@ async function generateCaddyConfig(customDomain: string, originalSubdomain: stri
       }
     }
 
-    if (!caddyConfigDir || !configFile) {
-      throw new Error('No writable directory found for Caddy configuration. Please check permissions or set CADDY_CONFIG_DIR environment variable.');
+    if (!nginxConfigDir || !configFile) {
+      throw new Error('No writable directory found for Nginx configuration. Please check permissions or set NGINX_CONFIG_DIR environment variable.');
     }
     
     const appPort = process.env.PORT || '5000';
     const config = `# Custom domain configuration for ${customDomain}
-# Note: *.modl.gg domains use wildcard certificates and don't need individual configs
+# SSL certificate will be managed by Certbot
 
-${customDomain} {
-    reverse_proxy localhost:${appPort} {
-        header_up Host {http.request.host}
-        header_up X-Real-IP {http.request.remote}
-        header_up X-Forwarded-For {http.request.remote}
-        header_up X-Forwarded-Proto {http.request.scheme}
+server {
+    listen 80;
+    server_name ${customDomain};
+    
+    # Let's Encrypt challenge handling
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
     }
     
-    # Enable automatic HTTPS for custom domain
-    tls {
-        issuer acme {
-            email admin@modl.gg
-        }
+    # Redirect HTTP to HTTPS
+    location / {
+        return 301 https://$server_name$request_uri;
     }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${customDomain};
+    
+    # SSL certificate paths (will be set by Certbot)
+    ssl_certificate /etc/letsencrypt/live/${customDomain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${customDomain}/privkey.pem;
+    
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
     
     # Security headers
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Proxy to Node.js application
+    location / {
+        proxy_pass http://127.0.0.1:${appPort};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
     
-    # Enable compression
-    encode gzip
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/javascript
+        application/xml+rss
+        application/json;
     
     # Logging
-    log {
-        output file /var/log/caddy/${customDomain}.log {
-            roll_size 100mb
-            roll_keep 5
-        }
-        format json
-    }
+    access_log /var/log/nginx/${customDomain}-access.log;
+    error_log /var/log/nginx/${customDomain}-error.log;
 }
 `;
 
-    await fs.mkdir(caddyConfigDir, { recursive: true });
+    await fs.mkdir(nginxConfigDir, { recursive: true });
     await fs.writeFile(configFile, config);
     
-    // Reload Caddy configuration (won't throw if Caddy isn't running)
-    await reloadCaddyConfig();
+    // Create symlink in sites-enabled if using sites-available
+    if (nginxConfigDir === '/etc/nginx/sites-available') {
+      const enabledFile = `/etc/nginx/sites-enabled/${customDomain}.conf`;
+      try {
+        await fs.symlink(configFile, enabledFile);
+        console.log(`Created symlink for ${customDomain} in sites-enabled`);
+      } catch (error: any) {
+        if (error.code !== 'EEXIST') {
+          console.warn(`Could not create symlink: ${error.message}`);
+        }
+      }
+    }
     
-    console.log(`Generated Caddy configuration for ${customDomain} in ${caddyConfigDir}`);
+    // Test and reload Nginx configuration
+    await reloadNginxConfig();
+    
+    console.log(`Generated Nginx configuration for ${customDomain} in ${nginxConfigDir}`);
   } catch (error: any) {
-    console.error('Error generating Caddy configuration:', error?.message || error);
+    console.error('Error generating Nginx configuration:', error?.message || error);
     throw error;
   }
 }
 
-// Helper function to remove Caddy configuration
-async function removeCaddyConfig(customDomain: string): Promise<void> {
+// Helper function to remove Nginx configuration
+async function removeNginxConfig(customDomain: string): Promise<void> {
   try {
     // Try the same directories as generation
     const possibleDirs = [
-      process.env.CADDY_CONFIG_DIR,
-      '/etc/caddy/conf.d',
-      '/home/caddy/conf.d',
-      path.join(process.cwd(), 'caddy-configs'),
-      '/tmp/caddy-configs'
+      process.env.NGINX_CONFIG_DIR,
+      '/etc/nginx/sites-available',
+      '/etc/nginx/conf.d',
+      path.join(process.cwd(), 'nginx-configs'),
+      '/tmp/nginx-configs'
     ].filter(Boolean);
 
     let found = false;
@@ -369,8 +421,21 @@ async function removeCaddyConfig(customDomain: string): Promise<void> {
       const configFile = path.join(dir!, `${customDomain}.conf`);
       try {
         await fs.unlink(configFile);
-        console.log(`Removed Caddy configuration for ${customDomain} from ${dir}`);
+        console.log(`Removed Nginx configuration for ${customDomain} from ${dir}`);
         found = true;
+        
+        // Also remove symlink if it exists
+        if (dir === '/etc/nginx/sites-available') {
+          const enabledFile = `/etc/nginx/sites-enabled/${customDomain}.conf`;
+          try {
+            await fs.unlink(enabledFile);
+            console.log(`Removed symlink for ${customDomain} from sites-enabled`);
+          } catch (error: any) {
+            if (error.code !== 'ENOENT') {
+              console.warn(`Error removing symlink: ${error.message}`);
+            }
+          }
+        }
         break;
       } catch (error: any) {
         if (error?.code !== 'ENOENT') {
@@ -384,47 +449,86 @@ async function removeCaddyConfig(customDomain: string): Promise<void> {
       console.warn(`Configuration file for ${customDomain} not found in any directory`);
     }
     
-    // Reload Caddy configuration (won't throw if Caddy isn't running)
-    await reloadCaddyConfig();
+    // Reload Nginx configuration
+    await reloadNginxConfig();
   } catch (error: any) {
-    console.error('Error removing Caddy configuration:', error?.message || error);
+    console.error('Error removing Nginx configuration:', error?.message || error);
     throw error;
   }
 }
 
-// Helper function to reload Caddy configuration
-async function reloadCaddyConfig(): Promise<void> {
+// Helper function to reload Nginx configuration
+async function reloadNginxConfig(): Promise<void> {
   const execAsync = promisify(exec);
   
   try {
-    // First check if Caddy is running
+    // Test Nginx configuration first
     try {
-      await execAsync('pgrep caddy');
-    } catch (error) {
-      console.warn('Caddy is not running. Configuration will be applied when Caddy starts.');
-      return; // Don't throw error, just warn
+      await execAsync('nginx -t');
+      console.log('Nginx configuration test passed');
+    } catch (error: any) {
+      console.error('Nginx configuration test failed:', error?.message || error);
+      throw new Error('Invalid Nginx configuration');
     }
 
-    // Try to reload Caddy configuration
-    await execAsync('caddy reload --config /etc/caddy/Caddyfile');
-    console.log('Caddy configuration reloaded successfully');
+    // Reload Nginx
+    await execAsync('systemctl reload nginx');
+    console.log('Nginx configuration reloaded successfully');
   } catch (error: any) {
-    // Check if it's a connection refused error (Caddy not running)
-    if (error?.message?.includes('connection refused') || error?.message?.includes('dial tcp')) {
-      console.warn('Caddy admin API not accessible. Configuration will be applied when Caddy restarts.');
-      return; // Don't throw error for this case
+    // Check if it's a systemctl not found error (non-systemd systems)
+    if (error?.message?.includes('systemctl: command not found')) {
+      try {
+        await execAsync('service nginx reload');
+        console.log('Nginx reloaded successfully (using service command)');
+      } catch (serviceError: any) {
+        console.warn('Could not reload Nginx. Please reload manually.');
+      }
+    } else {
+      console.error('Error reloading Nginx configuration:', error?.message || error);
+      throw error;
     }
-    
-    console.error('Error reloading Caddy configuration:', error?.message || error);
-    throw error;
   }
 }
 
-// Helper function to trigger SSL certificate generation
-async function triggerSSLGeneration(domain: string): Promise<void> {
-  // This is handled automatically by Caddy when the configuration is loaded
-  // and the domain is accessible. We might add additional logic here if needed.
-  console.log(`SSL certificate generation triggered for ${domain}`);
+// Helper function to request SSL certificate with Certbot
+async function requestSSLCertificate(domain: string): Promise<void> {
+  const execAsync = promisify(exec);
+  
+  try {
+    console.log(`Requesting SSL certificate for ${domain} using Certbot...`);
+    
+    // Use webroot method for certificate generation
+    const certbotCommand = `certbot certonly --webroot -w /var/www/html -d ${domain} --non-interactive --agree-tos --email admin@cobl.gg --quiet`;
+    
+    await execAsync(certbotCommand);
+    console.log(`SSL certificate requested successfully for ${domain}`);
+    
+    // Reload Nginx to use the new certificate
+    await reloadNginxConfig();
+  } catch (error: any) {
+    console.error('Error requesting SSL certificate:', error?.message || error);
+    throw new Error(`Failed to request SSL certificate for ${domain}: ${error?.message || error}`);
+  }
+}
+
+// Helper function to revoke SSL certificate
+async function revokeSSLCertificate(domain: string): Promise<void> {
+  const execAsync = promisify(exec);
+  
+  try {
+    console.log(`Revoking SSL certificate for ${domain}...`);
+    
+    // Revoke and delete the certificate
+    await execAsync(`certbot delete --cert-name ${domain} --non-interactive`);
+    console.log(`SSL certificate revoked for ${domain}`);
+  } catch (error: any) {
+    // Don't throw error if certificate doesn't exist
+    if (error?.message?.includes('No certificate found')) {
+      console.log(`No SSL certificate found for ${domain} to revoke`);
+    } else {
+      console.warn('Error revoking SSL certificate:', error?.message || error);
+    }
+  }
 }
 
 export default router;

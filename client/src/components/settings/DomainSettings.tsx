@@ -256,7 +256,7 @@ const DomainSettings: React.FC = () => {
             Domain Setup
           </CardTitle>
           <CardDescription>
-            Configure your custom domain to access your panel instead of using {currentDomain}.modl.gg
+            Configure your custom domain to access your panel instead of using {currentDomain}.cobl.gg
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -371,12 +371,12 @@ const DomainSettings: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <strong>Value/Target:</strong>
                     <code className="bg-muted px-2 py-1 rounded text-sm">
-                      {currentDomain}.modl.gg
+                      {currentDomain}.cobl.gg
                     </code>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => copyToClipboard(`${currentDomain}.modl.gg`)}
+                      onClick={() => copyToClipboard(`${currentDomain}.cobl.gg`)}
                     >
                       {copied ? (
                         <Check className="h-4 w-4" />
@@ -399,7 +399,7 @@ const DomainSettings: React.FC = () => {
         <CardHeader>
           <CardTitle>SSL/TLS Certificate</CardTitle>
           <CardDescription>
-            Automatic certificate management with Caddy
+            Automatic certificate management with Certbot and Let's Encrypt
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -432,11 +432,11 @@ const DomainSettings: React.FC = () => {
               <AlertTitle>How it works</AlertTitle>
               <AlertDescription>
                 <ul className="list-disc pl-5 space-y-1 mt-2">
-                  <li>Caddy automatically requests individual SSL certificates from Let's Encrypt for custom domains</li>
-                  <li>Certificates are renewed automatically before expiration</li>
-                  <li>HTTPS is enforced for all traffic to your custom domain</li>
+                  <li>Certbot automatically requests individual SSL certificates from Let's Encrypt for custom domains</li>
+                  <li>Certificates are renewed automatically before expiration using cron jobs</li>
+                  <li>Nginx handles HTTPS termination and proxy forwarding to the application</li>
                   <li>HTTP requests are automatically redirected to HTTPS</li>
-                  <li>Note: *.modl.gg domains already have wildcard SSL certificates configured</li>
+                  <li>Note: *.cobl.gg domains already have wildcard SSL certificates configured</li>
                 </ul>
               </AlertDescription>
             </Alert>
@@ -478,7 +478,7 @@ const DomainSettings: React.FC = () => {
               <div>
                 <h4 className="font-medium mb-3">4. SSL Activation</h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Caddy will automatically obtain and install an SSL certificate for your domain.
+                  Certbot will automatically obtain and install an SSL certificate for your domain using Let's Encrypt.
                 </p>
               </div>
             </div>
