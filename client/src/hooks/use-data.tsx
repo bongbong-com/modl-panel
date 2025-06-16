@@ -4,9 +4,9 @@ import { queryClient } from '../lib/queryClient';
 // Player-related hooks
 export function usePlayers() {
   return useQuery({
-    queryKey: ['/api/players'],
+    queryKey: ['/api/panel/players'],
     queryFn: async () => {
-      const res = await fetch('/api/players');
+      const res = await fetch('/api/panel/players');
       if (!res.ok) {
         throw new Error('Failed to fetch players');
       }
@@ -17,9 +17,9 @@ export function usePlayers() {
 
 export function usePlayer(uuid: string) {
   return useQuery({
-    queryKey: ['/api/players', uuid],
+    queryKey: ['/api/panel/players', uuid],
     queryFn: async () => {
-      const res = await fetch(`/api/players/${uuid}`);
+      const res = await fetch(`/api/panel/players/${uuid}`);
       if (!res.ok) {
         // If 404, return null - this is not an error, just no player found
         if (res.status === 404) {
@@ -40,9 +40,9 @@ export function usePlayer(uuid: string) {
 // Ticket-related hooks
 export function useTickets() {
   return useQuery({
-    queryKey: ['/api/tickets'],
+    queryKey: ['/api/panel/tickets'],
     queryFn: async () => {
-      const res = await fetch('/api/tickets');
+      const res = await fetch('/api/panel/tickets');
       if (!res.ok) {
         throw new Error('Failed to fetch tickets');
       }
@@ -57,9 +57,9 @@ export function useTickets() {
 
 export function useTicket(id: string) {
   return useQuery({
-    queryKey: ['/api/tickets', id],
+    queryKey: ['/api/panel/tickets', id],
     queryFn: async () => {
-      const res = await fetch(`/api/tickets/${id}`);
+      const res = await fetch(`/api/panel/tickets/${id}`);
       if (!res.ok) {
         if (res.status === 404) {
           return null;
@@ -80,7 +80,7 @@ export function useTicket(id: string) {
 export function useCreateTicket() {
   return useMutation({
     mutationFn: async (ticketData: any) => {
-      const res = await fetch('/api/tickets', {
+      const res = await fetch('/api/panel/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -96,7 +96,7 @@ export function useCreateTicket() {
     },
     onSuccess: () => {
       // Invalidate tickets query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets'] });
     }
   });
 }
@@ -104,7 +104,7 @@ export function useCreateTicket() {
 export function useUpdateTicket() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string, data: any }) => {
-      const res = await fetch(`/api/tickets/${id}`, {
+      const res = await fetch(`/api/panel/tickets/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -120,9 +120,9 @@ export function useUpdateTicket() {
     },
     onSuccess: (data) => {
       // Update the specific ticket in the cache
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', data._id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets', data._id] });
       // Invalidate the entire list to refresh it
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets'] });
     }
   });
 }
@@ -130,9 +130,9 @@ export function useUpdateTicket() {
 // Appeal-related hooks
 export function useAppeals() {
   return useQuery({
-    queryKey: ['/api/appeals'],
+    queryKey: ['/api/panel/appeals'],
     queryFn: async () => {
-      const res = await fetch('/api/appeals');
+      const res = await fetch('/api/panel/appeals');
       if (!res.ok) {
         throw new Error('Failed to fetch appeals');
       }
@@ -143,9 +143,9 @@ export function useAppeals() {
 
 export function useAppealsByPunishment(punishmentId: string) {
   return useQuery({
-    queryKey: ['/api/appeals/punishment', punishmentId],
+    queryKey: ['/api/panel/appeals/punishment', punishmentId],
     queryFn: async () => {
-      const res = await fetch(`/api/appeals/punishment/${punishmentId}`);
+      const res = await fetch(`/api/panel/appeals/punishment/${punishmentId}`);
       if (!res.ok) {
         if (res.status === 404) {
           return [];
@@ -161,7 +161,7 @@ export function useAppealsByPunishment(punishmentId: string) {
 export function useCreateAppeal() {
   return useMutation({
     mutationFn: async (appealData: any) => {
-      const res = await fetch('/api/appeals', {
+      const res = await fetch('/api/panel/appeals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -177,7 +177,7 @@ export function useCreateAppeal() {
     },
     onSuccess: () => {
       // Invalidate appeals query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['/api/appeals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/appeals'] });
     }
   });
 }
@@ -185,9 +185,9 @@ export function useCreateAppeal() {
 // Staff-related hooks
 export function useStaff() {
   return useQuery({
-    queryKey: ['staff'],
+    queryKey: ['/api/panel/staff'],
     queryFn: async () => {
-      const res = await fetch('/api/staff');
+      const res = await fetch('/api/panel/staff');
       if (!res.ok) {
         throw new Error('Failed to fetch staff');
       }
@@ -200,9 +200,9 @@ export function useStaff() {
 // Log-related hooks
 export function useLogs() {
   return useQuery({
-    queryKey: ['/api/logs'],
+    queryKey: ['/api/panel/logs'],
     queryFn: async () => {
-      const res = await fetch('/api/logs');
+      const res = await fetch('/api/panel/logs');
       if (!res.ok) {
         throw new Error('Failed to fetch logs');
       }
@@ -214,11 +214,11 @@ export function useLogs() {
 // Settings-related hooks
 export function useSettings() {
   return useQuery({
-    queryKey: ['/api/settings'],
+    queryKey: ['/api/panel/settings'],
     queryFn: async () => {
-      // console.log('[useSettings] Fetching /api/settings...'); // Removed
+      // console.log('[useSettings] Fetching /api/panel/settings...'); // Removed
       try {
-        const res = await fetch('/api/settings');
+        const res = await fetch('/api/panel/settings');
         // console.log('[useSettings] Response status:', res.status, res.statusText); // Removed
 
         if (!res.ok) {
@@ -318,7 +318,7 @@ export function useBillingStatus() {
 export function useApplyPunishment() {
   return useMutation({
     mutationFn: async ({ uuid, punishmentData }: { uuid: string, punishmentData: any }) => {
-      const res = await fetch(`/api/players/${uuid}/punishments`, {
+      const res = await fetch(`/api/panel/players/${uuid}/punishments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -334,9 +334,9 @@ export function useApplyPunishment() {
     },
     onSuccess: (data) => {
       // Invalidate player data to refresh it
-      queryClient.invalidateQueries({ queryKey: ['/api/players', data._id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players', data._id] });
       // Invalidate the entire player list to refresh it
-      queryClient.invalidateQueries({ queryKey: ['/api/players'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players'] });
     }
   });
 }
