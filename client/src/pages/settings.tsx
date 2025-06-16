@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard } from 'lucide-react';
+import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/use-auth';
 import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
 import BillingSettings from '@/components/settings/BillingSettings';
 import DomainSettings from '@/components/settings/DomainSettings';
+import KnowledgebaseSettings from '@/components/settings/KnowledgebaseSettings';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -835,6 +836,13 @@ const Settings = () => {
                   Staff Management
                 </TabsTrigger>
               )}
+              <TabsTrigger
+                value="knowledgebase"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Knowledgebase
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="account" className="space-y-6 p-6">
@@ -1815,6 +1823,10 @@ const Settings = () => {
                 <BillingSettings />
               </TabsContent>
             )}
+
+            <TabsContent value="knowledgebase" className="space-y-6 p-6">
+              <KnowledgebaseSettings />
+            </TabsContent>
 
           </Tabs>
         </Card>

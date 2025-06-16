@@ -26,17 +26,38 @@ import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 import { WelcomeModal } from "@/components/layout/WelcomeModal";
 
+// Knowledgebase Pages
+import KnowledgebasePage from "@/pages/KnowledgebasePage";
+import ArticleDetailPage from "@/pages/ArticleDetailPage";
+
 function Router() {
   const [location] = useLocation();
   const isMobile = useIsMobile();
-  
-  const isAuthPage = location === '/auth';
-  const isAppealsPage = location === '/appeals';
-  const isPlayerTicketPage = location.startsWith('/player-ticket/');
+
+  // Handle public Knowledgebase routes first
+  // Check if the location is NOT part of the admin panel, auth, appeals, etc.
+  const isAdminPanelRoute = location.startsWith("/panel");
+  const isAuthPage = location === '/auth' || location === '/panel/auth';
+  const isAppealsPage = location === '/appeals'; // Assuming appeals is not under /panel
+  const isPlayerTicketPage = location.startsWith('/player-ticket/'); // Assuming player-ticket is not under /panel
   const isProvisioningPage = location === '/provisioning-in-progress';
   const isAcceptInvitationPage = location.startsWith('/accept-invitation');
 
+  if (!isAdminPanelRoute && !isAuthPage && !isAppealsPage && !isPlayerTicketPage && !isProvisioningPage && !isAcceptInvitationPage) {
+    return (
+      <main className="h-full bg-background"> {/* Basic wrapper for public pages */}
+        <Switch>
+          <Route path="/:articleSlug" component={ArticleDetailPage} />
+          <Route path="/" component={KnowledgebasePage} />
+          {/* Fallback for unmatched public routes, ensure it's placed after specific public routes */}
+          {/* <Route component={NotFound} />  Consider if a global NotFound is better */}
+        </Switch>
+      </main>
+    );
+  }
+  
   // Don't show navigation on auth page, appeals page, player ticket page, or provisioning page
+  // Note: isAuthPage now covers /auth and /panel/auth
   if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage || isAcceptInvitationPage) {
     return (
       <main className="h-full">
@@ -57,22 +78,28 @@ function Router() {
       <div className="flex flex-col h-full bg-background">
         <main className="flex-1 overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar pb-16">
           <Switch>
-            <ProtectedRoute path="/" component={Home} />
-            <ProtectedRoute path="/lookup" component={LookupPage} />
-            <ProtectedRoute path="/player/:uuid" component={PlayerDetailPage} />
-            <ProtectedRoute path="/tickets" component={Tickets} />
-            <ProtectedRoute path="/tickets/:id" component={TicketDetail} />
-            <ProtectedRoute path="/audit" component={Audit} />
-            <ProtectedRoute path="/settings" component={Settings} />
-            <ProtectedRoute path="/api-docs" component={ApiDocs} />
-            <AuthRoute path="/auth" component={AuthPage} />
+            <ProtectedRoute path="/panel" component={Home} />
+            <ProtectedRoute path="/panel/lookup" component={LookupPage} />
+            <ProtectedRoute path="/panel/player/:uuid" component={PlayerDetailPage} />
+            <ProtectedRoute path="/panel/tickets" component={Tickets} />
+            <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
+            <ProtectedRoute path="/panel/audit" component={Audit} />
+            <ProtectedRoute path="/panel/settings" component={Settings} />
+            <ProtectedRoute path="/panel/api-docs" component={ApiDocs} />
+            <AuthRoute path="/panel/auth" component={AuthPage} />
+            {/* These routes are assumed to be outside /panel */}
+            <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
             <Route path="/appeals" component={AppealsPage} />
             <Route path="/player-ticket/:id" component={PlayerTicket} />
-            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} /> {/* Provisioning page route for mobile, though typically accessed without nav */}
+            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+            <Route path="/accept-invitation" component={AcceptInvitationPage} />
+            {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
+            <Route path="/:articleSlug" component={ArticleDetailPage} />
+            <Route path="/" component={KnowledgebasePage} />
             <Route component={NotFound} />
           </Switch>
         </main>
-        <MobileNavbar />
+        { location.startsWith("/panel") && <MobileNavbar /> }
       </div>
     );
   }
@@ -80,20 +107,26 @@ function Router() {
   // Desktop version
   return (
     <div className="flex h-full overflow-hidden bg-background">
-      <Sidebar />
-      <main className="flex-1 pl-24 overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar">
+      { location.startsWith("/panel") && <Sidebar /> }
+      <main className={`flex-1 ${location.startsWith("/panel") ? 'pl-24' : ''} overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar`}>
         <Switch>
-          <ProtectedRoute path="/" component={Home} />
-          <ProtectedRoute path="/lookup" component={Lookup} />
-          <ProtectedRoute path="/tickets" component={Tickets} />
-          <ProtectedRoute path="/tickets/:id" component={TicketDetail} />
-          <ProtectedRoute path="/audit" component={Audit} />
-          <ProtectedRoute path="/settings" component={Settings} />
-          <ProtectedRoute path="/api-docs" component={ApiDocs} />
-          <AuthRoute path="/auth" component={AuthPage} />
+          <ProtectedRoute path="/panel" component={Home} />
+          <ProtectedRoute path="/panel/lookup" component={Lookup} />
+          <ProtectedRoute path="/panel/tickets" component={Tickets} />
+          <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
+          <ProtectedRoute path="/panel/audit" component={Audit} />
+          <ProtectedRoute path="/panel/settings" component={Settings} />
+          <ProtectedRoute path="/panel/api-docs" component={ApiDocs} />
+          <AuthRoute path="/panel/auth" component={AuthPage} />
+           {/* These routes are assumed to be outside /panel */}
+          <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
-          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} /> {/* Provisioning page route for desktop, though typically accessed without nav */}
+          <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+          <Route path="/accept-invitation" component={AcceptInvitationPage} />
+          {/* Public KB routes for desktop, if accessed directly and not caught by earlier block */}
+          <Route path="/:articleSlug" component={ArticleDetailPage} />
+          <Route path="/" component={KnowledgebasePage} />
           <Route component={NotFound} />
         </Switch>
       </main>
@@ -103,29 +136,32 @@ function Router() {
 
 function App() {
   const [location] = useLocation();
-  const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);  useEffect(() => {
+  const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
+  useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
-    const isOnHomePage = location === '/';
+    // Welcome modal should appear on the admin panel's home page
+    const isOnPanelHomePage = location === '/panel';
     const isFromProvisioning = new URLSearchParams(window.location.search).get('fromProvisioning') === 'true';
     
     // Explicitly exclude certain pages from showing the welcome modal
-    const excludedPages = ['/auth', '/appeals', '/provisioning-in-progress'];
+    // Note: /auth is now /panel/auth for admin, but we might have a general /auth too.
+    const excludedPages = ['/auth', '/panel/auth', '/appeals', '/provisioning-in-progress'];
     const isOnExcludedPage = excludedPages.some(page => location.startsWith(page));
     const isOnPlayerTicketPage = location.startsWith('/player-ticket/');
     const isOnAcceptInvitationPage = location.startsWith('/accept-invitation');
     
-    // Hide welcome modal if not on home page
-    if (!isOnHomePage) {
+    // Hide welcome modal if not on the panel home page
+    if (!isOnPanelHomePage) {
       setWelcomeModalOpen(false);
       return;
     }
     
-    // Only show welcome modal on home page, not coming from provisioning, and not on excluded pages
-    if (!hasSeenModal && 
-        isOnHomePage && 
-        !isFromProvisioning && 
-        !isOnExcludedPage && 
-        !isOnPlayerTicketPage && 
+    // Only show welcome modal on panel home page, not coming from provisioning, and not on excluded pages
+    if (!hasSeenModal &&
+        isOnPanelHomePage &&
+        !isFromProvisioning &&
+        !isOnExcludedPage &&
+        !isOnPlayerTicketPage &&
         !isOnAcceptInvitationPage) {
       setWelcomeModalOpen(true);
     }

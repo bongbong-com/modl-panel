@@ -142,52 +142,53 @@ const Sidebar = () => {
   const navItems = [
     {
       name: "Home",
-      path: "/",
+      path: "/panel",
       icon: <Home className="h-5 w-5" />,
       notifications: 3,
       onClick: () => {
         if (isLookupOpen) closeLookup();
-        navigate("/");
+        navigate("/panel");
       },
     },
     {
       name: "Lookup",
-      path: "/lookup",
+      path: "/panel/lookup", // This path is for active state, click handled separately
       icon: <Search className="h-5 w-5" />,
       onClick: () => {
         if (isLookupOpen) {
           closeLookup();
         } else {
           openLookup();
+          // Do not navigate here, lookup is an overlay
         }
       },
     },
     {
       name: "Tickets",
-      path: "/tickets",
+      path: "/panel/tickets",
       icon: <Ticket className="h-5 w-5" />,
       notifications: 5,
       onClick: () => {
         if (isLookupOpen) closeLookup();
-        navigate("/tickets");
+        navigate("/panel/tickets");
       },
     },
     {
       name: "Audit",
-      path: "/audit",
+      path: "/panel/audit",
       icon: <FileText className="h-5 w-5" />,
       onClick: () => {
         if (isLookupOpen) closeLookup();
-        navigate("/audit");
+        navigate("/panel/audit");
       },
     },
     {
       name: "Settings",
-      path: "/settings",
+      path: "/panel/settings",
       icon: <Settings className="h-5 w-5" />,
       onClick: () => {
         if (isLookupOpen) closeLookup();
-        navigate("/settings");
+        navigate("/panel/settings");
       },
     },
   ];
@@ -245,8 +246,9 @@ const Sidebar = () => {
               <ul className="space-y-4">
                 {navItems.map((item, index) => {
                   const isActive =
-                    location === item.path ||
-                    (item.path === "/lookup" && isLookupOpen);
+                    location === item.path || // Exact match for current page
+                    (item.path === "/panel/lookup" && isLookupOpen) || // Lookup is active
+                    (item.path === "/panel" && location.startsWith("/panel/player/")); // Home active if on player detail from panel
 
                   // Special handling for lookup icon
                   if (item.path === "/lookup") {

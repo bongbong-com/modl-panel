@@ -1,0 +1,91 @@
+import React, { useState, useEffect } from 'react';
+import { useRoute, Link } from 'wouter'; // Changed from react-router-dom to wouter
+import ReactMarkdown from 'react-markdown';
+import PageContainer from '@/components/layout/PageContainer'; // Corrected import
+// import { Button } from '@/components/ui/button'; // If you want a back button
+
+// Mock type - replace with actual type from API
+interface ArticleDetail {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+const ArticleDetailPage: React.FC = () => {
+  const [, params] = useRoute("/:articleSlug");
+  const articleSlug = params?.articleSlug;
+  const [article, setArticle] = useState<ArticleDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchArticle = async () => {
+      if (!articleSlug) return;
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/public/knowledgebase/articles/${articleSlug}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Article not found.');
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setArticle(data);
+        setError(null);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load article.');
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchArticle();
+  }, [articleSlug]);
+
+  if (isLoading) {
+    return <PageContainer><p>Loading article...</p></PageContainer>;
+  }
+
+  if (error) {
+    return <PageContainer><p>Error: {error}</p></PageContainer>;
+  }
+
+  if (!article) {
+    return <PageContainer><p>Article not found.</p></PageContainer>;
+  }
+
+  return (
+    <PageContainer>
+      <div className="container mx-auto p-4">
+        <div className="mb-6">
+          <Link href="/" className="text-blue-600 hover:underline">&larr; Back to Knowledgebase</Link>
+          {article.category && (
+            <span className="ml-2 text-gray-500">
+              in <Link href={`/#${article.category.slug}`} className="text-blue-500 hover:underline">{article.category.name}</Link> {/* Assuming category slug can be a hash on the main KB page */}
+            </span>
+          )}
+        </div>
+
+        <article className="prose lg:prose-xl max-w-none bg-white p-6 rounded-lg shadow">
+          <h1 className="text-3xl font-bold mb-4 text-gray-900">{article.title}</h1>
+          <div className="text-sm text-gray-500 mb-4">
+            <span>Last updated: {new Date(article.updated_at).toLocaleDateString()}</span>
+          </div>
+          <ReactMarkdown>{article.content}</ReactMarkdown>
+        </article>
+      </div>
+    </PageContainer>
+  );
+};
+
+export default ArticleDetailPage;

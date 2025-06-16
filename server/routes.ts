@@ -1,10 +1,11 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from 'ws';
 import { setupApiRoutes } from "./api/routes";
 import { setupVerificationAndProvisioningRoutes } from './routes/verify-provision';
 import { connectToGlobalModlDb } from './db/connectionManager';
 import { type Connection as MongooseConnection } from 'mongoose';
+import { isAuthenticated } from './middleware/auth-middleware';
 
 import appealRoutes from './routes/appeal-routes';
 import playerRoutes from './routes/player-routes';
@@ -15,6 +16,8 @@ import logRoutes from './routes/log-routes';
 import authRoutes from './routes/auth-routes';
 import billingRoutes, { webhookRouter } from './routes/billing-routes';
 import domainRoutes from './routes/domain-routes';
+import knowledgebaseRoutes from './routes/knowledgebase-routes'; // Import knowledgebase routes
+import publicKnowledgebaseRoutes from './routes/public-knowledgebase-routes'; // Import public knowledgebase routes
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -27,27 +30,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Falling back to in-memory storage');
   }
 
-  setupApiRoutes(app);
+  // Public API, verification, and auth routes
+  setupApiRoutes(app); // Assuming these are general public APIs if any, or handled internally
   setupVerificationAndProvisioningRoutes(app);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/billing', webhookRouter); // Stripe webhook MUST be public
+  app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
 
-  app.use('/api/appeals', appealRoutes);
-  app.use('/api/players', playerRoutes);
-  app.use('/api/settings', settingsRoutes);
-  app.use('/api/settings/domain', domainRoutes);
-  app.use('/api/staff', staffRoutes);
-  app.use('/api/tickets', ticketRoutes);
-  app.use('/api/logs', logRoutes);  app.use('/api/auth', authRoutes);
-  app.use('/api/billing', billingRoutes);
-  app.use('/api/billing', webhookRouter); // Register webhook handler separately
+  // Panel specific API routes
+  const panelRouter = express.Router();
+  panelRouter.use(isAuthenticated); // Apply authentication to all panel routes
+
+  panelRouter.use('/appeals', appealRoutes);
+  panelRouter.use('/players', playerRoutes); // Assuming player management is panel-specific
+  panelRouter.use('/settings', settingsRoutes);
+  panelRouter.use('/settings/domain', domainRoutes);
+  panelRouter.use('/staff', staffRoutes);
+  panelRouter.use('/tickets', ticketRoutes);
+  panelRouter.use('/logs', logRoutes);
+  panelRouter.use('/billing', billingRoutes); // Billing management for the panel
+  panelRouter.use('/knowledgebase', knowledgebaseRoutes); // Add knowledgebase routes to panel
   
-  setupMinecraftRoutes(app);
+  setupMinecraftRoutes(panelRouter as any as Express); // Setup Minecraft routes under the panel router
 
-  app.get('/api/activity/recent', async (req, res) => {
+  panelRouter.get('/activity/recent', async (req, res) => {
     // TODO: Implement logic to fetch recent activity
     res.json([]);
   });
 
-  app.get('/api/stats', async (req, res) => {
+  panelRouter.get('/stats', async (req, res) => {
     try {
       if (!req.serverDbConnection) {
         console.error('Error fetching stats: No server-specific database connection found for this request.');
@@ -81,6 +92,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.use('/api/panel', panelRouter);
+
+  // Public player lookup (if intended to be public)
   app.get('/api/player/:identifier', async (req, res) => {
     const { identifier } = req.params;
     const { type = 'username' } = req.query;

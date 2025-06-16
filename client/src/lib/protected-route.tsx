@@ -24,7 +24,7 @@ export function ProtectedRoute({ path, component: Component }: ProtectedRoutePro
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/auth" />
+        <Redirect to={path.startsWith("/panel") ? "/panel/auth" : "/auth"} />
       </Route>
     );
   }
@@ -53,7 +53,7 @@ export function AuthRoute({ path, component: Component }: AuthRouteProps) {
   if (user) {
     return (
       <Route path={path}>
-        <Redirect to="/" />
+        <Redirect to={path.startsWith("/panel/auth") ? "/panel" : "/"} />
       </Route>
     );
   }
