@@ -88,7 +88,12 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     globalConnection = await connectToGlobalModlDb();
     const ModlServerModel = globalConnection.model('ModlServer', ModlServerSchema);
     // @ts-ignore
-    const serverConfig = await ModlServerModel.findOne({ customDomain: req.serverName });
+    const serverConfig = await ModlServerModel.findOne({
+      $or: [
+        { customDomain: req.serverName },
+        { customDomain_override: req.serverName }
+      ]
+    });
 
     if (!serverConfig) {
       // @ts-ignore
