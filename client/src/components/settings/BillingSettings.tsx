@@ -27,7 +27,7 @@ const BillingSettings = () => {
         description: 'Your subscription has been activated.',
         variant: 'default',
       });
-      queryClient.invalidateQueries({ queryKey: ['billingStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
       
       // Clean up the URL by removing the session_id query parameter
       urlParams.delete('session_id');
@@ -39,7 +39,7 @@ const BillingSettings = () => {
   const handleCreateCheckoutSession = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/billing/create-checkout-session', {
+      const response = await fetch('/api/panel/billing/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ const BillingSettings = () => {
   const handleCreatePortalSession = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/billing/create-portal-session', {
+      const response = await fetch('/api/panel/billing/create-portal-session', {
         method: 'POST',
       });
 
@@ -102,7 +102,7 @@ const BillingSettings = () => {
   const handleRefreshBillingStatus = async () => {
     setIsLoading(true);
     try {
-      await queryClient.invalidateQueries({ queryKey: ['/api/billing/status'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
       toast({
         title: 'Billing Status Refreshed',
         description: 'Your billing information has been updated.',

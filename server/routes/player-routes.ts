@@ -87,7 +87,7 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-router.get('/api/players', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const players = await Player.find({});
@@ -98,7 +98,7 @@ router.get('/api/players', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/api/players/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
+router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const player = await Player.findOne({ minecraftUuid: req.params.uuid });
@@ -118,7 +118,7 @@ interface PlayerLoginBody {
   ipAddress: string;
 }
 
-router.post('/api/players/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Response) => {
+router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   
   try {
@@ -186,7 +186,7 @@ router.post('/api/players/login', async (req: Request<{}, {}, PlayerLoginBody>, 
       punishments: [],
       pendingNotifications: [],
       data: new Map<string, any>([['firstJoin', new Date()], ['lastLogin', new Date()]])
-    } as IPlayer);
+    });
 
     await player.save();
     await createSystemLog(req.serverDbConnection, req.serverName, `New player ${username} (${minecraftUuid}) created and logged in. IP: ${ipAddress}.`, 'info', 'player-api');
@@ -202,7 +202,7 @@ interface CreatePlayerBody {
     minecraftUuid: string;
     username: string;
 }
-router.post('/api/players', async (req: Request<{}, {}, CreatePlayerBody>, res: Response) => {
+router.post('/', async (req: Request<{}, {}, CreatePlayerBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { minecraftUuid, username } = req.body;
@@ -225,7 +225,7 @@ router.post('/api/players', async (req: Request<{}, {}, CreatePlayerBody>, res: 
       punishments: [],
       pendingNotifications: [],
       data: new Map<string, any>([['firstJoin', new Date()]])
-    } as IPlayer);
+    });
     
     await player.save();
     await createSystemLog(req.serverDbConnection, req.serverName, `New player ${username} (${minecraftUuid}) created via API.`, 'info', 'player-api');
@@ -240,7 +240,7 @@ router.post('/api/players', async (req: Request<{}, {}, CreatePlayerBody>, res: 
 interface AddUsernameBody {
     username: string;
 }
-router.post('/api/players/:uuid/usernames', async (req: Request<{ uuid: string }, {}, AddUsernameBody>, res: Response) => {
+router.post('/:uuid/usernames', async (req: Request<{ uuid: string }, {}, AddUsernameBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { username } = req.body;
@@ -269,7 +269,7 @@ interface AddNoteBody {
     issuerName: string;
     issuerId?: string;
 }
-router.post('/api/players/:uuid/notes', async (req: Request<{ uuid: string }, {}, AddNoteBody>, res: Response) => {
+router.post('/:uuid/notes', async (req: Request<{ uuid: string }, {}, AddNoteBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { text, issuerName, issuerId } = req.body;
@@ -293,7 +293,7 @@ router.post('/api/players/:uuid/notes', async (req: Request<{ uuid: string }, {}
 interface AddIpBody {
     ipAddress: string;
 }
-router.post('/api/players/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, res: Response) => {
+router.post('/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { ipAddress } = req.body; 
@@ -348,7 +348,7 @@ interface AddPunishmentBody {
     reason?: string;
     duration?: number;
 }
-router.post('/api/players/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response) => {
+router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const {
@@ -414,7 +414,7 @@ interface AddPunishmentModificationBody {
     effectiveDuration?: number;
     reason?: string;
 }
-router.post('/api/players/:uuid/punishments/:punishmentId/modifications', async (req: Request<{ uuid: string, punishmentId: string }, {}, AddPunishmentModificationBody>, res: Response) => {
+router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Request<{ uuid: string, punishmentId: string }, {}, AddPunishmentModificationBody>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { type, issuerName, effectiveDuration, reason } = req.body;
@@ -447,7 +447,7 @@ router.post('/api/players/:uuid/punishments/:punishmentId/modifications', async 
   }
 });
 
-router.get('/api/players/:uuid/activePunishments', async (req: Request<{ uuid: string }>, res: Response) => {
+router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const player = await Player.findOne({ minecraftUuid: req.params.uuid });

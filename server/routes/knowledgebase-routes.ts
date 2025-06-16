@@ -5,8 +5,9 @@ import {
   IKnowledgebaseArticle,
   KnowledgebaseArticleSchema
 } from '../models/knowledgebase-schema';
-import mongoose, { Model } from 'mongoose'; // Import Model type
-import { authenticate, authorize } from '../middleware/auth'; // Assuming these exist and are set up
+import mongoose, { Model } from 'mongoose';
+import { isAuthenticated } from '../middleware/auth-middleware';
+import { checkRole } from '../middleware/role-middleware'; // Import checkRole
 import { check, validationResult } from 'express-validator'; // For validation
 
 const router = express.Router();
@@ -38,8 +39,8 @@ const getKnowledgebaseArticleModel = (req: Request): Model<IKnowledgebaseArticle
 // POST /api/knowledgebase/categories - Create a new category
 router.post(
   '/categories',
-  authenticate, // Apply authentication
-  authorize(['admin', 'moderator']), // Apply authorization
+  isAuthenticated, // Apply authentication
+  checkRole(['Super Admin', 'Admin']), // Apply authorization
   [ // Validation rules
     check('name', 'Category name is required').not().isEmpty().trim(),
     check('description', 'Description can be a string').optional().isString().trim(),
@@ -90,12 +91,11 @@ router.post(
 // GET /api/knowledgebase/categories - List all categories for the tenant
 router.get(
   '/categories',
-  authenticate,
-  authorize(['admin', 'moderator', 'support']), // Or broader if needed for public view
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req);
-      // const KnowledgebaseArticle = getKnowledgebaseArticleModel(req); // Not needed if populating
 
       const categories = await KnowledgebaseCategory.find().sort({ ordinal: 1 }).populate({
         path: 'articles', // Virtual populate field name from schema
@@ -131,8 +131,8 @@ router.get(
 // GET /api/knowledgebase/categories/:categoryId - Get a specific category by ID
 router.get(
   '/categories/:categoryId',
-  authenticate,
-  authorize(['admin', 'moderator', 'support']), // Or broader if public
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req);
@@ -180,8 +180,8 @@ router.get(
 // PUT /api/knowledgebase/categories/:categoryId - Update a category's name and description
 router.put(
   '/categories/:categoryId',
-  authenticate,
-  authorize(['admin', 'moderator']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   [
     check('name', 'Category name must be a non-empty string').optional().notEmpty().trim(),
     check('description', 'Description must be a string').optional().isString().trim(),
@@ -247,8 +247,8 @@ router.put(
 // DELETE /api/knowledgebase/categories/:categoryId - Delete a category
 router.delete(
   '/categories/:categoryId',
-  authenticate,
-  authorize(['admin']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req);
@@ -283,8 +283,8 @@ router.delete(
 // PUT /api/knowledgebase/categories/reorder - Reorder categories
 router.put(
   '/categories/reorder',
-  authenticate,
-  authorize(['admin', 'moderator']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req);
@@ -322,8 +322,8 @@ router.put(
 // POST /api/knowledgebase/categories/:categoryId/articles - Create a new article in a category
 router.post(
   '/categories/:categoryId/articles',
-  authenticate,
-  authorize(['admin', 'moderator', 'support']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   [
     check('title', 'Article title is required').not().isEmpty().trim(),
     check('content', 'Article content is required').not().isEmpty(),
@@ -391,8 +391,8 @@ router.post(
 // GET /api/knowledgebase/categories/:categoryId/articles/:articleId - Get a specific article
 router.get(
   '/categories/:categoryId/articles/:articleId',
-  authenticate, // Or make public if needed, adjust authorize accordingly
-  authorize(['admin', 'moderator', 'support']), // Or broader/public
+  isAuthenticated, // Or make public if needed, adjust authorize accordingly
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseArticle = getKnowledgebaseArticleModel(req);
@@ -433,8 +433,8 @@ router.get(
 // PUT /api/knowledgebase/categories/:categoryId/articles/:articleId - Update an article
 router.put(
   '/categories/:categoryId/articles/:articleId',
-  authenticate,
-  authorize(['admin', 'moderator', 'support']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   [
     check('title', 'Article title must be a non-empty string').optional({ checkFalsy: true }).notEmpty().trim(),
     check('content', 'Article content must be a non-empty string').optional({ checkFalsy: true }).notEmpty(),
@@ -494,8 +494,8 @@ router.put(
 // DELETE /api/knowledgebase/categories/:categoryId/articles/:articleId - Delete an article
 router.delete(
   '/categories/:categoryId/articles/:articleId',
-  authenticate,
-  authorize(['admin', 'moderator']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseArticle = getKnowledgebaseArticleModel(req);
@@ -523,8 +523,8 @@ router.delete(
 // PUT /api/knowledgebase/categories/:categoryId/articles/reorder - Reorder articles within a category
 router.put(
   '/categories/:categoryId/articles/reorder',
-  authenticate,
-  authorize(['admin', 'moderator', 'support']),
+  isAuthenticated,
+  checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
       const KnowledgebaseCategory = getKnowledgebaseCategoryModel(req); // To verify category exists

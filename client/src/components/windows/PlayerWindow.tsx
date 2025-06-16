@@ -651,7 +651,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           console.log('Note data:', noteObject);
                           
                           // Send note to the server
-                          const response = await fetch(`/api/players/${playerId}/notes`, {
+                          const response = await fetch(`/api/panel/players/${playerId}/notes`, {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json'
