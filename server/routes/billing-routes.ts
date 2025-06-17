@@ -194,7 +194,6 @@ const webhookRouter = express.Router();
 
 // Webhook handler for Stripe events
 webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
-  console.log(`[WEBHOOK_ENTRY] Request to /stripe-webhooks. Path: ${req.path}, OriginalURL: ${req.originalUrl}, Hostname: ${req.hostname}, Headers: ${JSON.stringify(req.headers)}`);
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
