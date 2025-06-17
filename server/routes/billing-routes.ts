@@ -18,7 +18,7 @@ router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
   if (!stripe) {
     return res.status(503).send('Billing service unavailable. Stripe not configured.');
   }
-  
+
   const server = req.modlServer;
 
   if (!server) {
@@ -60,7 +60,7 @@ router.post('/create-portal-session', isAuthenticated, async (req, res) => {
   if (!stripe) {
     return res.status(503).send('Billing service unavailable. Stripe not configured.');
   }
-  
+
   const server = req.modlServer;
 
   if (!server) {
@@ -95,7 +95,7 @@ router.get('/status', isAuthenticated, async (req, res) => {
     // If we have a Stripe subscription ID, fetch the latest status directly from Stripe as a fallback
     let currentStatus = server.subscription_status;
     let currentPeriodEnd = server.current_period_end;
-    
+
     if (server.stripe_subscription_id && (!currentStatus || currentStatus === 'active')) {
       if (!stripe) {
         console.warn('[BILLING STATUS] Cannot sync with Stripe - Stripe not configured');
@@ -103,14 +103,14 @@ router.get('/status', isAuthenticated, async (req, res) => {
         try {
           const subscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id) as any;
           console.log(`[BILLING STATUS] Stripe subscription status: ${subscription.status}, DB status: ${server.subscription_status}`);
-          
+
           // If there's a discrepancy, update our database
           if (subscription.status !== server.subscription_status) {
             console.log(`[BILLING STATUS] Status mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${subscription.status}`);
-            
+
             const globalDb = await connectToGlobalModlDb();
             const Server = globalDb.model('ModlServer', ModlServerSchema);
-            
+
             // Validate current_period_end before creating Date object
             let periodEndDate = null;
             if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
@@ -121,22 +121,22 @@ router.get('/status', isAuthenticated, async (req, res) => {
                 periodEndDate = null;
               }
             }
-              const updateData: any = {
+            const updateData: any = {
               subscription_status: subscription.status,
             };
-            
+
             if (periodEndDate) {
               updateData.current_period_end = periodEndDate;
             } else if (subscription.status === 'canceled') {
               // For canceled subscriptions, set current_period_end to null
               updateData.current_period_end = null;
             }
-            
+
             await Server.findOneAndUpdate(
               { _id: server._id },
               updateData
             );
-              currentStatus = subscription.status;
+            currentStatus = subscription.status;
             if (periodEndDate) {
               currentPeriodEnd = periodEndDate;
             } else if (subscription.status === 'canceled') {
@@ -167,7 +167,7 @@ router.post('/debug-status/:customDomain', async (req, res) => {
     const { customDomain } = req.params;
     const globalDb = await connectToGlobalModlDb();
     const Server = globalDb.model('ModlServer', ModlServerSchema);
-    
+
     const server = await Server.findOne({ customDomain });
     if (!server) {
       return res.status(404).json({ error: 'Server not found' });
@@ -225,7 +225,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         console.log(`[WEBHOOK] Processing checkout.session.completed for customer: ${session.customer}`);
-        
+
         if (session.customer && session.subscription) {
           const server = await Server.findOne({ stripe_customer_id: session.customer });
           if (server) {
@@ -243,10 +243,47 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
           }
         }
         break;
-      }      case 'customer.subscription.updated': {
-        const subscription = event.data.object as any; // Use any to access Stripe properties
+      }
+      
+      case 'customer.subscription.created': {
+        const subscription = event.data.object as any; // Stripe.Subscription
+        console.log(`[WEBHOOK] Processing subscription.created: ${subscription.id}, status: ${subscription.status}, customer: ${subscription.customer}`);
+
+        const server = await Server.findOne({ stripe_customer_id: subscription.customer });
+        if (server) {
+          let periodEndDate = null;
+          if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
+            periodEndDate = new Date(subscription.current_period_end * 1000);
+            if (isNaN(periodEndDate.getTime())) {
+              console.error(`[WEBHOOK] Invalid date from Stripe timestamp for created subscription: ${subscription.current_period_end}`);
+              periodEndDate = null;
+            }
+          }
+
+          const updateData: any = {
+            stripe_subscription_id: subscription.id,
+            subscription_status: subscription.status, // Use status from the event
+            plan_type: 'premium', // Assume new subscriptions are premium
+          };
+          if (periodEndDate) {
+            updateData.current_period_end = periodEndDate;
+          }
+
+          await Server.findOneAndUpdate(
+            { _id: server._id },
+            updateData
+          );
+          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription created/linked: ${subscription.id}, status: ${subscription.status}`);
+        } else {
+          console.warn(`[WEBHOOK] No server found for customer: ${subscription.customer} during subscription.created event for subscription ${subscription.id}`);
+        }
+        break;
+      }
+      
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as any; // Stripe.Subscription
         console.log(`[WEBHOOK] Processing subscription.updated: ${subscription.id}, status: ${subscription.status}`);
-        
+
         const server = await Server.findOne({ stripe_subscription_id: subscription.id });
         if (server) {
           // Validate and convert current_period_end
@@ -274,7 +311,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             { _id: server._id },
             updateData
           );
-          
+
           console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription status: ${subscription.status}`);
         } else {
           console.warn(`[WEBHOOK] No server found for subscription: ${subscription.id}`);
@@ -285,9 +322,10 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as any; // Use any to access Stripe properties
         console.log(`[WEBHOOK] Processing subscription.deleted: ${subscription.id}`);
-        
+
         const server = await Server.findOne({ stripe_subscription_id: subscription.id });
-        if (server) {          await Server.findOneAndUpdate(
+        if (server) {
+          await Server.findOneAndUpdate(
             { _id: server._id },
             {
               subscription_status: 'canceled',
@@ -300,10 +338,12 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
           console.warn(`[WEBHOOK] No server found for deleted subscription: ${subscription.id}`);
         }
         break;
-      }      case 'invoice.payment_failed': {
+      } 
+      
+      case 'invoice.payment_failed': {
         const invoice = event.data.object as any; // Use any to access Stripe properties
         console.log(`[WEBHOOK] Processing payment_failed for customer: ${invoice.customer}`);
-        
+
         if (invoice.subscription) {
           const server = await Server.findOne({ stripe_subscription_id: invoice.subscription });
           if (server) {
