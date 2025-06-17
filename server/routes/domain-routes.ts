@@ -16,6 +16,7 @@ interface IModlServer {
   customDomain_lastChecked?: Date;
   customDomain_error?: string;
   customDomain_cloudflareId?: string; // Store Cloudflare hostname ID for better tracking
+  customDomain: string; // The subdomain for database connection
 }
 
 const router = express.Router();
@@ -244,11 +245,18 @@ router.post('/verify', async (req: Request, res: Response) => {
     // Update server status in database
     const globalDb = req.serverDbConnection!;
     const ServerModel = globalDb.model('ModlServer');
-    await ServerModel.findByIdAndUpdate(server._id, {
+    const updatedServer = await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_status: internalStatus,
       customDomain_lastChecked: new Date(),
-      customDomain_error: verifyResult.error || null
-    });
+      customDomain_error: verifyResult.error || null,
+      customDomain_cloudflareId: verifyResult.cname_target || server.customDomain_cloudflareId
+    }, { new: true });
+
+    // If the domain is now active, log the success
+    if (internalStatus === 'active' && server.customDomain_status !== 'active') {
+      console.log(`🎉 Custom domain activated: ${domain} -> ${server.customDomain}`);
+      console.log(`✅ Domain verification completed for ${domain}. Routing is now active.`);
+    }
 
     res.json({
       status: {
@@ -260,7 +268,14 @@ router.post('/verify', async (req: Request, res: Response) => {
         error: verifyResult.error,
         cnameTarget: verifyResult.cname_target,
         validationErrors: verifyResult.validation_errors
-      }
+      },
+      message: internalStatus === 'active' 
+        ? `🎉 Custom domain ${domain} is now active and ready to use!`
+        : internalStatus === 'verifying'
+        ? 'Domain verification is in progress. This may take a few minutes.'
+        : internalStatus === 'error'
+        ? 'Domain verification failed. Please check the DNS configuration.'
+        : 'Domain verification status updated.'
     });
   } catch (error: any) {
     console.error('Error verifying custom domain:', error);

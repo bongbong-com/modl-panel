@@ -76,6 +76,18 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Start the domain status updater for monitoring custom domains
+  try {
+    const { connectToGlobalModlDb } = await import('./db/connectionManager');
+    const { startDomainStatusUpdater } = await import('./api/cloudflare');
+    
+    const globalDb = await connectToGlobalModlDb();
+    startDomainStatusUpdater(globalDb, 10); // Check every 10 minutes
+    console.log('✅ Domain status updater started - monitoring custom domains');
+  } catch (error) {
+    console.warn('⚠️  Failed to start domain status updater:', error);
+  }
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

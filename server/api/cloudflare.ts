@@ -401,31 +401,46 @@ export async function updateDomainStatuses(serverDbConnection: any) {
         if (cloudflareStatus) {
           let newStatus = server.customDomain_status;
           let newError = server.customDomain_error;
+          let statusChanged = false;
 
           // Update status based on Cloudflare data
           switch (cloudflareStatus.ssl.status) {
             case 'active':
-              newStatus = 'active';
-              newError = null;
+              if (newStatus !== 'active') {
+                newStatus = 'active';
+                newError = null;
+                statusChanged = true;
+                console.log(`🎉 Custom domain activated: ${server.customDomain_override} -> ${server.customDomain}`);
+              }
               break;
             case 'pending_validation':
             case 'pending_certificate':
             case 'initializing':
-              newStatus = 'verifying';
+              if (newStatus !== 'verifying') {
+                newStatus = 'verifying';
+                statusChanged = true;
+              }
               break;
             case 'expired':
-              newStatus = 'error';
-              newError = 'SSL certificate has expired';
+              if (newStatus !== 'error') {
+                newStatus = 'error';
+                newError = 'SSL certificate has expired';
+                statusChanged = true;
+              }
               break;
             default:
               if (cloudflareStatus.ssl.validation_errors && cloudflareStatus.ssl.validation_errors.length > 0) {
-                newStatus = 'error';
-                newError = cloudflareStatus.ssl.validation_errors.map(e => e.message).join(', ');
+                const errorMsg = cloudflareStatus.ssl.validation_errors.map(e => e.message).join(', ');
+                if (newStatus !== 'error' || newError !== errorMsg) {
+                  newStatus = 'error';
+                  newError = errorMsg;
+                  statusChanged = true;
+                }
               }
           }
 
           // Update if status changed
-          if (newStatus !== server.customDomain_status || newError !== server.customDomain_error) {
+          if (statusChanged || newError !== server.customDomain_error) {
             await ServerModel.findByIdAndUpdate(server._id, {
               customDomain_status: newStatus,
               customDomain_lastChecked: new Date(),
@@ -434,10 +449,24 @@ export async function updateDomainStatuses(serverDbConnection: any) {
             });
             
             console.log(`Updated ${server.customDomain_override}: ${server.customDomain_status} -> ${newStatus}`);
+            
+            // Log when domain becomes active
+            if (newStatus === 'active' && server.customDomain_status !== 'active') {
+              console.log(`✅ Domain verification completed for ${server.customDomain_override}. Routing is now active.`);
+            }
           }
         }
       } catch (error: any) {
         console.error(`Failed to update status for ${server.customDomain_override}:`, error.message);
+        
+        // Update error status in database if this is a persistent error
+        if (error.message.includes('not found') || error.message.includes('404')) {
+          await ServerModel.findByIdAndUpdate(server._id, {
+            customDomain_status: 'error',
+            customDomain_lastChecked: new Date(),
+            customDomain_error: 'Custom hostname not found in Cloudflare'
+          });
+        }
       }
     }
   } catch (error: any) {

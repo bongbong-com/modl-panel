@@ -135,16 +135,27 @@ const DomainSettings: React.FC = () => {
         const data = await response.json();
         setDomainStatus(data.status);
         
+        // Show appropriate message based on status
         if (data.status.status === 'active') {
           toast({
-            title: "Domain Verified",
-            description: "Your custom domain is now active with SSL certificate!",
+            title: "Domain Verified! 🎉",
+            description: data.message || "Your custom domain is now active with SSL certificate!",
+          });
+        } else if (data.status.status === 'verifying') {
+          toast({
+            title: "Verification In Progress",
+            description: data.message || "Domain verification is in progress. This may take a few minutes.",
           });
         } else if (data.status.status === 'error') {
           toast({
             title: "Verification Failed",
             description: data.status.error || "Failed to verify domain configuration",
             variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Status Updated",
+            description: data.message || "Domain verification status updated",
           });
         }
       } else {

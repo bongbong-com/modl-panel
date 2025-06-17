@@ -45,6 +45,7 @@ const ModlServerSchema = new Schema({
   },
   customDomain_lastChecked: { type: Date },
   customDomain_error: { type: String },
+  customDomain_cloudflareId: { type: String, unique: true, sparse: true }, // Cloudflare hostname ID
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, { collection: 'servers' }); // Explicitly set the collection name

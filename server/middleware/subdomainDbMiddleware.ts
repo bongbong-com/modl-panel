@@ -78,7 +78,9 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       return next();
     }
   } else {
-    return next();
+    // This might be a custom domain - we'll check the database to see if it exists
+    // For now, we'll use the full hostname as the potential custom domain
+    serverName = hostname;
   }
 
   // Bypass this middleware if we're on a reserved subdomain, which means functionality is gonna be different.
@@ -105,17 +107,40 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
   try {
     globalConnection = await connectToGlobalModlDb();
     const ModlServerModel = globalConnection.model('ModlServer', ModlServerSchema);
-    // @ts-ignore
-    const serverConfig = await ModlServerModel.findOne({
-      $or: [
-        { customDomain: req.serverName },
-        { customDomain_override: req.serverName }
-      ]
-    });
+    
+    let serverConfig;
+    
+    // First, try to find by custom domain (subdomain.modl.gg pattern)
+    if (hostname.endsWith(`.${DOMAIN}`)) {
+      serverConfig = await ModlServerModel.findOne({ customDomain: serverName });
+      console.log(`[SubdomainMiddleware] Looking up subdomain: ${serverName}`);
+    } else {
+      // This is likely a custom domain - search by customDomain_override
+      console.log(`[SubdomainMiddleware] Looking up custom domain: ${hostname}`);
+      serverConfig = await ModlServerModel.findOne({ 
+        customDomain_override: hostname,
+        customDomain_status: 'active' // Only route active custom domains
+      });
+      
+      // If found via custom domain, update serverName to match the server's actual subdomain
+      // This ensures the database connection uses the correct database name
+      if (serverConfig) {
+        console.log(`[SubdomainMiddleware] Custom domain ${hostname} mapped to subdomain: ${serverConfig.customDomain}`);
+        // @ts-ignore
+        req.serverName = serverConfig.customDomain; // Use the subdomain for database connection
+        serverName = serverConfig.customDomain; // Update local variable too
+      }
+    }
 
     if (!serverConfig) {
+      console.log(`[SubdomainMiddleware] No server configuration found for: ${hostname}`);
       // @ts-ignore
-      return res.status(404).send(`Panel for '${req.serverName}' is not configured or does not exist.`);
+      return res.status(404).send(`Panel for '${hostname}' is not configured or does not exist.`);
+    }
+
+    console.log(`[SubdomainMiddleware] Server found: ${serverConfig.customDomain} (ID: ${serverConfig._id})`);
+    if (serverConfig.customDomain_override) {
+      console.log(`[SubdomainMiddleware] Custom domain: ${serverConfig.customDomain_override} (Status: ${serverConfig.customDomain_status})`);
     }
 
     // @ts-ignore
