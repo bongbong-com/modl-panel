@@ -31,15 +31,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Apply global rate limiting to all requests
-// Temporarily bypass for payments.DOMAIN to diagnose redirect issue
-app.use((req, res, next) => {
-  const DOMAIN = process.env.DOMAIN || 'modl.gg'; // Ensure DOMAIN is accessible here
-  if (req.hostname === `payments.${DOMAIN}`) {
-    console.log(`[RATE_LIMIT_BYPASS] Bypassing global rate limit for ${req.hostname}`);
-    return next();
-  }
-  return globalRateLimit(req, res, next);
-});
+app.use(globalRateLimit);
 
 const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
 const isProduction = process.env.NODE_ENV === 'production';
