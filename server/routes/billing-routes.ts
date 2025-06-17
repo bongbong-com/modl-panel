@@ -45,8 +45,8 @@ router.post('/create-checkout-session', isAuthenticated, async (req, res) => {
       payment_method_types: ['card'],
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       customer: customerId,
-      success_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings`,
+      success_url: `https://${server.customDomain}.${process.env.DOMAIN}/panel/settings?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://${server.customDomain}.${process.env.DOMAIN}/panel/settings`,
     });
 
     res.send({ sessionId: session.id });
@@ -74,7 +74,7 @@ router.post('/create-portal-session', isAuthenticated, async (req, res) => {
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: server.stripe_customer_id,
-      return_url: `https://${server.customDomain}.${process.env.DOMAIN}/settings`,
+      return_url: `https://${server.customDomain}.${process.env.DOMAIN}/panel/settings`,
     });
 
     res.send({ url: portalSession.url });
