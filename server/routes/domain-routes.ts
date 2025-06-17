@@ -8,6 +8,7 @@ import {
 } from '../api/cloudflare';
 import { Types } from 'mongoose';
 import { ModlServerSchema } from '../models/modl-global-schemas';
+import { connectToGlobalModlDb } from '../db/connectionManager';
 
 interface IModlServer {
   _id: Types.ObjectId;
@@ -20,15 +21,6 @@ interface IModlServer {
 }
 
 const router = express.Router();
-
-// Register the ModlServer schema at router level
-router.use((req: Request, res: Response, next) => {
-  const globalDb = req.serverDbConnection!;
-  if (!globalDb.models.ModlServer) {
-    globalDb.model('ModlServer', ModlServerSchema);
-  }
-  next();
-});
 
 // GET /domain - Get current domain configuration
 router.get('/', async (req: Request, res: Response) => {
@@ -85,8 +77,8 @@ router.get('/', async (req: Request, res: Response) => {
 
       // Update database with latest status if different
       if (actualStatus !== server.customDomain_status || lastError !== server.customDomain_error) {
-        const globalDb = req.serverDbConnection!;
-        const ServerModel = globalDb.model('ModlServer');
+        const globalDb = await connectToGlobalModlDb();
+        const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
         await ServerModel.findByIdAndUpdate(server._id, {
           customDomain_status: actualStatus,
           customDomain_lastChecked: new Date(),
@@ -132,8 +124,8 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid domain format' });
     }
 
-    const globalDb = req.serverDbConnection!;
-    const ServerModel = globalDb.model('ModlServer');
+    const globalDb = await connectToGlobalModlDb();
+    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
 
     // Check if domain is already in use by another server
     const existingServer = await ServerModel.findOne({ 
@@ -243,8 +235,8 @@ router.post('/verify', async (req: Request, res: Response) => {
     }
 
     // Update server status in database
-    const globalDb = req.serverDbConnection!;
-    const ServerModel = globalDb.model('ModlServer');
+    const globalDb = await connectToGlobalModlDb();
+    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
     const updatedServer = await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_status: internalStatus,
       customDomain_lastChecked: new Date(),
@@ -304,12 +296,12 @@ router.delete('/', async (req: Request, res: Response) => {
     }
 
     // Remove custom domain from server config
-    const globalDb = req.serverDbConnection!;
-    const ServerModel = globalDb.model('ModlServer');
+    const globalDb = await connectToGlobalModlDb();
+    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
     await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_override: null,
-      customDomain_status: 'pending',
-      customDomain_lastChecked: new Date(),
+      customDomain_status: null,
+      customDomain_lastChecked: null,
       customDomain_error: null,
       customDomain_cloudflareId: null
     });
@@ -436,6 +428,77 @@ router.get('/health', async (req: Request, res: Response) => {
       message: 'Cloudflare API connection failed',
       error: error.message
     });
+  }
+});
+
+// GET /domain/debug - Debug custom domain configuration (only in development)
+router.get('/debug', async (req: Request, res: Response) => {
+  // Only allow in development mode
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  try {
+    const { domain } = req.query;
+    
+    if (!domain || typeof domain !== 'string') {
+      return res.status(400).json({ error: 'Domain parameter is required' });
+    }
+
+    const globalDb = await connectToGlobalModlDb();
+    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+
+    // Get all information about this domain
+    const exactMatch = await ServerModel.findOne({ customDomain_override: domain });
+    const caseInsensitiveMatch = await ServerModel.findOne({ 
+      customDomain_override: { $regex: new RegExp(`^${domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+    });
+    const activeMatch = await ServerModel.findOne({ 
+      customDomain_override: domain,
+      customDomain_status: 'active'
+    });
+
+    // Get all custom domains for reference
+    const allCustomDomains = await ServerModel.find({
+      customDomain_override: { $exists: true, $ne: null }
+    }).select('customDomain customDomain_override customDomain_status customDomain_error customDomain_lastChecked');
+
+    res.json({
+      query: domain,
+      results: {
+        exactMatch: exactMatch ? {
+          id: exactMatch._id,
+          subdomain: exactMatch.customDomain,
+          customDomain: exactMatch.customDomain_override,
+          status: exactMatch.customDomain_status,
+          error: exactMatch.customDomain_error,
+          lastChecked: exactMatch.customDomain_lastChecked
+        } : null,
+        caseInsensitiveMatch: caseInsensitiveMatch ? {
+          id: caseInsensitiveMatch._id,
+          subdomain: caseInsensitiveMatch.customDomain,
+          customDomain: caseInsensitiveMatch.customDomain_override,
+          status: caseInsensitiveMatch.customDomain_status
+        } : null,
+        activeMatch: activeMatch ? {
+          id: activeMatch._id,
+          subdomain: activeMatch.customDomain,
+          customDomain: activeMatch.customDomain_override,
+          status: activeMatch.customDomain_status
+        } : null,
+        wouldRoute: !!activeMatch
+      },
+      allCustomDomains: allCustomDomains.map(server => ({
+        subdomain: server.customDomain,
+        customDomain: server.customDomain_override,
+        status: server.customDomain_status,
+        error: server.customDomain_error,
+        lastChecked: server.customDomain_lastChecked
+      }))
+    });
+  } catch (error: any) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

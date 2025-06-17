@@ -117,23 +117,67 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     } else {
       // This is likely a custom domain - search by customDomain_override
       console.log(`[SubdomainMiddleware] Looking up custom domain: ${hostname}`);
-      serverConfig = await ModlServerModel.findOne({ 
-        customDomain_override: hostname,
-        customDomain_status: 'active' // Only route active custom domains
-      });
       
-      // If found via custom domain, update serverName to match the server's actual subdomain
-      // This ensures the database connection uses the correct database name
-      if (serverConfig) {
-        console.log(`[SubdomainMiddleware] Custom domain ${hostname} mapped to subdomain: ${serverConfig.customDomain}`);
-        // @ts-ignore
-        req.serverName = serverConfig.customDomain; // Use the subdomain for database connection
-        serverName = serverConfig.customDomain; // Update local variable too
+      // Add more detailed debugging
+      try {
+        const allCustomDomains = await ModlServerModel.find({ 
+          customDomain_override: { $exists: true, $ne: null }
+        }).select('customDomain customDomain_override customDomain_status');
+        
+        console.log(`[SubdomainMiddleware] Found ${allCustomDomains.length} servers with custom domains:`, 
+          allCustomDomains.map(s => `${s.customDomain_override} -> ${s.customDomain} (${s.customDomain_status})`));
+        
+        // Try finding with exact match first
+        serverConfig = await ModlServerModel.findOne({ 
+          customDomain_override: hostname,
+          customDomain_status: 'active' // Only route active custom domains
+        });
+        
+        console.log(`[SubdomainMiddleware] Custom domain lookup result:`, serverConfig ? 'FOUND' : 'NOT FOUND');
+        
+        // If not found, try case-insensitive search as backup
+        if (!serverConfig) {
+          console.log(`[SubdomainMiddleware] Trying case-insensitive lookup for: ${hostname}`);
+          serverConfig = await ModlServerModel.findOne({ 
+            customDomain_override: { $regex: new RegExp(`^${hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+            customDomain_status: 'active'
+          });
+          console.log(`[SubdomainMiddleware] Case-insensitive lookup result:`, serverConfig ? 'FOUND' : 'NOT FOUND');
+        }
+        
+        // If found via custom domain, update serverName to match the server's actual subdomain
+        // This ensures the database connection uses the correct database name
+        if (serverConfig) {
+          console.log(`[SubdomainMiddleware] Custom domain ${hostname} mapped to subdomain: ${serverConfig.customDomain}`);
+          // @ts-ignore
+          req.serverName = serverConfig.customDomain; // Use the subdomain for database connection
+          serverName = serverConfig.customDomain; // Update local variable too
+        }
+      } catch (dbError: any) {
+        console.error(`[SubdomainMiddleware] Database error during custom domain lookup:`, dbError.message);
       }
     }
 
     if (!serverConfig) {
       console.log(`[SubdomainMiddleware] No server configuration found for: ${hostname}`);
+      
+      // If this was a custom domain attempt, check if it exists but isn't active
+      if (!hostname.endsWith(`.${DOMAIN}`)) {
+        try {
+          const inactiveServer = await ModlServerModel.findOne({ 
+            customDomain_override: hostname 
+          }).select('customDomain customDomain_status customDomain_error');
+          
+          if (inactiveServer) {
+            console.log(`[SubdomainMiddleware] Found inactive custom domain: ${hostname} -> ${inactiveServer.customDomain} (Status: ${inactiveServer.customDomain_status})`);
+            // @ts-ignore
+            return res.status(503).send(`Custom domain '${hostname}' is configured but not yet active. Status: ${inactiveServer.customDomain_status}. Please complete domain verification.`);
+          }
+        } catch (inactiveCheckError: any) {
+          console.error(`[SubdomainMiddleware] Error checking for inactive domain:`, inactiveCheckError.message);
+        }
+      }
+      
       // @ts-ignore
       return res.status(404).send(`Panel for '${hostname}' is not configured or does not exist.`);
     }

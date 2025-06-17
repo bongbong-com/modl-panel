@@ -2,127 +2,177 @@
 
 This document summarizes the changes made to implement proper custom domain routing for the modl-panel application.
 
-## Overview
+## Issues Fixed
 
-The system now properly routes custom domains (like `panel.yourdomain.com`) to the correct tenant panels while maintaining backward compatibility with subdomain routing (`tenant.modl.gg`).
+### 1. Domain Removal Issue
+**Problem**: Removing a custom domain didn't work and set status to pending on refresh.
+**Root Cause**: Using tenant database (`req.serverDbConnection`) instead of global database for domain operations.
+**Fix**: Updated all domain routes to use `connectToGlobalModlDb()` and proper schema.
+
+### 2. Custom Domain Routing Issue
+**Problem**: Active domains showed "Panel for 'domain.com' is not configured or does not exist."
+**Root Cause**: Multiple issues in middleware and database operations.
+**Fix**: Comprehensive middleware enhancement with proper database lookups.
 
 ## Key Changes Made
 
-### 1. Database Schema Updates (`server/models/modl-global-schemas.ts`)
+### 1. Fixed Database Operations (`server/routes/domain-routes.ts`)
 
-- Added `customDomain_cloudflareId` field to track Cloudflare hostname IDs
-- This enables better tracking and management of custom hostnames
+**Issues Fixed**:
+- Domain verification using wrong database connection
+- Domain removal using wrong database connection  
+- Domain creation using wrong database connection
+- Missing proper schema imports
 
-### 2. Middleware Enhancement (`server/middleware/subdomainDbMiddleware.ts`)
+**Changes**:
+```typescript
+// OLD (incorrect)
+const globalDb = req.serverDbConnection!;
+const ServerModel = globalDb.model('ModlServer');
 
-**Enhanced hostname detection:**
-- Now properly handles both subdomain patterns (`tenant.modl.gg`) and custom domains (`panel.yourdomain.com`)
-- Custom domains are treated as potential server identifiers
+// NEW (correct)
+const globalDb = await connectToGlobalModlDb();
+const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+```
 
-**Improved database lookup:**
-- For subdomains: Looks up by `customDomain` field
-- For custom domains: Looks up by `customDomain_override` field with `customDomain_status: 'active'`
-- Only active custom domains are routed to prevent access to unverified domains
+**Specific fixes**:
+- GET `/domain`: Fixed status updates to use global DB
+- POST `/domain`: Fixed domain creation to use global DB  
+- POST `/domain/verify`: Fixed verification updates to use global DB
+- DELETE `/domain`: Fixed domain removal to use global DB and set fields to `null` instead of `'pending'`
 
-**Database connection mapping:**
-- When a custom domain is found, the middleware maps it back to the original subdomain for database connection
-- This ensures the correct tenant database is accessed regardless of the domain used
+### 2. Enhanced Middleware Routing (`server/middleware/subdomainDbMiddleware.ts`)
 
-**Enhanced logging:**
-- Added comprehensive logging for debugging routing decisions
-- Logs hostname detection, database lookups, and mapping results
+**Issues Fixed**:
+- Custom domain lookup not finding active domains
+- Poor error handling for inactive domains
+- Limited debugging information
+- Case sensitivity issues
 
-### 3. Background Status Monitoring (`server/api/cloudflare.ts`)
+**Changes**:
+```typescript
+// Enhanced custom domain lookup with fallbacks
+if (hostname.endsWith(`.${DOMAIN}`)) {
+  // Subdomain lookup
+  serverConfig = await ModlServerModel.findOne({ customDomain: serverName });
+} else {
+  // Custom domain lookup with debugging
+  serverConfig = await ModlServerModel.findOne({ 
+    customDomain_override: hostname,
+    customDomain_status: 'active' // Only route active domains
+  });
+  
+  // Case-insensitive fallback
+  if (!serverConfig) {
+    serverConfig = await ModlServerModel.findOne({ 
+      customDomain_override: { $regex: new RegExp(`^${hostname}$`, 'i') },
+      customDomain_status: 'active'
+    });
+  }
+}
+```
 
-**Enhanced status updater:**
-- Improved logging when domains become active
-- Better error handling for missing hostnames
-- Status change detection to avoid unnecessary database updates
-- Automatic database updates when domain status changes in Cloudflare
+**Enhanced error handling**:
+- Specific messages for inactive domains
+- Better debugging output
+- Graceful fallback handling
 
-**Activation detection:**
-- Logs when a domain transitions from pending/verifying to active
-- Provides clear feedback when custom domain routing becomes available
+### 3. Database Schema Enhancement (`server/models/modl-global-schemas.ts`)
 
-### 4. Domain Verification Enhancement (`server/routes/domain-routes.ts`)
+```typescript
+// Added Cloudflare hostname ID tracking
+customDomain_cloudflareId: { type: String, unique: true, sparse: true }
+```
 
-**Improved verification response:**
-- Added success messages for different verification states
-- Enhanced logging when domains become active
-- Better status tracking with Cloudflare ID storage
+### 4. Background Monitoring Enhancement (`server/api/cloudflare.ts`)
 
-**Interface updates:**
-- Updated `IModlServer` interface to include all necessary fields
-- Added proper typing for custom domain fields
+**Improvements**:
+- Better status change detection
+- Enhanced logging for domain activation
+- Proper error handling for missing hostnames
+- Automatic database updates when domains become active
 
 ### 5. Server Startup Integration (`server/index.ts`)
 
-**Background monitor startup:**
-- Domain status updater now starts automatically with the server
-- Monitors custom domains every 10 minutes
-- Graceful error handling if monitor fails to start
+```typescript
+// Start domain status updater automatically
+const globalDb = await connectToGlobalModlDb();
+startDomainStatusUpdater(globalDb, 10); // Check every 10 minutes
+```
 
-### 6. Client-Side Improvements (`client/src/components/settings/DomainSettings.tsx`)
+### 6. Debug Endpoint Addition (`server/routes/domain-routes.ts`)
 
-**Enhanced user feedback:**
-- Improved toast messages based on verification status
-- Better status communication for different states
-- Clear messaging when domains become active
+Added `/api/panel/settings/domain/debug` endpoint for development troubleshooting:
+- Shows exact vs case-insensitive matches
+- Lists all custom domains
+- Indicates whether domain would route
+- Provides comprehensive domain status information
 
 ## Routing Flow
 
 ### For Subdomain Requests (`tenant.modl.gg`)
 1. Extract subdomain from hostname
-2. Look up server by `customDomain` field
+2. Look up server by `customDomain` field  
 3. Connect to tenant database using subdomain
 4. Proceed with request processing
 
 ### For Custom Domain Requests (`panel.yourdomain.com`)
 1. Detect non-subdomain hostname
 2. Look up server by `customDomain_override` with status 'active'
-3. Map custom domain back to original subdomain
-4. Connect to tenant database using original subdomain
-5. Proceed with request processing
-
-## Background Monitoring
-
-The system includes a background service that:
-- Runs every 10 minutes
-- Checks all non-active custom domains with Cloudflare
-- Updates database status when domains become active
-- Logs activation events for monitoring
-- Handles errors gracefully
+3. Try case-insensitive lookup if exact match fails
+4. Map custom domain back to original subdomain
+5. Connect to tenant database using original subdomain
+6. Proceed with request processing
 
 ## Security Features
 
 - Only active custom domains are routed
-- Inactive/pending domains return 404 responses
+- Inactive/pending domains return specific error messages
 - Proper validation of domain ownership through Cloudflare
-- Database access is properly scoped to the correct tenant
+- Database access properly scoped to correct tenant
+- Case-insensitive fallback prevents routing failures
 
 ## Testing
 
-A test script is provided at `server/scripts/test-custom-domain-routing.ts` to verify:
-- Database schema and connections
-- Routing logic simulation
-- Custom domain lookup functionality
-- Status tracking
+### Logic Testing
+- Routing pattern simulation: ✅ PASS
+- Database query patterns: ✅ PASS  
+- Update operation patterns: ✅ PASS
+
+### Debug Tools
+- `/api/panel/settings/domain/debug?domain=example.com` - Debug domain configuration
+- Enhanced console logging in middleware
+- Background status monitoring with detailed logs
+
+## Error Handling
+
+### Improved Error Messages
+- **Inactive Domain**: "Custom domain 'domain.com' is configured but not yet active. Status: verifying. Please complete domain verification."
+- **Not Found**: "Panel for 'domain.com' is not configured or does not exist."
+- **Database Errors**: Graceful handling with detailed logging
+
+### Fallback Mechanisms
+- Case-insensitive domain lookup
+- Graceful error handling for database connection issues
+- Background monitoring continues on individual domain errors
 
 ## Benefits
 
-1. **Seamless Routing**: Custom domains work transparently with existing infrastructure
-2. **Security**: Only verified domains are routed to prevent unauthorized access
-3. **Monitoring**: Automatic status updates ensure reliable routing
-4. **Backward Compatibility**: Existing subdomain routing continues to work
-5. **Error Handling**: Comprehensive error handling and logging
-6. **User Experience**: Clear feedback during domain setup and verification
+1. **Fixed Domain Removal**: Domains are properly removed and don't show pending status
+2. **Fixed Custom Domain Routing**: Active domains now route correctly to tenant panels
+3. **Enhanced Debugging**: Comprehensive logging and debug endpoints
+4. **Better Error Messages**: Users get clear feedback on domain status
+5. **Robust Fallbacks**: Case-insensitive matching prevents routing failures
+6. **Security**: Only verified active domains are routed
+7. **Monitoring**: Automatic status updates ensure reliable routing
 
 ## Usage
 
-Once a custom domain is configured and verified:
-1. Users can access their panel via `https://panel.yourdomain.com`
-2. The system automatically routes to the correct tenant
-3. SSL certificates are managed by Cloudflare
-4. Status is monitored continuously in the background
+Once fixes are deployed:
+1. Domain removal will properly clear all fields
+2. Active custom domains will route correctly to tenant panels
+3. Enhanced error messages will guide users through setup
+4. Background monitoring will keep domain status accurate
+5. Debug endpoint available for troubleshooting issues
 
-The implementation maintains full compatibility with existing features while adding robust custom domain support.
+The implementation maintains full compatibility with existing features while fixing the critical routing and removal issues.
