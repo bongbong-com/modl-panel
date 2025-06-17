@@ -34,6 +34,21 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
   }
 
   const hostname = req.hostname;
+
+  // Explicit handling for the payments.modl.gg subdomain
+  if (hostname === `payments.${DOMAIN}`) {
+    if (req.path === '/api/panel/billing/stripe-webhooks') {
+      // Allow the Stripe webhook on payments.modl.gg to pass directly to the next routing layer
+      // without any server context from this middleware.
+      console.log(`[SubdomainMiddleware] payments.${DOMAIN}: Allowing Stripe webhook ${req.path} to pass through.`);
+      return next();
+    } else {
+      // Redirect all other traffic from payments.modl.gg to the main landing page.
+      console.log(`[SubdomainMiddleware] payments.${DOMAIN}: Redirecting ${req.path} to https://${DOMAIN}`);
+      return res.redirect(301, `https://${DOMAIN}`);
+    }
+  }
+
   let serverName: string | undefined = undefined; // This will hold the derived subdomain
 
   if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
