@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupApiRoutes(app); // Assuming these are general public APIs if any, or handled internally
   setupVerificationAndProvisioningRoutes(app);
   app.use('/api/auth', authRoutes);
-  app.use('/api/billing', webhookRouter); // Stripe webhook MUST be public
+  app.use('/api/panel/billing', webhookRouter);
   app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
 
   // Panel specific API routes

@@ -137,7 +137,9 @@ function Router() {
 }
 
 function App() {
+  console.log('[App.tsx App] Before useLocation in App');
   const [location] = useLocation();
+  console.log('[App.tsx App] After useLocation in App, location:', location);
   const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
   useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");

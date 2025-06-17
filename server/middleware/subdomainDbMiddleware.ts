@@ -116,19 +116,19 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     }
 
     const allowedPreVerificationPagePaths = [
-        '/pending-verification',
-        '/resend-verification',
-        '/verify-email'
+      '/pending-verification',
+      '/resend-verification',
+      '/verify-email'
     ];
     const alwaysAllowedApiPatterns = [
-        '/api/auth/',
-        '/api/request-email-verification',
-        '/api/staff/check-email'
+      '/api/auth/',
+      '/api/request-email-verification',
+      '/api/staff/check-email'
     ];
 
     const isPathAllowedPreVerification =
-        allowedPreVerificationPagePaths.includes(req.path) ||
-        alwaysAllowedApiPatterns.some(pattern => req.path.startsWith(pattern));
+      allowedPreVerificationPagePaths.includes(req.path) ||
+      alwaysAllowedApiPatterns.some(pattern => req.path.startsWith(pattern));
 
     if (!serverConfig.emailVerified && !isPathAllowedPreVerification) {
       if (req.path.startsWith('/api/')) {
@@ -137,7 +137,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
         return res.status(403).send('Panel not accessible. Please verify your email.');
       }
     }
-    
+
     next();
 
   } catch (error: any) {
