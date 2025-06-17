@@ -71,6 +71,11 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
   // Bypass this middleware if we're on a reserved subdomain, which means functionality is gonna be different.
   // We don't want to initialize any databases off of this!
   if (reservedSubdomains.includes(serverName.toLowerCase())) {
+    // If this isn't an api request, lets just transfer them to the landing page to prevent any issues
+    if(!req.url.includes("/api/")) {
+      return res.redirect(301, `https://${DOMAIN}`);
+    }
+
     return next();
   }
 
