@@ -10,14 +10,14 @@ const app = express();
 // The Stripe webhook needs a raw body, so we can't use express.json() globally for all routes.
 // We'll apply it conditionally, excluding the webhook route.
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/billing/stripe-webhooks') {
+  if (req.originalUrl === '/stripe-public-webhooks/stripe-webhooks') {
     return next();
   }
   return express.json()(req, res, next);
 });
 
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/billing/stripe-webhooks') {
+  if (req.originalUrl === '/stripe-public-webhooks/stripe-webhooks') {
     return next();
   }
   return express.urlencoded({ extended: false })(req, res, next);
