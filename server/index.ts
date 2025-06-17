@@ -5,46 +5,6 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware";
 import { globalRateLimit } from "./middleware/rate-limiter";
-import http from 'http'; // Import Node.js core http module
-
-// VERY LOW-LEVEL DIAGNOSTIC - This will intercept requests before Express
-const tempServer = http.createServer((req, res) => {
-  const fullUrl = `http://${req.headers.host}${req.url}`;
-  console.log(`[NODE_HTTP_SERVER_RAW_REQUEST] Received raw request: Method=${req.method}, Host=${req.headers.host}, URL=${req.url}, FullURL=${fullUrl}`);
-  if (req.headers.host && req.headers.host.startsWith('payments.')) {
-    console.log(`[NODE_HTTP_SERVER_RAW_REQUEST] Request to payments subdomain detected: ${req.headers.host}`);
-    // For this test, just end the response to prevent further processing by Express
-    res.writeHead(503, { 'Content-Type': 'text/plain' });
-    res.end('Low-level diagnostic active. Request logged.');
-    return;
-  }
-  // If not a payments subdomain, try to let Express handle it (though this setup is crude)
-  // This part is tricky as we're hijacking the server. For a real test, you might not call app here.
-  // For now, we'll just send a different message.
-  res.writeHead(503, { 'Content-Type': 'text/plain' });
-  res.end('Low-level diagnostic active. Non-payments request.');
-});
-tempServer.listen(5000, '0.0.0.0', () => {
- console.log('[NODE_HTTP_SERVER_RAW_REQUEST] Low-level diagnostic server listening on port 5000. REMOVE THIS FOR NORMAL OPERATION.');
-});
-// IMPORTANT: If the above diagnostic server is uncommented, the Express app below will not function correctly.
-// Only uncomment for testing if requests reach Node.js at all. Then re-comment.
-// const tempServer = http.createServer((req, res) => { // ENSURE THIS BLOCK IS COMMENTED OUT
-//   const fullUrl = `http://${req.headers.host}${req.url}`;
-//   console.log(`[NODE_HTTP_SERVER_RAW_REQUEST] Received raw request: Method=${req.method}, Host=${req.headers.host}, URL=${req.url}, FullURL=${fullUrl}`);
-//   if (req.headers.host && req.headers.host.startsWith('payments.')) {
-//     console.log(`[NODE_HTTP_SERVER_RAW_REQUEST] Request to payments subdomain detected: ${req.headers.host}`);
-//     res.writeHead(503, { 'Content-Type': 'text/plain' });
-//     res.end('Low-level diagnostic active. Request logged.');
-//     return;
-//   }
-//   res.writeHead(503, { 'Content-Type': 'text/plain' });
-//   res.end('Low-level diagnostic active. Non-payments request.');
-// });
-// tempServer.listen(5000, '0.0.0.0', () => {
-//  console.log('[NODE_HTTP_SERVER_RAW_REQUEST] Low-level diagnostic server listening on port 5000. REMOVE THIS FOR NORMAL OPERATION.');
-// });
-
 
 const app = express();
 // The Stripe webhook needs a raw body, so we can't use express.json() globally for all routes.
@@ -136,10 +96,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
-  // server.listen({
-  //   port,
-  //   host: "0.0.0.0",
-  // }, () => {
-  //   log(`serving on port ${port}`);
-  // });
+  server.listen({
+    port,
+    host: "0.0.0.0",
+  }, () => {
+    log(`serving on port ${port}`);
+  });
 })();
