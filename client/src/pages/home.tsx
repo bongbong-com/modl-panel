@@ -90,16 +90,22 @@ const Home = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('fromProvisioning') === 'true') {
-      toast({
-        title: "🎉 Welcome to modl!",
-        description: "Your server has been successfully provisioned and you're now logged in. Start by configuring your settings and inviting team members.",
-        duration: 8000,
-      });
+      // Add a 2-second delay before showing the welcome toast
+      const timer = setTimeout(() => {
+        toast({
+          title: "🎉 Welcome to modl!",
+          description: "Your server has been successfully provisioned and you're now logged in. Start by configuring your settings and inviting team members.",
+          duration: 8000,
+        });
+      }, 2000);
       
       // Clean up URL parameter
       urlParams.delete('fromProvisioning');
       const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
       window.history.replaceState({}, '', newUrl);
+      
+      // Cleanup timer on unmount
+      return () => clearTimeout(timer);
     }
   }, [toast]);
   
