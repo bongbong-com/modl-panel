@@ -29,6 +29,7 @@ import { WelcomeModal } from "@/components/layout/WelcomeModal";
 // Knowledgebase Pages
 import KnowledgebasePage from "@/pages/KnowledgebasePage";
 import ArticleDetailPage from "@/pages/ArticleDetailPage";
+import HomePage from "@/pages/HomePage";
 
 function Router() {
   console.log('[App.tsx Router] Before useLocation');
@@ -49,8 +50,9 @@ function Router() {
     return (
       <main className="h-full bg-background"> {/* Basic wrapper for public pages */}
         <Switch>
+          <Route path="/knowledgebase" component={KnowledgebasePage} />
           <Route path="/:articleSlug" component={ArticleDetailPage} />
-          <Route path="/" component={KnowledgebasePage} />
+          <Route path="/" component={HomePage} />
           {/* Fallback for unmatched public routes, ensure it's placed after specific public routes */}
           {/* <Route component={NotFound} />  Consider if a global NotFound is better */}
         </Switch>
@@ -93,12 +95,12 @@ function Router() {
             <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
             <Route path="/appeals" component={AppealsPage} />
             <Route path="/player-ticket/:id" component={PlayerTicket} />
-            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
-            <Route path="/accept-invitation" component={AcceptInvitationPage} />
-            {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
-            <Route path="/:articleSlug" component={ArticleDetailPage} />
-            <Route path="/" component={KnowledgebasePage} />
-            <Route component={NotFound} />
+            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />          <Route path="/accept-invitation" component={AcceptInvitationPage} />
+          {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
+          <Route path="/knowledgebase" component={KnowledgebasePage} />
+          <Route path="/:articleSlug" component={ArticleDetailPage} />
+          <Route path="/" component={HomePage} />
+          <Route component={NotFound} />
           </Switch>
         </main>
         { location.startsWith("/panel") && <MobileNavbar /> }
@@ -127,8 +129,9 @@ function Router() {
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
           <Route path="/accept-invitation" component={AcceptInvitationPage} />
           {/* Public KB routes for desktop, if accessed directly and not caught by earlier block */}
+          <Route path="/knowledgebase" component={KnowledgebasePage} />
           <Route path="/:articleSlug" component={ArticleDetailPage} />
-          <Route path="/" component={KnowledgebasePage} />
+          <Route path="/" component={HomePage} />
           <Route component={NotFound} />
         </Switch>
       </main>

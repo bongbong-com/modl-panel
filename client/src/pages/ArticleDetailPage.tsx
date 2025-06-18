@@ -68,7 +68,7 @@ const ArticleDetailPage: React.FC = () => {
     <PageContainer>
       <div className="container mx-auto p-4">
         <div className="mb-6">
-          <Link href="/" className="text-blue-600 hover:underline">&larr; Back to Knowledgebase</Link>
+          <Link href="/" className="text-blue-600 hover:underline">&larr; Back to Home</Link>
           {article.category && (
             <span className="ml-2 text-gray-500">
               in <Link href={`/#${article.category.slug}`} className="text-blue-500 hover:underline">{article.category.name}</Link> {/* Assuming category slug can be a hash on the main KB page */}
