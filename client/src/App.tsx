@@ -64,7 +64,7 @@ function Router() {
   // Note: isAuthPage now covers /auth and /panel/auth
   if (isAuthPage || isAppealsPage || isPlayerTicketPage || isProvisioningPage || isAcceptInvitationPage) {
     return (
-      <main className="h-full">
+      <main className="h-full bg-background">
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
