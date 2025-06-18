@@ -21,7 +21,7 @@ function getPageName(location: string): string {
   }
   
   // Handle public routes
-  if (location === '/') return 'Home';
+  if (location === '/') return 'Support';
   if (location === '/knowledgebase') return 'Knowledge Base';
   if (location === '/appeals') return 'Appeals';
   if (location === '/auth') return 'Login';

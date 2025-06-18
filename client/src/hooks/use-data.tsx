@@ -216,25 +216,38 @@ export function useSettings() {
   return useQuery({
     queryKey: ['/api/panel/settings'],
     queryFn: async () => {
-      // console.log('[useSettings] Fetching /api/panel/settings...'); // Removed
       try {
+        // First try the authenticated endpoint
         const res = await fetch('/api/panel/settings');
-        // console.log('[useSettings] Response status:', res.status, res.statusText); // Removed
 
-        if (!res.ok) {
-          const errorText = await res.text().catch(() => 'Could not read error response text');
-          // console.error('[useSettings] Fetch failed:', res.status, errorText); // Removed
-          throw new Error(`Failed to fetch settings. Status: ${res.status}. Response: ${errorText}`);
+        if (res.ok) {
+          const responseText = await res.text();
+          const data = JSON.parse(responseText);
+          return data;
         }
 
-        const responseText = await res.text();
-        // console.log('[useSettings] Raw response text:', responseText); // Removed
+        // If we get a 401 (unauthorized), try the public endpoint
+        if (res.status === 401) {
+          const publicRes = await fetch('/api/public/settings');
+          
+          if (publicRes.ok) {
+            const publicData = await publicRes.json();
+            // Transform public data to match expected format
+            return {
+              settings: {
+                general: {
+                  serverDisplayName: publicData.serverDisplayName,
+                  panelIconUrl: publicData.panelIconUrl
+                }
+              }
+            };
+          }
+        }
 
-        const data = JSON.parse(responseText);
-        // console.log('[useSettings] Parsed data:', data); // Removed
-        return data;
+        // If both endpoints fail, throw an error
+        const errorText = await res.text().catch(() => 'Could not read error response text');
+        throw new Error(`Failed to fetch settings. Status: ${res.status}. Response: ${errorText}`);
       } catch (error) {
-        // console.error('[useSettings] Error in queryFn:', error); // Removed
         throw error; // Re-throw to let React Query handle it
       }
     },

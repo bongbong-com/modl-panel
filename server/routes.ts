@@ -39,6 +39,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
   app.use('/api/public', publicHomepageCardRoutes); // Public homepage cards
 
+  // Public settings endpoint - no authentication required
+  app.get('/api/public/settings', async (req, res) => {
+    try {
+      if (!req.serverDbConnection) {
+        return res.json({
+          serverDisplayName: 'modl',
+          panelIconUrl: null
+        });
+      }
+
+      const SettingsModel = req.serverDbConnection.model('Settings');
+      let settingsDoc = await SettingsModel.findOne({});
+      
+      if (!settingsDoc || !settingsDoc.settings) {
+        return res.json({
+          serverDisplayName: 'modl',
+          panelIconUrl: null
+        });
+      }
+
+      const settings = Object.fromEntries(settingsDoc.settings);
+      
+      res.json({
+        serverDisplayName: settings.serverDisplayName || 'modl',
+        panelIconUrl: settings.panelIconUrl || null
+      });
+    } catch (error) {
+      console.error('Error fetching public settings:', error);
+      res.json({
+        serverDisplayName: 'modl',
+        panelIconUrl: null
+      });
+    }
+  });
+
   // Panel specific API routes
   const panelRouter = express.Router();
   panelRouter.use(isAuthenticated); // Apply authentication to all panel routes
