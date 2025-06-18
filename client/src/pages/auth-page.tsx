@@ -56,7 +56,7 @@ const AuthPage = () => {
   // Store available auth methods for the entered email
   const [userAuthMethods, setUserAuthMethods] = useState<{ isTwoFactorEnabled?: boolean; hasFidoPasskeys?: boolean; emailExists?: boolean }>({});
 
-  const serverDisplayName = settingsData?.settings?.general?.serverDisplayName || 'cobl.gg';
+  const serverDisplayName = settingsData?.settings?.general?.serverDisplayName || 'modl';
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -180,7 +180,7 @@ const AuthPage = () => {
         {/* Auth form section */}
         <div className="flex flex-col justify-center">
           <div className="flex flex-col space-y-2 mb-8 text-center">
-            <h1 className="text-3xl font-bold">{serverDisplayName} staff panel</h1>
+            <h1 className="text-3xl font-bold">{serverDisplayName} Staff Panel</h1>
             <p className="text-muted-foreground">
               Authorized access only
             </p>
