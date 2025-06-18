@@ -54,6 +54,7 @@ interface HomepageCard {
   title: string;
   description: string;
   icon: string;
+  icon_color?: string;
   action_type: 'url' | 'category_dropdown';
   action_url?: string;
   action_button_text?: string;
@@ -101,6 +102,7 @@ const HomepageCardSettings: React.FC = () => {
     title: '',
     description: '',
     icon: 'BookOpen',
+    icon_color: '#3b82f6', // Default blue color
     action_type: 'url' as 'url' | 'category_dropdown',
     action_url: '',
     action_button_text: '',
@@ -198,6 +200,7 @@ const HomepageCardSettings: React.FC = () => {
       title: '',
       description: '',
       icon: 'BookOpen',
+      icon_color: '#3b82f6',
       action_type: 'url',
       action_url: '',
       action_button_text: '',
@@ -243,6 +246,7 @@ const HomepageCardSettings: React.FC = () => {
       title: card.title,
       description: card.description,
       icon: card.icon,
+      icon_color: card.icon_color || '#3b82f6',
       action_type: card.action_type,
       action_url: card.action_url || '',
       action_button_text: card.action_button_text || '',
@@ -259,9 +263,9 @@ const HomepageCardSettings: React.FC = () => {
     }
   };
 
-  const IconPreview = ({ iconName }: { iconName: string }) => {
+  const IconPreview = ({ iconName, color }: { iconName: string; color?: string }) => {
     const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.BookOpen;
-    return <IconComponent className="h-5 w-5" />;
+    return <IconComponent className="h-5 w-5" style={{ color: color || 'currentColor' }} />;
   };
 
   return (
@@ -301,13 +305,37 @@ const HomepageCardSettings: React.FC = () => {
                         {availableIcons.map(iconName => (
                           <SelectItem key={iconName} value={iconName}>
                             <div className="flex items-center gap-2">
-                              <IconPreview iconName={iconName} />
+                              <IconPreview iconName={iconName} color={formData.icon_color} />
                               {iconName}
                             </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="icon_color">Icon Color</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="icon_color"
+                      type="color"
+                      value={formData.icon_color}
+                      onChange={(e) => setFormData({ ...formData, icon_color: e.target.value })}
+                      className="w-16 h-10 p-1 rounded cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="#3b82f6"
+                      value={formData.icon_color}
+                      onChange={(e) => setFormData({ ...formData, icon_color: e.target.value })}
+                      className="flex-1"
+                    />
+                    <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/30">
+                      <IconPreview iconName={formData.icon} color={formData.icon_color} />
+                      <span className="text-sm text-muted-foreground">Preview</span>
+                    </div>
                   </div>
                 </div>
 
@@ -420,7 +448,7 @@ const HomepageCardSettings: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                      <IconPreview iconName={card.icon} />
+                      <IconPreview iconName={card.icon} color={card.icon_color} />
                       <div>
                         <h4 className="font-medium">{card.title}</h4>
                         <p className="text-sm text-muted-foreground">{card.description}</p>

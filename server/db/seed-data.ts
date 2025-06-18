@@ -390,6 +390,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
         title: 'Appeal Punishment',
         description: 'Submit an appeal if you believe you were unfairly banned or punished',
         icon: 'Scale',
+        icon_color: '#f59e0b', // amber-500
         action_type: 'url',
         action_url: '/appeals',
         action_button_text: 'Submit Appeal',
@@ -400,6 +401,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
         title: 'Apply for Staff',
         description: 'Join our staff team and help manage the community',
         icon: 'UserPlus',
+        icon_color: '#3b82f6', // blue-500
         action_type: 'url',
         action_url: '#',
         action_button_text: 'Apply Now',
@@ -410,6 +412,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
         title: 'Contact Us',
         description: 'Get help from our support team for any issues',
         icon: 'MessageCircle',
+        icon_color: '#10b981', // green-500
         action_type: 'url',
         action_url: '#',
         action_button_text: 'Contact Support',
@@ -420,6 +423,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
         title: 'Rules & Policies',
         description: 'Browse server rules, community guidelines, and policies',
         icon: 'BookOpen',
+        icon_color: '#8b5cf6', // purple-500
         action_type: 'category_dropdown',
         category_id: rulesCategory?._id,
         is_enabled: true,
@@ -429,6 +433,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
         title: 'Guides & Troubleshooting',
         description: 'Find helpful guides and troubleshooting resources',
         icon: 'HelpCircle',
+        icon_color: '#f97316', // orange-500
         action_type: 'category_dropdown',
         category_id: guidesCategory?._id,
         is_enabled: true,
@@ -438,6 +443,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
         title: 'News & Updates',
         description: 'Stay up to date with the latest announcements and changes',
         icon: 'Newspaper',
+        icon_color: '#6366f1', // indigo-500
         action_type: 'category_dropdown',
         category_id: newsCategory?._id,
         is_enabled: true,

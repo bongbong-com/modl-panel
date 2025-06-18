@@ -31,6 +31,7 @@ interface HomepageCard {
   title: string;
   description: string;
   icon: string;
+  icon_color?: string;
   action_type: 'url' | 'category_dropdown';
   action_url?: string;
   action_button_text?: string;
@@ -147,44 +148,72 @@ const HomePage: React.FC = () => {
   };
 
   // Function to render a single homepage card
-  const renderHomepageCard = (card: HomepageCard) => {
+  const renderHomepageCard = (card: HomepageCard, index: number) => {
     const IconComponent = getIconComponent(card.icon);
     const isExpanded = expandedCards.has(card.id);
+    const iconColor = card.icon_color || '#3b82f6'; // Default to blue if no color specified
 
     if (card.action_type === 'category_dropdown' && card.category) {
       return (
-        <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-          <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(card.id)}>
-            <CardContent className="p-6 h-full flex flex-col">
-              <div className="flex-1">
-                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                  <IconComponent className="h-7 w-7 text-primary" />
+        <React.Fragment key={card.id}>
+          <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
+            <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(card.id)}>
+              <CardContent className="p-6 h-full flex flex-col">
+                <div className="flex-1">
+                  <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
+                    <IconComponent className="h-7 w-7" style={{ color: iconColor }} />
+                  </div>
+                  <h3 className="font-medium text-lg mb-3 text-center">{card.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4 text-center">{card.description}</p>
                 </div>
-                <h3 className="font-medium text-lg mb-3 text-center">{card.title}</h3>
-                <p className="text-sm text-muted-foreground mb-4 text-center">{card.description}</p>
-              </div>
-              
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full">
-                  <span>{card.category.articles.length} article{card.category.articles.length !== 1 ? 's' : ''}</span>
-                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent className="mt-2">
-                <div className="space-y-1 max-h-32 overflow-y-auto">
+                
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <span>{card.category.articles.length} article{card.category.articles.length !== 1 ? 's' : ''}</span>
+                    <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+              </CardContent>
+            </Collapsible>
+          </Card>
+          
+          {/* Wide articles card that appears below when expanded */}
+          {isExpanded && (
+            <Card className="col-span-full bg-muted/20 border-2 border-dashed border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
+                  {card.category.name} Articles
+                </CardTitle>
+                <CardDescription>
+                  Browse all articles in the {card.category.name} category
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {card.category.articles.map(article => (
                     <Link key={article.id} href={`/${article.slug}`}>
-                      <div className="p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer text-sm">
-                        <span className="text-primary hover:underline">{article.title}</span>
-                      </div>
+                      <Card className="p-3 hover:shadow-md transition-all duration-200 hover:bg-primary/5 cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-primary hover:underline truncate">{article.title}</p>
+                          </div>
+                        </div>
+                      </Card>
                     </Link>
                   ))}
                 </div>
-              </CollapsibleContent>
-            </CardContent>
-          </Collapsible>
-        </Card>
+                {card.category.articles.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No articles available in this category yet.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </React.Fragment>
       );
     } else {
       // URL action type
@@ -196,7 +225,7 @@ const HomePage: React.FC = () => {
           <CardContent className="p-6 text-center h-full flex flex-col justify-between">
             <div>
               <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                <IconComponent className="h-7 w-7 text-primary" />
+                <IconComponent className="h-7 w-7" style={{ color: iconColor }} />
               </div>
               <h3 className="font-medium text-lg mb-3">{card.title}</h3>
               <p className="text-sm text-muted-foreground mb-4">{card.description}</p>
@@ -280,7 +309,7 @@ const HomePage: React.FC = () => {
 
           {/* Quick Actions - Moved closer to search */}
           <div className="max-w-6xl mx-auto mt-8">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 auto-rows-max">
               {isLoading ? (
                 // Loading skeleton
                 [...Array(6)].map((_, i) => (
@@ -295,7 +324,7 @@ const HomePage: React.FC = () => {
                   </Card>
                 ))
               ) : homepageCards.length > 0 ? (
-                homepageCards.map(renderHomepageCard)
+                homepageCards.map((card, index) => renderHomepageCard(card, index))
               ) : (
                 // Fallback to default cards if no custom cards are configured
                 <>

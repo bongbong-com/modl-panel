@@ -5,6 +5,7 @@ export interface IHomepageCard extends Document {
   title: string;
   description: string;
   icon: string; // Lucide icon name
+  icon_color?: string; // Icon color (hex or CSS color)
   action_type: 'url' | 'category_dropdown';
   action_url?: string; // For URL type actions
   action_button_text?: string; // Custom button text for URL actions
@@ -21,6 +22,7 @@ const homepageCardSchema = new Schema<IHomepageCard>(
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
     icon: { type: String, required: true, trim: true }, // Lucide icon name like 'Shield', 'FileText', etc.
+    icon_color: { type: String, trim: true }, // Optional icon color (hex or CSS color)
     action_type: { 
       type: String, 
       required: true, 
