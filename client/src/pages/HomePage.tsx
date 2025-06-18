@@ -158,62 +158,26 @@ const HomePage: React.FC = () => {
 
     if (card.action_type === 'category_dropdown' && card.category) {
       return (
-        <React.Fragment key={card.id}>
-          <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-            <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(card.id)}>
-              <CardContent className="p-6 h-full flex flex-col justify-between">
-                <div className="text-center">
-                  <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                    <IconComponent className="h-7 w-7" style={{ color: iconColor }} />
-                  </div>
-                  <h3 className="font-medium text-lg mb-3">{card.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{card.description}</p>
+        <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
+          <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(card.id)}>
+            <CardContent className="p-6 h-full flex flex-col justify-between">
+              <div className="text-center">
+                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
+                  <IconComponent className="h-7 w-7" style={{ color: iconColor }} />
                 </div>
-                
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <span>{card.category.articles.length} article{card.category.articles.length !== 1 ? 's' : ''}</span>
-                    <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                  </Button>
-                </CollapsibleTrigger>
-              </CardContent>
-            </Collapsible>
-          </Card>
-          
-          {/* Wide articles card that appears below when expanded */}
-          {isExpanded && (
-            <Card className="col-span-full bg-muted/20 border-2 border-dashed border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
-                  {card.category.name} Articles
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {card.category.articles.map(article => (
-                    <Link key={article.id} href={`/${article.slug}`}>
-                      <div className="p-3 rounded-lg border border-border/50 hover:shadow-md hover:border-border transition-all duration-200 hover:bg-muted/30 cursor-pointer bg-background/50">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground hover:underline truncate">{article.title}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-                {card.category.articles.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No articles available in this category yet.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </React.Fragment>
+                <h3 className="font-medium text-lg mb-3">{card.title}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{card.description}</p>
+              </div>
+              
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  <span>{card.category.articles.length} article{card.category.articles.length !== 1 ? 's' : ''}</span>
+                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </CardContent>
+          </Collapsible>
+        </Card>
       );
     } else {
       // URL action type
@@ -463,6 +427,51 @@ const HomePage: React.FC = () => {
                   </Card>
                 </>
               )}
+            </div>
+
+            {/* Expanded Category Article Sections - Rendered separately below the grid */}
+            <div className="mt-6 space-y-4">
+              {homepageCards.length > 0 ? (
+                homepageCards
+                  .filter(card => card.action_type === 'category_dropdown' && card.category && expandedCards.has(card.id))
+                  .map(card => {
+                    const IconComponent = getIconComponent(card.icon);
+                    const iconColor = card.icon_color || '#3b82f6';
+                    
+                    return (
+                      <Card key={`expanded-${card.id}`} className="bg-muted/20 border-2 border-dashed border-primary/20">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
+                            {card.category!.name} Articles
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {card.category!.articles.map(article => (
+                              <Link key={article.id} href={`/${article.slug}`}>
+                                <div className="p-3 rounded-lg border border-border/50 hover:shadow-md hover:border-border transition-all duration-200 hover:bg-muted/30 cursor-pointer bg-background/50">
+                                  <div className="flex items-center gap-3">
+                                    <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground hover:underline truncate">{article.title}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                          {card.category!.articles.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                              <p>No articles available in this category yet.</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+              ) : null}
             </div>
           </div>
         </div>
