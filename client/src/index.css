@@ -189,4 +189,62 @@
     max-width: 90vw;
     max-height: 80vh;
   }
+
+  /* Markdown content dark mode enhancements */
+  .dark .prose {
+    @apply text-foreground;
+  }
+  
+  .dark .prose h1,
+  .dark .prose h2,
+  .dark .prose h3,
+  .dark .prose h4,
+  .dark .prose h5,
+  .dark .prose h6 {
+    @apply text-foreground;
+  }
+  
+  .dark .prose p,
+  .dark .prose li,
+  .dark .prose blockquote,
+  .dark .prose td,
+  .dark .prose th {
+    @apply text-foreground;
+  }
+  
+  .dark .prose code {
+    @apply bg-muted text-foreground px-1 py-0.5 rounded;
+  }
+  
+  .dark .prose pre {
+    @apply bg-muted border border-border;
+  }
+  
+  .dark .prose pre code {
+    @apply bg-transparent px-0 py-0;
+  }
+  
+  .dark .prose blockquote {
+    @apply border-l-border text-muted-foreground;
+  }
+  
+  .dark .prose table {
+    @apply border-border;
+  }
+  
+  .dark .prose thead th {
+    @apply border-b-border bg-muted;
+  }
+  
+  .dark .prose tbody td {
+    @apply border-t-border;
+  }
+  
+  .dark .prose a {
+    @apply text-primary hover:text-primary/80;
+  }
+  
+  .dark .prose hr {
+    @apply border-border;
+  }
 }
