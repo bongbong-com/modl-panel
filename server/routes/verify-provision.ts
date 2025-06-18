@@ -10,6 +10,7 @@ import {
   Settings,
   settingsSchema
 } from '../models/mongodb-schemas';
+import { seedDefaultHomepageCards } from '../db/seed-data';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 import { strictRateLimit } from '../middleware/rate-limiter';
 
@@ -76,6 +77,9 @@ export async function provisionNewServerInstance(
     existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
     await existingSettings.save();
   }
+
+  // Seed default homepage cards
+  await seedDefaultHomepageCards(dbConnection);
     
 
   const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);

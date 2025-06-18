@@ -17,6 +17,8 @@ import authRoutes from './routes/auth-routes';
 import billingRoutes, { webhookRouter } from './routes/billing-routes';
 import knowledgebaseRoutes from './routes/knowledgebase-routes'; // Import knowledgebase routes
 import publicKnowledgebaseRoutes from './routes/public-knowledgebase-routes'; // Import public knowledgebase routes
+import homepageCardRoutes from './routes/homepage-card-routes'; // Import homepage card routes
+import publicHomepageCardRoutes from './routes/public-homepage-card-routes'; // Import public homepage card routes
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -35,6 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/auth', authRoutes);
   app.use('/stripe-public-webhooks', webhookRouter); // Stripe webhook on a distinct top-level public path
   app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
+  app.use('/api/public', publicHomepageCardRoutes); // Public homepage cards
 
   // Panel specific API routes
   const panelRouter = express.Router();
@@ -48,6 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/logs', logRoutes);
   panelRouter.use('/billing', billingRoutes); // Billing management for the panel
   panelRouter.use('/knowledgebase', knowledgebaseRoutes); // Add knowledgebase routes to panel
+  panelRouter.use('/', homepageCardRoutes); // Add homepage card routes to panel
   
   setupMinecraftRoutes(panelRouter as any as Express); // Setup Minecraft routes under the panel router
 

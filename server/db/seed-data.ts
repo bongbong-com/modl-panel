@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
+import { HomepageCardSchema, IHomepageCard } from '../models/homepage-card-schema';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
@@ -324,5 +325,75 @@ export async function seedDatabase() {
     console.log('Database seeded successfully!');
   } catch (error) {
     console.error('Error seeding database:', error);
+  }
+}
+
+// Seed default homepage cards for a new tenant
+export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection) {
+  console.log('Seeding default homepage cards...');
+  
+  try {
+    // Register the HomepageCard model on this connection if not already registered
+    if (!dbConnection.models.HomepageCard) {
+      dbConnection.model<IHomepageCard>('HomepageCard', HomepageCardSchema);
+    }
+    
+    const HomepageCard = dbConnection.model<IHomepageCard>('HomepageCard');
+    
+    // Check if any cards already exist
+    const existingCards = await HomepageCard.countDocuments();
+    if (existingCards > 0) {
+      console.log('Homepage cards already exist, skipping seed operation');
+      return;
+    }
+    
+    // Create default homepage cards
+    const defaultCards = [
+      {
+        title: 'Staff Portal',
+        description: 'Access the admin panel and manage your server',
+        icon: 'Shield',
+        action_type: 'url',
+        action_url: '/panel/auth',
+        action_button_text: 'Sign In',
+        is_enabled: true,
+        ordinal: 0
+      },
+      {
+        title: 'Ban Appeals',
+        description: 'Submit an appeal if you believe you were unfairly banned',
+        icon: 'FileText',
+        action_type: 'url',
+        action_url: '/appeals',
+        action_button_text: 'Submit Appeal',
+        is_enabled: true,
+        ordinal: 1
+      },
+      {
+        title: 'Contact Support',
+        description: 'Get help from our support team for any issues',
+        icon: 'MessageCircle',
+        action_type: 'url',
+        action_url: '#',
+        action_button_text: 'Contact Us',
+        is_enabled: true,
+        ordinal: 2
+      },
+      {
+        title: 'Applications',
+        description: 'Apply to join our staff team or special programs',
+        icon: 'UserPlus',
+        action_type: 'url',
+        action_url: '#',
+        action_button_text: 'Apply Now',
+        is_enabled: true,
+        ordinal: 3
+      }
+    ];
+    
+    await HomepageCard.insertMany(defaultCards);
+    console.log('Default homepage cards seeded successfully!');
+  } catch (error) {
+    console.error('Error seeding homepage cards:', error);
   }
 }

@@ -24,6 +24,7 @@ import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
 import BillingSettings from '@/components/settings/BillingSettings';
 import DomainSettings from '@/components/settings/DomainSettings';
 import KnowledgebaseSettings from '@/components/settings/KnowledgebaseSettings';
+import HomepageCardSettings from '@/components/settings/HomepageCardSettings';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -843,6 +844,15 @@ const Settings = () => {
                 <BookOpen className="h-4 w-4 mr-2" />
                 Knowledgebase
               </TabsTrigger>
+              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+                <TabsTrigger
+                  value="homepage"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <Globe className="h-4 w-4 mr-2" />
+                  Homepage Cards
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="account" className="space-y-6 p-6">
@@ -1827,6 +1837,12 @@ const Settings = () => {
             <TabsContent value="knowledgebase" className="space-y-6 p-6">
               <KnowledgebaseSettings />
             </TabsContent>
+
+            {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              <TabsContent value="homepage" className="space-y-6 p-6">
+                <HomepageCardSettings />
+              </TabsContent>
+            )}
 
           </Tabs>
         </Card>
