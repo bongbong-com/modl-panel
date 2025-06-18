@@ -280,10 +280,10 @@ const HomePage: React.FC = () => {
 
           {/* Quick Actions - Moved closer to search */}
           <div className="max-w-6xl mx-auto mt-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               {isLoading ? (
                 // Loading skeleton
-                [...Array(4)].map((_, i) => (
+                [...Array(6)].map((_, i) => (
                   <Card key={i} className="animate-pulse h-72">
                     <CardContent className="p-6 h-full flex flex-col">
                       <div className="w-14 h-14 bg-muted rounded-full mx-auto mb-4"></div>
@@ -302,28 +302,11 @@ const HomePage: React.FC = () => {
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
-                        <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                          <Shield className="h-7 w-7 text-primary" />
-                        </div>
-                        <h3 className="font-medium text-lg mb-3">Staff Portal</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Access the admin panel and manage your server</p>
-                      </div>
-                      <Link href="/panel/auth">
-                        <Button variant="outline" size="sm" className="w-full">
-                          Sign In
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
                         <div className="w-14 h-14 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-amber-500/20 transition-colors">
-                          <FileText className="h-7 w-7 text-amber-600" />
+                          <Shield className="h-7 w-7 text-amber-600" />
                         </div>
-                        <h3 className="font-medium text-lg mb-3">Ban Appeals</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Submit an appeal if you believe you were unfairly banned</p>
+                        <h3 className="font-medium text-lg mb-3">Appeal Punishment</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Submit an appeal if you believe you were unfairly banned or punished</p>
                       </div>
                       <Link href="/appeals">
                         <Button variant="outline" size="sm" className="w-full">
@@ -336,14 +319,14 @@ const HomePage: React.FC = () => {
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
-                        <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-500/20 transition-colors">
-                          <MessageCircle className="h-7 w-7 text-green-600" />
+                        <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-500/20 transition-colors">
+                          <UserPlus className="h-7 w-7 text-blue-600" />
                         </div>
-                        <h3 className="font-medium text-lg mb-3">Contact Support</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Get help from our support team for any issues</p>
+                        <h3 className="font-medium text-lg mb-3">Apply for Staff</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Join our staff team and help manage the community</p>
                       </div>
                       <Button variant="outline" size="sm" className="w-full">
-                        Contact Us
+                        Apply Now
                       </Button>
                     </CardContent>
                   </Card>
@@ -351,15 +334,66 @@ const HomePage: React.FC = () => {
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
-                        <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-500/20 transition-colors">
-                          <UserPlus className="h-7 w-7 text-blue-600" />
+                        <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-500/20 transition-colors">
+                          <MessageCircle className="h-7 w-7 text-green-600" />
                         </div>
-                        <h3 className="font-medium text-lg mb-3">Applications</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Apply to join our staff team or special programs</p>
+                        <h3 className="font-medium text-lg mb-3">Contact Us</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Get help from our support team for any issues</p>
                       </div>
                       <Button variant="outline" size="sm" className="w-full">
-                        Apply Now
+                        Contact Support
                       </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
+                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
+                      <div>
+                        <div className="w-14 h-14 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-500/20 transition-colors">
+                          <BookOpen className="h-7 w-7 text-purple-600" />
+                        </div>
+                        <h3 className="font-medium text-lg mb-3">Rules & Policies</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Browse server rules, community guidelines, and policies</p>
+                      </div>
+                      <Link href="/knowledgebase?category=rules-policies">
+                        <Button variant="outline" size="sm" className="w-full">
+                          View Rules
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
+                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
+                      <div>
+                        <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-500/20 transition-colors">
+                          <Search className="h-7 w-7 text-orange-600" />
+                        </div>
+                        <h3 className="font-medium text-lg mb-3">Guides & Troubleshooting</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Find helpful guides and troubleshooting resources</p>
+                      </div>
+                      <Link href="/knowledgebase?category=guides-troubleshooting">
+                        <Button variant="outline" size="sm" className="w-full">
+                          View Guides
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
+                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
+                      <div>
+                        <div className="w-14 h-14 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-500/20 transition-colors">
+                          <FileText className="h-7 w-7 text-indigo-600" />
+                        </div>
+                        <h3 className="font-medium text-lg mb-3">News & Updates</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Stay up to date with the latest announcements and changes</p>
+                      </div>
+                      <Link href="/knowledgebase?category=news-updates">
+                        <Button variant="outline" size="sm" className="w-full">
+                          View News
+                        </Button>
+                      </Link>
                     </CardContent>
                   </Card>
                 </>

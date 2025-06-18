@@ -338,7 +338,14 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
       dbConnection.model<IHomepageCard>('HomepageCard', HomepageCardSchema);
     }
     
+    // Register the KnowledgebaseCategory model for category dropdown cards
+    if (!dbConnection.models.KnowledgebaseCategory) {
+      const { KnowledgebaseCategorySchema } = await import('../models/knowledgebase-schema');
+      dbConnection.model('KnowledgebaseCategory', KnowledgebaseCategorySchema);
+    }
+    
     const HomepageCard = dbConnection.model<IHomepageCard>('HomepageCard');
+    const KnowledgebaseCategory = dbConnection.model('KnowledgebaseCategory');
     
     // Check if any cards already exist
     const existingCards = await HomepageCard.countDocuments();
@@ -347,47 +354,94 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
       return;
     }
     
-    // Create default homepage cards
-    const defaultCards = [
+    // Create default knowledgebase categories first
+    const defaultCategories = [
       {
-        title: 'Staff Portal',
-        description: 'Access the admin panel and manage your server',
-        icon: 'Shield',
-        action_type: 'url',
-        action_url: '/panel/auth',
-        action_button_text: 'Sign In',
-        is_enabled: true,
+        name: 'Rules & Policies',
+        slug: 'rules-policies',
+        description: 'Server rules, community guidelines, and policies',
         ordinal: 0
       },
       {
-        title: 'Ban Appeals',
-        description: 'Submit an appeal if you believe you were unfairly banned',
-        icon: 'FileText',
+        name: 'Guides & Troubleshooting',
+        slug: 'guides-troubleshooting',
+        description: 'How-to guides and troubleshooting help',
+        ordinal: 1
+      },
+      {
+        name: 'News & Updates',
+        slug: 'news-updates',
+        description: 'Latest announcements, updates, and news',
+        ordinal: 2
+      }
+    ];
+    
+    // Insert categories and get their IDs
+    const createdCategories = await KnowledgebaseCategory.insertMany(defaultCategories);
+    const rulesCategory = createdCategories.find(cat => cat.slug === 'rules-policies');
+    const guidesCategory = createdCategories.find(cat => cat.slug === 'guides-troubleshooting');
+    const newsCategory = createdCategories.find(cat => cat.slug === 'news-updates');
+    
+    console.log('Created default knowledgebase categories');
+    
+    // Create default homepage cards
+    const defaultCards = [
+      {
+        title: 'Appeal Punishment',
+        description: 'Submit an appeal if you believe you were unfairly banned or punished',
+        icon: 'Scale',
         action_type: 'url',
         action_url: '/appeals',
         action_button_text: 'Submit Appeal',
         is_enabled: true,
-        ordinal: 1
+        ordinal: 0
       },
       {
-        title: 'Contact Support',
-        description: 'Get help from our support team for any issues',
-        icon: 'MessageCircle',
-        action_type: 'url',
-        action_url: '#',
-        action_button_text: 'Contact Us',
-        is_enabled: true,
-        ordinal: 2
-      },
-      {
-        title: 'Applications',
-        description: 'Apply to join our staff team or special programs',
+        title: 'Apply for Staff',
+        description: 'Join our staff team and help manage the community',
         icon: 'UserPlus',
         action_type: 'url',
         action_url: '#',
         action_button_text: 'Apply Now',
         is_enabled: true,
+        ordinal: 1
+      },
+      {
+        title: 'Contact Us',
+        description: 'Get help from our support team for any issues',
+        icon: 'MessageCircle',
+        action_type: 'url',
+        action_url: '#',
+        action_button_text: 'Contact Support',
+        is_enabled: true,
+        ordinal: 2
+      },
+      {
+        title: 'Rules & Policies',
+        description: 'Browse server rules, community guidelines, and policies',
+        icon: 'BookOpen',
+        action_type: 'category_dropdown',
+        category_id: rulesCategory?._id,
+        is_enabled: true,
         ordinal: 3
+      },
+      {
+        title: 'Guides & Troubleshooting',
+        description: 'Find helpful guides and troubleshooting resources',
+        icon: 'HelpCircle',
+        action_type: 'category_dropdown',
+        category_id: guidesCategory?._id,
+        is_enabled: true,
+        ordinal: 4
+      },
+      {
+        title: 'News & Updates',
+        description: 'Stay up to date with the latest announcements and changes',
+        icon: 'Newspaper',
+        action_type: 'category_dropdown',
+        category_id: newsCategory?._id,
+        is_enabled: true,
+        ordinal: 5
       }
     ];
     

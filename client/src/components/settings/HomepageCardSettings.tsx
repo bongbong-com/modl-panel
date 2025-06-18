@@ -12,14 +12,41 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import * as LucideIcons from 'lucide-react';
 
-// Get list of available Lucide icons
+// Get list of curated icons suitable for homepage cards
 const getAvailableIcons = () => {
-  const iconNames = Object.keys(LucideIcons).filter(name => 
-    name !== 'createLucideIcon' && 
-    name !== 'default' && 
-    typeof (LucideIcons as any)[name] === 'function'
-  );
-  return iconNames.sort();
+  return [
+    // Common actions
+    'Shield', 'UserPlus', 'MessageCircle', 'Mail', 'Phone', 'Scale',
+    'Users', 'User', 'UserCheck', 'UserX', 'Crown', 'Award',
+    
+    // Content & knowledge
+    'BookOpen', 'Book', 'FileText', 'File', 'ScrollText', 'Newspaper',
+    'Library', 'GraduationCap', 'HelpCircle', 'Info', 'AlertCircle',
+    
+    // Navigation & links
+    'ExternalLink', 'Link', 'ArrowRight', 'ChevronRight', 'Home',
+    'Search', 'Eye', 'Download', 'Upload', 'Share',
+    
+    // Communication
+    'MessageSquare', 'Send', 'Inbox', 'Bell', 'Megaphone',
+    'Radio', 'Headphones', 'Mic', 'Video', 'Calendar',
+    
+    // Games & servers
+    'Gamepad2', 'Zap', 'Server', 'Globe', 'Wifi', 'Signal',
+    'Activity', 'BarChart', 'TrendingUp', 'Target', 'Trophy',
+    
+    // Settings & tools
+    'Settings', 'Tool', 'Wrench', 'Cog', 'Sliders', 'Filter',
+    'Lock', 'Unlock', 'Key', 'ShieldCheck', 'ShieldAlert',
+    
+    // Actions & status
+    'Plus', 'Minus', 'Check', 'X', 'AlertTriangle', 'CheckCircle',
+    'XCircle', 'Clock', 'Timer', 'Pause', 'Play', 'Stop',
+    
+    // Commerce & misc
+    'CreditCard', 'DollarSign', 'Gift', 'Star', 'Heart', 'ThumbsUp',
+    'Flag', 'Map', 'Compass', 'Navigation', 'Bookmark', 'Tag'
+  ].sort();
 };
 
 interface HomepageCard {
