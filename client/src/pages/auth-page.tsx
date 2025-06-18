@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Fingerprint, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { useSettings } from '@/hooks/use-data';
+import { usePublicSettings } from '@/hooks/use-public-settings';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,13 +50,13 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const AuthPage = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { data: settingsData } = useSettings();
+  const { data: publicSettings } = usePublicSettings();
   const [loginStep, setLoginStep] = useState<'email' | 'verification'>('email');
   const [verificationMethod, setVerificationMethod] = useState<'2fa' | 'email' | 'passkey'>('email');
   // Store available auth methods for the entered email
   const [userAuthMethods, setUserAuthMethods] = useState<{ isTwoFactorEnabled?: boolean; hasFidoPasskeys?: boolean; emailExists?: boolean }>({});
 
-  const serverDisplayName = settingsData?.settings?.general?.serverDisplayName || 'modl';
+  const serverDisplayName = publicSettings?.serverDisplayName || 'modl';
 
   // Login form
   const loginForm = useForm<LoginFormValues>({

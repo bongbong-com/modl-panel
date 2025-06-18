@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useSettings } from '@/hooks/use-data';
+import { usePublicSettings } from '@/hooks/use-public-settings';
 
 /**
  * Get the page name from the current route
@@ -37,12 +37,12 @@ function getPageName(location: string): string {
  * Hook to manage document title and favicon based on server settings
  */
 export function useDocumentTitle() {
-  const { data: settingsData } = useSettings();
+  const { data: publicSettings } = usePublicSettings();
   const [location] = useLocation();
 
   useEffect(() => {
-    const serverDisplayName = settingsData?.settings?.general?.serverDisplayName || '';
-    const panelIconUrl = settingsData?.settings?.general?.panelIconUrl;
+    const serverDisplayName = publicSettings?.serverDisplayName || '';
+    const panelIconUrl = publicSettings?.panelIconUrl;
     const pageName = getPageName(location);
 
     // Update document title
@@ -71,10 +71,10 @@ export function useDocumentTitle() {
       appleTouchIcon.href = panelIconUrl;
       document.head.appendChild(appleTouchIcon);
     }
-  }, [settingsData, location]);
+  }, [publicSettings, location]);
 
   return {
-    serverDisplayName: settingsData?.settings?.general?.serverDisplayName || '',
-    panelIconUrl: settingsData?.settings?.general?.panelIconUrl || ''
+    serverDisplayName: publicSettings?.serverDisplayName || '',
+    panelIconUrl: publicSettings?.panelIconUrl || ''
   };
 }
