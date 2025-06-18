@@ -65,9 +65,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.serverDbConnection) {
         console.error('Error fetching stats: No server-specific database connection found for this request.');
         return res.json({
-          onlinePlayers: 153,
-          uniqueLogins: 89,
-          openTickets: 28,
+          onlinePlayers: 0,
+          uniqueLogins: 0,
+          openTickets: 0,
           error: 'Server context not found, using fallback data.'
         });
       }
