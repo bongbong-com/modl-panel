@@ -249,7 +249,7 @@ const HomePage: React.FC = () => {
         </DropdownMenu>
 
         {/* Sign In Button */}
-        <Link href="/auth">
+        <Link href="/panel/auth">
           <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted">
             <LogIn className="h-4 w-4 mr-2" />
             Sign In
