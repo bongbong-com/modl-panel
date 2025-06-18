@@ -10,6 +10,7 @@ import { DashboardProvider } from "@/contexts/DashboardContext";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute, AuthRoute } from "@/lib/protected-route";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import Home from "@/pages/home";
 import Lookup from "@/pages/lookup";
 import LookupPage from "@/pages/lookup-page";
@@ -145,6 +146,10 @@ function App() {
   const [location] = useLocation();
   console.log('[App.tsx App] After useLocation in App, location:', location);
   const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
+  
+  // Initialize document title and favicon management
+  useDocumentTitle();
+  
   useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
     // Welcome modal should appear on the admin panel's home page

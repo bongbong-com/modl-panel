@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Fingerprint, KeyRound, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useSettings } from '@/hooks/use-data';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,10 +50,13 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const AuthPage = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { data: settingsData } = useSettings();
   const [loginStep, setLoginStep] = useState<'email' | 'verification'>('email');
   const [verificationMethod, setVerificationMethod] = useState<'2fa' | 'email' | 'passkey'>('email');
   // Store available auth methods for the entered email
   const [userAuthMethods, setUserAuthMethods] = useState<{ isTwoFactorEnabled?: boolean; hasFidoPasskeys?: boolean; emailExists?: boolean }>({});
+
+  const serverDisplayName = settingsData?.settings?.general?.serverDisplayName || 'cobl.gg';
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -176,7 +180,7 @@ const AuthPage = () => {
         {/* Auth form section */}
         <div className="flex flex-col justify-center">
           <div className="flex flex-col space-y-2 mb-8 text-center">
-            <h1 className="text-3xl font-bold">cobl.gg staff panel</h1>
+            <h1 className="text-3xl font-bold">{serverDisplayName} staff panel</h1>
             <p className="text-muted-foreground">
               Authorized access only
             </p>

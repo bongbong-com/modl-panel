@@ -1303,7 +1303,7 @@ const Settings = () => {
                               <Upload className="h-4 w-4 mr-2" />
                               {uploadingPanelIcon ? 'Uploading...' : 'Upload Icon'}
                             </Button>
-                            <p className="text-xs text-muted-foreground">Displayed in admin panel</p>
+                            <p className="text-xs text-muted-foreground">Displayed in admin panel and used as browser favicon</p>
                           </div>
                         </div>
                       </div>
