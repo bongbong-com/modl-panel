@@ -2,6 +2,13 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose'; // Renamed Document to MongooseDocument, Added HydratedDocument
 import { isAuthenticated } from '../middleware/auth-middleware';
 import domainRoutes from './domain-routes';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { promisify } from 'util';
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
 
 interface IDurationDetail {
   value: number;
@@ -311,6 +318,14 @@ async function createDefaultSettings(dbConnection: Connection): Promise<Hydrated
     };
     defaultSettingsMap.set('ticketForms', ticketForms);
     
+    // Add general settings defaults
+    const generalSettings = {
+      serverDisplayName: '',
+      homepageIconUrl: '',
+      panelIconUrl: ''
+    };
+    defaultSettingsMap.set('general', generalSettings);
+    
     const newSettingsDoc = new SettingsModel({ settings: defaultSettingsMap });
     await newSettingsDoc.save();
     return newSettingsDoc;
@@ -401,6 +416,70 @@ router.put('/:key', async (req: Request<{ key: string }, {}, { value: any }>, re
     res.json({ key: req.params.key, value: settingsDoc.settings.get(req.params.key) });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Check if file is an image
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  }
+});
+
+// File upload endpoint for server icons
+router.post('/upload-icon', upload.single('icon'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { iconType } = req.query;
+    if (!iconType || (iconType !== 'homepage' && iconType !== 'panel')) {
+      return res.status(400).json({ error: 'Invalid or missing iconType parameter. Must be "homepage" or "panel"' });
+    }
+
+    const serverName = req.serverName;
+    if (!serverName) {
+      return res.status(500).json({ error: 'Server name not found' });
+    }
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'uploads', serverName);
+    try {
+      await mkdir(uploadsDir, { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
+    }
+
+    // Generate filename with timestamp to avoid caching issues
+    const fileExtension = path.extname(req.file.originalname) || '.png';
+    const fileName = `${iconType}-icon-${Date.now()}${fileExtension}`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    // Save file to disk
+    await writeFile(filePath, req.file.buffer);
+
+    // Generate URL for the uploaded file
+    const fileUrl = `/uploads/${serverName}/${fileName}`;
+
+    res.json({ 
+      success: true, 
+      url: fileUrl,
+      iconType: iconType
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    res.status(500).json({ error: 'Failed to upload file' });
   }
 });
 

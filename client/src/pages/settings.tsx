@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Bot, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen } from 'lucide-react';
+import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -282,17 +282,6 @@ const Settings = () => {
   // State to control visibility of core punishment types
   const [showCorePunishments, setShowCorePunishmentsState] = useState(false);
 
-  // Sliders state
-  const [toxicity, setToxicityState] = useState(75);
-  const [spam, setSpamState] = useState(60);
-  const [automated, setAutomatedState] = useState(40);
-
-  const [aiModeration, setAiModerationState] = useState(true);
-  const [aiChat, setAiChatState] = useState(true);
-  const [aiBan, setAiBanState] = useState(true);
-  const [staffOverride, setStaffOverrideState] = useState(true);
-  const [requireApproval, setRequireApprovalState] = useState(true);
-
   // Tags state for each ticket category
   const [bugReportTags, setBugReportTagsState] = useState<string[]>([
     'UI Issue', 'Server', 'Performance', 'Crash', 'Game Mechanics'
@@ -316,6 +305,15 @@ const Settings = () => {
   const [showSetupPasskey, setShowSetupPasskeyState] = useState(false);
   const [recoveryCodesCopied, setRecoveryCodesCopiedState] = useState(false);
 
+  // General tab states
+  const [serverDisplayName, setServerDisplayName] = useState('');
+  const [homepageIcon, setHomepageIcon] = useState<File | null>(null);
+  const [panelIcon, setPanelIcon] = useState<File | null>(null);
+  const [homepageIconUrl, setHomepageIconUrl] = useState('');
+  const [panelIconUrl, setPanelIconUrl] = useState('');
+  const [uploadingHomepageIcon, setUploadingHomepageIcon] = useState(false);
+  const [uploadingPanelIcon, setUploadingPanelIcon] = useState(false);
+
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
   const [currentEmail, setCurrentEmail] = useState('');
@@ -326,35 +324,85 @@ const Settings = () => {
     }
   }, [user]);
 
+  // File upload functions
+  const uploadIcon = async (file: File, iconType: 'homepage' | 'panel'): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('icon', file);
+
+      const response = await fetch(`/api/settings/upload-icon?iconType=${iconType}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      return result.url;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload the icon. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleHomepageIconUpload = async (file: File) => {
+    setUploadingHomepageIcon(true);
+    const uploadedUrl = await uploadIcon(file, 'homepage');
+    if (uploadedUrl) {
+      setHomepageIcon(file);
+      setHomepageIconUrl(uploadedUrl);
+      toast({
+        title: "Homepage Icon Uploaded",
+        description: "Your homepage icon has been successfully uploaded.",
+      });
+    }
+    setUploadingHomepageIcon(false);
+  };
+
+  const handlePanelIconUpload = async (file: File) => {
+    setUploadingPanelIcon(true);
+    const uploadedUrl = await uploadIcon(file, 'panel');
+    if (uploadedUrl) {
+      setPanelIcon(file);
+      setPanelIconUrl(uploadedUrl);
+      toast({
+        title: "Panel Icon Uploaded",
+        description: "Your panel icon has been successfully uploaded.",
+      });
+    }
+    setUploadingPanelIcon(false);
+  };
+
   // Define captureInitialSettings first, before it's used anywhere else
   const captureInitialSettings = useCallback(() => {
     const currentSettingsSnapshot = {
       punishmentTypes: JSON.parse(JSON.stringify(punishmentTypes)), // Deep copy
       statusThresholds: JSON.parse(JSON.stringify(statusThresholds)), // Deep copy
-      aiModeration,
-      aiChat,
-      aiBan,
-      staffOverride,
-      requireApproval,
-      toxicity,
-      spam,
-      automated,
       bugReportTags: JSON.parse(JSON.stringify(bugReportTags)), // Deep copy
       playerReportTags: JSON.parse(JSON.stringify(playerReportTags)), // Deep copy
       appealTags: JSON.parse(JSON.stringify(appealTags)), // Deep copy
       mongodbUri,
       has2FA,
       hasPasskey,
+      serverDisplayName,
+      homepageIconUrl,
+      panelIconUrl,
     };
     initialSettingsRef.current = currentSettingsSnapshot;
-  }, [punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride, requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey]);
+  }, [punishmentTypes, statusThresholds, bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, serverDisplayName, homepageIconUrl, panelIconUrl]);
 
   // Helper to apply a settings object to all state variables without triggering auto-save
   const applySettingsObjectToState = useCallback((settingsObject: any) => {
     if (!settingsObject) return;
 
     justLoadedFromServerRef.current = true;
-    // console.log("[SettingsPage] Applying settings from server to state"); // Removed
 
     // Use direct state setters to avoid triggering auto-save during load
     if (settingsObject.punishmentTypes) {
@@ -362,14 +410,6 @@ const Settings = () => {
       setPunishmentTypesState(typeof pt === 'string' ? JSON.parse(pt) : JSON.parse(JSON.stringify(pt)));
     }
     if (settingsObject.statusThresholds) setStatusThresholdsState(JSON.parse(JSON.stringify(settingsObject.statusThresholds)));
-    if (settingsObject.aiModeration !== undefined) setAiModerationState(settingsObject.aiModeration);
-    if (settingsObject.aiChat !== undefined) setAiChatState(settingsObject.aiChat);
-    if (settingsObject.aiBan !== undefined) setAiBanState(settingsObject.aiBan);
-    if (settingsObject.staffOverride !== undefined) setStaffOverrideState(settingsObject.staffOverride);
-    if (settingsObject.requireApproval !== undefined) setRequireApprovalState(settingsObject.requireApproval);
-    if (settingsObject.toxicity !== undefined) setToxicityState(settingsObject.toxicity);
-    if (settingsObject.spam !== undefined) setSpamState(settingsObject.spam);
-    if (settingsObject.automated !== undefined) setAutomatedState(settingsObject.automated);
     if (settingsObject.bugReportTags) {
       const brt = settingsObject.bugReportTags;
       setBugReportTagsState(typeof brt === 'string' ? JSON.parse(brt) : JSON.parse(JSON.stringify(brt)));
@@ -385,11 +425,22 @@ const Settings = () => {
     if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
     if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
     if (settingsObject.hasPasskey !== undefined) setHasPasskeyState(settingsObject.hasPasskey);
+    
+    // Handle general settings (both direct properties and nested object)
+    if (settingsObject.general) {
+      if (settingsObject.general.serverDisplayName !== undefined) setServerDisplayName(settingsObject.general.serverDisplayName);
+      if (settingsObject.general.homepageIconUrl !== undefined) setHomepageIconUrl(settingsObject.general.homepageIconUrl);
+      if (settingsObject.general.panelIconUrl !== undefined) setPanelIconUrl(settingsObject.general.panelIconUrl);
+    } else {
+      // Fallback for direct properties (backward compatibility)
+      if (settingsObject.serverDisplayName !== undefined) setServerDisplayName(settingsObject.serverDisplayName);
+      if (settingsObject.homepageIconUrl !== undefined) setHomepageIconUrl(settingsObject.homepageIconUrl);
+      if (settingsObject.panelIconUrl !== undefined) setPanelIconUrl(settingsObject.panelIconUrl);
+    }
 
     // After a short delay, reset the flag to allow auto-saving
     setTimeout(() => {
       justLoadedFromServerRef.current = false;
-      // console.log("[SettingsPage] Initial load completed, auto-save enabled"); // Removed
     }, 500);
   }, []);
 
@@ -408,20 +459,17 @@ const Settings = () => {
       const settingsToSave = {
         punishmentTypes,
         statusThresholds,
-        aiModeration,
-        aiChat,
-        aiBan,
-        staffOverride,
-        requireApproval,
-        toxicity,
-        spam,
-        automated,
         bugReportTags,
         playerReportTags,
         appealTags,
         mongodbUri,
         has2FA,
         hasPasskey,
+        general: {
+          serverDisplayName,
+          homepageIconUrl,
+          panelIconUrl,
+        },
       };
 
       const response = await fetch('/api/panel/settings', {
@@ -455,9 +503,8 @@ const Settings = () => {
       setIsSaving(false);
     }
   }, [
-    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride,
-    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags,
-    appealTags, mongodbUri, has2FA, hasPasskey, toast
+    punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
+    bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, toast
   ]);
 
   // Effect: Load settings from React Query into local component state
@@ -523,10 +570,9 @@ const Settings = () => {
       }
     };
   }, [
-    punishmentTypes, statusThresholds, aiModeration, aiChat, aiBan, staffOverride,
-    requireApproval, toxicity, spam, automated, bugReportTags, playerReportTags,
-    appealTags, mongodbUri, has2FA, hasPasskey, isLoadingSettings, isFetchingSettings,
-    saveSettings
+    punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
+    bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, 
+    isLoadingSettings, isFetchingSettings, saveSettings
   ]);
 
   // Check database connection status on page load
@@ -590,30 +636,6 @@ const Settings = () => {
   };
   const setShowCorePunishments = (value: React.SetStateAction<boolean>) => {
     setShowCorePunishmentsState(value);
-  };
-  const setToxicity = (value: React.SetStateAction<number>) => {
-    setToxicityState(value);
-  };
-  const setSpam = (value: React.SetStateAction<number>) => {
-    setSpamState(value);
-  };
-  const setAutomated = (value: React.SetStateAction<number>) => {
-    setAutomatedState(value);
-  };
-  const setAiModeration = (value: React.SetStateAction<boolean>) => {
-    setAiModerationState(value);
-  };
-  const setAiChat = (value: React.SetStateAction<boolean>) => {
-    setAiChatState(value);
-  };
-  const setAiBan = (value: React.SetStateAction<boolean>) => {
-    setAiBanState(value);
-  };
-  const setStaffOverride = (value: React.SetStateAction<boolean>) => {
-    setStaffOverrideState(value);
-  };
-  const setRequireApproval = (value: React.SetStateAction<boolean>) => {
-    setRequireApprovalState(value);
   };
   const setBugReportTags = (value: React.SetStateAction<string[]>) => {
     setBugReportTagsState(value);
@@ -783,11 +805,11 @@ const Settings = () => {
                 Account
               </TabsTrigger>
               <TabsTrigger
-                value="ai"
+                value="general"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
-                <Bot className="h-4 w-4 mr-2" />
-                AI Settings
+                <SettingsIcon className="h-4 w-4 mr-2" />
+                General
               </TabsTrigger>
               <TabsTrigger
                 value="punishment"
@@ -1180,142 +1202,112 @@ const Settings = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="ai" className="space-y-6 p-6">
+            <TabsContent value="general" className="space-y-6 p-6">
               <div>
-                <h3 className="text-lg font-medium mb-4">AI Moderation</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="ai-moderation" className="font-medium">Enable AI Moderation</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Allow AI to automatically moderate chat and player actions</p>
-                    </div>
-                    <Switch
-                      id="ai-moderation"
-                      checked={aiModeration}
-                      onCheckedChange={setAiModeration}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="ai-chat" className="font-medium">AI Chat Monitoring</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Monitor chat for toxic behavior and prohibited content</p>
-                    </div>
-                    <Switch
-                      id="ai-chat"
-                      checked={aiChat}
-                      onCheckedChange={setAiChat}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="ai-ban" className="font-medium">AI Ban Detection</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Detect ban evasion attempts automatically</p>
-                    </div>
-                    <Switch
-                      id="ai-ban"
-                      checked={aiBan}
-                      onCheckedChange={setAiBan}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-medium mb-4">AI Sensitivity Settings</h3>
+                <h3 className="text-lg font-medium mb-4">Server Configuration</h3>
                 <div className="space-y-6">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <Label htmlFor="toxicity-slider">Toxicity Detection</Label>
-                      <span className="text-sm text-muted-foreground">{toxicity}%</span>
-                    </div>
-                    <Slider
-                      id="toxicity-slider"
-                      value={[toxicity]}
-                      min={0}
-                      max={100}
-                      step={1}
-                      onValueChange={values => setToxicity(values[0])}
-                      className="py-4"
+                  {/* Server Display Name */}
+                  <div className="space-y-2">
+                    <Label htmlFor="server-display-name">Server Display Name</Label>
+                    <Input
+                      id="server-display-name"
+                      placeholder="Enter server name (shown in browser tab and auth page)"
+                      value={serverDisplayName}
+                      onChange={(e) => setServerDisplayName(e.target.value)}
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>Lenient</span>
-                      <span>Strict</span>
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      This name will appear in the browser tab title and on the authentication page
+                    </p>
                   </div>
 
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <Label htmlFor="spam-slider">Spam Detection</Label>
-                      <span className="text-sm text-muted-foreground">{spam}%</span>
-                    </div>
-                    <Slider
-                      id="spam-slider"
-                      value={[spam]}
-                      min={0}
-                      max={100}
-                      step={1}
-                      onValueChange={values => setSpam(values[0])}
-                      className="py-4"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>Lenient</span>
-                      <span>Strict</span>
-                    </div>
-                  </div>
+                  <Separator />
 
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <Label htmlFor="automated-slider">Automated Response</Label>
-                      <span className="text-sm text-muted-foreground">{automated}%</span>
-                    </div>
-                    <Slider
-                      id="automated-slider"
-                      value={[automated]}
-                      min={0}
-                      max={100}
-                      step={1}
-                      onValueChange={values => setAutomated(values[0])}
-                      className="py-4"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>Manual</span>
-                      <span>Automatic</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-medium mb-4">Staff Override</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  {/* Server Icons */}
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="staff-override" className="font-medium">Staff Override of AI Decisions</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Allow staff to override AI moderation decisions</p>
+                      <h4 className="text-base font-medium mb-3">Server Icons</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Upload custom icons for your server. Recommended size: 512x512px PNG format.
+                      </p>
                     </div>
-                    <Switch
-                      id="staff-override"
-                      checked={staffOverride}
-                      onCheckedChange={setStaffOverride}
-                    />
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="require-approval" className="font-medium">Require Approval for AI Bans</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Require staff approval for AI-initiated bans</p>
+                    {/* Homepage Icon */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label>Homepage Icon</Label>
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                            {homepageIconUrl ? (
+                              <img src={homepageIconUrl} alt="Homepage Icon" className="w-full h-full object-cover" />
+                            ) : (
+                              <Globe className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleHomepageIconUpload(file);
+                                }
+                              }}
+                              className="hidden"
+                              id="homepage-icon-upload"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => document.getElementById('homepage-icon-upload')?.click()}
+                              disabled={uploadingHomepageIcon}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              {uploadingHomepageIcon ? 'Uploading...' : 'Upload Icon'}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">Displayed on public homepage</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Panel Icon */}
+                      <div className="space-y-3">
+                        <Label>Panel Icon</Label>
+                        <div className="flex items-center space-x-4">
+                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                            {panelIconUrl ? (
+                              <img src={panelIconUrl} alt="Panel Icon" className="w-full h-full object-cover" />
+                            ) : (
+                              <SettingsIcon className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handlePanelIconUpload(file);
+                                }
+                              }}
+                              className="hidden"
+                              id="panel-icon-upload"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => document.getElementById('panel-icon-upload')?.click()}
+                              disabled={uploadingPanelIcon}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              {uploadingPanelIcon ? 'Uploading...' : 'Upload Icon'}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">Displayed in admin panel</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <Switch
-                      id="require-approval"
-                      checked={requireApproval}
-                      onCheckedChange={setRequireApproval}
-                    />
                   </div>
                 </div>
               </div>
