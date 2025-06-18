@@ -49,6 +49,7 @@ router.get(
 
       const cards = await HomepageCard.find()
         .sort({ ordinal: 1 })
+        .populate('category', 'name slug description')
         .lean();
       
       console.log('[Homepage Cards] Cards fetched:', cards.length);
@@ -65,7 +66,7 @@ router.get(
         background_color: card.background_color,
         is_enabled: card.is_enabled,
         ordinal: card.ordinal,
-        category: null // Temporarily removed populate
+        category: (card as any).category
       }));
 
       console.log('[Homepage Cards] Formatted cards:', formattedCards.length);
@@ -90,7 +91,6 @@ router.post(
     check('description', 'Description is required').not().isEmpty().trim(),
     check('icon', 'Icon is required').not().isEmpty().trim(),
     check('action_type', 'Action type must be url or category_dropdown').isIn(['url', 'category_dropdown']),
-    check('action_url', 'URL is required for URL actions').optional().isURL(),
     check('action_button_text', 'Button text must be a string').optional().isString().trim(),
     check('category_id', 'Category ID must be valid').optional().isMongoId(),
     check('background_color', 'Background color must be a string').optional().isString().trim(),
@@ -117,9 +117,18 @@ router.post(
       } = req.body;
 
       // Validate action-specific requirements
-      if (action_type === 'url' && !action_url) {
-        return res.status(400).json({ message: 'URL is required for URL actions' });
+      if (action_type === 'url') {
+        if (!action_url) {
+          return res.status(400).json({ message: 'URL is required for URL actions' });
+        }
+        // Validate URL format
+        try {
+          new URL(action_url);
+        } catch (e) {
+          return res.status(400).json({ message: 'Invalid URL format' });
+        }
       }
+      
       if (action_type === 'category_dropdown' && !category_id) {
         return res.status(400).json({ message: 'Category is required for category dropdown actions' });
       }
@@ -187,7 +196,6 @@ router.put(
     check('description', 'Description must be a non-empty string').optional().notEmpty().trim(),
     check('icon', 'Icon must be a non-empty string').optional().notEmpty().trim(),
     check('action_type', 'Action type must be url or category_dropdown').optional().isIn(['url', 'category_dropdown']),
-    check('action_url', 'URL must be valid').optional().isURL(),
     check('action_button_text', 'Button text must be a string').optional().isString().trim(),
     check('category_id', 'Category ID must be valid').optional().isMongoId(),
     check('background_color', 'Background color must be a string').optional().isString().trim(),
@@ -215,11 +223,24 @@ router.put(
 
       // Validate action-specific requirements if action_type is being updated
       const actionType = updateData.action_type || card.action_type;
-      if (actionType === 'url' && updateData.action_url === undefined && !card.action_url) {
-        return res.status(400).json({ message: 'URL is required for URL actions' });
+      if (actionType === 'url') {
+        const actionUrl = updateData.action_url !== undefined ? updateData.action_url : card.action_url;
+        if (!actionUrl) {
+          return res.status(400).json({ message: 'URL is required for URL actions' });
+        }
+        // Validate URL format
+        try {
+          new URL(actionUrl);
+        } catch (e) {
+          return res.status(400).json({ message: 'Invalid URL format' });
+        }
       }
-      if (actionType === 'category_dropdown' && updateData.category_id === undefined && !card.category_id) {
-        return res.status(400).json({ message: 'Category is required for category dropdown actions' });
+      
+      if (actionType === 'category_dropdown') {
+        const categoryId = updateData.category_id !== undefined ? updateData.category_id : card.category_id;
+        if (!categoryId) {
+          return res.status(400).json({ message: 'Category is required for category dropdown actions' });
+        }
       }
 
       // If category_id is being updated, verify it exists
