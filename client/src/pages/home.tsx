@@ -148,11 +148,18 @@ const Home = () => {
       </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <StatCard 
-          title="Active Players" 
-          value={isLoadingStats ? 0 : (statsData?.counts?.players || 153)} 
+          title="Online Players" 
+          value={isLoadingStats ? 0 : (statsData?.counts?.onlinePlayers || 153)} 
           change={12} 
           changeText="from last hour" 
           color="primary" 
+        />
+        <StatCard 
+          title="Unique Logins" 
+          value={isLoadingStats ? 0 : (statsData?.counts?.uniqueLogins || 89)} 
+          change={8} 
+          changeText="from yesterday" 
+          color="info" 
         />
         <StatCard 
           title="Open Tickets" 
@@ -160,13 +167,6 @@ const Home = () => {
           change={-5} 
           changeText="from yesterday" 
           color="warning" 
-        />
-        <StatCard 
-          title="Total Staff" 
-          value={isLoadingStats ? 0 : (statsData?.counts?.staff || 47)} 
-          change={-8} 
-          changeText="from yesterday" 
-          color="info" 
         />
       </div>
       

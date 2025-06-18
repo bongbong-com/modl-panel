@@ -144,7 +144,6 @@ const Sidebar = () => {
       name: "Home",
       path: "/panel",
       icon: <Home className="h-5 w-5" />,
-      notifications: 3,
       onClick: () => {
         if (isLookupOpen) closeLookup();
         navigate("/panel");
@@ -167,7 +166,6 @@ const Sidebar = () => {
       name: "Tickets",
       path: "/panel/tickets",
       icon: <Ticket className="h-5 w-5" />,
-      notifications: 5,
       onClick: () => {
         if (isLookupOpen) closeLookup();
         navigate("/panel/tickets");
@@ -306,14 +304,6 @@ const Sidebar = () => {
                           >
                             <div className="relative">
                               {item.icon}
-                              {item.notifications && (
-                                <Badge
-                                  variant="notification"
-                                  className="absolute -top-2.5 -right-3 h-4 w-4 p-0 flex items-center justify-center text-white text-[10px]"
-                                >
-                                  {item.notifications}
-                                </Badge>
-                              )}
                             </div>
                           </Button>
                         </TooltipTrigger>
