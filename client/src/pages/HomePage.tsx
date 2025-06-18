@@ -193,14 +193,14 @@ const HomePage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {card.category.articles.map(article => (
                     <Link key={article.id} href={`/${article.slug}`}>
-                      <Card className="p-3 hover:shadow-md transition-all duration-200 hover:bg-primary/5 cursor-pointer">
+                      <div className="p-3 rounded-lg border border-border/50 hover:shadow-md hover:border-border transition-all duration-200 hover:bg-muted/30 cursor-pointer bg-background/50">
                         <div className="flex items-center gap-3">
                           <FileText className="h-4 w-4 text-primary flex-shrink-0" />
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground hover:underline truncate">{article.title}</p>
                           </div>
                         </div>
-                      </Card>
+                      </div>
                     </Link>
                   ))}
                 </div>
@@ -256,43 +256,7 @@ const HomePage: React.FC = () => {
   const allCategories = categories;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      {/* Header with Sign In and Theme Toggle */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        {/* Theme Toggle */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm" className="bg-black/80 hover:bg-black/90 text-white border-white/20">
-              {theme === 'light' ? <Sun className="h-4 w-4" /> : 
-               theme === 'dark' ? <Moon className="h-4 w-4" /> : 
-               <Monitor className="h-4 w-4" />}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setTheme('light')}>
-              <Sun className="h-4 w-4 mr-2" />
-              Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')}>
-              <Moon className="h-4 w-4 mr-2" />
-              Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')}>
-              <Monitor className="h-4 w-4 mr-2" />
-              System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Sign In Button */}
-        <Link href="/auth">
-          <Button variant="secondary" size="sm" className="bg-black/80 hover:bg-black/90 text-white border-white/20">
-            <LogIn className="h-4 w-4 mr-2" />
-            Sign In
-          </Button>
-        </Link>
-      </div>
-
+    <div className="min-h-screen bg-background">{/* Removed gradient for better theme compatibility */}
       {/* Logo and Search Section */}
       <section className="py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
@@ -302,7 +266,7 @@ const HomePage: React.FC = () => {
           </div>
           
           {/* Descriptive Text */}
-          <p className="text-white text-lg mb-8">Search our knowledgebase or contact us here</p>
+          <p className="text-foreground text-lg mb-8">Search our knowledgebase or contact us here</p>
           
           {/* Search Bar */}
           <div className="max-w-xl mx-auto mb-4">
@@ -360,7 +324,54 @@ const HomePage: React.FC = () => {
                   </Card>
                 ))
               ) : homepageCards.length > 0 ? (
-                homepageCards.map((card, index) => renderHomepageCard(card, index))
+                <>
+                  {homepageCards.map((card, index) => {
+                    // Add buttons after the 3rd card (index 2)
+                    if (index === 2) {
+                      return (
+                        <React.Fragment key={`card-${card.id}`}>
+                          {renderHomepageCard(card, index)}
+                          {/* Header with Sign In and Theme Toggle - positioned after 3rd card */}
+                          <div className="flex flex-col gap-2 justify-start pt-4">
+                            {/* Theme Toggle */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted">
+                                  {theme === 'light' ? <Sun className="h-4 w-4" /> : 
+                                   theme === 'dark' ? <Moon className="h-4 w-4" /> : 
+                                   <Monitor className="h-4 w-4" />}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setTheme('light')}>
+                                  <Sun className="h-4 w-4 mr-2" />
+                                  Light
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                                  <Moon className="h-4 w-4 mr-2" />
+                                  Dark
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setTheme('system')}>
+                                  <Monitor className="h-4 w-4 mr-2" />
+                                  System
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Sign In Button */}
+                            <Link href="/auth">
+                              <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted w-full">
+                                <LogIn className="h-4 w-4 mr-2" />
+                                Sign In
+                              </Button>
+                            </Link>
+                          </div>
+                        </React.Fragment>
+                      );
+                    }
+                    return renderHomepageCard(card, index);
+                  })}
+                </>
               ) : (
                 // Fallback to default cards if no custom cards are configured
                 <>
@@ -410,6 +421,42 @@ const HomePage: React.FC = () => {
                       </Button>
                     </CardContent>
                   </Card>
+                  
+                  {/* Header with Sign In and Theme Toggle - positioned after 3rd card */}
+                  <div className="flex flex-col gap-2 justify-start pt-4">
+                    {/* Theme Toggle */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted">
+                          {theme === 'light' ? <Sun className="h-4 w-4" /> : 
+                           theme === 'dark' ? <Moon className="h-4 w-4" /> : 
+                           <Monitor className="h-4 w-4" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setTheme('light')}>
+                          <Sun className="h-4 w-4 mr-2" />
+                          Light
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme('dark')}>
+                          <Moon className="h-4 w-4 mr-2" />
+                          Dark
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme('system')}>
+                          <Monitor className="h-4 w-4 mr-2" />
+                          System
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Sign In Button */}
+                    <Link href="/auth">
+                      <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted w-full">
+                        <LogIn className="h-4 w-4 mr-2" />
+                        Sign In
+                      </Button>
+                    </Link>
+                  </div>
 
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 h-full flex flex-col justify-between">
