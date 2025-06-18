@@ -7,13 +7,16 @@ import {
   Ticket, 
   Shield, 
   CircleAlert, 
-  Bot 
+  Bot,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { useTheme } from 'next-themes';
 import { useRecentActivity, useStats, ClientActivity } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
@@ -81,6 +84,7 @@ const StatCard = ({ title, value, change, changeText, color }: {
 const Home = () => {
   const [activityFilter, setActivityFilter] = useState("all");
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   
   // Check for provisioning success and show welcome toast
   useEffect(() => {
@@ -124,6 +128,15 @@ const Home = () => {
           </Button>
           <Button variant="ghost" size="icon" className="text-muted-foreground">
             <RefreshCw className="h-5 w-5" />
+          </Button>
+          {/* Theme Toggle */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
         </div>
       </div>
