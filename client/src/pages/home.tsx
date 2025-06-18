@@ -150,21 +150,21 @@ const Home = () => {
         <StatCard 
           title="Online Players" 
           value={isLoadingStats ? 0 : (statsData?.counts?.onlinePlayers || 153)} 
-          change={12} 
+          change={0} 
           changeText="from last hour" 
           color="primary" 
         />
         <StatCard 
           title="Unique Logins" 
           value={isLoadingStats ? 0 : (statsData?.counts?.uniqueLogins || 89)} 
-          change={8} 
+          change={0} 
           changeText="from yesterday" 
           color="info" 
         />
         <StatCard 
           title="Open Tickets" 
           value={isLoadingStats ? 0 : (statsData?.counts?.openTickets || 28)} 
-          change={-5} 
+          change={0} 
           changeText="from yesterday" 
           color="warning" 
         />
