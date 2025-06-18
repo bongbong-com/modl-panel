@@ -257,8 +257,8 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">{/* Removed gradient for better theme compatibility */}
-      {/* Header with Sign In and Theme Toggle - positioned in top right but closer to center */}
-      <div className="absolute top-6 right-8 z-10 flex items-center gap-2">
+      {/* Header with Sign In and Theme Toggle - positioned at 3/4 from left edge */}
+      <div className="absolute top-6 left-3/4 z-10 flex items-center gap-2">
         {/* Theme Toggle */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
