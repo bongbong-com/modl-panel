@@ -325,52 +325,42 @@ const HomePage: React.FC = () => {
                 ))
               ) : homepageCards.length > 0 ? (
                 <>
-                  {homepageCards.map((card, index) => {
-                    // Add buttons after the 3rd card (index 2)
-                    if (index === 2) {
-                      return (
-                        <React.Fragment key={`card-${card.id}`}>
-                          {renderHomepageCard(card, index)}
-                          {/* Header with Sign In and Theme Toggle - positioned after 3rd card */}
-                          <div className="flex flex-col gap-2 justify-start pt-4">
-                            {/* Theme Toggle */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted">
-                                  {theme === 'light' ? <Sun className="h-4 w-4" /> : 
-                                   theme === 'dark' ? <Moon className="h-4 w-4" /> : 
-                                   <Monitor className="h-4 w-4" />}
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setTheme('light')}>
-                                  <Sun className="h-4 w-4 mr-2" />
-                                  Light
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme('dark')}>
-                                  <Moon className="h-4 w-4 mr-2" />
-                                  Dark
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme('system')}>
-                                  <Monitor className="h-4 w-4 mr-2" />
-                                  System
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                  {homepageCards.map((card, index) => renderHomepageCard(card, index))}
+                  {/* Always add buttons after all custom cards */}
+                  <div className="flex flex-col gap-2 justify-start pt-4">
+                    {/* Theme Toggle */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted">
+                          {theme === 'light' ? <Sun className="h-4 w-4" /> : 
+                           theme === 'dark' ? <Moon className="h-4 w-4" /> : 
+                           <Monitor className="h-4 w-4" />}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setTheme('light')}>
+                          <Sun className="h-4 w-4 mr-2" />
+                          Light
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme('dark')}>
+                          <Moon className="h-4 w-4 mr-2" />
+                          Dark
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme('system')}>
+                          <Monitor className="h-4 w-4 mr-2" />
+                          System
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-                            {/* Sign In Button */}
-                            <Link href="/auth">
-                              <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted w-full">
-                                <LogIn className="h-4 w-4 mr-2" />
-                                Sign In
-                              </Button>
-                            </Link>
-                          </div>
-                        </React.Fragment>
-                      );
-                    }
-                    return renderHomepageCard(card, index);
-                  })}
+                    {/* Sign In Button */}
+                    <Link href="/auth">
+                      <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted w-full">
+                        <LogIn className="h-4 w-4 mr-2" />
+                        Sign In
+                      </Button>
+                    </Link>
+                  </div>
                 </>
               ) : (
                 // Fallback to default cards if no custom cards are configured
