@@ -67,6 +67,7 @@ function Router() {
       <main className="h-full bg-background">
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
+          <AuthRoute path="/panel/auth" component={AuthPage} />
           <Route path="/appeals" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
