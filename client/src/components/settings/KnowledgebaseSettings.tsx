@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -17,6 +18,7 @@ import MarkdownEditor from '@/components/ui/MarkdownEditor'; // Import the new e
 export interface KnowledgebaseCategory { // Added export
   id: string;
   name: string;
+  description?: string;
   ordinal: number;
   articles: KnowledgebaseArticle[];
 }
@@ -153,25 +155,41 @@ const CategoryItem: React.FC<CategoryItemProps> = ({
     <div ref={preview} style={{ opacity: isDragging ? 0.5 : 1 }} data-handler-id={handlerId}>
       <Card ref={ref} className="p-3 mb-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center flex-1">
             <GripVertical className="mr-2 h-5 w-5 text-muted-foreground cursor-grab" />
             {editingCategory?.id === category.id ? (
-              <Input
-                type="text"
-                value={editingCategory.name}
-                onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                onBlur={handleUpdateCategory}
-                onKeyDown={(e) => e.key === 'Enter' && handleUpdateCategory()}
-                className="h-8"
-                autoFocus
-              />
+              <div className="flex-1 space-y-2">
+                <Input
+                  type="text"
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                  placeholder="Category name"
+                  className="h-8"
+                  autoFocus
+                />
+                <Input
+                  type="text"
+                  value={editingCategory.description || ''}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
+                  placeholder="Category description (optional)"
+                  className="h-8"
+                />
+              </div>
             ) : (
-              <span onClick={() => onEdit(category)} className="cursor-pointer hover:underline">{category.name}</span>
+              <div className="flex-1 cursor-pointer hover:bg-muted/50 p-2 rounded" onClick={() => onEdit(category)}>
+                <div className="font-medium">{category.name}</div>
+                {category.description && (
+                  <div className="text-sm text-muted-foreground">{category.description}</div>
+                )}
+              </div>
             )}
           </div>
           <div className="space-x-2">
             {editingCategory?.id === category.id ? (
-              <Button size="sm" onClick={handleUpdateCategory} disabled={updateCategoryMutation.isPending}>Save</Button>
+              <>
+                <Button size="sm" onClick={handleUpdateCategory} disabled={updateCategoryMutation.isPending}>Save</Button>
+                <Button variant="ghost" size="sm" onClick={() => setEditingCategory(null)}>Cancel</Button>
+              </>
             ) : (
               <Button variant="ghost" size="sm" onClick={() => onEdit(category)}><Edit className="h-4 w-4" /></Button>
             )}
@@ -211,6 +229,7 @@ const CategoryItem: React.FC<CategoryItemProps> = ({
 const KnowledgebaseSettings: React.FC = () => {
   const { toast } = useToast();
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
   // editingCategory state is now part of KnowledgebaseSettings
   const [editingArticle, setEditingArticle] = useState<KnowledgebaseArticle | null>(null);
   // const [selectedCategoryForNewArticle, setSelectedCategoryForNewArticle] = useState<string | null>(null); // Replaced by newArticleForModal
@@ -226,7 +245,7 @@ const KnowledgebaseSettings: React.FC = () => {
   });
 
   // Mutations (using React Query's useMutation)
-  const createCategoryMutation = useMutation<KnowledgebaseCategory, Error, { name: string }>({
+  const createCategoryMutation = useMutation<KnowledgebaseCategory, Error, { name: string; description?: string }>({
     mutationFn: async (newCategory) => {
       const response = await fetch('/api/panel/knowledgebase/categories', {
         method: 'POST',
@@ -243,18 +262,19 @@ const KnowledgebaseSettings: React.FC = () => {
       toast({ title: 'Success', description: 'Category created successfully.' });
       queryClient.invalidateQueries({ queryKey: ['knowledgebaseCategories'] });
       setNewCategoryName('');
+      setNewCategoryDescription('');
     },
     onError: (error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
-  const updateCategoryMutation = useMutation<KnowledgebaseCategory, Error, { id: string; name: string }>({
+  const updateCategoryMutation = useMutation<KnowledgebaseCategory, Error, { id: string; name: string; description?: string }>({
     mutationFn: async (updatedCategory) => {
       const response = await fetch(`/api/panel/knowledgebase/categories/${updatedCategory.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: updatedCategory.name }),
+        body: JSON.stringify({ name: updatedCategory.name, description: updatedCategory.description }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Failed to update category' }));
@@ -326,12 +346,19 @@ const KnowledgebaseSettings: React.FC = () => {
 
   const handleCreateCategory = () => {
     if (newCategoryName.trim()) {
-      createCategoryMutation.mutate({ name: newCategoryName.trim() });
+      createCategoryMutation.mutate({ 
+        name: newCategoryName.trim(),
+        description: newCategoryDescription.trim() || undefined
+      });
     }
   };
   const handleUpdateCategoryLocal = () => { // Renamed to avoid conflict with prop
     if (editingCategoryState && editingCategoryState.name.trim()) {
-      updateCategoryMutation.mutate({ id: editingCategoryState.id, name: editingCategoryState.name.trim() });
+      updateCategoryMutation.mutate({ 
+        id: editingCategoryState.id, 
+        name: editingCategoryState.name.trim(),
+        description: editingCategoryState.description?.trim() || undefined
+      });
       // setEditingCategoryState(null); // Already handled in onSuccess of mutation
     }
   };
@@ -508,17 +535,26 @@ const KnowledgebaseSettings: React.FC = () => {
             <CardDescription>Create, edit, delete, and reorder knowledgebase categories.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex space-x-2">
+            <div className="space-y-2">
+              <div className="flex space-x-2">
+                <Input
+                  type="text"
+                  placeholder="New category name"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="flex-grow"
+                />
+                <Button onClick={handleCreateCategory} disabled={createCategoryMutation.isPending}>
+                  <Plus className="mr-2 h-4 w-4" /> Add Category
+                </Button>
+              </div>
               <Input
                 type="text"
-                placeholder="New category name"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                className="flex-grow"
+                placeholder="Category description (optional)"
+                value={newCategoryDescription}
+                onChange={(e) => setNewCategoryDescription(e.target.value)}
+                className="w-full"
               />
-              <Button onClick={handleCreateCategory} disabled={createCategoryMutation.isPending}>
-                <Plus className="mr-2 h-4 w-4" /> Add Category
-              </Button>
             </div>
 
             {/* List Categories - Drag and Drop will be added here */}
