@@ -477,6 +477,18 @@ const KnowledgebaseSettings: React.FC = () => {
 
   const openCreateArticleModal = (categoryId: string) => {
     setNewArticleForModal({ categoryId, title: '', content: '', is_visible: true });
+    
+    // Scroll to the article writing section with smooth animation
+    setTimeout(() => {
+      const articleFormElement = document.querySelector('[data-article-form="true"]');
+      if (articleFormElement) {
+        articleFormElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+    }, 100); // Small delay to ensure the form is rendered
   };
 
   const handleCreateArticleFromModal = () => {
@@ -625,7 +637,7 @@ const KnowledgebaseSettings: React.FC = () => {
         
         {/* Create Article Modal */}
         {newArticleForModal && (
-          <Card className="mt-6">
+          <Card className="mt-6" data-article-form="true">
             <CardHeader>
               <CardTitle>Create New Article</CardTitle>
               <CardDescription>In category: {categories?.find(c => c.id === newArticleForModal.categoryId)?.name || 'Unknown'}</CardDescription>
