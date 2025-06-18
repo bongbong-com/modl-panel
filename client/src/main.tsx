@@ -8,7 +8,7 @@ import { Router } from "wouter"; // Import Router from wouter
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark">
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <Router> {/* Wrap App with Router */}
         <App />
       </Router>

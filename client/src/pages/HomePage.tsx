@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
-import { Search, Shield, MessageCircle, Phone, UserPlus, FileText, ExternalLink, ChevronRight, BookOpen, ChevronDown } from 'lucide-react';
+import { Search, Shield, MessageCircle, Phone, UserPlus, FileText, ExternalLink, ChevronRight, BookOpen, ChevronDown, LogIn, Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useTheme } from 'next-themes';
 import serverLogo from '@/assets/server-logo.png';
 import * as LucideIcons from 'lucide-react';
 
@@ -54,6 +56,7 @@ const HomePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const { theme, setTheme } = useTheme();
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -158,13 +161,13 @@ const HomePage: React.FC = () => {
         <React.Fragment key={card.id}>
           <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
             <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(card.id)}>
-              <CardContent className="p-6 h-full flex flex-col">
-                <div className="flex-1">
+              <CardContent className="p-6 h-full flex flex-col justify-between">
+                <div className="text-center">
                   <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
                     <IconComponent className="h-7 w-7" style={{ color: iconColor }} />
                   </div>
-                  <h3 className="font-medium text-lg mb-3 text-center">{card.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-4 text-center">{card.description}</p>
+                  <h3 className="font-medium text-lg mb-3">{card.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{card.description}</p>
                 </div>
                 
                 <CollapsibleTrigger asChild>
@@ -185,19 +188,16 @@ const HomePage: React.FC = () => {
                   <IconComponent className="h-5 w-5" style={{ color: iconColor }} />
                   {card.category.name} Articles
                 </CardTitle>
-                <CardDescription>
-                  Browse all articles in the {card.category.name} category
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {card.category.articles.map(article => (
                     <Link key={article.id} href={`/${article.slug}`}>
                       <Card className="p-3 hover:shadow-md transition-all duration-200 hover:bg-primary/5 cursor-pointer">
                         <div className="flex items-center gap-3">
                           <FileText className="h-4 w-4 text-primary flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-primary hover:underline truncate">{article.title}</p>
+                            <p className="text-sm font-medium text-foreground hover:underline truncate">{article.title}</p>
                           </div>
                         </div>
                       </Card>
@@ -222,8 +222,8 @@ const HomePage: React.FC = () => {
       
       return (
         <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-          <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-            <div>
+          <CardContent className="p-6 h-full flex flex-col justify-between">
+            <div className="text-center">
               <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
                 <IconComponent className="h-7 w-7" style={{ color: iconColor }} />
               </div>
@@ -257,6 +257,42 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      {/* Header with Sign In and Theme Toggle */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {/* Theme Toggle */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm" className="bg-black/80 hover:bg-black/90 text-white border-white/20">
+              {theme === 'light' ? <Sun className="h-4 w-4" /> : 
+               theme === 'dark' ? <Moon className="h-4 w-4" /> : 
+               <Monitor className="h-4 w-4" />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setTheme('light')}>
+              <Sun className="h-4 w-4 mr-2" />
+              Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme('dark')}>
+              <Moon className="h-4 w-4 mr-2" />
+              Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme('system')}>
+              <Monitor className="h-4 w-4 mr-2" />
+              System
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Sign In Button */}
+        <Link href="/auth">
+          <Button variant="secondary" size="sm" className="bg-black/80 hover:bg-black/90 text-white border-white/20">
+            <LogIn className="h-4 w-4 mr-2" />
+            Sign In
+          </Button>
+        </Link>
+      </div>
+
       {/* Logo and Search Section */}
       <section className="py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
@@ -292,7 +328,7 @@ const HomePage: React.FC = () => {
                       {searchResults.map(article => (
                         <Link key={article.id} href={`/${article.slug}`}>
                           <div className="p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer">
-                            <p className="text-sm font-medium text-primary hover:underline">{article.title}</p>
+                            <p className="text-sm font-medium text-foreground hover:underline">{article.title}</p>
                           </div>
                         </Link>
                       ))}
@@ -329,8 +365,8 @@ const HomePage: React.FC = () => {
                 // Fallback to default cards if no custom cards are configured
                 <>
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
+                    <CardContent className="p-6 h-full flex flex-col justify-between">
+                      <div className="text-center">
                         <div className="w-14 h-14 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-amber-500/20 transition-colors">
                           <Shield className="h-7 w-7 text-amber-600" />
                         </div>
@@ -346,8 +382,8 @@ const HomePage: React.FC = () => {
                   </Card>
 
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
+                    <CardContent className="p-6 h-full flex flex-col justify-between">
+                      <div className="text-center">
                         <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-500/20 transition-colors">
                           <UserPlus className="h-7 w-7 text-blue-600" />
                         </div>
@@ -361,8 +397,8 @@ const HomePage: React.FC = () => {
                   </Card>
 
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
+                    <CardContent className="p-6 h-full flex flex-col justify-between">
+                      <div className="text-center">
                         <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-500/20 transition-colors">
                           <MessageCircle className="h-7 w-7 text-green-600" />
                         </div>
@@ -376,8 +412,8 @@ const HomePage: React.FC = () => {
                   </Card>
 
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
+                    <CardContent className="p-6 h-full flex flex-col justify-between">
+                      <div className="text-center">
                         <div className="w-14 h-14 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-500/20 transition-colors">
                           <BookOpen className="h-7 w-7 text-purple-600" />
                         </div>
@@ -393,8 +429,8 @@ const HomePage: React.FC = () => {
                   </Card>
 
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
+                    <CardContent className="p-6 h-full flex flex-col justify-between">
+                      <div className="text-center">
                         <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-500/20 transition-colors">
                           <Search className="h-7 w-7 text-orange-600" />
                         </div>
@@ -410,8 +446,8 @@ const HomePage: React.FC = () => {
                   </Card>
 
                   <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
-                    <CardContent className="p-6 text-center h-full flex flex-col justify-between">
-                      <div>
+                    <CardContent className="p-6 h-full flex flex-col justify-between">
+                      <div className="text-center">
                         <div className="w-14 h-14 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-500/20 transition-colors">
                           <FileText className="h-7 w-7 text-indigo-600" />
                         </div>
