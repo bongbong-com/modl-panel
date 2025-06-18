@@ -83,23 +83,14 @@ const HomePage: React.FC = () => {
     return () => clearTimeout(debounceSearch);
   }, [searchTerm]);
 
-  // Get first 4 categories for homepage display
-  const featuredCategories = categories.slice(0, 4);
+  // Show all categories instead of just first 4
+  const allCategories = categories;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Compact Hero Section */}
       <section className="py-8 px-4">
         <div className="max-w-6xl mx-auto text-center">
-          {/* Logo Space */}
-          <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
-            <img src={serverLogo} alt="COBL Logo" className="w-12 h-12 object-contain" />
-          </div>
-          
-          <h1 className="text-3xl md:text-4xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Welcome to COBL
-          </h1>
-          
           {/* Search Bar */}
           <div className="max-w-xl mx-auto mb-8">
             <div className="relative">
@@ -137,6 +128,15 @@ const HomePage: React.FC = () => {
                 </CardContent>
               </Card>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* Large Logo */}
+      <section className="py-6 px-4">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="w-32 h-32 mx-auto mb-8 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
+            <img src={serverLogo} alt="COBL Logo" className="w-24 h-24 object-contain" />
           </div>
         </div>
       </section>
@@ -205,22 +205,16 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Knowledge Base - Compact Cards */}
+      {/* Knowledge Base - All Categories */}
       <section className="py-6 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-xl font-bold">Knowledge Base</h2>
-            <Link href="/knowledgebase">
-              <Button variant="outline" size="sm">
-                View All
-                <ChevronRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
           </div>
 
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <Card key={i} className="animate-pulse">
                   <CardContent className="p-3">
                     <div className="h-3 bg-muted rounded w-3/4 mb-2"></div>
@@ -229,9 +223,9 @@ const HomePage: React.FC = () => {
                 </Card>
               ))}
             </div>
-          ) : featuredCategories.length > 0 ? (
+          ) : allCategories.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {featuredCategories.map(category => (
+              {allCategories.map((category: CategoryWithArticles) => (
                 <Card key={category.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer">
                   <CardContent className="p-3">
                     <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
@@ -255,21 +249,6 @@ const HomePage: React.FC = () => {
           )}
         </div>
       </section>
-
-      {/* Footer - Compact */}
-      <footer className="py-4 px-4 bg-muted/50 border-t">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="flex justify-center space-x-4 text-sm">
-            <Link href="/appeals">
-              <Button variant="link" size="sm" className="text-xs">Appeals</Button>
-            </Link>
-            <Link href="/panel/auth">
-              <Button variant="link" size="sm" className="text-xs">Staff Portal</Button>
-            </Link>
-            <Button variant="link" size="sm" className="text-xs">Contact</Button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
