@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { ModlServerSchema } from '../models/modl-global-schemas';
 
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_ZONE_ID = process.env.CLOUDFLARE_ZONE_ID;
@@ -384,7 +385,8 @@ export async function getDomainSetupInstructions(domain: string): Promise<{
 // Background service to periodically check and update domain statuses
 export async function updateDomainStatuses(serverDbConnection: any) {
   try {
-    const ServerModel = serverDbConnection.model('ModlServer');
+    // Ensure the ModlServer model is registered with the connection
+    const ServerModel = serverDbConnection.model('ModlServer', ModlServerSchema);
     
     // Find all servers with custom domains that aren't active
     const serversWithDomains = await ServerModel.find({
