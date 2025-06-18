@@ -88,9 +88,17 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      {/* Compact Hero Section */}
+      {/* Logo and Search Section */}
       <section className="py-8 px-4">
         <div className="max-w-6xl mx-auto text-center">
+          {/* Large Logo */}
+          <div className="w-32 h-32 mx-auto mb-4">
+            <img src={serverLogo} alt="COBL Logo" className="w-full h-full object-contain" />
+          </div>
+          
+          {/* Descriptive Text */}
+          <p className="text-white text-lg mb-6">Search our knowledgebase or contact us here</p>
+          
           {/* Search Bar */}
           <div className="max-w-xl mx-auto mb-8">
             <div className="relative">
@@ -130,29 +138,20 @@ const HomePage: React.FC = () => {
             )}
           </div>
         </div>
-      </section>
-
-      {/* Large Logo */}
-      <section className="py-6 px-4">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="w-32 h-32 mx-auto mb-8 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
-            <img src={serverLogo} alt="COBL Logo" className="w-24 h-24 object-contain" />
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Actions - Compact */}
+      </section>      {/* Quick Actions - Compact */}
       <section className="py-6 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             
             {/* Staff Sign-in */}
-            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-4 text-center">
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-primary/20 transition-colors">
-                  <Shield className="h-5 w-5 text-primary" />
+            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-32">
+              <CardContent className="p-4 text-center h-full flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-primary/20 transition-colors">
+                    <Shield className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-medium text-sm mb-2">Staff Portal</h3>
                 </div>
-                <h3 className="font-medium text-sm mb-2">Staff Portal</h3>
                 <Link href="/panel/auth">
                   <Button size="sm" className="w-full">
                     Sign In
@@ -162,12 +161,14 @@ const HomePage: React.FC = () => {
             </Card>
 
             {/* Ban Appeals */}
-            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-4 text-center">
-                <div className="w-10 h-10 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-amber-500/20 transition-colors">
-                  <FileText className="h-5 w-5 text-amber-600" />
+            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-32">
+              <CardContent className="p-4 text-center h-full flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-amber-500/20 transition-colors">
+                    <FileText className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <h3 className="font-medium text-sm mb-2">Ban Appeals</h3>
                 </div>
-                <h3 className="font-medium text-sm mb-2">Ban Appeals</h3>
                 <Link href="/appeals">
                   <Button variant="outline" size="sm" className="w-full">
                     Submit Appeal
@@ -177,12 +178,14 @@ const HomePage: React.FC = () => {
             </Card>
 
             {/* Contact Support */}
-            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-4 text-center">
-                <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-green-500/20 transition-colors">
-                  <MessageCircle className="h-5 w-5 text-green-600" />
+            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-32">
+              <CardContent className="p-4 text-center h-full flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-green-500/20 transition-colors">
+                    <MessageCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <h3 className="font-medium text-sm mb-2">Contact Support</h3>
                 </div>
-                <h3 className="font-medium text-sm mb-2">Contact Support</h3>
                 <Button variant="outline" size="sm" className="w-full">
                   Contact Us
                 </Button>
@@ -190,12 +193,14 @@ const HomePage: React.FC = () => {
             </Card>
 
             {/* Applications */}
-            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-4 text-center">
-                <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-500/20 transition-colors">
-                  <UserPlus className="h-5 w-5 text-blue-600" />
+            <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-32">
+              <CardContent className="p-4 text-center h-full flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-500/20 transition-colors">
+                    <UserPlus className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <h3 className="font-medium text-sm mb-2">Applications</h3>
                 </div>
-                <h3 className="font-medium text-sm mb-2">Applications</h3>
                 <Button variant="outline" size="sm" className="w-full">
                   Apply Now
                 </Button>
@@ -205,34 +210,32 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Knowledge Base - All Categories */}
+      {/* Knowledge Base Categories */}
       <section className="py-6 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold">Knowledge Base</h2>
-          </div>
-
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-3">
+                <Card key={i} className="animate-pulse h-24">
+                  <CardContent className="p-4 h-full flex flex-col">
                     <div className="h-3 bg-muted rounded w-3/4 mb-2"></div>
-                    <div className="h-2 bg-muted rounded w-full"></div>
+                    <div className="h-2 bg-muted rounded w-full mt-auto"></div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : allCategories.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {allCategories.map((category: CategoryWithArticles) => (
-                <Card key={category.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer">
-                  <CardContent className="p-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
-                      <BookOpen className="h-4 w-4 text-primary" />
+                <Card key={category.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer h-24">
+                  <CardContent className="p-4 h-full flex flex-col justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                      </div>
+                      <h3 className="font-medium text-sm">{category.name}</h3>
                     </div>
-                    <h3 className="font-medium text-sm mb-1">{category.name}</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground mt-auto">
                       {category.articles.length} article{category.articles.length !== 1 ? 's' : ''}
                     </p>
                   </CardContent>
@@ -240,8 +243,8 @@ const HomePage: React.FC = () => {
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
+            <Card className="h-24">
+              <CardContent className="py-8 text-center h-full flex flex-col justify-center">
                 <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No categories available</p>
               </CardContent>
