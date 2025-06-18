@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Bot, MessageSquare, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen } from 'lucide-react';
+import { Bot, Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -790,13 +790,6 @@ const Settings = () => {
                 AI Settings
               </TabsTrigger>
               <TabsTrigger
-                value="chat"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Chat Filter
-              </TabsTrigger>
-              <TabsTrigger
                 value="punishment"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
@@ -1326,14 +1319,6 @@ const Settings = () => {
                   </div>
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="chat">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
-                  <p className="text-muted-foreground">Chat Filter Settings Panel</p>
-                </div>
-              </CardContent>
             </TabsContent>
 
             <TabsContent value="punishment" className="space-y-6 p-6">
