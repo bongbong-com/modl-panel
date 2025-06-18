@@ -43,12 +43,15 @@ router.get(
   checkRole(['Super Admin', 'Admin']),
   async (req: Request, res: Response) => {
     try {
+      console.log('[Homepage Cards] GET request received');
       const HomepageCard = getHomepageCardModel(req);
+      console.log('[Homepage Cards] Model retrieved successfully');
 
       const cards = await HomepageCard.find()
         .sort({ ordinal: 1 })
-        .populate('category', 'name slug description')
         .lean();
+      
+      console.log('[Homepage Cards] Cards fetched:', cards.length);
 
       const formattedCards = cards.map(card => ({
         id: (card._id as any).toString(),
@@ -62,9 +65,10 @@ router.get(
         background_color: card.background_color,
         is_enabled: card.is_enabled,
         ordinal: card.ordinal,
-        category: (card as any).category
+        category: null // Temporarily removed populate
       }));
 
+      console.log('[Homepage Cards] Formatted cards:', formattedCards.length);
       res.status(200).json(formattedCards);
     } catch (error: any) {
       console.error('Error fetching homepage cards:', error);
