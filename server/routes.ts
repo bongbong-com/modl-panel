@@ -42,17 +42,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public settings endpoint - no authentication required
   app.get('/api/public/settings', async (req, res) => {
     try {
+      console.log('[Public Settings] Request received for /api/public/settings');
+      console.log('[Public Settings] serverDbConnection exists:', !!req.serverDbConnection);
+      
       if (!req.serverDbConnection) {
+        console.log('[Public Settings] No serverDbConnection, returning default values');
         return res.json({
           serverDisplayName: 'modl',
           panelIconUrl: null
         });
       }
 
+      console.log('[Public Settings] Attempting to find Settings document...');
       const SettingsModel = req.serverDbConnection.model('Settings');
       let settingsDoc = await SettingsModel.findOne({});
       
+      console.log('[Public Settings] Settings document found:', !!settingsDoc);
+      
       if (!settingsDoc || !settingsDoc.settings) {
+        console.log('[Public Settings] No settings document or settings data, returning defaults');
         return res.json({
           serverDisplayName: 'modl',
           panelIconUrl: null
@@ -60,13 +68,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const settings = Object.fromEntries(settingsDoc.settings);
+      console.log('[Public Settings] Raw settings object:', JSON.stringify(settings, null, 2));
       
-      res.json({
-        serverDisplayName: settings.serverDisplayName || 'modl',
-        panelIconUrl: settings.panelIconUrl || null
-      });
+      const result = {
+        serverDisplayName: settings.general?.serverDisplayName || settings.serverDisplayName || 'modl',
+        panelIconUrl: settings.general?.panelIconUrl || settings.panelIconUrl || null
+      };
+      
+      console.log('[Public Settings] Returning result:', result);
+      res.json(result);
     } catch (error) {
-      console.error('Error fetching public settings:', error);
+      console.error('[Public Settings] Error occurred:', error);
       res.json({
         serverDisplayName: 'modl',
         panelIconUrl: null

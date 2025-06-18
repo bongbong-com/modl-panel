@@ -9,20 +9,29 @@ export function usePublicSettings() {
     queryKey: ['/api/public/settings'],
     queryFn: async () => {
       try {
+        console.log('[usePublicSettings] Fetching from /api/public/settings...');
         const res = await fetch('/api/public/settings');
         
+        console.log('[usePublicSettings] Response status:', res.status, res.statusText);
+        
         if (!res.ok) {
+          const errorText = await res.text();
+          console.error('[usePublicSettings] Request failed:', res.status, errorText);
           throw new Error(`Failed to fetch public settings. Status: ${res.status}`);
         }
         
         const data = await res.json();
+        console.log('[usePublicSettings] Received data:', data);
         return data;
       } catch (error) {
+        console.error('[usePublicSettings] Error occurred:', error);
         // Return fallback values if the API fails
-        return {
+        const fallback = {
           serverDisplayName: 'modl',
           panelIconUrl: null
         };
+        console.log('[usePublicSettings] Using fallback values:', fallback);
+        return fallback;
       }
     },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes

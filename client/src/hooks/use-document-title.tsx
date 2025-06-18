@@ -41,9 +41,18 @@ export function useDocumentTitle() {
   const [location] = useLocation();
 
   useEffect(() => {
+    console.log('[useDocumentTitle] publicSettings:', publicSettings);
+    console.log('[useDocumentTitle] location:', location);
+    
     const serverDisplayName = publicSettings?.serverDisplayName || '';
     const panelIconUrl = publicSettings?.panelIconUrl;
     const pageName = getPageName(location);
+
+    console.log('[useDocumentTitle] Extracted values:', {
+      serverDisplayName,
+      panelIconUrl,
+      pageName
+    });
 
     // Update document title
     if (serverDisplayName) {
@@ -52,8 +61,11 @@ export function useDocumentTitle() {
       document.title = `${pageName} - modl`;
     }
 
+    console.log('[useDocumentTitle] Set document.title to:', document.title);
+
     // Update favicon if available
     if (panelIconUrl) {
+      console.log('[useDocumentTitle] Setting favicon to:', panelIconUrl);
       // Remove existing favicon links
       const existingFavicons = document.querySelectorAll('link[rel*="icon"]');
       existingFavicons.forEach(link => link.remove());
@@ -70,6 +82,8 @@ export function useDocumentTitle() {
       appleTouchIcon.rel = 'apple-touch-icon';
       appleTouchIcon.href = panelIconUrl;
       document.head.appendChild(appleTouchIcon);
+    } else {
+      console.log('[useDocumentTitle] No panelIconUrl available, skipping favicon update');
     }
   }, [publicSettings, location]);
 
