@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
-import { Search, Shield, MessageCircle, Phone, UserPlus, FileText, ExternalLink, ChevronRight, BookOpen, ChevronDown, LogIn, Sun, Moon, Monitor } from 'lucide-react';
+import { Search, Shield, MessageCircle, Phone, UserPlus, FileText, ExternalLink, ChevronRight, BookOpen, ChevronDown, LogIn, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useTheme } from 'next-themes';
 import serverLogo from '@/assets/server-logo.png';
 import * as LucideIcons from 'lucide-react';
@@ -224,29 +223,14 @@ const HomePage: React.FC = () => {
       {/* Header with Sign In and Theme Toggle - positioned at 3/4 from left edge */}
       <div className="absolute top-6 left-3/4 z-10 flex items-center gap-2">
         {/* Theme Toggle */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm" className="bg-card/80 hover:bg-card/90 text-foreground border-muted">
-              {theme === 'light' ? <Sun className="h-4 w-4" /> : 
-               theme === 'dark' ? <Moon className="h-4 w-4" /> : 
-               <Monitor className="h-4 w-4" />}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setTheme('light')}>
-              <Sun className="h-4 w-4 mr-2" />
-              Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')}>
-              <Moon className="h-4 w-4 mr-2" />
-              Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')}>
-              <Monitor className="h-4 w-4 mr-2" />
-              System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          className="bg-card/80 hover:bg-card/90 text-foreground border-muted"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
 
         {/* Sign In Button */}
         <Link href="/panel/auth">
