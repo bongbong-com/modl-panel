@@ -153,7 +153,7 @@ const HomePage: React.FC = () => {
 
     if (card.action_type === 'category_dropdown' && card.category) {
       return (
-        <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-56">
+        <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
           <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(card.id)}>
             <CardContent className="p-6 h-full flex flex-col">
               <div className="flex-1">
@@ -192,7 +192,7 @@ const HomePage: React.FC = () => {
       const url = card.action_url || '#';
       
       return (
-        <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-56">
+        <Card key={card.id} className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
           <CardContent className="p-6 text-center h-full flex flex-col justify-between">
             <div>
               <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
@@ -284,7 +284,7 @@ const HomePage: React.FC = () => {
               {isLoading ? (
                 // Loading skeleton
                 [...Array(4)].map((_, i) => (
-                  <Card key={i} className="animate-pulse h-56">
+                  <Card key={i} className="animate-pulse h-72">
                     <CardContent className="p-6 h-full flex flex-col">
                       <div className="w-14 h-14 bg-muted rounded-full mx-auto mb-4"></div>
                       <div className="h-6 bg-muted rounded w-3/4 mx-auto mb-3"></div>
@@ -299,7 +299,7 @@ const HomePage: React.FC = () => {
               ) : (
                 // Fallback to default cards if no custom cards are configured
                 <>
-                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-56">
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
                         <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
@@ -316,7 +316,7 @@ const HomePage: React.FC = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-56">
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
                         <div className="w-14 h-14 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-amber-500/20 transition-colors">
@@ -333,7 +333,7 @@ const HomePage: React.FC = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-56">
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
                         <div className="w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-500/20 transition-colors">
@@ -348,7 +348,7 @@ const HomePage: React.FC = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-56">
+                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-72">
                     <CardContent className="p-6 text-center h-full flex flex-col justify-between">
                       <div>
                         <div className="w-14 h-14 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-500/20 transition-colors">
@@ -368,60 +368,6 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Knowledge Base Categories */}
-      <section className="py-8 px-4">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">Browse Knowledge Base</h2>
-          {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <Card key={i} className="animate-pulse h-32">
-                  <CardContent className="p-6 h-full flex flex-col">
-                    <div className="h-4 bg-muted rounded w-3/4 mb-3"></div>
-                    <div className="h-3 bg-muted rounded w-full mb-2"></div>
-                    <div className="h-2 bg-muted rounded w-2/3 mt-auto"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : allCategories.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {allCategories.map((category: CategoryWithArticles) => (
-                <Link key={category.id} href={`/knowledgebase?category=${category.slug}`}>
-                  <Card className="group hover:shadow-md transition-all duration-300 hover:-translate-y-1 cursor-pointer h-32">
-                    <CardContent className="p-6 h-full flex flex-col justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                          <BookOpen className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-base mb-1 truncate">{category.name}</h3>
-                          {category.description && (
-                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{category.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-auto">
-                        {category.articles.length} article{category.articles.length !== 1 ? 's' : ''}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <Card className="h-32">
-              <CardContent className="py-8 text-center h-full flex flex-col justify-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No categories available</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </section>
     </div>
   );
 };
-
-export default HomePage;
