@@ -76,6 +76,25 @@ const AuthPage = () => {
     }
   }, [user, setLocation]);
 
+  // Show message if redirected after provisioning completion
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const message = urlParams.get('message');
+    
+    if (message === 'provisioning_complete_login_required') {
+      toast({
+        title: "🎉 Server Setup Complete!",
+        description: "Your server has been successfully provisioned. Please log in to access your panel and start configuring your settings.",
+        duration: 8000,
+      });
+      
+      // Clean up URL parameter
+      urlParams.delete('message');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [toast]);
+
   // Handle login form submission
   const onLoginSubmit = async (values: LoginFormValues) => {
     if (loginStep === 'email') {

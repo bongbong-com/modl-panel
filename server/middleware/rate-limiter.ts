@@ -39,9 +39,9 @@ export const globalRateLimit: RateLimitRequestHandler = rateLimit({
 // Strict rate limit for registration and email verification: 1 request per minute per IP
 export const strictRateLimit: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 1, // Limit each IP to 1 request per windowMs
+  max: 4, // Limit each IP to 1 request per windowMs
   message: {
-    error: 'Only one request allowed per minute for this endpoint. Please wait before trying again.',
+    error: 'Only four requests allowed per minute for this endpoint. Please wait before trying again.',
     retryAfter: 60,
     details: 'This strict limit helps prevent abuse of sensitive operations.'
   },

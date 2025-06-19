@@ -59,20 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     checkSession();
-
-    // Check if user is coming from provisioning and force session refresh
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('fromProvisioning') === 'true') {
-      // Remove the parameter from URL
-      urlParams.delete('fromProvisioning');
-      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-      window.history.replaceState({}, '', newUrl);
-      
-      // Force session refresh after a short delay
-      setTimeout(() => {
-        checkSession();
-      }, 1000);
-    }
   }, []);
 
   // Function to manually refresh session

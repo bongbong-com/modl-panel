@@ -46,12 +46,20 @@ export function useDocumentTitle() {
     
     const serverDisplayName = publicSettings?.serverDisplayName || '';
     const panelIconUrl = publicSettings?.panelIconUrl;
+    const homepageIconUrl = publicSettings?.homepageIconUrl;
     const pageName = getPageName(location);
+
+    // Determine which icon to use based on the route
+    const isHomepageRoute = !location.startsWith('/panel');
+    const iconUrl = isHomepageRoute ? homepageIconUrl : panelIconUrl;
 
     console.log('[useDocumentTitle] Extracted values:', {
       serverDisplayName,
       panelIconUrl,
-      pageName
+      homepageIconUrl,
+      pageName,
+      isHomepageRoute,
+      iconUrl
     });
 
     // Update document title
@@ -64,8 +72,8 @@ export function useDocumentTitle() {
     console.log('[useDocumentTitle] Set document.title to:', document.title);
 
     // Update favicon if available
-    if (panelIconUrl) {
-      console.log('[useDocumentTitle] Setting favicon to:', panelIconUrl);
+    if (iconUrl) {
+      console.log('[useDocumentTitle] Setting favicon to:', iconUrl);
       // Remove existing favicon links
       const existingFavicons = document.querySelectorAll('link[rel*="icon"]');
       existingFavicons.forEach(link => link.remove());
@@ -74,16 +82,16 @@ export function useDocumentTitle() {
       const link = document.createElement('link');
       link.rel = 'icon';
       link.type = 'image/x-icon';
-      link.href = panelIconUrl;
+      link.href = iconUrl;
       document.head.appendChild(link);
 
       // Also add apple-touch-icon for mobile
       const appleTouchIcon = document.createElement('link');
       appleTouchIcon.rel = 'apple-touch-icon';
-      appleTouchIcon.href = panelIconUrl;
+      appleTouchIcon.href = iconUrl;
       document.head.appendChild(appleTouchIcon);
     } else {
-      console.log('[useDocumentTitle] No panelIconUrl available, skipping favicon update');
+      console.log('[useDocumentTitle] No iconUrl available, skipping favicon update');
     }
   }, [publicSettings, location]);
 

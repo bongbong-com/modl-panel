@@ -169,58 +169,25 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
       }
 
       if (server.provisioningStatus === 'completed') {
-        let autoLoginSuccess = false;
-        let autoLoginMessage = `Server '${serverName}' is provisioned and ready.`;
-        let responseUser = null;
+        // Server is provisioned and ready - no auto-login, users must authenticate normally
+        const message = `Server '${serverName}' is provisioned and ready. Please log in to access your panel.`;
 
-        if (clientSignInToken &&
-            server.provisioningSignInToken &&
-            clientSignInToken === server.provisioningSignInToken &&
-            server.provisioningSignInTokenExpiresAt &&
-            new Date() < new Date(server.provisioningSignInTokenExpiresAt)) {          // Token is valid, attempt auto-login
-          if (req.session && server.adminEmail) {
-            const adminEmail = server.adminEmail;
-            const username = adminEmail.split('@')[0] || 'admin';
-
-            // Type assertion to work around TypeScript language server issues
-            const session = req.session as any;
-            session.email = adminEmail;
-            session.admin = true;
-            session.username = username;
-            session.userId = adminEmail;
-            session.role = 'Admin'; // Set proper role for auth middleware
-
-            try {
-              await req.session.save();
-              autoLoginSuccess = true;
-              autoLoginMessage = `Server '${serverName}' is provisioned and you have been automatically logged in. Redirecting...`;
-              responseUser = { id: adminEmail, email: adminEmail, username: username, admin: true };
-            } catch (sessionError: any) {
-              console.error(`[verify-provision] Session save error for ${adminEmail} after provisioning ${serverName} (token was valid):`, sessionError);
-              autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login failed due to session error: ${sessionError.message}`;
-            }
-          } else {
-            console.warn(`[verify-provision] Could not auto-login admin for ${serverName}. Session or adminEmail missing, though token was valid.`);
-            autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login setup error (session/email).`;
+        // Clear the provisioning sign-in token to prevent any potential misuse
+        if (server.provisioningSignInToken || server.provisioningSignInTokenExpiresAt) {
+          server.provisioningSignInToken = undefined;
+          server.provisioningSignInTokenExpiresAt = undefined;
+          try {
+            await server.save();
+          } catch (saveError: any) {
+            console.error(`[verify-provision] Error clearing provisioningSignInToken for ${serverName}:`, saveError);
+            // Non-critical for the response, but log it.
           }
-        } else if (clientSignInToken) {
-          autoLoginMessage = `Server '${serverName}' is provisioned. Auto-login failed (invalid/expired token). Please log in manually.`;
-        }
-
-        // Clear the provisioning sign-in token regardless of login success to prevent reuse
-        server.provisioningSignInToken = undefined;
-        server.provisioningSignInTokenExpiresAt = undefined;
-        try {
-          await server.save();
-        } catch (saveError: any) {
-          console.error(`[verify-provision] Error clearing provisioningSignInToken for ${serverName}:`, saveError);
-          // Non-critical for the response, but log it.
         }
         
         return res.json({
           status: 'completed',
-          message: autoLoginMessage,
-          user: responseUser // Will be null if auto-login failed or wasn't attempted
+          message: message,
+          user: null // No user session created - users must authenticate normally
         });
       }
 

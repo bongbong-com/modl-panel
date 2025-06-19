@@ -1442,12 +1442,12 @@ const Settings = () => {
                   Core punishment types cannot be modified.
                 </p>
 
-                {/* NEW: Fixed Punishment Types Section */}
+                {/* Administrative Punishment Types Section (Ordinals 0-5) */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-base font-medium flex items-center">
                       <Lock className="h-4 w-4 mr-2 text-gray-500" />
-                      Core Punishment Types
+                      Core Administrative Punishments
                     </h4>
                     <Button
                       variant="ghost"
@@ -1462,7 +1462,7 @@ const Settings = () => {
                   {showCorePunishments && (
                     <div className="space-y-2 mb-6">
                       {punishmentTypes
-                        .filter(pt => !pt.isCustomizable)
+                        .filter(pt => pt.ordinal >= 0 && pt.ordinal <= 5)
                         .sort((a, b) => a.ordinal - b.ordinal)
                         .map(type => (
                           <div key={type.id} className="flex items-center justify-between p-2 border rounded-md bg-card">
@@ -1480,7 +1480,7 @@ const Settings = () => {
 
                   {!showCorePunishments && (
                     <div className="text-sm text-muted-foreground mb-6">
-                      Click 'Show' to view core punishment types that cannot be modified or removed.
+                      Click 'Show' to view administrative punishment types (ordinals 0-5) that cannot be modified or removed.
                     </div>
                   )}
                 </div>
@@ -1493,7 +1493,7 @@ const Settings = () => {
                     </h4>
                     <div className="space-y-2">
                       {punishmentTypes
-                        .filter(pt => pt.category === 'Gameplay' && pt.isCustomizable)
+                        .filter(pt => pt.category === 'Gameplay' && pt.ordinal > 5)
                         .sort((a, b) => a.ordinal - b.ordinal)
                         .map(type => (
                           <div key={type.id} className="flex items-center justify-between p-2 border rounded-md bg-card hover:bg-accent/50">
@@ -1538,7 +1538,7 @@ const Settings = () => {
                     </h4>
                     <div className="space-y-2">
                       {punishmentTypes
-                        .filter(pt => pt.category === 'Social' && pt.isCustomizable)
+                        .filter(pt => pt.category === 'Social' && pt.ordinal > 5)
                         .sort((a, b) => a.ordinal - b.ordinal)
                         .map(type => (
                           <div key={type.id} className="flex items-center justify-between p-2 border rounded-md bg-card hover:bg-accent/50">
@@ -1620,8 +1620,9 @@ const Settings = () => {
                   <h4 className="text-sm font-medium mb-2">About Punishment Types</h4>
                   <p className="text-xs text-muted-foreground">
                     Punishment types are used throughout the system for player moderation. The ordinal values (numbers)
-                    are used for storage and should remain consistent. Core punishment types (Kick, Manual Mute,
-                    Manual Ban, Security Ban, Linked Ban, and Blacklist) cannot be modified or removed.
+                    are used for storage and should remain consistent. Administrative punishment types (ordinals 0-5: Kick, Manual Mute,
+                    Manual Ban, Security Ban, Linked Ban, and Blacklist) appear in the Core Administrative section and cannot be modified or removed.
+                    All other punishment types are customizable.
                   </p>
                 </div>
               </div>
