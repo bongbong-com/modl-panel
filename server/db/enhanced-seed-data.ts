@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
+import { createDefaultSettings } from '../routes/settings-routes';
+import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
@@ -44,7 +46,7 @@ function generateUuid(): string {
 }
 
 // Seed the database with initial data including 20 players and 15 tickets
-export async function seedEnhancedDatabase() {
+export async function seedEnhancedDatabase(dbConnection?: Connection) {
   console.log('Seeding database with enhanced mock data...');
   
   try {
@@ -69,44 +71,10 @@ export async function seedEnhancedDatabase() {
     const regions = ['West', 'East', 'North', 'South', 'Central'];
     const asns = ['AS12345', 'AS67890', 'AS54321', 'AS09876', 'AS13579'];
     
-    // Define punishment types with ordinals
-    // Each type has an ordinal: number value for storage
-    const punishmentTypes = [
-      { ordinal: 0, name: 'Kick', category: 'Administrative' },
-      { ordinal: 1, name: 'Manual Mute', category: 'Administrative' },
-      { ordinal: 2, name: 'Manual Ban', category: 'Administrative' },
-      { ordinal: 3, name: 'Security Ban', category: 'Administrative' },
-      { ordinal: 4, name: 'Linked Ban', category: 'Administrative' },
-      { ordinal: 5, name: 'Blacklist', category: 'Administrative' },
-      { ordinal: 6, name: 'Chat Abuse', category: 'Social' },
-      { ordinal: 7, name: 'Anti Social', category: 'Social' },
-      { ordinal: 8, name: 'Targeting', category: 'Social' },
-      { ordinal: 9, name: 'Bad Content', category: 'Social' },
-      { ordinal: 10, name: 'Bad Skin', category: 'Social' },
-      { ordinal: 11, name: 'Bad Name', category: 'Social' },
-      { ordinal: 12, name: 'Team Abuse', category: 'Gameplay' },
-      { ordinal: 13, name: 'Game Abuse', category: 'Gameplay' },
-      { ordinal: 14, name: 'Systems Abuse', category: 'Gameplay' },
-      { ordinal: 15, name: 'Account Abuse', category: 'Gameplay' },
-      { ordinal: 16, name: 'Game Trading', category: 'Gameplay' },
-      { ordinal: 17, name: 'Cheating', category: 'Gameplay' }
-    ];
-    
-    // Initialize settings for punishment types if not already set
-    const existingSettings = await Settings.findOne();
-    if (!existingSettings) {
-      const settings = new Settings({
-        settings: new Map()
-      });
-      if (settings.settings) {
-        settings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
-      }
-      await settings.save();
-      console.log('Initialized punishment types in settings');
-    } else if (existingSettings.settings && !existingSettings.settings.has('punishmentTypes')) {
-      existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
-      await existingSettings.save();
-      console.log('Added punishment types to existing settings');
+    // Initialize default settings including punishment types
+    if (dbConnection) {
+      await createDefaultSettings(dbConnection);
+      console.log('Initialized default settings with punishment types');
     }
     
     const punishmentReasons = [

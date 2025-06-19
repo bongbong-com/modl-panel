@@ -13,6 +13,7 @@ import {
 import { seedDefaultHomepageCards } from '../db/seed-data';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 import { strictRateLimit } from '../middleware/rate-limiter';
+import { createDefaultSettings } from './settings-routes';
 
 interface IModlServer extends Document {
   serverName: string;
@@ -45,37 +46,8 @@ export async function provisionNewServerInstance(
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
 
-  const Settings = dbConnection.model('Settings');
-  
-  const existingSettings = await Settings.findOne();      const punishmentTypes = [
-        { ordinal: 0, name: 'Kick', category: 'Administrative' },
-        { ordinal: 1, name: 'Manual Mute', category: 'Administrative' },
-        { ordinal: 2, name: 'Manual Ban', category: 'Administrative' },
-        { ordinal: 3, name: 'Security Ban', category: 'Administrative' },
-        { ordinal: 4, name: 'Linked Ban', category: 'Administrative' },
-        { ordinal: 5, name: 'Blacklist', category: 'Administrative' },
-        { ordinal: 6, name: 'Chat Abuse', category: 'Social' },
-        { ordinal: 7, name: 'Anti Social', category: 'Social' },
-        { ordinal: 8, name: 'Targeting', category: 'Social' },
-        { ordinal: 9, name: 'Bad Content', category: 'Social' },
-        { ordinal: 10, name: 'Bad Skin', category: 'Social' },
-        { ordinal: 11, name: 'Bad Name', category: 'Social' },
-        { ordinal: 12, name: 'Team Abuse', category: 'Gameplay' },
-        { ordinal: 13, name: 'Game Abuse', category: 'Gameplay' },
-        { ordinal: 14, name: 'Systems Abuse', category: 'Gameplay' },
-        { ordinal: 15, name: 'Account Abuse', category: 'Gameplay' },
-        { ordinal: 16, name: 'Game Trading', category: 'Gameplay' },
-        { ordinal: 17, name: 'Cheating', category: 'Gameplay' }
-      ];  if (!existingSettings) {
-    const settings = new Settings({
-      settings: new Map()
-    });
-    settings.settings!.set('punishmentTypes', JSON.stringify(punishmentTypes));
-    await settings.save();
-  } else if (existingSettings.settings && !existingSettings.settings.has('punishmentTypes')) {
-    existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
-    await existingSettings.save();
-  }
+  // Create default settings using the centralized function
+  await createDefaultSettings(dbConnection, serverName);
 
   // Seed default homepage cards
   await seedDefaultHomepageCards(dbConnection);

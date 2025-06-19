@@ -341,7 +341,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     Gameplay: PunishmentType[]
   }>({
     Administrative: [
-      // Default fallback Administrative punishments in case settings don't load
+      // Administrative punishment types (ordinals 0-5, not customizable) - minimal fallback
       { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
       { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
       { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
@@ -350,22 +350,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
     ],
     Social: [
-      // Default fallback Social punishments
-      { id: 6, name: 'Chat Abuse', category: 'Social', isCustomizable: true, ordinal: 6 },
-      { id: 7, name: 'Anti Social', category: 'Social', isCustomizable: true, ordinal: 7 },
-      { id: 8, name: 'Targeting', category: 'Social', isCustomizable: true, ordinal: 8 },
-      { id: 9, name: 'Bad Content', category: 'Social', isCustomizable: true, ordinal: 9 },
-      { id: 10, name: 'Bad Skin', category: 'Social', isCustomizable: true, ordinal: 10 },
-      { id: 11, name: 'Bad Name', category: 'Social', isCustomizable: true, ordinal: 11 }
+      // Social punishment types are loaded from server during provisioning
     ],
     Gameplay: [
-      // Default fallback Gameplay punishments
-      { id: 12, name: 'Team Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 12 },
-      { id: 13, name: 'Game Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 13 },
-      { id: 14, name: 'Systems Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 14 },
-      { id: 15, name: 'Account Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 15 },
-      { id: 16, name: 'Game Trading', category: 'Gameplay', isCustomizable: true, ordinal: 16 },
-      { id: 17, name: 'Cheating', category: 'Gameplay', isCustomizable: true, ordinal: 17 }
+      // Gameplay punishment types are loaded from server during provisioning
     ]
   });
   

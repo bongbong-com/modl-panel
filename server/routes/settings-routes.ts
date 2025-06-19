@@ -83,7 +83,7 @@ router.use(isAuthenticated);
 // Mount domain routes
 router.use('/domain', domainRoutes);
 
-async function createDefaultSettings(dbConnection: Connection, serverName?: string): Promise<HydratedDocument<ISettingsDocument>> {
+export async function createDefaultSettings(dbConnection: Connection, serverName?: string): Promise<HydratedDocument<ISettingsDocument>> {
   try {
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const defaultSettingsMap = new Map<string, any>();
