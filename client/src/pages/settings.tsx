@@ -96,20 +96,46 @@ const Settings = () => {
   // Punishment types state
   // State for all settings fields
   const [punishmentTypes, setPunishmentTypesState] = useState<PunishmentType[]>([
-    // Fixed punishment types (not customizable)
+    // Administrative punishment types (IDs 0-5, not customizable)
     { id: 0, name: 'Kick', category: 'Core', isCustomizable: false, ordinal: 0 },
     { id: 1, name: 'Manual Mute', category: 'Core', isCustomizable: false, ordinal: 1 },
     { id: 2, name: 'Manual Ban', category: 'Core', isCustomizable: false, ordinal: 2 },
     { id: 3, name: 'Security Ban', category: 'Core', isCustomizable: false, ordinal: 3 },
     { id: 4, name: 'Linked Ban', category: 'Core', isCustomizable: false, ordinal: 4 },
     { id: 5, name: 'Blacklist', category: 'Core', isCustomizable: false, ordinal: 5 },
-    // Customizable punishment types
+    // Social punishment types (customizable, ordered alphabetically)
     {
-      id: 6,
-      name: 'Bad Skin',
+      id: 9,
+      name: 'Anti Social',
       category: 'Social',
       isCustomizable: true,
       ordinal: 6,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+      },
+      points: 3
+    },
+    {
+      id: 11,
+      name: 'Bad Content',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 7,
+      durations: {
+        low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+      },
+      points: 5
+    },
+    {
+      id: 7,
+      name: 'Bad Name',
+      category: 'Social',
+      isCustomizable: true,
+      ordinal: 8,
       durations: {
         low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
         regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
@@ -118,11 +144,11 @@ const Settings = () => {
       points: 2
     },
     {
-      id: 7,
-      name: 'Bad Name',
+      id: 6,
+      name: 'Bad Skin',
       category: 'Social',
       isCustomizable: true,
-      ordinal: 7,
+      ordinal: 9,
       durations: {
         low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
         regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
@@ -135,7 +161,7 @@ const Settings = () => {
       name: 'Chat Abuse',
       category: 'Social',
       isCustomizable: true,
-      ordinal: 8,
+      ordinal: 10,
       durations: {
         low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
         regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
@@ -144,24 +170,11 @@ const Settings = () => {
       points: 2
     },
     {
-      id: 9,
-      name: 'Anti Social',
-      category: 'Social',
-      isCustomizable: true,
-      ordinal: 9,
-      durations: {
-        low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
-        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-        severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
-      },
-      points: 3
-    },
-    {
       id: 10,
       name: 'Targeting',
       category: 'Social',
       isCustomizable: true,
-      ordinal: 10,
+      ordinal: 11,
       durations: {
         low: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
         regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
@@ -169,57 +182,45 @@ const Settings = () => {
       },
       points: 4
     },
+    // Gameplay punishment types (customizable, ordered alphabetically)
     {
-      id: 11,
-      name: 'Bad Content',
-      category: 'Social',
-      isCustomizable: true,
-      ordinal: 11,
-      durations: {
-        low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-        regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-        severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
-      },
-      points: 5
-    },
-    {
-      id: 12,
-      name: 'Team Abuse',
+      id: 16,
+      name: 'Account Abuse',
       category: 'Gameplay',
       isCustomizable: true,
       ordinal: 12,
       durations: {
-        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-        severe: { first: { value: 4, unit: 'days' }, medium: { value: 10, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+        low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+        regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
+        severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 120, unit: 'days' } }
       },
-      points: 2
-    },
-    {
-      id: 13,
-      name: 'Game Abuse',
-      category: 'Gameplay',
-      isCustomizable: true,
-      ordinal: 13,
-      durations: {
-        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-        regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-        severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
-      },
-      points: 4
+      points: 6
     },
     {
       id: 14,
       name: 'Cheating',
       category: 'Gameplay',
       isCustomizable: true,
-      ordinal: 14,
+      ordinal: 13,
       durations: {
         low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
         regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
         severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 180, unit: 'days' } }
       },
       points: 7
+    },
+    {
+      id: 13,
+      name: 'Game Abuse',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 14,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+        severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+      },
+      points: 4
     },
     {
       id: 15,
@@ -235,30 +236,30 @@ const Settings = () => {
       points: 5
     },
     {
-      id: 16,
-      name: 'Account Abuse',
+      id: 17,
+      name: 'Systems Abuse',
       category: 'Gameplay',
       isCustomizable: true,
       ordinal: 16,
-      durations: {
-        low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-        regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
-        severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 120, unit: 'days' } }
-      },
-      points: 6
-    },
-    {
-      id: 17,
-      name: 'Scamming',
-      category: 'Social',
-      isCustomizable: true,
-      ordinal: 17,
       durations: {
         low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
         regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
         severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
       },
       points: 5
+    },
+    {
+      id: 12,
+      name: 'Team Abuse',
+      category: 'Gameplay',
+      isCustomizable: true,
+      ordinal: 17,
+      durations: {
+        low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+        regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+        severe: { first: { value: 4, unit: 'days' }, medium: { value: 10, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+      },
+      points: 2
     }
   ]);
   const [newPunishmentName, setNewPunishmentNameState] = useState('');
