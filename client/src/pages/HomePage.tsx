@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useTheme } from 'next-themes';
 import serverLogo from '@/assets/server-logo.png';
 import * as LucideIcons from 'lucide-react';
+import { usePublicSettings } from '@/hooks/use-public-settings';
 
 // Types for knowledgebase data
 interface ArticleStub {
@@ -56,6 +57,7 @@ const HomePage: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const { theme, setTheme } = useTheme();
+  const { data: publicSettings } = usePublicSettings();
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -246,7 +248,11 @@ const HomePage: React.FC = () => {
         <div className="max-w-6xl mx-auto text-center">
           {/* Large Logo */}
           <div className="w-32 h-32 mx-auto mb-6">
-            <img src={serverLogo} alt="COBL Logo" className="w-full h-full object-contain" />
+            <img 
+              src={publicSettings?.homepageIconUrl || serverLogo} 
+              alt={publicSettings?.serverDisplayName || "Server Logo"} 
+              className="w-full h-full object-contain" 
+            />
           </div>
           
           {/* Descriptive Text */}

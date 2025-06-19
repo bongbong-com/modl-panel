@@ -49,7 +49,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[Public Settings] No serverDbConnection, returning default values');
         return res.json({
           serverDisplayName: 'modl',
-          panelIconUrl: null
+          panelIconUrl: null,
+          homepageIconUrl: null
         });
       }
 
@@ -63,7 +64,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[Public Settings] No settings document or settings data, returning defaults');
         return res.json({
           serverDisplayName: 'modl',
-          panelIconUrl: null
+          panelIconUrl: null,
+          homepageIconUrl: null
         });
       }
 
@@ -72,7 +74,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = {
         serverDisplayName: settings.general?.serverDisplayName || settings.serverDisplayName || 'modl',
-        panelIconUrl: settings.general?.panelIconUrl || settings.panelIconUrl || null
+        panelIconUrl: settings.general?.panelIconUrl || settings.panelIconUrl || null,
+        homepageIconUrl: settings.general?.homepageIconUrl || settings.homepageIconUrl || null
       };
       
       console.log('[Public Settings] Returning result:', result);
@@ -81,7 +84,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[Public Settings] Error occurred:', error);
       res.json({
         serverDisplayName: 'modl',
-        panelIconUrl: null
+        panelIconUrl: null,
+        homepageIconUrl: null
       });
     }
   });

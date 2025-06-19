@@ -28,7 +28,8 @@ export function usePublicSettings() {
         // Return fallback values if the API fails
         const fallback = {
           serverDisplayName: 'modl',
-          panelIconUrl: null
+          panelIconUrl: null,
+          homepageIconUrl: null
         };
         console.log('[usePublicSettings] Using fallback values:', fallback);
         return fallback;

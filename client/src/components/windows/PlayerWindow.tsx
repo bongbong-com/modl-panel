@@ -58,7 +58,7 @@ interface PlayerInfo {
 interface PunishmentType {
   id: number;
   name: string;
-  category: 'Gameplay' | 'Social' | 'Core';
+  category: 'Gameplay' | 'Social' | 'Administrative';
   isCustomizable: boolean;
   ordinal: number;
   durations?: {
@@ -336,36 +336,36 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   
   // Parse punishment types from settings
   const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
-    Core: PunishmentType[], 
+    Administrative: PunishmentType[], 
     Social: PunishmentType[], 
     Gameplay: PunishmentType[]
   }>({
-    Core: [
-      // Default fallback Core punishments in case settings don't load
-      { id: 0, name: 'Kick', category: 'Core', isCustomizable: false, ordinal: 0 },
-      { id: 1, name: 'Manual Mute', category: 'Core', isCustomizable: false, ordinal: 1 },
-      { id: 2, name: 'Manual Ban', category: 'Core', isCustomizable: false, ordinal: 2 },
-      { id: 3, name: 'Security Ban', category: 'Core', isCustomizable: false, ordinal: 3 },
-      { id: 4, name: 'Linked Ban', category: 'Core', isCustomizable: false, ordinal: 4 },
-      { id: 5, name: 'Blacklist', category: 'Core', isCustomizable: false, ordinal: 5 }
+    Administrative: [
+      // Default fallback Administrative punishments in case settings don't load
+      { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
+      { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
+      { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
+      { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
+      { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
+      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
     ],
     Social: [
       // Default fallback Social punishments
       { id: 6, name: 'Chat Abuse', category: 'Social', isCustomizable: true, ordinal: 6 },
       { id: 7, name: 'Anti Social', category: 'Social', isCustomizable: true, ordinal: 7 },
       { id: 8, name: 'Targeting', category: 'Social', isCustomizable: true, ordinal: 8 },
-      { id: 9, name: 'Bad Skin', category: 'Social', isCustomizable: true, ordinal: 9 },
-      { id: 10, name: 'Bad Name', category: 'Social', isCustomizable: true, ordinal: 10 },
-      { id: 11, name: 'Bad Content', category: 'Social', isCustomizable: true, ordinal: 11 }
+      { id: 9, name: 'Bad Content', category: 'Social', isCustomizable: true, ordinal: 9 },
+      { id: 10, name: 'Bad Skin', category: 'Social', isCustomizable: true, ordinal: 10 },
+      { id: 11, name: 'Bad Name', category: 'Social', isCustomizable: true, ordinal: 11 }
     ],
     Gameplay: [
       // Default fallback Gameplay punishments
       { id: 12, name: 'Team Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 12 },
       { id: 13, name: 'Game Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 13 },
-      { id: 14, name: 'Cheating', category: 'Gameplay', isCustomizable: true, ordinal: 14 },
-      { id: 15, name: 'Game Trading', category: 'Gameplay', isCustomizable: true, ordinal: 15 },
-      { id: 16, name: 'Account Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 16 },
-      { id: 17, name: 'Scamming', category: 'Gameplay', isCustomizable: true, ordinal: 17 }
+      { id: 14, name: 'Systems Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 14 },
+      { id: 15, name: 'Account Abuse', category: 'Gameplay', isCustomizable: true, ordinal: 15 },
+      { id: 16, name: 'Game Trading', category: 'Gameplay', isCustomizable: true, ordinal: 16 },
+      { id: 17, name: 'Cheating', category: 'Gameplay', isCustomizable: true, ordinal: 17 }
     ]
   });
   
@@ -385,7 +385,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         if (Array.isArray(typesData)) {
           // Group punishment types by category
           const categorized = {
-            Core: typesData.filter(pt => pt.category === 'Core').sort((a, b) => a.ordinal - b.ordinal),
+            Administrative: typesData.filter(pt => pt.category === 'Administrative').sort((a, b) => a.ordinal - b.ordinal),
             Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
             Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
           };
@@ -393,7 +393,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           console.log('Punishment types categorized:', categorized);
           
           // Only update if we have data in at least one category
-          if (categorized.Core.length > 0 || categorized.Social.length > 0 || categorized.Gameplay.length > 0) {
+          if (categorized.Administrative.length > 0 || categorized.Social.length > 0 || categorized.Gameplay.length > 0) {
             setPunishmentTypesByCategory(categorized);
           } else {
             console.warn('No punishment types found in any category, keeping defaults');
@@ -726,11 +726,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 <>
                   {/* Stage 1: Category Selection */}
                   <div className="space-y-3">
-                    {/* Core Punishment Types */}
+                    {/* Administrative Punishment Types */}
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">Core Actions</label>
+                      <label className="text-xs font-medium text-muted-foreground">Administrative Actions</label>
                       <div className="grid grid-cols-6 gap-2">
-                        {punishmentTypesByCategory.Core.map(type => (
+                        {punishmentTypesByCategory.Administrative.map(type => (
                           <Button 
                             key={type.id}
                             variant="outline" 
@@ -1668,13 +1668,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     </>
                   )}
 
-                  {/* Team Abuse, Game Abuse, Cheating, Game Trading, Account Abuse, Scamming */}
+                  {/* Team Abuse, Game Abuse, Cheating, Game Trading, Account Abuse, Systems Abuse */}
                   {(playerInfo.selectedPunishmentCategory === 'Team Abuse' || 
                     playerInfo.selectedPunishmentCategory === 'Game Abuse' || 
                     playerInfo.selectedPunishmentCategory === 'Cheating' ||
                     playerInfo.selectedPunishmentCategory === 'Game Trading' ||
                     playerInfo.selectedPunishmentCategory === 'Account Abuse' ||
-                    playerInfo.selectedPunishmentCategory === 'Scamming') && (
+                    playerInfo.selectedPunishmentCategory === 'Systems Abuse') && (
                     <>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Severity</label>

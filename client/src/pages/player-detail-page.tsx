@@ -20,7 +20,7 @@ import { toast } from '@/hooks/use-toast';
 interface PunishmentType {
   id: number;
   name: string;
-  category: 'Gameplay' | 'Social' | 'Core';
+  category: 'Gameplay' | 'Social' | 'Administrative';
   isCustomizable: boolean;
   ordinal: number;
   durations?: {
@@ -329,11 +329,11 @@ const PlayerDetailPage = () => {
   
   // Parse punishment types from settings
   const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
-    Core: PunishmentType[], 
+    Administrative: PunishmentType[], 
     Social: PunishmentType[], 
     Gameplay: PunishmentType[]
   }>({
-    Core: [],
+    Administrative: [],
     Social: [],
     Gameplay: []
   });
@@ -350,7 +350,7 @@ const PlayerDetailPage = () => {
         if (Array.isArray(typesData)) {
           // Group punishment types by category
           const categorized = {
-            Core: typesData.filter(pt => pt.category === 'Core').sort((a, b) => a.ordinal - b.ordinal),
+            Administrative: typesData.filter(pt => pt.category === 'Administrative').sort((a, b) => a.ordinal - b.ordinal),
             Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
             Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
           };
@@ -641,11 +641,11 @@ const PlayerDetailPage = () => {
             <div className="bg-muted/30 p-4 rounded-lg space-y-4">
               {!playerInfo.selectedPunishmentCategory ? (
       <div className="space-y-3">
-        {/* Core Punishment Types */}
+        {/* Administrative Punishment Types */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Core Actions</label>
+          <label className="text-xs font-medium text-muted-foreground">Administrative Actions</label>
           <div className="grid grid-cols-3 gap-2">
-            {punishmentTypesByCategory.Core.map(type => (
+            {punishmentTypesByCategory.Administrative.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
@@ -1583,13 +1583,13 @@ const PlayerDetailPage = () => {
           </>
         )}
 
-        {/* Team Abuse, Game Abuse, Cheating, Game Trading, Account Abuse, Scamming */}
+        {/* Team Abuse, Game Abuse, Cheating, Game Trading, Account Abuse, Systems Abuse */}
         {(playerInfo.selectedPunishmentCategory === 'Team Abuse' || 
           playerInfo.selectedPunishmentCategory === 'Game Abuse' || 
           playerInfo.selectedPunishmentCategory === 'Cheating' ||
           playerInfo.selectedPunishmentCategory === 'Game Trading' ||
           playerInfo.selectedPunishmentCategory === 'Account Abuse' ||
-          playerInfo.selectedPunishmentCategory === 'Scamming') && (
+          playerInfo.selectedPunishmentCategory === 'Systems Abuse') && (
           <>
             <div className="space-y-2">
               <label className="text-sm font-medium">Severity</label>

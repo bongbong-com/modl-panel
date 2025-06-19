@@ -72,24 +72,24 @@ export async function seedEnhancedDatabase() {
     // Define punishment types with ordinals
     // Each type has an ordinal: number value for storage
     const punishmentTypes = [
-      { ordinal: 0, name: 'Kick', category: 'Gameplay' },
-      { ordinal: 1, name: 'Manual Mute', category: 'Social' },
-      { ordinal: 2, name: 'Manual Ban', category: 'Gameplay' },
-      { ordinal: 3, name: 'Security Ban', category: 'Gameplay' },
-      { ordinal: 4, name: 'Linked Ban', category: 'Gameplay' },
-      { ordinal: 5, name: 'Blacklist', category: 'Gameplay' },
-      { ordinal: 6, name: 'Bad Skin', category: 'Social' },
-      { ordinal: 7, name: 'Bad Name', category: 'Social' },
-      { ordinal: 8, name: 'Chat Abuse', category: 'Social' },
-      { ordinal: 9, name: 'Anti Social', category: 'Social' },
-      { ordinal: 10, name: 'Targeting', category: 'Social' },
-      { ordinal: 11, name: 'Bad Content', category: 'Social' },
+      { ordinal: 0, name: 'Kick', category: 'Administrative' },
+      { ordinal: 1, name: 'Manual Mute', category: 'Administrative' },
+      { ordinal: 2, name: 'Manual Ban', category: 'Administrative' },
+      { ordinal: 3, name: 'Security Ban', category: 'Administrative' },
+      { ordinal: 4, name: 'Linked Ban', category: 'Administrative' },
+      { ordinal: 5, name: 'Blacklist', category: 'Administrative' },
+      { ordinal: 6, name: 'Chat Abuse', category: 'Social' },
+      { ordinal: 7, name: 'Anti Social', category: 'Social' },
+      { ordinal: 8, name: 'Targeting', category: 'Social' },
+      { ordinal: 9, name: 'Bad Content', category: 'Social' },
+      { ordinal: 10, name: 'Bad Skin', category: 'Social' },
+      { ordinal: 11, name: 'Bad Name', category: 'Social' },
       { ordinal: 12, name: 'Team Abuse', category: 'Gameplay' },
       { ordinal: 13, name: 'Game Abuse', category: 'Gameplay' },
-      { ordinal: 14, name: 'Cheating', category: 'Gameplay' },
-      { ordinal: 15, name: 'Game Trading', category: 'Gameplay' },
-      { ordinal: 16, name: 'Account Abuse', category: 'Gameplay' },
-      { ordinal: 17, name: 'Scamming', category: 'Social' }
+      { ordinal: 14, name: 'Systems Abuse', category: 'Gameplay' },
+      { ordinal: 15, name: 'Account Abuse', category: 'Gameplay' },
+      { ordinal: 16, name: 'Game Trading', category: 'Gameplay' },
+      { ordinal: 17, name: 'Cheating', category: 'Gameplay' }
     ];
     
     // Initialize settings for punishment types if not already set
@@ -98,10 +98,12 @@ export async function seedEnhancedDatabase() {
       const settings = new Settings({
         settings: new Map()
       });
-      settings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+      if (settings.settings) {
+        settings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
+      }
       await settings.save();
       console.log('Initialized punishment types in settings');
-    } else if (!existingSettings.settings.has('punishmentTypes')) {
+    } else if (existingSettings.settings && !existingSettings.settings.has('punishmentTypes')) {
       existingSettings.settings.set('punishmentTypes', JSON.stringify(punishmentTypes));
       await existingSettings.save();
       console.log('Added punishment types to existing settings');

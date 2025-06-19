@@ -143,7 +143,7 @@ type PunishmentType =
   | 'Bad Skin' | 'Bad Name'
   | 'Chat Abuse' | 'Anti Social' | 'Targeting' | 'Bad Content' 
   | 'Team Abuse' | 'Game Abuse' | 'Cheating' | 'Game Trading'
-  | 'Account Abuse' | 'Scamming' | 'Manual Mute' | 'Manual Ban';
+  | 'Account Abuse' | 'Systems Abuse' | 'Manual Mute' | 'Manual Ban';
 
 interface AppealMessage {
   id: string;
@@ -414,7 +414,7 @@ const AppealsPage = () => {
       case 'Cheating':
       case 'Game Trading':
       case 'Account Abuse':
-      case 'Scamming':
+      case 'Systems Abuse':
       case 'Manual Mute':
       case 'Manual Ban':
         return generalViolationForm;
@@ -1113,7 +1113,7 @@ const AppealsPage = () => {
                 {/* General Violation Appeal Form */}
                 {['Chat Abuse', 'Anti Social', 'Targeting', 'Bad Content', 
                    'Team Abuse', 'Game Abuse', 'Cheating', 'Game Trading',
-                   'Account Abuse', 'Scamming', 'Manual Mute', 'Manual Ban'].includes(banInfo.type) && (
+                   'Account Abuse', 'Systems Abuse', 'Manual Mute', 'Manual Ban'].includes(banInfo.type) && (
                   <>
                     <p className="text-sm text-muted-foreground">
                       Please provide a clear explanation of why you believe this ban should be reviewed.
@@ -1236,7 +1236,7 @@ const AppealsPage = () => {
                 {!['Security Ban', 'Linked Ban', 'Bad Name', 'Bad Skin', 'Kick', 'Blacklist',
                    'Chat Abuse', 'Anti Social', 'Targeting', 'Bad Content', 
                    'Team Abuse', 'Game Abuse', 'Cheating', 'Game Trading',
-                   'Account Abuse', 'Scamming', 'Manual Mute', 'Manual Ban'].includes(banInfo.type) && (
+                   'Account Abuse', 'Systems Abuse', 'Manual Mute', 'Manual Ban'].includes(banInfo.type) && (
                   <>
                     <p className="text-sm text-muted-foreground">
                       Please provide a clear explanation of why you believe this ban should be reviewed.

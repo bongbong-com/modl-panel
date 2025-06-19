@@ -23,12 +23,14 @@ import { usePlayers, useBillingStatus } from "@/hooks/use-data";
 import { useDashboard } from "@/contexts/DashboardContext";
 import PlayerWindow from "../../components/windows/PlayerWindow";
 import serverLogo from "../../assets/server-logo.png";
+import { usePublicSettings } from "@/hooks/use-public-settings";
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
   const { openLookupWindow: openDashboardLookupWindow } = useDashboard();
   const [location, navigate] = useLocation();
   const { data: billingStatus } = useBillingStatus();
+  const { data: publicSettings } = usePublicSettings();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -218,8 +220,8 @@ const Sidebar = () => {
       <div className="bg-sidebar/90 p-2 rounded-2xl shadow-lg w-16 mb-3 transition-all duration-200 hover:shadow-xl hover:bg-sidebar/95" 
         style={{ backdropFilter: "blur(12px)" }}>
         <img 
-          src={serverLogo} 
-          alt="SkyRiver Server Logo" 
+          src={publicSettings?.panelIconUrl || serverLogo} 
+          alt={publicSettings?.serverDisplayName || "Server Logo"} 
           className="w-12 h-12 object-contain rounded-xl"
         />
       </div>

@@ -89,6 +89,7 @@ export function useDocumentTitle() {
 
   return {
     serverDisplayName: publicSettings?.serverDisplayName || '',
-    panelIconUrl: publicSettings?.panelIconUrl || ''
+    panelIconUrl: publicSettings?.panelIconUrl || '',
+    homepageIconUrl: publicSettings?.homepageIconUrl || ''
   };
 }
