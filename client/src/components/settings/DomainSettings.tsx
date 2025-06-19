@@ -256,35 +256,34 @@ const DomainSettings: React.FC = () => {
       <div>
         <h3 className="text-lg font-medium mb-2">Custom Domain Configuration</h3>
         <p className="text-sm text-muted-foreground">
-          Set up a custom domain for your moderation panel with automatic SSL/TLS certificate management.
+          Use your own domain istead of {currentDomain}.cobl.gg. We highly recommend using 'support' as your subdomain.
         </p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            Domain Setup
-          </CardTitle>
-          <CardDescription>
-            Configure your custom domain to access your panel instead of using {currentDomain}.cobl.gg
-          </CardDescription>
-        </CardHeader>
         <CardContent className="space-y-4">
+          <AlertCircle className="h-5 w-5 text-yellow-500" />
+          <div>
+            <p className="font-medium">Cloudflare Nameservers Required</p>
+            <p className="text-sm text-muted-foreground">
+              You must use Cloudflare nameservers and enable proxying on C-Name record (Orange Cloud). 
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Learn how to switch your nameservers to Cloudflare <a href="https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/">here</a>.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <Label htmlFor="customDomain">Custom Domain</Label>
               <Input
                 id="customDomain"
                 type="text"
-                placeholder="panel.yourdomain.com"
+                placeholder="support.examplemc.net"
                 value={customDomain}
                 onChange={(e) => setCustomDomain(e.target.value)}
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Enter your custom domain (e.g., panel.yourdomain.com)
-              </p>
             </div>
             <div className="flex items-end">
               <Button 
@@ -364,7 +363,7 @@ const DomainSettings: React.FC = () => {
               DNS Configuration Required
             </CardTitle>
             <CardDescription>
-              Set up the following CNAME record with your domain provider
+              Set up the following CNAME record with Cloudflare
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -397,7 +396,10 @@ const DomainSettings: React.FC = () => {
                     </Button>
                   </div>
                   <div>
-                    <strong>TTL:</strong> 300 (or lowest available)
+                    <strong>Orange Cloud:</strong> Enabled
+                  </div>
+                  <div>
+                    <strong>TTL:</strong> Auto
                   </div>
                 </div>
               </AlertDescription>
@@ -406,54 +408,6 @@ const DomainSettings: React.FC = () => {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>SSL/TLS Certificate</CardTitle>
-          <CardDescription>
-            Automatic certificate management with Certbot and Let's Encrypt
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              {domainStatus?.sslStatus === 'active' ? (
-                <>
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <div>
-                    <p className="font-medium">SSL Certificate Active</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your domain is secured with an automatically managed SSL certificate
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
-                  <div>
-                    <p className="font-medium">SSL Certificate Pending</p>
-                    <p className="text-sm text-muted-foreground">
-                      SSL certificate will be automatically generated once DNS is configured
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <Alert>
-              <AlertTitle>How it works</AlertTitle>
-              <AlertDescription>
-                <ul className="list-disc pl-5 space-y-1 mt-2">
-                  <li>Cloudflare automatically provisions SSL certificates for your custom domain</li>
-                  <li>Certificates are managed and renewed by Cloudflare</li>
-                  <li>Cloudflare handles HTTPS termination and proxy forwarding to the application</li>
-                  <li>HTTP requests are automatically redirected to HTTPS</li>
-                  <li>Note: *.cobl.gg domains already have wildcard SSL certificates configured</li>
-                </ul>
-              </AlertDescription>
-            </Alert>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -475,7 +429,7 @@ const DomainSettings: React.FC = () => {
               <div>
                 <h4 className="font-medium mb-3">2. Set DNS Record</h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Create a CNAME record with your domain provider pointing to your current subdomain.
+                  Create a proxied CNAME record with Cloudflare pointing to your current subdomain.
                 </p>
               </div>
 
@@ -487,9 +441,9 @@ const DomainSettings: React.FC = () => {
               </div>
 
               <div>
-                <h4 className="font-medium mb-3">4. SSL Activation</h4>
+                <h4 className="font-medium mb-3">4. All done!</h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Certbot will automatically obtain and install an SSL certificate for your domain using Let's Encrypt.
+                  Use your new custom domain to access the panel.
                 </p>
               </div>
             </div>
@@ -503,7 +457,6 @@ const DomainSettings: React.FC = () => {
                 <li>• SSL certificate generation may take a few minutes after DNS verification</li>
                 <li>• Your panel will remain accessible via the original subdomain</li>
                 <li>• Custom domain can be removed at any time without affecting functionality</li>
-                <li>• Only Super Admins and Admins can configure custom domains</li>
                 <li>• SSL and DNS validation are managed automatically by Cloudflare after CNAME setup</li>
               </ul>
             </div>
