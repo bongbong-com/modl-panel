@@ -330,7 +330,7 @@ const Settings = () => {
       const formData = new FormData();
       formData.append('icon', file);
 
-      const response = await fetch(`/api/settings/upload-icon?iconType=${iconType}`, {
+      const response = await fetch(`/api/panel/settings/upload-icon?iconType=${iconType}`, {
         method: 'POST',
         body: formData,
       });
