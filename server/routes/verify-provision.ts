@@ -13,7 +13,7 @@ import {
 import { seedDefaultHomepageCards } from '../db/seed-data';
 import { ModlServerSchema } from '../models/modl-global-schemas';
 import { strictRateLimit } from '../middleware/rate-limiter';
-import { createDefaultSettings } from './settings-routes';
+import { createDefaultSettings, addDefaultPunishmentTypes } from './settings-routes';
 
 interface IModlServer extends Document {
   serverName: string;
@@ -46,8 +46,11 @@ export async function provisionNewServerInstance(
   dbConnection.model('Ticket', Ticket.schema);
   dbConnection.model('Log', Log.schema);
 
-  // Create default settings using the centralized function
+  // Create default settings with core Administrative punishment types
   await createDefaultSettings(dbConnection, serverName);
+  
+  // Add default Social and Gameplay punishment types
+  await addDefaultPunishmentTypes(dbConnection);
 
   // Seed default homepage cards
   await seedDefaultHomepageCards(dbConnection);

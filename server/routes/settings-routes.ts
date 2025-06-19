@@ -88,172 +88,14 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const defaultSettingsMap = new Map<string, any>();
 
-    const punishmentTypes: IPunishmentType[] = [
-      // Administrative punishment types (IDs 0-5, not customizable)
+    // Only include core Administrative punishment types (ordinals 0-5, not customizable)
+    const corePunishmentTypes: IPunishmentType[] = [
       { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
       { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
       { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
       { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
       { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
-      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 },
-      // Social punishment types (customizable, ordered as requested)
-      { 
-        id: 8, 
-        name: 'Chat Abuse', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 6,
-        durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
-        },
-        points: { low: 1, regular: 2, severe: 4 }
-      },
-      { 
-        id: 9, 
-        name: 'Anti Social', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 7,
-        durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
-        },
-        points: { low: 2, regular: 3, severe: 4 }
-      },
-      { 
-        id: 10, 
-        name: 'Targeting', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 8,
-        durations: {
-          low: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
-        },
-        points: { low: 2, regular: 4, severe: 6 }
-      },
-      { 
-        id: 11, 
-        name: 'Bad Content', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 9,
-        durations: {
-          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
-        },
-        points: { low: 3, regular: 5, severe: 7 }
-      },
-      { 
-        id: 6, 
-        name: 'Bad Skin', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 10,
-        durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
-        },
-        points: { low: 1, regular: 2, severe: 3 }
-      },
-      { 
-        id: 7, 
-        name: 'Bad Name', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 11,
-        durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
-        },
-        points: { low: 1, regular: 2, severe: 3 }
-      },
-      // Gameplay punishment types (customizable, ordered as requested)
-      { 
-        id: 12, 
-        name: 'Team Abuse', 
-        category: 'Gameplay', 
-        isCustomizable: true, 
-        ordinal: 12,
-        durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-          severe: { first: { value: 4, unit: 'days' }, medium: { value: 10, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
-        },
-        points: { low: 1, regular: 2, severe: 3 }
-      },
-      { 
-        id: 13, 
-        name: 'Game Abuse', 
-        category: 'Gameplay', 
-        isCustomizable: true, 
-        ordinal: 13,
-        durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
-        },
-        points: { low: 2, regular: 4, severe: 6 }
-      },
-      { 
-        id: 17, 
-        name: 'Systems Abuse', 
-        category: 'Gameplay', 
-        isCustomizable: true, 
-        ordinal: 14,
-        durations: {
-          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
-        },
-        points: { low: 3, regular: 5, severe: 7 }
-      },
-      { 
-        id: 16, 
-        name: 'Account Abuse', 
-        category: 'Gameplay', 
-        isCustomizable: true, 
-        ordinal: 15,
-        durations: {
-          low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
-          severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 120, unit: 'days' } }
-        },
-        points: { low: 4, regular: 6, severe: 8 }
-      },
-      { 
-        id: 15, 
-        name: 'Game Trading', 
-        category: 'Gameplay', 
-        isCustomizable: true, 
-        ordinal: 16,
-        durations: {
-          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
-        },
-        points: { low: 3, regular: 5, severe: 7 }
-      },
-      { 
-        id: 14, 
-        name: 'Cheating', 
-        category: 'Gameplay', 
-        isCustomizable: true, 
-        ordinal: 17,
-        durations: {
-          low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
-          severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 180, unit: 'days' } }
-        },
-        points: { low: 4, regular: 7, severe: 10 }
-      }
+      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
     ];
     
     const statusThresholds: IStatusThresholds = {
@@ -261,7 +103,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       social: { medium: 4, habitual: 8 }
     };
     
-    defaultSettingsMap.set('punishmentTypes', punishmentTypes);
+    defaultSettingsMap.set('punishmentTypes', corePunishmentTypes);
     defaultSettingsMap.set('statusThresholds', statusThresholds);
     
     defaultSettingsMap.set('ticketTags', [
@@ -485,5 +327,203 @@ router.post('/upload-icon', upload.single('icon'), async (req: Request, res: Res
     res.status(500).json({ error: 'Failed to upload file' });
   }
 });
+
+// Function to add default Social and Gameplay punishment types during provisioning
+export async function addDefaultPunishmentTypes(dbConnection: Connection): Promise<void> {
+  try {
+    const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
+    let settingsDoc = await SettingsModel.findOne({});
+    
+    if (!settingsDoc) {
+      throw new Error('Settings document not found. createDefaultSettings should be called first.');
+    }
+
+    // Get existing punishment types
+    const existingTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    
+    // Check if we already have Social and Gameplay types (ordinals 6+)
+    const hasCustomTypes = existingTypes.some((type: IPunishmentType) => type.ordinal > 5);
+    if (hasCustomTypes) {
+      console.log('Custom punishment types already exist, skipping default creation');
+      return;
+    }
+
+    // Default Social punishment types (customizable, ordered as requested)
+    const defaultSocialTypes: IPunishmentType[] = [
+      { 
+        id: 8, 
+        name: 'Chat Abuse', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 6,
+        durations: {
+          low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
+          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+        },
+        points: { low: 1, regular: 2, severe: 4 }
+      },
+      { 
+        id: 9, 
+        name: 'Anti Social', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 7,
+        durations: {
+          low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
+          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+        },
+        points: { low: 2, regular: 3, severe: 4 }
+      },
+      { 
+        id: 10, 
+        name: 'Targeting', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 8,
+        durations: {
+          low: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+          severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+        },
+        points: { low: 2, regular: 4, severe: 6 }
+      },
+      { 
+        id: 11, 
+        name: 'Bad Content', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 9,
+        durations: {
+          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+        },
+        points: { low: 3, regular: 5, severe: 7 }
+      },
+      { 
+        id: 6, 
+        name: 'Bad Skin', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 10,
+        durations: {
+          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+        },
+        points: { low: 1, regular: 2, severe: 3 }
+      },
+      { 
+        id: 7, 
+        name: 'Bad Name', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 11,
+        durations: {
+          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+        },
+        points: { low: 1, regular: 2, severe: 3 }
+      }
+    ];
+
+    // Default Gameplay punishment types (customizable, ordered as requested)
+    const defaultGameplayTypes: IPunishmentType[] = [
+      { 
+        id: 12, 
+        name: 'Team Abuse', 
+        category: 'Gameplay', 
+        isCustomizable: true, 
+        ordinal: 12,
+        durations: {
+          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
+          severe: { first: { value: 4, unit: 'days' }, medium: { value: 10, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+        },
+        points: { low: 1, regular: 2, severe: 3 }
+      },
+      { 
+        id: 13, 
+        name: 'Game Abuse', 
+        category: 'Gameplay', 
+        isCustomizable: true, 
+        ordinal: 13,
+        durations: {
+          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
+          regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+          severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+        },
+        points: { low: 2, regular: 4, severe: 6 }
+      },
+      { 
+        id: 17, 
+        name: 'Systems Abuse', 
+        category: 'Gameplay', 
+        isCustomizable: true, 
+        ordinal: 14,
+        durations: {
+          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+        },
+        points: { low: 3, regular: 5, severe: 7 }
+      },
+      { 
+        id: 16, 
+        name: 'Account Abuse', 
+        category: 'Gameplay', 
+        isCustomizable: true, 
+        ordinal: 15,
+        durations: {
+          low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+          regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
+          severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 120, unit: 'days' } }
+        },
+        points: { low: 4, regular: 6, severe: 8 }
+      },
+      { 
+        id: 15, 
+        name: 'Game Trading', 
+        category: 'Gameplay', 
+        isCustomizable: true, 
+        ordinal: 16,
+        durations: {
+          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
+          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+        },
+        points: { low: 3, regular: 5, severe: 7 }
+      },
+      { 
+        id: 14, 
+        name: 'Cheating', 
+        category: 'Gameplay', 
+        isCustomizable: true, 
+        ordinal: 17,
+        durations: {
+          low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
+          regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
+          severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 180, unit: 'days' } }
+        },
+        points: { low: 4, regular: 7, severe: 10 }
+      }
+    ];
+
+    // Combine existing core types with new default types
+    const allPunishmentTypes = [...existingTypes, ...defaultSocialTypes, ...defaultGameplayTypes];
+    
+    // Update the settings document
+    settingsDoc.settings.set('punishmentTypes', allPunishmentTypes);
+    await settingsDoc.save();
+    
+    console.log('Added default Social and Gameplay punishment types to database');
+  } catch (error) {
+    console.error('Error adding default punishment types:', error);
+    throw error;
+  }
+}
 
 export default router;

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
-import { createDefaultSettings } from '../routes/settings-routes';
+import { createDefaultSettings, addDefaultPunishmentTypes } from '../routes/settings-routes';
 import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -74,6 +74,7 @@ export async function seedEnhancedDatabase(dbConnection?: Connection) {
     // Initialize default settings including punishment types
     if (dbConnection) {
       await createDefaultSettings(dbConnection);
+      await addDefaultPunishmentTypes(dbConnection);
       console.log('Initialized default settings with punishment types');
     }
     
