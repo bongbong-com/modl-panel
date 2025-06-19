@@ -83,7 +83,7 @@ router.use(isAuthenticated);
 // Mount domain routes
 router.use('/domain', domainRoutes);
 
-async function createDefaultSettings(dbConnection: Connection): Promise<HydratedDocument<ISettingsDocument>> {
+async function createDefaultSettings(dbConnection: Connection, serverName?: string): Promise<HydratedDocument<ISettingsDocument>> {
   try {
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const defaultSettingsMap = new Map<string, any>();
@@ -323,7 +323,7 @@ async function createDefaultSettings(dbConnection: Connection): Promise<Hydrated
     
     // Add general settings defaults
     const generalSettings = {
-      serverDisplayName: '',
+      serverDisplayName: serverName || '',
       homepageIconUrl: '',
       panelIconUrl: ''
     };
@@ -342,7 +342,7 @@ router.get('/', async (req: Request, res: Response) => {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
     if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!);
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
     }
     if (!settingsDoc) { // Should not happen if createDefaultSettings is successful
         return res.status(500).json({ error: 'Failed to retrieve or create settings document' });
@@ -359,7 +359,7 @@ router.patch('/', async (req: Request, res: Response) => {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
     if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!);
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
     }
 
     if (!settingsDoc) { // Should not happen
@@ -383,7 +383,7 @@ router.post('/reset', async (req: Request, res: Response) => {
   try {
     const SettingsModel = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     await SettingsModel.deleteOne({});
-    const defaultSettings = await createDefaultSettings(req.serverDbConnection!);
+    const defaultSettings = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
     // Convert Map to object and wrap in a 'settings' key
     res.json({ settings: Object.fromEntries(defaultSettings.settings) });
   } catch (error) {
@@ -409,7 +409,7 @@ router.put('/:key', async (req: Request<{ key: string }, {}, { value: any }>, re
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
     if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!);
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
     }
     if (!settingsDoc) { // Should not happen
         return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
