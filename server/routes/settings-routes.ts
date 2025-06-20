@@ -529,7 +529,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
 
 // API Key Management Routes
 // Get current ticket API key (masked for security)
-router.get('/api/settings/ticket-api-key', async (req: Request, res: Response) => {
+router.get('/ticket-api-key', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
@@ -563,7 +563,7 @@ router.get('/api/settings/ticket-api-key', async (req: Request, res: Response) =
 });
 
 // Generate new ticket API key
-router.post('/api/settings/ticket-api-key/generate', async (req: Request, res: Response) => {
+router.post('/ticket-api-key/generate', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
@@ -592,7 +592,7 @@ router.post('/api/settings/ticket-api-key/generate', async (req: Request, res: R
 });
 
 // Revoke ticket API key
-router.delete('/api/settings/ticket-api-key', async (req: Request, res: Response) => {
+router.delete('/ticket-api-key', async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
