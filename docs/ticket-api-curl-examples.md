@@ -645,7 +645,10 @@ curl -X PATCH "https://yourserver.example.com/api/appeals/APPEAL-123456/status" 
    - `Closed` - Resolved or closed
    - `Resolved` - Completed successfully
 
-4. **Authentication**: Panel endpoints require session authentication, while Minecraft plugin endpoints require API key authentication via the `X-API-Key` header.
+4. **Authentication Scope**: 
+   - **Public ticket endpoints** (`/api/public/tickets`) require API key authentication via the `X-Ticket-API-Key` header
+   - **Panel endpoints** (`/api/panel/*`) require session authentication (existing system)
+   - **Other public endpoints** (`/api/public/settings`, `/api/public/knowledgebase/*`) do NOT require API keys and remain publicly accessible
 
 5. **Player UUIDs**: All player references should use Minecraft UUIDs in the standard format (e.g., `550e8400-e29b-41d4-a716-446655440000`).
 

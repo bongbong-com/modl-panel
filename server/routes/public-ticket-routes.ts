@@ -3,8 +3,7 @@ import { verifyTicketApiKey } from '../middleware/ticket-api-auth';
 
 const router = express.Router();
 
-// Apply API key verification to all routes in this router
-router.use(verifyTicketApiKey);
+// DO NOT apply API key verification to all routes - only apply to specific endpoints
 
 // Interface for ticket creation request
 interface CreateTicketRequest {
@@ -38,8 +37,8 @@ async function generateTicketId(serverDbConnection: any, type: string): Promise<
   return ticketId;
 }
 
-// Create a new ticket via API
-router.post('/api/public/tickets', async (req: Request, res: Response) => {
+// Create a new ticket via API (with API key authentication)
+router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) => {
   if (!req.serverDbConnection || !req.serverName) {
     return res.status(503).json({ 
       error: 'Service unavailable',
@@ -175,7 +174,7 @@ router.post('/api/public/tickets', async (req: Request, res: Response) => {
 });
 
 // Get ticket status (useful for checking if ticket was created successfully)
-router.get('/api/public/tickets/:id/status', async (req: Request, res: Response) => {
+router.get('/tickets/:id/status', verifyTicketApiKey, async (req: Request, res: Response) => {
   if (!req.serverDbConnection) {
     return res.status(503).json({ 
       error: 'Service unavailable',

@@ -39,9 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/stripe-public-webhooks', webhookRouter); // Stripe webhook on a distinct top-level public path
   app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
   app.use('/api/public', publicHomepageCardRoutes); // Public homepage cards
-  app.use('/api/public', publicTicketRoutes); // Public ticket routes
-  app.use('/', publicTicketRoutes); // Public ticket API routes (includes /api/public/tickets)
-  app.use('/', publicTicketRoutes); // Public ticket API routes
+  app.use('/api/public', publicTicketRoutes); // Public ticket routes (API key protected)
 
   // Public settings endpoint - no authentication required
   app.get('/api/public/settings', async (req, res) => {
