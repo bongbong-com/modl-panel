@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload } from 'lucide-react';
+import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GripVertical, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload, Key, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -158,6 +158,13 @@ const Settings = () => {
   const [uploadingHomepageIcon, setUploadingHomepageIcon] = useState(false);
   const [uploadingPanelIcon, setUploadingPanelIcon] = useState(false);
 
+  // API Key management states
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isGeneratingApiKey, setIsGeneratingApiKey] = useState(false);
+  const [isRevokingApiKey, setIsRevokingApiKey] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
   const [currentEmail, setCurrentEmail] = useState('');
@@ -167,6 +174,11 @@ const Settings = () => {
       setCurrentEmail(user.email);
     }
   }, [user]);
+
+  // Load API key on component mount
+  useEffect(() => {
+    loadApiKey();
+  }, []);
 
   // File upload functions
   const uploadIcon = async (file: File, iconType: 'homepage' | 'panel'): Promise<string | null> => {
@@ -222,6 +234,95 @@ const Settings = () => {
       });
     }
     setUploadingPanelIcon(false);
+  };
+
+  // API Key management functions
+  const loadApiKey = async () => {
+    try {
+      const response = await fetch('/api/panel/settings/ticket-api-key');
+      if (response.ok) {
+        const data = await response.json();
+        setApiKey(data.maskedKey || '');
+      }
+    } catch (error) {
+      console.error('Error loading API key:', error);
+    }
+  };
+
+  const generateApiKey = async () => {
+    setIsGeneratingApiKey(true);
+    try {
+      const response = await fetch('/api/panel/settings/ticket-api-key/generate', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setApiKey(data.apiKey);
+        setShowApiKey(true);
+        toast({
+          title: "API Key Generated",
+          description: "Your new API key has been generated. Make sure to copy it as it won't be shown again.",
+        });
+      } else {
+        throw new Error('Failed to generate API key');
+      }
+    } catch (error) {
+      console.error('Error generating API key:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate API key. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingApiKey(false);
+    }
+  };
+
+  const revokeApiKey = async () => {
+    if (!confirm('Are you sure you want to revoke the API key? This will invalidate all existing integrations using this key.')) {
+      return;
+    }
+    
+    setIsRevokingApiKey(true);
+    try {
+      const response = await fetch('/api/panel/settings/ticket-api-key', {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setApiKey('');
+        setShowApiKey(false);
+        toast({
+          title: "API Key Revoked",
+          description: "The API key has been revoked successfully.",
+        });
+      } else {
+        throw new Error('Failed to revoke API key');
+      }
+    } catch (error) {
+      console.error('Error revoking API key:', error);
+      toast({
+        title: "Error",
+        description: "Failed to revoke API key. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRevokingApiKey(false);
+    }
+  };
+
+  const copyApiKey = () => {
+    navigator.clipboard.writeText(apiKey);
+    setApiKeyCopied(true);
+    setTimeout(() => setApiKeyCopied(false), 2000);
+    toast({
+      title: "Copied",
+      description: "API key copied to clipboard",
+    });
+  };
+
+  const maskApiKey = (key: string) => {
+    if (!key) return '';
+    return key.substring(0, 8) + '••••••••••••••••••••••••' + key.substring(key.length - 4);
   };
 
   // Define captureInitialSettings first, before it's used anywhere else
@@ -1150,6 +1251,118 @@ const Settings = () => {
                             <p className="text-xs text-muted-foreground">Displayed in admin panel and used as browser favicon</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* API Key Management */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-base font-medium mb-3 flex items-center">
+                        <Key className="h-4 w-4 mr-2" />
+                        Ticket API Key
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Generate an API key to allow external systems to create tickets programmatically. 
+                        Keep this key secure as it provides access to your ticket system.
+                      </p>
+                    </div>
+
+                    {apiKey ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                          <div className="flex-1">
+                            <Label className="text-xs text-muted-foreground">Current API Key</Label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <code className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                                {showApiKey ? apiKey : maskApiKey(apiKey)}
+                              </code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowApiKey(!showApiKey)}
+                              >
+                                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={copyApiKey}
+                              disabled={!showApiKey}
+                            >
+                              {apiKeyCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={generateApiKey}
+                            disabled={isGeneratingApiKey}
+                          >
+                            {isGeneratingApiKey ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Regenerating...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Regenerate
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={revokeApiKey}
+                            disabled={isRevokingApiKey}
+                          >
+                            {isRevokingApiKey ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Revoking...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Revoke
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 border-2 border-dashed border-muted rounded-lg">
+                        <Key className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-4">No API key generated yet</p>
+                        <Button onClick={generateApiKey} disabled={isGeneratingApiKey}>
+                          {isGeneratingApiKey ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Generate API Key
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <h5 className="font-medium mb-2 text-blue-900 dark:text-blue-100">API Usage</h5>
+                      <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                        <p>• Use the API key in the <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">X-Ticket-API-Key</code> header</p>
+                        <p>• Endpoint: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">POST /api/public/tickets</code></p>
+                        <p>• View API documentation for detailed usage examples</p>
                       </div>
                     </div>
                   </div>

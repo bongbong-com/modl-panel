@@ -8,5 +8,6 @@ export const reservedSubdomains = [
   'www',
   'discord',
   'admin',
-  'twitter'
+  'twitter',
+  'demo'
 ];

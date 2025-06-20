@@ -256,7 +256,7 @@ const DomainSettings: React.FC = () => {
       <div>
         <h3 className="text-lg font-medium mb-2">Custom Domain Configuration</h3>
         <p className="text-sm text-muted-foreground">
-          Use your own domain istead of {currentDomain}.cobl.gg. We recommend using 'support' as your subdomain.
+          Use your own domain instead of {currentDomain}.cobl.gg. We recommend using 'support' as your subdomain.
         </p>
       </div>
 
