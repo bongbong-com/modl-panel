@@ -256,16 +256,17 @@ const DomainSettings: React.FC = () => {
       <div>
         <h3 className="text-lg font-medium mb-2">Custom Domain Configuration</h3>
         <p className="text-sm text-muted-foreground">
-          Use your own domain istead of {currentDomain}.cobl.gg. We highly recommend using 'support' as your subdomain.
+          Use your own domain istead of {currentDomain}.cobl.gg. We recommend using 'support' as your subdomain.
         </p>
       </div>
 
       <Card>
         <CardContent className="space-y-4">
           <div>
+            <br></br>
             <p className="font-medium">Cloudflare Nameservers Required</p>
             <p className="text-sm text-muted-foreground">
-              You must use Cloudflare nameservers and enable proxying on C-Name record (Orange Cloud). 
+              You must use Cloudflare nameservers and enable proxying on the C-Name record. 
             </p>
             <p className="text-sm text-muted-foreground">
               Learn how to switch your nameservers to Cloudflare <a href="https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/">here</a>.
