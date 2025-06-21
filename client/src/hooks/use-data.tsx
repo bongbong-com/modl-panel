@@ -57,9 +57,9 @@ export function useTickets() {
 
 export function useTicket(id: string) {
   return useQuery({
-    queryKey: ['/api/panel/tickets', id],
+    queryKey: ['/api/public/tickets', id],
     queryFn: async () => {
-      const res = await fetch(`/api/panel/tickets/${id}`);
+      const res = await fetch(`/api/public/tickets/${id}`);
       if (!res.ok) {
         if (res.status === 404) {
           return null;
@@ -123,6 +123,75 @@ export function useUpdateTicket() {
       queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets', data._id] });
       // Invalidate the entire list to refresh it
       queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets'] });
+    }
+  });
+}
+
+// Public ticket hooks for player ticket page
+export function useCreateUnfinishedTicket() {
+  return useMutation({
+    mutationFn: async ({ type, creatorUuid, creatorName }: { type: string, creatorUuid?: string, creatorName?: string }) => {
+      const res = await fetch(`/api/public/tickets/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type, creatorUuid, creatorName })
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to create ticket');
+      }
+      
+      return res.json();
+    }
+  });
+}
+
+export function useAddTicketReply() {
+  return useMutation({
+    mutationFn: async ({ id, reply }: { id: string, reply: any }) => {
+      const res = await fetch(`/api/public/tickets/${id}/replies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reply)
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to add reply');
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      // Update the specific ticket in the cache
+      queryClient.invalidateQueries({ queryKey: ['/api/public/tickets', variables.id] });
+    }
+  });
+}
+
+export function useSubmitTicketForm() {
+  return useMutation({
+    mutationFn: async ({ id, formData }: { id: string, formData: any }) => {
+      const res = await fetch(`/api/public/tickets/${id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to submit ticket form');
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      // Update the specific ticket in the cache
+      queryClient.invalidateQueries({ queryKey: ['/api/public/tickets', variables.id] });
     }
   });
 }

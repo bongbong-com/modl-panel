@@ -23,7 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { useTicket, useUpdateTicket, useSettings } from '@/hooks/use-data';
+import { useTicket, useAddTicketReply, useSubmitTicketForm, useSettings } from '@/hooks/use-data';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
@@ -90,9 +90,9 @@ const PlayerTicket = () => {
   
   // Fetch settings to get form templates
   const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
-  
-  // Mutation hook for updating tickets
-  const updateTicketMutation = useUpdateTicket();
+    // Mutation hooks for public ticket operations
+  const addReplyMutation = useAddTicketReply();
+  const submitFormMutation = useSubmitTicketForm();
   
   const [ticketDetails, setTicketDetails] = useState<TicketDetails>({
     id: "",
@@ -185,18 +185,15 @@ const PlayerTicket = () => {
     
     // Save player name to localStorage for future use
     localStorage.setItem('playerName', playerName);
-    
-    try {
-      // Send the update to the API
-      await updateTicketMutation.mutateAsync({
+      try {
+      // Send the update to the API using the new public reply endpoint
+      await addReplyMutation.mutateAsync({
         id: ticketDetails.id,
-        data: {
-          newReply: reply
-        }
+        reply: reply
       });
       
       // Manually invalidate the cache for background refresh
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', ticketDetails.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/public/tickets', ticketDetails.id] });
     } catch (error) {
       console.error('Error sending reply:', error);
       // If there was an error, we could show a toast message here
@@ -297,20 +294,18 @@ const PlayerTicket = () => {
     // Validation already completed above
     
     setIsSubmitting(true);
-    
-    try {
-      // Submit the form to complete the ticket
-      const response = await apiRequest('POST', `/api/tickets/${ticketDetails.id}/submit`, {
-        subject: finalSubject,
-        formData: formData
+      try {
+      // Submit the form to complete the ticket using the new public endpoint
+      await submitFormMutation.mutateAsync({
+        id: ticketDetails.id,
+        formData: {
+          subject: finalSubject,
+          formData: formData
+        }
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to submit ticket form');
-      }
-      
       // Fetch the updated ticket data
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', ticketDetails.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/public/tickets', ticketDetails.id] });
       
       toast({
         title: "Ticket Submitted Successfully",

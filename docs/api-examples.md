@@ -17,6 +17,65 @@ Replace `yourserver.modl.dev` with your actual server subdomain in all examples 
 
 ---
 
+## Public Ticket Access (No Authentication Required)
+
+These endpoints allow public access to tickets without API keys, primarily used by the player ticket interface.
+
+### Create Unfinished Ticket
+
+Create a basic ticket that needs to be completed later:
+
+```bash
+# Create an unfinished ticket for later completion
+curl -X POST "https://yourserver.modl.dev/api/public/tickets/create" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "bug",
+    "creatorUuid": "123e4567-e89b-12d3-a456-426614174000",
+    "creatorName": "PlayerName"
+  }'
+```
+
+### View Ticket Details
+
+```bash
+# Get full ticket information
+curl -X GET "https://yourserver.modl.dev/api/public/tickets/BUG-123456"
+```
+
+### Add Reply to Ticket
+
+```bash
+# Add a reply to an existing ticket
+curl -X POST "https://yourserver.modl.dev/api/public/tickets/BUG-123456/replies" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "PlayerName",
+    "content": "This is my reply to the ticket",
+    "type": "user",
+    "staff": false
+  }'
+```
+
+### Submit Ticket Form
+
+```bash
+# Complete an unfinished ticket by submitting the form
+curl -X POST "https://yourserver.modl.dev/api/public/tickets/BUG-123456/submit" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "Bug with teleportation command",
+    "formData": {
+      "description": "The /tp command is not working properly",
+      "steps": "1. Type /tp 100 64 100\n2. Nothing happens",
+      "expected": "Should teleport to coordinates",
+      "actual": "Nothing happens, no error message"
+    }
+  }'
+```
+
+---
+
 ## Ticket Creation
 
 ### Simple Ticket Creation (Minimal Data)
