@@ -105,8 +105,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/billing', billingRoutes); // Billing management for the panel
   panelRouter.use('/knowledgebase', knowledgebaseRoutes); // Add knowledgebase routes to panel
   panelRouter.use('/', homepageCardRoutes); // Add homepage card routes to panel
-  
-  setupMinecraftRoutes(panelRouter as any as Express); // Setup Minecraft routes under the panel router
 
   panelRouter.get('/activity/recent', async (req, res) => {
     // TODO: Implement logic to fetch recent activity
@@ -152,6 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.use('/api/panel', panelRouter);
+
+  // Minecraft API routes - mounted directly on /api/minecraft (not under panel authentication)
+  // These routes have their own API key authentication via verifyMinecraftApiKey middleware
+  setupMinecraftRoutes(app); // Setup Minecraft routes with /api/minecraft prefix
 
   // Public player lookup (if intended to be public)
   app.get('/api/player/:identifier', async (req, res) => {

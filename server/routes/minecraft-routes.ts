@@ -111,9 +111,9 @@ function isPunishmentActive(punishment: IPunishment): boolean {
 
 export function setupMinecraftRoutes(app: Express) {
   // Apply API key verification middleware to all Minecraft routes
-  app.use('/minecraft', verifyMinecraftApiKey);
+  app.use('/api/minecraft', verifyMinecraftApiKey);
 
-  app.use('/minecraft', (req: Request, res: Response, next: NextFunction) => {
+  app.use('/api/minecraft', (req: Request, res: Response, next: NextFunction) => {
     if (!req.serverDbConnection) {
       console.error('Minecraft route accessed without serverDbConnection.');
       return res.status(503).json({
@@ -138,7 +138,7 @@ export function setupMinecraftRoutes(app: Express) {
    * - Check for ban evasion
    * - Start inactive bans or return active punishments
    */
-  app.post('/minecraft/player/login', async (req: Request, res: Response) => {
+  app.post('/api/minecraft/player/login', async (req: Request, res: Response) => {
     const { minecraftUuid, username, ipAddress, skinHash, ipInfo } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
@@ -324,7 +324,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Player disconnect
    * - Update player's last_disconnect to current time
    */
-  app.post('/minecraft/player/disconnect', async (req: Request, res: Response) => {
+  app.post('/api/minecraft/player/disconnect', async (req: Request, res: Response) => {
     const { minecraftUuid } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
@@ -355,7 +355,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Create ticket
    * - Create a new ticket
    */
-  app.post('/minecraft/ticket/create', async (req: Request, res: Response) => {
+  app.post('/api/minecraft/ticket/create', async (req: Request, res: Response) => {
     const { creatorUuid, creatorUsername, type, subject, reportedPlayerUuid, reportedPlayerUsername, chatMessages, formData } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
@@ -413,7 +413,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Create punishment
    * - Create a new punishment and update player profile
    */
-  app.post('/minecraft/punishment/create', async (req: Request, res: Response) => {
+  app.post('/api/minecraft/punishment/create', async (req: Request, res: Response) => {
     const { targetUuid, issuerName, typeOrdinal, reason, duration, data, notes, attachedTicketIds } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
@@ -468,7 +468,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Create player note
    * - Add a note to the player's profile
    */
-  app.post('/minecraft/player/note/create', async (req: Request, res: Response) => {
+  app.post('/api/minecraft/player/note/create', async (req: Request, res: Response) => {
     const { targetUuid, issuerName, text } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
@@ -506,7 +506,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Get player profile
    * - Get player information including punishments and notes
    */
-  app.get('/minecraft/player', async (req: Request, res: Response) => {
+  app.get('/api/minecraft/player', async (req: Request, res: Response) => {
     const { minecraftUuid } = req.query;
     const serverDbConnection = req.serverDbConnection!;
     const Player = serverDbConnection.model<IPlayer>('Player');
@@ -543,7 +543,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Get linked accounts
    * - Find accounts linked by IP addresses
    */
-  app.get('/minecraft/player/linked', async (req: Request, res: Response) => {
+  app.get('/api/minecraft/player/linked', async (req: Request, res: Response) => {
     const { minecraftUuid } = req.query;
     const serverDbConnection = req.serverDbConnection!;
     const Player = serverDbConnection.model<IPlayer>('Player');

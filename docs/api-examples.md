@@ -26,56 +26,9 @@ Create a basic ticket that can be filled out with additional details later throu
 ```bash
 curl -X POST "https://123.cobl.gg/api/tickets/bug" \
   -H "Content-Type: application/json" \
-  -H "X-Ticket-API-Key: your-ticket-api-key-here" \
+  -H "X-Ticket-API-Key: rimrNQ-UJsQMcD1E_tNv07CGnIVAmXfmEbZL3_vYlmg" \
   -d '{
     "creatorUuid": "550e8400-e29b-41d4-a716-446655440000"
-  }'
-```
-
-### Complete Ticket Examples
-
-For more detailed ticket creation with full form data:
-
-```bash
-# Detailed player report with chat evidence
-curl -X POST "https://yourserver.modl.dev/api/public/tickets" \
-  -H "Content-Type: application/json" \
-  -H "X-Ticket-API-Key: your-ticket-api-key-here" \
-  -d '{
-    "type": "chat",
-    "subject": "Inappropriate Language Report",
-    "description": "Player using offensive language in chat",
-    "creatorUuid": "123e4567-e89b-12d3-a456-426614174000",
-    "creatorName": "ReporterPlayer",
-    "reportedPlayerUuid": "987fcdeb-51d2-43a8-b456-123456789abc",
-    "reportedPlayerName": "OffensivePlayer",
-    "chatMessages": [
-      "[2025-06-20 14:30:15] <OffensivePlayer> inappropriate message here",
-      "[2025-06-20 14:30:22] <OffensivePlayer> another offensive message"
-    ],
-    "tags": ["chat", "harassment"],
-    "priority": "medium"
-  }'
-```
-
-```bash
-# Bug report with form data
-curl -X POST "https://yourserver.modl.dev/api/public/tickets" \
-  -H "Content-Type: application/json" \
-  -H "X-Ticket-API-Key: your-ticket-api-key-here" \
-  -d '{
-    "type": "bug",
-    "subject": "Server Crash Bug",
-    "description": "Server crashes when using specific command",
-    "creatorName": "AdminUser",
-    "tags": ["bug", "crash", "critical"],
-    "priority": "high",
-    "formData": {
-      "reproduction_steps": "1. Run /tp command with coordinates\n2. Server crashes immediately",
-      "error_message": "java.lang.NullPointerException",
-      "server_version": "1.20.1",
-      "plugins_installed": "WorldEdit, Essentials, LuckPerms"
-    }
   }'
 ```
 
@@ -115,9 +68,9 @@ This endpoint handles player logins and automatically creates new player records
 
 ```bash
 # New player login (creates player record)
-curl -X POST "https://yourserver.modl.dev/minecraft/player/login" \
+curl -X POST "https://123.cobl.gg/api/minecraft/player/login" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-minecraft-api-key-here" \
+  -H "X-API-Key: rimrNQ-UJsQMcD1E_tNv07CGnIVAmXfmEbZL3_vYlmg" \
   -d '{
     "minecraftUuid": "123e4567-e89b-12d3-a456-426614174000",
     "username": "NewPlayer123",
