@@ -248,16 +248,18 @@ const Settings = () => {
   const loadApiKey = async () => {
     try {
       const response = await fetch('/api/panel/settings/ticket-api-key');
+      console.log('API Key response status:', response.status); // Debug log
       if (response.ok) {
         const data = await response.json();
-        console.log('API Key response:', data); // Debug log
+        console.log('API Key response data:', data); // Debug log
         if (data.hasApiKey && data.maskedKey) {
           setApiKey(data.maskedKey);
         } else {
           setApiKey(''); // No API key exists
         }
       } else {
-        console.error('Failed to load API key:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Failed to load API key:', response.status, response.statusText, errorText);
         setApiKey('');
       }
     } catch (error) {
@@ -280,6 +282,10 @@ const Settings = () => {
           title: "API Key Generated",
           description: "Your new API key has been generated. Make sure to copy it as it won't be shown again.",
         });
+        // Reload the API key after a short delay to ensure it appears on refresh
+        setTimeout(() => {
+          loadApiKey();
+        }, 1000);
       } else {
         throw new Error('Failed to generate API key');
       }
