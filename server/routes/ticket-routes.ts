@@ -48,7 +48,7 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 
 router.use(isAuthenticated);
 
-router.get('/api/tickets', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model('Ticket');
     const tickets = await Ticket.find({}).lean();
@@ -64,7 +64,7 @@ router.get('/api/tickets', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/api/tickets/:id', async (req: Request<{ id: string }>, res: Response) => {
+router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -86,7 +86,7 @@ interface CreateTicketBody {
   creatorAvatar?: string;
 }
 
-router.post('/api/tickets', async (req: Request<{}, {}, CreateTicketBody>, res: Response) => {
+router.post('/', async (req: Request<{}, {}, CreateTicketBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const { category, creator, tags, data, creatorName, creatorAvatar } = req.body;
@@ -122,7 +122,7 @@ interface AddNoteBody {
   issuerAvatar?: string;
 }
 
-router.post('/api/tickets/:id/notes', async (req: Request<{ id: string }, {}, AddNoteBody>, res: Response) => {
+router.post('/:id/notes', async (req: Request<{ id: string }, {}, AddNoteBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -154,7 +154,7 @@ interface AddReplyBody {
   avatar?: string;
 }
 
-router.post('/api/tickets/:id/replies', async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
+router.post('/:id/replies', async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -185,7 +185,7 @@ interface AddTagBody {
   staffName?: string;
 }
 
-router.post('/api/tickets/:id/tags', async (req: Request<{ id: string }, {}, AddTagBody>, res: Response) => {
+router.post('/:id/tags', async (req: Request<{ id: string }, {}, AddTagBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -210,7 +210,7 @@ interface RemoveTagBody {
     staffName?: string;
 }
 
-router.delete('/api/tickets/:id/tags/:tag', async (req: Request<{ id: string, tag: string }, {}, RemoveTagBody>, res: Response) => {
+router.delete('/:id/tags/:tag', async (req: Request<{ id: string, tag: string }, {}, RemoveTagBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -237,7 +237,7 @@ interface UpdateTicketDataBody {
   staffName?: string;
 }
 
-router.patch('/api/tickets/:id/data', async (req: Request<{ id: string }, {}, UpdateTicketDataBody>, res: Response) => {
+router.patch('/:id/data', async (req: Request<{ id: string }, {}, UpdateTicketDataBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -260,7 +260,7 @@ router.patch('/api/tickets/:id/data', async (req: Request<{ id: string }, {}, Up
   }
 });
 
-router.get('/api/tickets/tag/:tag', async (req: Request<{ tag: string }>, res: Response) => {
+router.get('/tag/:tag', async (req: Request<{ tag: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const tickets = await Ticket.find({ tags: req.params.tag });
@@ -270,7 +270,7 @@ router.get('/api/tickets/tag/:tag', async (req: Request<{ tag: string }>, res: R
   }
 });
 
-router.get('/api/tickets/creator/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
+router.get('/creator/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const tickets = await Ticket.find({ creator: req.params.uuid });
