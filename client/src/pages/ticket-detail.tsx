@@ -1156,7 +1156,7 @@ const TicketDetail = () => {
                               }, {
                                 onSuccess: () => {
                                   // Force refresh of the ticket list
-                                  queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+                                  queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets'] });
                                 }
                               });
                             }}
