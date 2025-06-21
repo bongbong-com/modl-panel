@@ -50,10 +50,16 @@ router.use(isAuthenticated);
 
 router.get('/api/tickets', async (req: Request, res: Response) => {
   try {
-    const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const tickets = await Ticket.find({});
+    const Ticket = req.serverDbConnection!.model('Ticket');
+    const tickets = await Ticket.find({}).lean();
+    console.log(`[Debug] Found ${tickets.length} tickets in database`);
+    if (tickets.length > 0) {
+      console.log(`[Debug] Sample ticket fields:`, Object.keys(tickets[0]));
+      console.log(`[Debug] Sample ticket:`, tickets[0]);
+    }
     res.json(tickets);
   } catch (error) {
+    console.error('Error fetching tickets:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -69,17 +69,16 @@ router.post('/tickets/create', async (req: Request, res: Response) => {
     }
     
     // Generate ticket ID
-    const ticketId = await generateTicketId(req.serverDbConnection, type);
-    
-    // Create unfinished ticket
+    const ticketId = await generateTicketId(req.serverDbConnection, type);    // Create unfinished ticket
     const ticketData: any = {
       _id: ticketId,
       type,
+      category: type, // Also set category for compatibility with panel interface
       subject: `${type.charAt(0).toUpperCase() + type.slice(1)} Ticket`,
       status: 'Unfinished',
       tags: [type],
       creator: creatorName || 'Unknown User',
-      creatorUuid: creatorUuid || undefined,
+      creatorUuid: creatorUuid || 'unknown-uuid',
       created: new Date(),
       locked: false,
       notes: [],
@@ -583,8 +582,7 @@ router.post('/tickets/:id/submit', async (req: Request, res: Response) => {
         message: 'Ticket not found'
       });
     }
-    
-    // Update ticket with form data
+      // Update ticket with form data
     if (subject) {
       ticket.subject = subject;
     }
@@ -598,6 +596,37 @@ router.post('/tickets/:id/submit', async (req: Request, res: Response) => {
         ticket.data.set(key, value);
       });
       ticket.formData = formData;
+      
+      // Create initial message content from form data
+      let contentString = '';
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value && value.toString().trim()) {
+          // Format field names to be more readable
+          const fieldLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+          contentString += `**${fieldLabel}:**\n${value}\n\n`;
+        }
+      });
+      
+      // Add initial message if there's content and no existing replies
+      if (contentString.trim() && (!ticket.replies || ticket.replies.length === 0)) {
+        const initialMessage = {
+          id: Date.now().toString(),
+          name: ticket.creator || 'User',
+          content: contentString.trim(),
+          type: 'user',
+          created: new Date(),
+          staff: false,
+          // Compatibility fields
+          sender: ticket.creator || 'User',
+          senderType: 'user',
+          timestamp: new Date().toISOString()
+        };
+        
+        if (!ticket.replies) {
+          ticket.replies = [];
+        }
+        ticket.replies.push(initialMessage);
+      }
     }
     
     // Change status from Unfinished to Open
