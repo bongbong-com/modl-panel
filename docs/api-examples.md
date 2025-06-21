@@ -21,21 +21,6 @@ Replace `yourserver.modl.dev` with your actual server subdomain in all examples 
 
 These endpoints allow public access to tickets without API keys, primarily used by the player ticket interface.
 
-### Create Unfinished Ticket
-
-Create a basic ticket that needs to be completed later:
-
-```bash
-# Create an unfinished ticket for later completion
-curl -X POST "https://yourserver.modl.dev/api/public/tickets/create" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "bug",
-    "creatorUuid": "123e4567-e89b-12d3-a456-426614174000",
-    "creatorName": "PlayerName"
-  }'
-```
-
 ### View Ticket Details
 
 ```bash
@@ -76,18 +61,43 @@ curl -X POST "https://yourserver.modl.dev/api/public/tickets/BUG-123456/submit" 
 
 ---
 
-## Ticket Creation
+## Ticket Creation (API Key Required)
 
-### Simple Ticket Creation (Minimal Data)
+### Create Complete Ticket
 
-Create a basic ticket that can be filled out with additional details later through the web interface.
+Create a ticket with all details immediately (status: "Open"):
 
 ```bash
-curl -X POST "https://123.cobl.gg/api/tickets/bug" \
+curl -X POST "https://yourserver.modl.dev/api/public/tickets" \
   -H "Content-Type: application/json" \
-  -H "X-Ticket-API-Key: rimrNQ-UJsQMcD1E_tNv07CGnIVAmXfmEbZL3_vYlmg" \
+  -H "X-Ticket-API-Key: your-ticket-api-key-here" \
   -d '{
-    "creatorUuid": "550e8400-e29b-41d4-a716-446655440000"
+    "type": "bug",
+    "subject": "Server Crash Bug",
+    "description": "Server crashes when using specific command",
+    "creatorUuid": "123e4567-e89b-12d3-a456-426614174000",
+    "creatorName": "PlayerName",
+    "formData": {
+      "description": "The /tp command is not working properly",
+      "steps": "1. Type /tp 100 64 100\n2. Nothing happens",
+      "expected": "Should teleport to coordinates",
+      "actual": "Nothing happens, no error message"
+    }
+  }'
+```
+
+### Create Unfinished Ticket
+
+Create a basic ticket that needs to be completed later (status: "Unfinished"):
+
+```bash
+curl -X POST "https://yourserver.modl.dev/api/public/tickets" \
+  -H "Content-Type: application/json" \
+  -H "X-Ticket-API-Key: your-ticket-api-key-here" \
+  -d '{
+    "type": "bug",
+    "creatorUuid": "123e4567-e89b-12d3-a456-426614174000",
+    "creatorName": "PlayerName"
   }'
 ```
 
@@ -103,11 +113,11 @@ curl -X POST "https://123.cobl.gg/api/tickets/bug" \
 ### Required Fields
 
 - `type`: Ticket type (see above)
-- `subject`: Brief description of the issue
+- `creatorUuid`: UUID of the player creating the ticket (or "unknown-uuid" if not available)
 
 ### Optional Fields
 
-- `creatorUuid`: UUID of the player creating the ticket
+- `subject`: Brief description of the issue (if not provided, ticket will be created as "Unfinished")
 - `creatorName`: Name of the player creating the ticket
 - `description`: Detailed description of the issue
 - `reportedPlayerUuid`: UUID of reported player (required for player/chat reports)

@@ -33,87 +33,8 @@ async function generateTicketId(serverDbConnection: any, type: string): Promise<
   const existingTicket = await Ticket.findById(ticketId);
   if (existingTicket) {
     return generateTicketId(serverDbConnection, type);
-  }
-  return ticketId;
+  }  return ticketId;
 }
-
-// Create a basic unfinished ticket (no API key required - for initial ticket creation)
-router.post('/tickets/create', async (req: Request, res: Response) => {
-  if (!req.serverDbConnection || !req.serverName) {
-    return res.status(503).json({ 
-      error: 'Service unavailable',
-      message: 'Server database or server name not available' 
-    });
-  }
-  
-  const Ticket = req.serverDbConnection.model('Ticket');
-  
-  try {
-    const { type, creatorUuid, creatorName } = req.body;
-    
-    // Validate required fields
-    if (!type) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: 'Type is required'
-      });
-    }
-    
-    // Validate ticket type
-    const validTypes = ['bug', 'player', 'chat', 'appeal', 'staff', 'support'];
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: `Invalid ticket type. Must be one of: ${validTypes.join(', ')}`
-      });
-    }
-    
-    // Generate ticket ID
-    const ticketId = await generateTicketId(req.serverDbConnection, type);    // Create unfinished ticket
-    const ticketData: any = {
-      _id: ticketId,
-      type,
-      category: type, // Also set category for compatibility with panel interface
-      subject: `${type.charAt(0).toUpperCase() + type.slice(1)} Ticket`,
-      status: 'Unfinished',
-      tags: [type],
-      creator: creatorName || 'Unknown User',
-      creatorUuid: creatorUuid || 'unknown-uuid',
-      created: new Date(),
-      locked: false,
-      notes: [],
-      replies: [],
-      data: new Map<string, any>()
-    };
-    
-    // Create and save ticket
-    const newTicket = new Ticket(ticketData);
-    await newTicket.save();
-    
-    // Log the creation
-    console.log(`[Ticket API] Created unfinished ticket ${ticketId} of type ${type}`);
-    
-    res.status(201).json({
-      success: true,
-      ticketId: ticketId,
-      message: 'Ticket created successfully',
-      ticket: {
-        id: ticketId,
-        type,
-        subject: ticketData.subject,
-        status: 'Unfinished',
-        created: new Date().toISOString()
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error creating unfinished ticket:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to create ticket'
-    });
-  }
-});
 
 // Create a new ticket via API (with API key authentication)
 router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) => {
@@ -142,12 +63,16 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     }: CreateTicketRequest = req.body;
     
     // Validate required fields
-    if (!type || !subject) {
+    if (!type) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'Type and subject are required fields'
+        message: 'Type is required'
       });
     }
+    
+    // If no subject provided, create as Unfinished ticket
+    const ticketStatus = subject ? 'Open' : 'Unfinished';
+    const ticketSubject = subject || `${type.charAt(0).toUpperCase() + type.slice(1)} Ticket`;
     
     // Validate ticket type
     const validTypes = ['bug', 'player', 'chat', 'appeal', 'staff', 'support'];
@@ -187,16 +112,16 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
         contentString += `${key}: ${value}\n\n`;
       });
     }
-    
-    // Prepare ticket data
+      // Prepare ticket data
     const ticketData: any = {
       _id: ticketId,
       type,
-      subject,
-      status: 'Open',
+      category: type, // Also set category for compatibility with panel interface
+      subject: ticketSubject,
+      status: ticketStatus,
       tags: tags || [type],
       creator: creatorName || 'API User',
-      creatorUuid: creatorUuid || undefined,
+      creatorUuid: creatorUuid || 'unknown-uuid',
       created: new Date(),
       locked: false,
       notes: [],
@@ -225,9 +150,8 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     // Create and save ticket
     const newTicket = new Ticket(ticketData);
     await newTicket.save();
-    
-    // Log the creation
-    console.log(`[Ticket API] Created ticket ${ticketId} of type ${type} via API`);
+      // Log the creation
+    console.log(`[Ticket API] Created ticket ${ticketId} of type ${type} (${ticketStatus}) via API`);
     
     res.status(201).json({
       success: true,
@@ -236,8 +160,8 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
       ticket: {
         id: ticketId,
         type,
-        subject,
-        status: 'Open',
+        subject: ticketSubject,
+        status: ticketStatus,
         created: new Date().toISOString()
       }
     });

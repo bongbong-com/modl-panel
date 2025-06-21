@@ -128,26 +128,6 @@ export function useUpdateTicket() {
 }
 
 // Public ticket hooks for player ticket page
-export function useCreateUnfinishedTicket() {
-  return useMutation({
-    mutationFn: async ({ type, creatorUuid, creatorName }: { type: string, creatorUuid?: string, creatorName?: string }) => {
-      const res = await fetch(`/api/public/tickets/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ type, creatorUuid, creatorName })
-      });
-      
-      if (!res.ok) {
-        throw new Error('Failed to create ticket');
-      }
-      
-      return res.json();
-    }
-  });
-}
-
 export function useAddTicketReply() {
   return useMutation({
     mutationFn: async ({ id, reply }: { id: string, reply: any }) => {
