@@ -614,4 +614,92 @@ router.delete('/ticket-api-key', async (req: Request, res: Response) => {
   }
 });
 
+// Minecraft API Key Management Routes
+
+// Get current minecraft API key (masked for security)
+router.get('/minecraft-api-key', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    const apiKey = settingsDoc.settings.get('minecraft_api_key');
+    
+    if (!apiKey) {
+      return res.json({ 
+        hasApiKey: false,
+        maskedKey: null
+      });
+    }
+    
+    // Return masked key for security (show only first 8 and last 4 characters)
+    const maskedKey = apiKey.length > 12 
+      ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
+      : `${apiKey.substring(0, 4)}...`;
+    
+    res.json({ 
+      hasApiKey: true,
+      maskedKey 
+    });
+  } catch (error) {
+    console.error('Error fetching minecraft API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate new minecraft API key
+router.post('/minecraft-api-key/generate', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    let settingsDoc = await Settings.findOne({});
+    
+    // Create settings document if it doesn't exist
+    if (!settingsDoc) {
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
+    }
+    
+    // Generate new API key (using same function as ticket API key)
+    const newApiKey = generateTicketApiKey();
+    
+    // Save to settings
+    settingsDoc.settings.set('minecraft_api_key', newApiKey);
+    await settingsDoc.save();
+    
+    // Return the full key only once (for copying)
+    res.json({ 
+      apiKey: newApiKey,
+      message: 'New minecraft API key generated successfully. Please save this key as it will not be shown again.' 
+    });
+  } catch (error) {
+    console.error('Error generating minecraft API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Revoke minecraft API key
+router.delete('/minecraft-api-key', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    // Remove the API key
+    settingsDoc.settings.delete('minecraft_api_key');
+    await settingsDoc.save();
+    
+    res.json({ 
+      message: 'Minecraft API key revoked successfully' 
+    });
+  } catch (error) {
+    console.error('Error revoking minecraft API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

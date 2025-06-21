@@ -165,6 +165,13 @@ const Settings = () => {
   const [isRevokingApiKey, setIsRevokingApiKey] = useState(false);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
+  // Minecraft API Key management states
+  const [minecraftApiKey, setMinecraftApiKey] = useState('');
+  const [showMinecraftApiKey, setShowMinecraftApiKey] = useState(false);
+  const [isGeneratingMinecraftApiKey, setIsGeneratingMinecraftApiKey] = useState(false);
+  const [isRevokingMinecraftApiKey, setIsRevokingMinecraftApiKey] = useState(false);
+  const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);
+
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
   const [currentEmail, setCurrentEmail] = useState('');
@@ -178,6 +185,7 @@ const Settings = () => {
   // Load API key on component mount
   useEffect(() => {
     loadApiKey();
+    loadMinecraftApiKey();
   }, []);
 
   // File upload functions
@@ -242,10 +250,19 @@ const Settings = () => {
       const response = await fetch('/api/panel/settings/ticket-api-key');
       if (response.ok) {
         const data = await response.json();
-        setApiKey(data.maskedKey || '');
+        console.log('API Key response:', data); // Debug log
+        if (data.hasApiKey && data.maskedKey) {
+          setApiKey(data.maskedKey);
+        } else {
+          setApiKey(''); // No API key exists
+        }
+      } else {
+        console.error('Failed to load API key:', response.status, response.statusText);
+        setApiKey('');
       }
     } catch (error) {
       console.error('Error loading API key:', error);
+      setApiKey(''); // Set to empty on error
     }
   };
 
@@ -323,6 +340,99 @@ const Settings = () => {
   const maskApiKey = (key: string) => {
     if (!key) return '';
     return key.substring(0, 8) + '••••••••••••••••••••••••' + key.substring(key.length - 4);
+  };
+
+  // Minecraft API Key management functions
+  const loadMinecraftApiKey = async () => {
+    try {
+      const response = await fetch('/api/panel/settings/minecraft-api-key');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Minecraft API Key response:', data); // Debug log
+        if (data.hasApiKey && data.maskedKey) {
+          setMinecraftApiKey(data.maskedKey);
+        } else {
+          setMinecraftApiKey(''); // No API key exists
+        }
+      } else {
+        console.error('Failed to load Minecraft API key:', response.status, response.statusText);
+        setMinecraftApiKey('');
+      }
+    } catch (error) {
+      console.error('Error loading Minecraft API key:', error);
+      setMinecraftApiKey(''); // Set to empty on error
+    }
+  };
+
+  const generateMinecraftApiKey = async () => {
+    setIsGeneratingMinecraftApiKey(true);
+    try {
+      const response = await fetch('/api/panel/settings/minecraft-api-key/generate', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMinecraftApiKey(data.apiKey);
+        setShowMinecraftApiKey(true);
+        toast({
+          title: "Minecraft API Key Generated",
+          description: "Your new Minecraft API key has been generated. Make sure to copy it as it won't be shown again.",
+        });
+      } else {
+        throw new Error('Failed to generate Minecraft API key');
+      }
+    } catch (error) {
+      console.error('Error generating Minecraft API key:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate Minecraft API key. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingMinecraftApiKey(false);
+    }
+  };
+
+  const revokeMinecraftApiKey = async () => {
+    if (!confirm('Are you sure you want to revoke the Minecraft API key? This will invalidate all existing Minecraft plugin integrations using this key.')) {
+      return;
+    }
+    
+    setIsRevokingMinecraftApiKey(true);
+    try {
+      const response = await fetch('/api/panel/settings/minecraft-api-key', {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setMinecraftApiKey('');
+        setShowMinecraftApiKey(false);
+        toast({
+          title: "Minecraft API Key Revoked",
+          description: "The Minecraft API key has been revoked successfully.",
+        });
+      } else {
+        throw new Error('Failed to revoke Minecraft API key');
+      }
+    } catch (error) {
+      console.error('Error revoking Minecraft API key:', error);
+      toast({
+        title: "Error",
+        description: "Failed to revoke Minecraft API key. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRevokingMinecraftApiKey(false);
+    }
+  };
+
+  const copyMinecraftApiKey = () => {
+    navigator.clipboard.writeText(minecraftApiKey);
+    setMinecraftApiKeyCopied(true);
+    setTimeout(() => setMinecraftApiKeyCopied(false), 2000);
+    toast({
+      title: "Copied",
+      description: "Minecraft API key copied to clipboard",
+    });
   };
 
   // Define captureInitialSettings first, before it's used anywhere else
@@ -1363,6 +1473,118 @@ const Settings = () => {
                         <p>• Use the API key in the <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">X-Ticket-API-Key</code> header</p>
                         <p>• Endpoint: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">POST /api/public/tickets</code></p>
                         <p>• View API documentation for detailed usage examples</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Minecraft API Key Management */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-base font-medium mb-3 flex items-center">
+                        <Key className="h-4 w-4 mr-2" />
+                        Minecraft API Key
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Generate an API key for Minecraft plugin integration. This key allows your plugins to interact 
+                        with player data, punishments, and ticket creation. Keep this key secure.
+                      </p>
+                    </div>
+
+                    {minecraftApiKey ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                          <div className="flex-1">
+                            <Label className="text-xs text-muted-foreground">Current Minecraft API Key</Label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <code className="text-sm font-mono bg-background px-2 py-1 rounded border">
+                                {showMinecraftApiKey ? minecraftApiKey : maskApiKey(minecraftApiKey)}
+                              </code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowMinecraftApiKey(!showMinecraftApiKey)}
+                              >
+                                {showMinecraftApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={copyMinecraftApiKey}
+                              disabled={!showMinecraftApiKey}
+                            >
+                              {minecraftApiKeyCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={generateMinecraftApiKey}
+                            disabled={isGeneratingMinecraftApiKey}
+                          >
+                            {isGeneratingMinecraftApiKey ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Regenerating...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Regenerate
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={revokeMinecraftApiKey}
+                            disabled={isRevokingMinecraftApiKey}
+                          >
+                            {isRevokingMinecraftApiKey ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Revoking...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Revoke
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 border-2 border-dashed border-muted rounded-lg">
+                        <Key className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-4">No Minecraft API key generated yet</p>
+                        <Button onClick={generateMinecraftApiKey} disabled={isGeneratingMinecraftApiKey}>
+                          {isGeneratingMinecraftApiKey ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Generate API Key
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                      <h5 className="font-medium mb-2 text-green-900 dark:text-green-100">Minecraft Plugin Usage</h5>
+                      <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                        <p>• Use the API key in the <code className="bg-green-100 dark:bg-green-900 px-1 rounded">X-API-Key</code> header</p>
+                        <p>• Endpoints: <code className="bg-green-100 dark:bg-green-900 px-1 rounded">/api/minecraft/*</code></p>
+                        <p>• Configure in your plugin's API settings</p>
                       </div>
                     </div>
                   </div>
