@@ -234,6 +234,209 @@ router.post('/reset', async (req: Request, res: Response) => {
   }
 });
 
+// API Key Management Routes - Moved before generic /:key route to prevent interception
+
+// Get current ticket API key (masked for security)
+router.get('/ticket-api-key', async (req: Request, res: Response) => {
+  try {
+    console.log('[Ticket API Key GET] Request received');
+    console.log('[Ticket API Key GET] Server name:', req.serverName);
+    console.log('[Ticket API Key GET] DB connection exists:', !!req.serverDbConnection);
+    
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    console.log('[Ticket API Key GET] Settings doc found:', !!settingsDoc);
+    console.log('[Ticket API Key GET] Settings map exists:', !!settingsDoc?.settings);
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      console.log('[Ticket API Key GET] No settings found, returning 404');
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    const apiKey = settingsDoc.settings.get('ticket_api_key');
+    console.log('[Ticket API Key GET] API key exists:', !!apiKey);
+    console.log('[Ticket API Key GET] API key length:', apiKey ? apiKey.length : 0);
+    
+    if (!apiKey) {
+      console.log('[Ticket API Key GET] No API key found, returning hasApiKey: false');
+      return res.json({ 
+        hasApiKey: false,
+        maskedKey: null
+      });
+    }
+    
+    // Return masked key for security (show only first 8 and last 4 characters)
+    const maskedKey = apiKey.length > 12 
+      ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
+      : `${apiKey.substring(0, 4)}...`;
+    
+    console.log('[Ticket API Key GET] Returning masked key:', maskedKey);
+    res.json({ 
+      hasApiKey: true,
+      maskedKey 
+    });
+  } catch (error) {
+    console.error('Error fetching ticket API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate new ticket API key
+router.post('/ticket-api-key/generate', async (req: Request, res: Response) => {
+  try {
+    console.log('[Ticket API Key GENERATE] Request received');
+    console.log('[Ticket API Key GENERATE] Server name:', req.serverName);
+    console.log('[Ticket API Key GENERATE] DB connection exists:', !!req.serverDbConnection);
+    
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    let settingsDoc = await Settings.findOne({});
+    
+    console.log('[Ticket API Key GENERATE] Settings doc found:', !!settingsDoc);
+    
+    // Create settings document if it doesn't exist
+    if (!settingsDoc) {
+      console.log('[Ticket API Key GENERATE] Creating default settings document');
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
+    }
+    
+    // Generate new API key
+    const newApiKey = generateTicketApiKey();
+    console.log('[Ticket API Key GENERATE] Generated new API key with length:', newApiKey.length);
+    
+    // Save to settings
+    settingsDoc.settings.set('ticket_api_key', newApiKey);
+    await settingsDoc.save();
+    console.log('[Ticket API Key GENERATE] Saved API key to database');
+    
+    // Verify it was saved
+    const verifyDoc = await Settings.findOne({});
+    const savedKey = verifyDoc?.settings.get('ticket_api_key');
+    console.log('[Ticket API Key GENERATE] Verification - API key saved correctly:', !!savedKey);
+    console.log('[Ticket API Key GENERATE] Verification - API key matches:', savedKey === newApiKey);
+    
+    // Return the full key only once (for copying)
+    res.json({ 
+      apiKey: newApiKey,
+      message: 'New ticket API key generated successfully. Please save this key as it will not be shown again.' 
+    });
+  } catch (error) {
+    console.error('Error generating ticket API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Revoke ticket API key
+router.delete('/ticket-api-key', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    // Remove the API key
+    settingsDoc.settings.delete('ticket_api_key');
+    await settingsDoc.save();
+    
+    res.json({ 
+      message: 'Ticket API key revoked successfully' 
+    });
+  } catch (error) {
+    console.error('Error revoking ticket API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Minecraft API Key Management Routes
+
+// Get current minecraft API key (masked for security)
+router.get('/minecraft-api-key', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    const apiKey = settingsDoc.settings.get('minecraft_api_key');
+    
+    if (!apiKey) {
+      return res.json({ 
+        hasApiKey: false,
+        maskedKey: null
+      });
+    }
+    
+    // Return masked key for security (show only first 8 and last 4 characters)
+    const maskedKey = apiKey.length > 12 
+      ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
+      : `${apiKey.substring(0, 4)}...`;
+    
+    res.json({ 
+      hasApiKey: true,
+      maskedKey 
+    });
+  } catch (error) {
+    console.error('Error fetching minecraft API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate new minecraft API key
+router.post('/minecraft-api-key/generate', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    let settingsDoc = await Settings.findOne({});
+    
+    // Create settings document if it doesn't exist
+    if (!settingsDoc) {
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
+    }
+    
+    // Generate new API key (using same function as ticket API key)
+    const newApiKey = generateTicketApiKey();
+    
+    // Save to settings
+    settingsDoc.settings.set('minecraft_api_key', newApiKey);
+    await settingsDoc.save();
+    
+    // Return the full key only once (for copying)
+    res.json({ 
+      apiKey: newApiKey,
+      message: 'New minecraft API key generated successfully. Please save this key as it will not be shown again.' 
+    });
+  } catch (error) {
+    console.error('Error generating minecraft API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Revoke minecraft API key
+router.delete('/minecraft-api-key', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    // Remove the API key
+    settingsDoc.settings.delete('minecraft_api_key');
+    await settingsDoc.save();
+    
+    res.json({ 
+      message: 'Minecraft API key revoked successfully' 
+    });
+  } catch (error) {
+    console.error('Error revoking minecraft API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/:key', async (req: Request<{ key: string }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
@@ -526,207 +729,5 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
     throw error;
   }
 }
-
-// API Key Management Routes
-// Get current ticket API key (masked for security)
-router.get('/ticket-api-key', async (req: Request, res: Response) => {
-  try {
-    console.log('[Ticket API Key GET] Request received');
-    console.log('[Ticket API Key GET] Server name:', req.serverName);
-    console.log('[Ticket API Key GET] DB connection exists:', !!req.serverDbConnection);
-    
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
-    
-    console.log('[Ticket API Key GET] Settings doc found:', !!settingsDoc);
-    console.log('[Ticket API Key GET] Settings map exists:', !!settingsDoc?.settings);
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      console.log('[Ticket API Key GET] No settings found, returning 404');
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    const apiKey = settingsDoc.settings.get('ticket_api_key');
-    console.log('[Ticket API Key GET] API key exists:', !!apiKey);
-    console.log('[Ticket API Key GET] API key length:', apiKey ? apiKey.length : 0);
-    
-    if (!apiKey) {
-      console.log('[Ticket API Key GET] No API key found, returning hasApiKey: false');
-      return res.json({ 
-        hasApiKey: false,
-        maskedKey: null
-      });
-    }
-    
-    // Return masked key for security (show only first 8 and last 4 characters)
-    const maskedKey = apiKey.length > 12 
-      ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
-      : `${apiKey.substring(0, 4)}...`;
-    
-    console.log('[Ticket API Key GET] Returning masked key:', maskedKey);
-    res.json({ 
-      hasApiKey: true,
-      maskedKey 
-    });
-  } catch (error) {
-    console.error('Error fetching ticket API key:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Generate new ticket API key
-router.post('/ticket-api-key/generate', async (req: Request, res: Response) => {
-  try {
-    console.log('[Ticket API Key GENERATE] Request received');
-    console.log('[Ticket API Key GENERATE] Server name:', req.serverName);
-    console.log('[Ticket API Key GENERATE] DB connection exists:', !!req.serverDbConnection);
-    
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    
-    console.log('[Ticket API Key GENERATE] Settings doc found:', !!settingsDoc);
-    
-    // Create settings document if it doesn't exist
-    if (!settingsDoc) {
-      console.log('[Ticket API Key GENERATE] Creating default settings document');
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
-    }
-    
-    // Generate new API key
-    const newApiKey = generateTicketApiKey();
-    console.log('[Ticket API Key GENERATE] Generated new API key with length:', newApiKey.length);
-    
-    // Save to settings
-    settingsDoc.settings.set('ticket_api_key', newApiKey);
-    await settingsDoc.save();
-    console.log('[Ticket API Key GENERATE] Saved API key to database');
-    
-    // Verify it was saved
-    const verifyDoc = await Settings.findOne({});
-    const savedKey = verifyDoc?.settings.get('ticket_api_key');
-    console.log('[Ticket API Key GENERATE] Verification - API key saved correctly:', !!savedKey);
-    console.log('[Ticket API Key GENERATE] Verification - API key matches:', savedKey === newApiKey);
-    
-    // Return the full key only once (for copying)
-    res.json({ 
-      apiKey: newApiKey,
-      message: 'New ticket API key generated successfully. Please save this key as it will not be shown again.' 
-    });
-  } catch (error) {
-    console.error('Error generating ticket API key:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Revoke ticket API key
-router.delete('/ticket-api-key', async (req: Request, res: Response) => {
-  try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    // Remove the API key
-    settingsDoc.settings.delete('ticket_api_key');
-    await settingsDoc.save();
-    
-    res.json({ 
-      message: 'Ticket API key revoked successfully' 
-    });
-  } catch (error) {
-    console.error('Error revoking ticket API key:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Minecraft API Key Management Routes
-
-// Get current minecraft API key (masked for security)
-router.get('/minecraft-api-key', async (req: Request, res: Response) => {
-  try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    const apiKey = settingsDoc.settings.get('minecraft_api_key');
-    
-    if (!apiKey) {
-      return res.json({ 
-        hasApiKey: false,
-        maskedKey: null
-      });
-    }
-    
-    // Return masked key for security (show only first 8 and last 4 characters)
-    const maskedKey = apiKey.length > 12 
-      ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
-      : `${apiKey.substring(0, 4)}...`;
-    
-    res.json({ 
-      hasApiKey: true,
-      maskedKey 
-    });
-  } catch (error) {
-    console.error('Error fetching minecraft API key:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Generate new minecraft API key
-router.post('/minecraft-api-key/generate', async (req: Request, res: Response) => {
-  try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    
-    // Create settings document if it doesn't exist
-    if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
-    }
-    
-    // Generate new API key (using same function as ticket API key)
-    const newApiKey = generateTicketApiKey();
-    
-    // Save to settings
-    settingsDoc.settings.set('minecraft_api_key', newApiKey);
-    await settingsDoc.save();
-    
-    // Return the full key only once (for copying)
-    res.json({ 
-      apiKey: newApiKey,
-      message: 'New minecraft API key generated successfully. Please save this key as it will not be shown again.' 
-    });
-  } catch (error) {
-    console.error('Error generating minecraft API key:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Revoke minecraft API key
-router.delete('/minecraft-api-key', async (req: Request, res: Response) => {
-  try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    // Remove the API key
-    settingsDoc.settings.delete('minecraft_api_key');
-    await settingsDoc.save();
-    
-    res.json({ 
-      message: 'Minecraft API key revoked successfully' 
-    });
-  } catch (error) {
-    console.error('Error revoking minecraft API key:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 export default router;
