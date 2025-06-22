@@ -443,12 +443,21 @@ router.post('/logout', (req: Request, res: Response) => {
 
 // Profile update endpoint
 router.patch('/profile', async (req: Request, res: Response) => {
+  console.log('[PROFILE ENDPOINT] Profile update request received');
+  console.log('[PROFILE ENDPOINT] Request method:', req.method);
+  console.log('[PROFILE ENDPOINT] Request path:', req.path);
+  console.log('[PROFILE ENDPOINT] Request body:', req.body);
+  console.log('[PROFILE ENDPOINT] Session data:', req.session);
+  
   try {
     const { username, profilePicture } = req.body;
     
     // Get user from session
     const userId = (req.session as any)?.userId;
+    console.log('[PROFILE ENDPOINT] User ID from session:', userId);
+    
     if (!userId) {
+      console.log('[PROFILE ENDPOINT] No userId in session - returning 401');
       return res.status(401).json({ message: 'Not authenticated' });
     }
     

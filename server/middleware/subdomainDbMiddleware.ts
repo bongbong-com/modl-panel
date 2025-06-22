@@ -206,8 +206,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       '/pending-verification',
       '/resend-verification',
       '/verify-email'
-    ];
-    const alwaysAllowedApiPatterns = [
+    ];    const alwaysAllowedApiPatterns = [
       '/api/auth/',
       '/api/request-email-verification',
       '/api/staff/check-email'
