@@ -276,8 +276,102 @@ router.delete('/:id/tags/:tag', async (req: Request<{ id: string, tag: string },
       await ticket.save();
     }
 
-    res.status(200).json(ticket.tags);
+    res.status(200).json(ticket.tags);  } catch (error: any) {
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+interface UpdateTicketBody {
+  status?: string;
+  locked?: boolean;
+  newReply?: {
+    id: string;
+    name: string;
+    type: string;
+    content: string;
+    created: Date;
+    staff: boolean;
+    action?: string;
+  };
+  newNote?: {
+    content: string;
+    author: string;
+    date: string;
+  };
+  tags?: string[];
+  data?: Record<string, any>;
+}
+
+// General PATCH route for ticket updates
+router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, res: Response) => {
+  try {
+    const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const updates = req.body;
+
+    // Update status if provided
+    if (updates.status !== undefined) {
+      ticket.status = updates.status;
+    }
+
+    // Update locked status if provided
+    if (updates.locked !== undefined) {
+      // Add locked field to ticket data Map
+      ticket.data.set('locked', updates.locked);
+    }
+
+    // Add new reply if provided
+    if (updates.newReply) {
+      const newReply: IReply = {
+        name: updates.newReply.name,
+        content: updates.newReply.content,
+        type: updates.newReply.type,
+        created: new Date(updates.newReply.created),
+        staff: updates.newReply.staff
+      };
+      ticket.replies.push(newReply);
+    }
+
+    // Add new note if provided
+    if (updates.newNote) {
+      const newNote: INote = {
+        text: updates.newNote.content,
+        issuerName: updates.newNote.author,
+        date: new Date(updates.newNote.date)
+      };
+      ticket.notes.push(newNote);
+    }
+
+    // Update tags if provided
+    if (updates.tags !== undefined) {
+      ticket.tags = updates.tags;
+    }
+
+    // Update data fields if provided
+    if (updates.data && typeof updates.data === 'object') {
+      for (const [key, value] of Object.entries(updates.data)) {
+        ticket.data.set(key, value);
+      }
+    }
+
+    await ticket.save();
+
+    // Return the updated ticket
+    res.status(200).json({
+      id: ticket._id,
+      status: ticket.status,
+      tags: ticket.tags,
+      notes: ticket.notes,
+      replies: ticket.replies,
+      data: Object.fromEntries(ticket.data),
+      locked: ticket.data.get('locked') || false
+    });
   } catch (error: any) {
+    console.error('Error updating ticket:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
