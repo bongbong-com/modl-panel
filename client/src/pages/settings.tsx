@@ -95,7 +95,7 @@ const Settings = () => {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   // Punishment types state
   // State for all settings fields
-  const [punishmentTypes, setPunishmentTypes] = useState<PunishmentType[]>([
+  const [punishmentTypesState, setPunishmentTypesState] = useState<PunishmentType[]>([
     // Administrative punishment types (IDs 0-5, not customizable) - minimal fallback
     { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
     { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
@@ -104,12 +104,11 @@ const Settings = () => {
     { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
     { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
     // Social and Gameplay punishment types are loaded from server during provisioning
-  ]);
-  const [newPunishmentName, setNewPunishmentName] = useState('');
-  const [newPunishmentCategory, setNewPunishmentCategory] = useState<'Gameplay' | 'Social'>('Gameplay');
+  ]);  const [newPunishmentNameState, setNewPunishmentNameState] = useState('');
+  const [newPunishmentCategoryState, setNewPunishmentCategoryState] = useState<'Gameplay' | 'Social'>('Gameplay');
 
   // Threshold values for player status levels
-  const [statusThresholds, setStatusThresholds] = useState<StatusThresholds>({
+  const [statusThresholdsState, setStatusThresholdsState] = useState<StatusThresholds>({
     gameplay: {
       medium: 5,  // 5+ points = medium offender
       habitual: 10 // 10+ points = habitual offender
@@ -120,32 +119,31 @@ const Settings = () => {
     }
   });
   // Selected punishment for editing
-  const [selectedPunishment, setSelectedPunishment] = useState<PunishmentType | null>(null);
+  const [selectedPunishmentState, setSelectedPunishmentState] = useState<PunishmentType | null>(null);
 
   // State to control visibility of core punishment types
-  const [showCorePunishments, setShowCorePunishments] = useState(false);
+  const [showCorePunishmentsState, setShowCorePunishmentsState] = useState(false);
 
   // Tags state for each ticket category
-  const [bugReportTags, setBugReportTags] = useState<string[]>([
+  const [bugReportTagsState, setBugReportTagsState] = useState<string[]>([
     'UI Issue', 'Server', 'Performance', 'Crash', 'Game Mechanics'
   ]);
-  const [playerReportTags, setPlayerReportTags] = useState<string[]>([
+  const [playerReportTagsState, setPlayerReportTagsState] = useState<string[]>([
     'Harassment', 'Cheating', 'Spam', 'Inappropriate Content', 'Griefing'
   ]);
-  const [appealTags, setAppealTags] = useState<string[]>([
+  const [appealTagsState, setAppealTagsState] = useState<string[]>([
     'Ban Appeal', 'Mute Appeal', 'False Positive', 'Second Chance'
   ]);
 
   // For new tag input
-  const [newBugTag, setNewBugTag] = useState('');
-  const [newPlayerTag, setNewPlayerTag] = useState('');
-  const [newAppealTag, setNewAppealTag] = useState('');
+  const [newBugTagState, setNewBugTagState] = useState('');
+  const [newPlayerTagState, setNewPlayerTagState] = useState('');
+  const [newAppealTagState, setNewAppealTagState] = useState('');
   // Security tab states
-  const [has2FA, setHas2FA] = useState(false);
-  const [hasPasskey, setHasPasskey] = useState(false);
-  const [showSetup2FA, setShowSetup2FA] = useState(false);
-  const [showSetupPasskey, setShowSetupPasskey] = useState(false);
-  const [recoveryCodesCopied, setRecoveryCodesCopied] = useState(false);
+  const [has2FAState, setHas2FAState] = useState(false);
+  const [hasPasskeyState, setHasPasskeyState] = useState(false);  const [showSetup2FAState, setShowSetup2FAState] = useState(false);
+  const [showSetupPasskeyState, setShowSetupPasskeyState] = useState(false);
+  const [recoveryCodesCopiedState, setRecoveryCodesCopiedState] = useState(false);
 
   // General tab states
   const [serverDisplayName, setServerDisplayName] = useState('');
@@ -169,12 +167,45 @@ const Settings = () => {
   const [isGeneratingMinecraftApiKey, setIsGeneratingMinecraftApiKey] = useState(false);
   const [isRevokingMinecraftApiKey, setIsRevokingMinecraftApiKey] = useState(false);
   const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);
+  
+  // Profile settings state
+  const [profileUsername, setProfileUsername] = useState('');
+  const [profilePictureUrl, setProfilePictureUrl] = useState('');
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
+  
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();  const [currentEmail, setCurrentEmail] = useState('');
 
+  // Create aliases for the state variables to maintain backward compatibility
+  const punishmentTypes = punishmentTypesState;
+  const newPunishmentName = newPunishmentNameState;
+  const newPunishmentCategory = newPunishmentCategoryState;
+  const statusThresholds = statusThresholdsState;
+  const selectedPunishment = selectedPunishmentState;
+  const showCorePunishments = showCorePunishmentsState;
+  const bugReportTags = bugReportTagsState;
+  const playerReportTags = playerReportTagsState;
+  const appealTags = appealTagsState;
+  const newBugTag = newBugTagState;
+  const newPlayerTag = newPlayerTagState;
+  const newAppealTag = newAppealTagState;
+  const has2FA = has2FAState;
+  const hasPasskey = hasPasskeyState;
+  const showSetup2FA = showSetup2FAState;
+  const showSetupPasskey = showSetupPasskeyState;
+  const recoveryCodesCopied = recoveryCodesCopiedState;
   useEffect(() => {
     if (user?.email) {
       setCurrentEmail(user.email);
+    }
+  }, [user]);
+
+  // Initialize profile settings from user data
+  useEffect(() => {
+    if (user) {
+      setProfileUsername(user.username || '');
+      setProfilePictureUrl(user.profilePicture || '');
     }
   }, [user]);
 
@@ -723,8 +754,7 @@ const Settings = () => {
   };
   const setShowSetupPasskey = (value: React.SetStateAction<boolean>) => {
     setShowSetupPasskeyState(value);
-  };
-  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
+  };  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
     setRecoveryCodesCopiedState(value);
   };
 
