@@ -78,16 +78,17 @@ const Settings = () => {
     if (urlParams.has('session_id') && user?.role === 'Super Admin') {
       setActiveTab('billing');
     }
-  }, [user]);
-  // Auto-save state
+  }, [user]);  // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSaving, setIsSaving] = useState(false);  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const profileSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Separate timeout for profile
   const initialSettingsRef = useRef<any | null>(null);
   const justLoadedFromServerRef = useRef(true);
   const pendingChangesRef = useRef(false);
   const initialLoadCompletedRef = useRef(false);
+    // Refs to capture latest profile values for auto-save
+  const profileUsernameRef = useRef('');
+  const profilePictureUrlRef = useRef('');
 
   // Database connection state
   const [dbConnectionStatus, setDbConnectionStatus] = useState(false);
@@ -202,13 +203,16 @@ const Settings = () => {
     if (user?.email) {
       setCurrentEmail(user.email);
     }
-  }, [user]);
-  // Initialize profile settings from user data
+  }, [user]);  // Initialize profile settings from user data
   useEffect(() => {
     if (user) {
       justLoadedFromServerRef.current = true; // Prevent auto-save during initial load
       setProfileUsernameState(user.username || '');
       setProfilePictureUrlState(user.profilePicture || '');
+      
+      // Initialize the refs with the current values
+      profileUsernameRef.current = user.username || '';
+      profilePictureUrlRef.current = user.profilePicture || '';
       
       // Mark profile data as loaded after a short delay
       setTimeout(() => {
@@ -802,11 +806,11 @@ const Settings = () => {
     setShowSetupPasskeyState(value);
   };  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
     setRecoveryCodesCopiedState(value);
-  };
-  // Profile settings auto-save wrapper functions
+  };  // Profile settings auto-save wrapper functions
   const setProfileUsername = (value: React.SetStateAction<string>) => {
     const newValue = typeof value === 'function' ? value(profileUsernameState) : value;
     setProfileUsernameState(newValue);
+    profileUsernameRef.current = newValue; // Keep ref in sync
     
     console.log('Profile username changed to:', newValue);
     
@@ -816,7 +820,9 @@ const Settings = () => {
 
   const setProfilePictureUrl = (value: React.SetStateAction<string>) => {
     const newValue = typeof value === 'function' ? value(profilePictureUrlState) : value;
-    setProfilePictureUrlState(newValue);    
+    setProfilePictureUrlState(newValue);
+    profilePictureUrlRef.current = newValue; // Keep ref in sync
+    
     console.log('Profile picture URL changed to:', newValue);
     
     // Trigger auto-save for profile updates (always, not dependent on initialLoadCompletedRef)
@@ -881,9 +887,7 @@ const Settings = () => {
         variant: "destructive",
       });
     }
-  }, [profileUsernameState, profilePictureUrlState, user, toast, setLastSaved]);
-
-  // Auto-save function for profile settings
+  }, [profileUsernameState, profilePictureUrlState, user, toast, setLastSaved]);  // Auto-save function for profile settings
   const triggerProfileAutoSave = useCallback(() => {
     console.log('triggerProfileAutoSave called');
     
@@ -891,11 +895,72 @@ const Settings = () => {
       clearTimeout(profileSaveTimeoutRef.current);
     }
     
-    profileSaveTimeoutRef.current = setTimeout(() => {
+    profileSaveTimeoutRef.current = setTimeout(async () => {
       console.log('Executing profile auto-save...');
-      saveProfileSettings();
-    }, 1000); // 1 second delay
-  }, [saveProfileSettings]);
+      
+      // Use refs to get the latest values at execution time
+      const currentUsername = profileUsernameRef.current;
+      const currentProfilePicture = profilePictureUrlRef.current;
+      
+      console.log('Saving profile with current values from refs:', {
+        username: currentUsername,
+        profilePicture: currentProfilePicture
+      });
+      
+      try {
+        const response = await fetch('/api/auth/profile', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: currentUsername,
+            profilePicture: currentProfilePicture
+          })
+        });
+
+        console.log('Profile save response status:', response.status);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Profile save success:', data);
+          setLastSaved(new Date());
+          
+          // Update the user context without refreshing
+          if (user) {
+            user.username = data.user.username;
+            user.profilePicture = data.user.profilePicture;
+          }
+          
+          // Show success toast
+          toast({
+            title: "Profile Updated",
+            description: "Your profile information has been saved.",
+          });
+        } else {
+          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+          console.error('Profile auto-save failed:', errorData.message);
+          
+          // Show error toast
+          toast({
+            title: "Save Failed",
+            description: `Failed to save profile: ${errorData.message}`,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Profile auto-save error:', error);
+        
+        // Show error toast
+        toast({
+          title: "Save Failed",
+          description: "Failed to save profile. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }, 500); // Reduced to 500ms for faster response
+  }, []); // Empty dependencies since we use refs to get current values
 
   // Add a new punishment type
   const addPunishmentType = () => {
