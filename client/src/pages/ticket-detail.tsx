@@ -193,9 +193,23 @@ const TicketDetail = () => {
     'Medium': 'bg-warning/10 text-warning border-warning/20',
     'Low': 'bg-info/10 text-info border-info/20',
     'Fixed': 'bg-success/10 text-success border-success/20'
-  };
-  // Use React Query to fetch ticket data from panel API
-  const { data: ticketData, isLoading, isError } = usePanelTicket(ticketId);
+  };  // Use React Query to fetch ticket data from panel API
+  const { data: ticketData, isLoading, isError, error } = usePanelTicket(ticketId);
+  
+  // Enhanced debugging for remote environment
+  console.log('=== TICKET DETAIL DEBUG (Remote Environment) ===');
+  console.log('Current environment:', {
+    location: window.location.href,
+    origin: window.location.origin,
+    pathname: window.location.pathname
+  });
+  console.log('Ticket ID:', ticketId);
+  console.log('User auth status:', user ? 'authenticated' : 'not authenticated');
+  console.log('User details:', user);
+  console.log('Query state:', { isLoading, isError, hasData: !!ticketData });
+  console.log('Error details:', error);
+  console.log('Raw ticket data:', ticketData);
+  console.log('================================================');
   
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();

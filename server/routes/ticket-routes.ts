@@ -81,11 +81,21 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
+    console.log('=== PANEL TICKET DETAIL REQUEST DEBUG ===');
+    console.log('Request URL:', req.originalUrl);
+    console.log('Request method:', req.method);
+    console.log('Server name:', req.serverName);
+    console.log('User session:', req.session);
+    console.log('Request headers:', req.headers);
+    console.log('Request params:', req.params);
+    console.log('Database connection available:', !!req.serverDbConnection);
+    
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     console.log(`[Debug] Looking for ticket with ID: ${req.params.id}`);
     const ticket = await Ticket.findById(req.params.id).lean();
     if (!ticket) {
       console.log(`[Debug] Ticket not found: ${req.params.id}`);
+      console.log('==========================================');
       return res.status(404).json({ error: 'Ticket not found' });
     }
     
@@ -108,9 +118,11 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     };
     
     console.log(`[Debug] Transformed ticket:`, transformedTicket);
+    console.log('==========================================');
     res.json(transformedTicket);
   } catch (error: any) {
     console.error('Error fetching ticket:', error);
+    console.log('==========================================');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });

@@ -407,14 +407,31 @@ export function usePanelTicket(id: string) {
   return useQuery({
     queryKey: ['/api/panel/tickets', id],
     queryFn: async () => {
+      console.log('=== usePanelTicket FETCH DEBUG ===');
+      console.log('Fetching ticket ID:', id);
+      console.log('Full URL:', `${window.location.origin}/api/panel/tickets/${id}`);
+      
       const res = await fetch(`/api/panel/tickets/${id}`);
+      
+      console.log('Response status:', res.status);
+      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+      
       if (!res.ok) {
+        console.log('Request failed with status:', res.status);
+        const errorText = await res.text();
+        console.log('Error response body:', errorText);
+        
         if (res.status === 404) {
           return null;
         }
-        throw new Error('Failed to fetch ticket');
+        throw new Error(`Failed to fetch ticket: ${res.status} ${errorText}`);
       }
-      return res.json();
+      
+      const data = await res.json();
+      console.log('Successful response data:', data);
+      console.log('================================');
+      
+      return data;
     },
     enabled: !!id,
     // Disable caching to always get fresh data

@@ -91,9 +91,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-
   // Panel specific API routes
   const panelRouter = express.Router();
+  
+  // Add debug logging middleware for panel routes
+  panelRouter.use((req, res, next) => {
+    console.log('=== PANEL ROUTER REQUEST DEBUG ===');
+    console.log('Panel request URL:', req.originalUrl);
+    console.log('Panel request method:', req.method);
+    console.log('Panel request path:', req.path);
+    console.log('Request headers (auth):', {
+      authorization: req.headers.authorization,
+      cookie: req.headers.cookie
+    });
+    console.log('Session data:', req.session);
+    console.log('Server name:', req.serverName);
+    console.log('Database connection:', !!req.serverDbConnection);
+    console.log('===================================');
+    next();
+  });
+  
   panelRouter.use(isAuthenticated); // Apply authentication to all panel routes
 
   panelRouter.use('/appeals', appealRoutes);

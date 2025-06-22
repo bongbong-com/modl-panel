@@ -448,3 +448,18 @@ The system has two separate API endpoints for tickets:
 
 - **Panel API** (`/api/panel/tickets`): Used by the admin panel, requires authentication, returns transformed data for panel compatibility
 - **Public API** (`/api/public/tickets`): Used by player-facing pages, requires API key for creation, supports public viewing and replies
+
+#### Missing react-markdown Dependency
+
+If you see a build error about `react-markdown` not being resolved:
+
+```
+[vite]: Rollup failed to resolve import "react-markdown" from "ArticleDetailPage.tsx"
+```
+
+**Solution:**
+```bash
+npm install react-markdown
+```
+
+This dependency is required for the knowledgebase article display functionality.
