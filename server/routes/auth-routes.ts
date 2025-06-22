@@ -12,6 +12,13 @@ import type { AuthenticatorTransport } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
 import { BYPASS_DEV_AUTH } from 'server/middleware/auth-middleware';
 import { getModlServersModel } from '../db/connectionManager';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { promisify } from 'util';
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
 
 
 const rpID = 'localhost';
@@ -20,6 +27,23 @@ const expectedOrigin = process.env.NODE_ENV === 'production'
   : 'http://localhost:5173';
 
 const router = Router();
+
+// Configure multer for profile picture uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Check if file is an image
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  }
+});
 
 const transporter = nodemailer.createTransport({
   host: 'localhost',
@@ -541,7 +565,7 @@ router.patch('/profile', async (req: Request, res: Response) => {
 });
 
 // Profile picture upload endpoint
-router.post('/profile/upload-picture', async (req: Request, res: Response) => {
+router.post('/profile/upload-picture', upload.single('profilePicture'), async (req: Request, res: Response) => {
   console.log('[PROFILE PICTURE UPLOAD] Profile picture upload request received');
   
   try {
@@ -553,15 +577,41 @@ router.post('/profile/upload-picture', async (req: Request, res: Response) => {
       console.log('[PROFILE PICTURE UPLOAD] No userId in session - returning 401');
       return res.status(401).json({ message: 'Not authenticated' });
     }
+
+    if (!req.file) {
+      console.log('[PROFILE PICTURE UPLOAD] No file uploaded');
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    console.log('[PROFILE PICTURE UPLOAD] File received:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'profile-pictures');
+    try {
+      await mkdir(uploadsDir, { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
+    }
+
+    // Generate filename with timestamp and user ID to avoid conflicts
+    const fileExtension = path.extname(req.file.originalname) || '.png';
+    const fileName = `profile-${userId}-${Date.now()}${fileExtension}`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    // Save file to disk
+    await writeFile(filePath, req.file.buffer);
+
+    // Generate URL for the uploaded file
+    const fileUrl = `/uploads/profile-pictures/${fileName}`;
     
-    // For now, return a placeholder URL since we don't have file storage set up
-    // In a real implementation, you'd save the file to cloud storage (AWS S3, Cloudinary, etc.)
-    const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=0D8ABC&color=fff&size=200`;
-    
-    console.log('[PROFILE PICTURE UPLOAD] Returning placeholder URL:', placeholderUrl);
+    console.log('[PROFILE PICTURE UPLOAD] File saved successfully:', fileUrl);
     
     res.json({ 
-      url: placeholderUrl,
+      url: fileUrl,
       message: 'Profile picture uploaded successfully'
     });
   } catch (error) {

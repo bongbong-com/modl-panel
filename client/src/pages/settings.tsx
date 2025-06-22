@@ -283,13 +283,14 @@ const Settings = () => {
       });
     }
     setUploadingPanelIcon(false);
-  };
-  // Profile picture upload function
+  };  // Profile picture upload function
   const handleProfilePictureUpload = async (file: File) => {
     setUploadingProfilePicture(true);
     try {
       const formData = new FormData();
       formData.append('profilePicture', file);
+
+      console.log('Uploading profile picture file:', file.name);
 
       const response = await fetch('/api/auth/profile/upload-picture', {
         method: 'POST',
@@ -297,14 +298,20 @@ const Settings = () => {
         body: formData,
       });
 
+      console.log('Profile picture upload response status:', response.status);
+
       if (!response.ok) {
         throw new Error('Upload failed');
       }
 
       const result = await response.json();
-      // Auto-save the new profile picture URL
+      console.log('Profile picture upload result:', result);
+      
+      // Use the setter function to update both state and ref, and trigger auto-save
       setProfilePictureUrl(result.url);
       setProfilePicture(file);
+      
+      console.log('Profile picture URL set to:', result.url);
       
       toast({
         title: "Profile Picture Uploaded",
@@ -814,8 +821,10 @@ const Settings = () => {
     
     console.log('Profile username changed to:', newValue);
     
-    // Trigger auto-save for profile updates (always, not dependent on initialLoadCompletedRef)
-    triggerProfileAutoSave();
+    // Trigger auto-save for profile updates, but skip during initial load
+    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
+      triggerProfileAutoSave();
+    }
   };
 
   const setProfilePictureUrl = (value: React.SetStateAction<string>) => {
@@ -825,8 +834,10 @@ const Settings = () => {
     
     console.log('Profile picture URL changed to:', newValue);
     
-    // Trigger auto-save for profile updates (always, not dependent on initialLoadCompletedRef)
-    triggerProfileAutoSave();
+    // Trigger auto-save for profile updates, but skip during initial load
+    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
+      triggerProfileAutoSave();
+    }
   };
 
   // Save profile settings function
@@ -890,6 +901,14 @@ const Settings = () => {
   }, [profileUsernameState, profilePictureUrlState, user, toast, setLastSaved]);  // Auto-save function for profile settings
   const triggerProfileAutoSave = useCallback(() => {
     console.log('triggerProfileAutoSave called');
+    console.log('Current profile state:', {
+      username: profileUsernameState,
+      pictureUrl: profilePictureUrlState
+    });
+    console.log('Current profile refs:', {
+      username: profileUsernameRef.current,
+      pictureUrl: profilePictureUrlRef.current
+    });
     
     if (profileSaveTimeoutRef.current) {
       clearTimeout(profileSaveTimeoutRef.current);
@@ -906,6 +925,12 @@ const Settings = () => {
         username: currentUsername,
         profilePicture: currentProfilePicture
       });
+      
+      // Skip save if both values are empty
+      if (!currentUsername.trim() && !currentProfilePicture.trim()) {
+        console.log('Skipping save - both username and profile picture are empty');
+        return;
+      }
       
       try {
         const response = await fetch('/api/auth/profile', {
@@ -958,8 +983,7 @@ const Settings = () => {
           description: "Failed to save profile. Please try again.",
           variant: "destructive",
         });
-      }
-    }, 500); // Reduced to 500ms for faster response
+      }    }, 500); // Reduced to 500ms for faster response
   }, []); // Empty dependencies since we use refs to get current values
 
   // Add a new punishment type
@@ -1179,8 +1203,7 @@ const Settings = () => {
                         <CheckCircle className="h-3 w-3 text-green-500" />
                         <span>Changes are saved automatically</span>
                       </div>
-                    </div>
-                      <div className="space-y-2">
+                    </div>                      <div className="space-y-2">
                       <Label htmlFor="profile-picture">Profile Picture</Label>
                       <div className="flex items-center space-x-4">
                         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
@@ -1206,18 +1229,6 @@ const Settings = () => {
                         </div>
                         <div className="flex-1 space-y-3">
                           <div className="space-y-2">
-                            <Input
-                              id="profile-picture"
-                              type="url"
-                              value={profilePictureUrl}
-                              onChange={(e) => setProfilePictureUrl(e.target.value)}
-                              placeholder="https://example.com/your-avatar.jpg"
-                            />
-                            <p className="text-sm text-muted-foreground">
-                              Enter a URL for your profile picture, or upload a file below.
-                            </p>
-                          </div>
-                          <div className="space-y-2">
                             <input
                               type="file"
                               accept="image/*"
@@ -1235,9 +1246,10 @@ const Settings = () => {
                               size="sm"
                               onClick={() => document.getElementById('profile-picture-upload')?.click()}
                               disabled={uploadingProfilePicture}
+                              className="w-full"
                             >
                               <Upload className="h-4 w-4 mr-2" />
-                              {uploadingProfilePicture ? 'Uploading...' : 'Upload Image'}
+                              {uploadingProfilePicture ? 'Uploading...' : 'Upload Profile Picture'}
                             </Button>
                             <p className="text-xs text-muted-foreground">
                               Upload a profile picture (PNG, JPG, or GIF). Max size: 5MB
@@ -2702,8 +2714,7 @@ const Settings = () => {
                           type="number"
                           placeholder="Points"
                           value={selectedPunishment.points || ''}
-                          onChange={(e) => {
-                            const value = Number(e.target.value);
+                          onChange={(e) => {                            const value = Number(e.target.value);
                             setSelectedPunishment(prev => {
                               if (!prev) return null;
                               return {
@@ -2726,10 +2737,8 @@ const Settings = () => {
                   onClick={() => setSelectedPunishment(null)}
                 >
                   Cancel
-                </Button>
-                <Button
+                </Button>                <Button
                   onClick={() => {
-                    // Save updates to the punishment type
                     if (selectedPunishment) {
                       setPunishmentTypes(prev =>
                         prev.map(pt => pt.id === selectedPunishment.id ? selectedPunishment : pt)
