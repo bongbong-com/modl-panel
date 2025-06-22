@@ -1008,10 +1008,23 @@ const Settings = () => {
                           </p>
                         </div>
                       </div>
-                    </div>
-                      <Button
+                    </div>                    <Button
                       onClick={async () => {
                         try {
+                          // First test if auth routes are accessible
+                          console.log('Testing auth routes accessibility...');
+                          
+                          // Test session endpoint first
+                          const sessionResponse = await fetch('/api/auth/session', {
+                            credentials: 'include'
+                          });
+                          console.log('Session endpoint status:', sessionResponse.status);
+                          
+                          if (!sessionResponse.ok) {
+                            throw new Error(`Session endpoint failed: ${sessionResponse.status}`);
+                          }
+                          
+                          // Now try the profile update
                           const response = await fetch('/api/auth/profile', {
                             method: 'PATCH',
                             headers: {
@@ -1024,7 +1037,12 @@ const Settings = () => {
                             })
                           });
                           
+                          console.log('Profile update response status:', response.status);
+                          console.log('Profile update response:', response);
+                          
                           if (response.ok) {
+                            const data = await response.json();
+                            console.log('Profile update success:', data);
                             toast({
                               title: "Profile Updated",
                               description: "Your profile information has been successfully updated."
@@ -1032,12 +1050,14 @@ const Settings = () => {
                             // Refresh the session to get updated user data
                             window.location.reload();
                           } else {
-                            throw new Error('Failed to update profile');
-                          }
-                        } catch (error) {
+                            const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                            throw new Error(`Failed to update profile: ${response.status} - ${errorData.message}`);
+                          }                        } catch (error) {
+                          console.error('Profile update error:', error);
+                          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
                           toast({
                             title: "Update Failed",
-                            description: "There was an error updating your profile. Please try again.",
+                            description: `There was an error updating your profile: ${errorMessage}`,
                             variant: "destructive"
                           });
                         }
