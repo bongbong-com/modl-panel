@@ -86,9 +86,7 @@ const Settings = () => {
   const justLoadedFromServerRef = useRef(true);
   const pendingChangesRef = useRef(false);
   const initialLoadCompletedRef = useRef(false);
-    // Refs to capture latest profile values for auto-save
-  const profileUsernameRef = useRef('');
-  const profilePictureUrlRef = useRef('');
+    // Refs to capture latest profile values for auto-save  const profileUsernameRef = useRef('');
 
   // Database connection state
   const [dbConnectionStatus, setDbConnectionStatus] = useState(false);
@@ -167,12 +165,8 @@ const Settings = () => {
   const [showMinecraftApiKey, setShowMinecraftApiKey] = useState(false);
   const [isGeneratingMinecraftApiKey, setIsGeneratingMinecraftApiKey] = useState(false);
   const [isRevokingMinecraftApiKey, setIsRevokingMinecraftApiKey] = useState(false);
-  const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);
-    // Profile settings state
+  const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);    // Profile settings state
   const [profileUsernameState, setProfileUsernameState] = useState('');
-  const [profilePictureUrlState, setProfilePictureUrlState] = useState('');
-  const [profilePicture, setProfilePicture] = useState<File | null>(null);
-  const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
   
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();  const [currentEmail, setCurrentEmail] = useState('');
@@ -193,26 +187,21 @@ const Settings = () => {
   const has2FA = has2FAState;
   const hasPasskey = hasPasskeyState;
   const showSetup2FA = showSetup2FAState;
-  const showSetupPasskey = showSetupPasskeyState;  const recoveryCodesCopied = recoveryCodesCopiedState;
-  
+  const showSetupPasskey = showSetupPasskeyState;  const recoveryCodesCopied = recoveryCodesCopiedState;  
   // Profile settings aliases
   const profileUsername = profileUsernameState;
-  const profilePictureUrl = profilePictureUrlState;
   
   useEffect(() => {
     if (user?.email) {
       setCurrentEmail(user.email);
-    }
-  }, [user]);  // Initialize profile settings from user data
+    }  }, [user]);  // Initialize profile settings from user data
   useEffect(() => {
     if (user) {
       justLoadedFromServerRef.current = true; // Prevent auto-save during initial load
       setProfileUsernameState(user.username || '');
-      setProfilePictureUrlState(user.profilePicture || '');
       
       // Initialize the refs with the current values
       profileUsernameRef.current = user.username || '';
-      profilePictureUrlRef.current = user.profilePicture || '';
       
       // Mark profile data as loaded after a short delay
       setTimeout(() => {
@@ -280,52 +269,8 @@ const Settings = () => {
       toast({
         title: "Panel Icon Uploaded",
         description: "Your panel icon has been successfully uploaded.",
-      });
-    }
+      });    }
     setUploadingPanelIcon(false);
-  };  // Profile picture upload function
-  const handleProfilePictureUpload = async (file: File) => {
-    setUploadingProfilePicture(true);
-    try {
-      const formData = new FormData();
-      formData.append('profilePicture', file);
-
-      console.log('Uploading profile picture file:', file.name);
-
-      const response = await fetch('/api/auth/profile/upload-picture', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-
-      console.log('Profile picture upload response status:', response.status);
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const result = await response.json();
-      console.log('Profile picture upload result:', result);
-      
-      // Use the setter function to update both state and ref, and trigger auto-save
-      setProfilePictureUrl(result.url);
-      setProfilePicture(file);
-      
-      console.log('Profile picture URL set to:', result.url);
-      
-      toast({
-        title: "Profile Picture Uploaded",
-        description: "Your profile picture has been successfully uploaded and saved.",
-      });
-    } catch (error) {
-      console.error('Profile picture upload error:', error);
-      toast({
-        title: "Upload Failed",
-        description: "Failed to upload the profile picture. Please try again.",
-        variant: "destructive",
-      });
-    }
-    setUploadingProfilePicture(false);
   };
 
   // API Key management functions
@@ -716,7 +661,7 @@ const Settings = () => {
     };  }, [
     punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
     bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, 
-    profileUsername, profilePictureUrl, // Add profile settings to auto-save
+    profileUsername, // Add profile settings to auto-save
     isLoadingSettings, isFetchingSettings, saveSettings
   ]);
 
@@ -824,27 +769,12 @@ const Settings = () => {
     // Trigger auto-save for profile updates, but skip during initial load
     if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
       triggerProfileAutoSave();
-    }
-  };
-
-  const setProfilePictureUrl = (value: React.SetStateAction<string>) => {
-    const newValue = typeof value === 'function' ? value(profilePictureUrlState) : value;
-    setProfilePictureUrlState(newValue);
-    profilePictureUrlRef.current = newValue; // Keep ref in sync
-    
-    console.log('Profile picture URL changed to:', newValue);
-    
-    // Trigger auto-save for profile updates, but skip during initial load
-    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
-      triggerProfileAutoSave();
-    }
-  };
-
+    }  };
+  
   // Save profile settings function
   const saveProfileSettings = useCallback(async () => {
     console.log('saveProfileSettings called with:', {
-      username: profileUsernameState,
-      profilePicture: profilePictureUrlState
+      username: profileUsernameState
     });
     
     try {
@@ -855,8 +785,7 @@ const Settings = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          username: profileUsernameState,
-          profilePicture: profilePictureUrlState
+          username: profileUsernameState
         })
       });
 
@@ -869,7 +798,6 @@ const Settings = () => {
         // Update the user context without refreshing
         if (user) {
           user.username = data.user.username;
-          user.profilePicture = data.user.profilePicture;
         }
         
         // Show success toast
@@ -896,18 +824,15 @@ const Settings = () => {
         title: "Save Failed",
         description: "Failed to save profile. Please try again.",
         variant: "destructive",
-      });
-    }
-  }, [profileUsernameState, profilePictureUrlState, user, toast, setLastSaved]);  // Auto-save function for profile settings
+      });    }
+  }, [profileUsernameState, user, toast, setLastSaved]);  // Auto-save function for profile settings
   const triggerProfileAutoSave = useCallback(() => {
     console.log('triggerProfileAutoSave called');
     console.log('Current profile state:', {
-      username: profileUsernameState,
-      pictureUrl: profilePictureUrlState
+      username: profileUsernameState
     });
     console.log('Current profile refs:', {
-      username: profileUsernameRef.current,
-      pictureUrl: profilePictureUrlRef.current
+      username: profileUsernameRef.current
     });
     
     if (profileSaveTimeoutRef.current) {
@@ -919,16 +844,13 @@ const Settings = () => {
       
       // Use refs to get the latest values at execution time
       const currentUsername = profileUsernameRef.current;
-      const currentProfilePicture = profilePictureUrlRef.current;
-      
-      console.log('Saving profile with current values from refs:', {
-        username: currentUsername,
-        profilePicture: currentProfilePicture
+        console.log('Saving profile with current values from refs:', {
+        username: currentUsername
       });
       
-      // Skip save if both values are empty
-      if (!currentUsername.trim() && !currentProfilePicture.trim()) {
-        console.log('Skipping save - both username and profile picture are empty');
+      // Skip save if username is empty
+      if (!currentUsername.trim()) {
+        console.log('Skipping save - username is empty');
         return;
       }
       
@@ -940,8 +862,7 @@ const Settings = () => {
           },
           credentials: 'include',
           body: JSON.stringify({
-            username: currentUsername,
-            profilePicture: currentProfilePicture
+            username: currentUsername
           })
         });
 
@@ -955,7 +876,6 @@ const Settings = () => {
           // Update the user context without refreshing
           if (user) {
             user.username = data.user.username;
-            user.profilePicture = data.user.profilePicture;
           }
           
           // Show success toast
@@ -1198,69 +1118,11 @@ const Settings = () => {
                       />
                       <p className="text-sm text-muted-foreground">
                         This name will appear in ticket conversations and other interactions.
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      </p>                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <CheckCircle className="h-3 w-3 text-green-500" />
                         <span>Changes are saved automatically</span>
                       </div>
-                    </div>                      <div className="space-y-2">
-                      <Label htmlFor="profile-picture">Profile Picture</Label>
-                      <div className="flex items-center space-x-4">
-                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
-                          {profilePictureUrl ? (
-                            <img 
-                              src={profilePictureUrl} 
-                              alt="Profile" 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback to initials if image fails to load
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                const fallback = target.nextElementSibling as HTMLElement;
-                                if (fallback) fallback.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
-                          <div 
-                            className={`w-full h-full rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium ${profilePictureUrl ? 'hidden' : 'flex'}`}
-                          >
-                            {profileUsername ? profileUsername.substring(0, 2).toUpperCase() : 'ST'}
-                          </div>
-                        </div>
-                        <div className="flex-1 space-y-3">
-                          <div className="space-y-2">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  handleProfilePictureUpload(file);
-                                }
-                              }}
-                              className="hidden"
-                              id="profile-picture-upload"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => document.getElementById('profile-picture-upload')?.click()}
-                              disabled={uploadingProfilePicture}
-                              className="w-full"
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              {uploadingProfilePicture ? 'Uploading...' : 'Upload Profile Picture'}
-                            </Button>
-                            <p className="text-xs text-muted-foreground">
-                              Upload a profile picture (PNG, JPG, or GIF). Max size: 5MB
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <CheckCircle className="h-3 w-3 text-green-500" />
-                        <span>Changes are saved automatically</span>
-                      </div>                    </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -76,9 +76,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // Serve uploaded files statically
-  app.use('/uploads', express.static('uploads'));
-
   // Start the domain status updater for monitoring custom domains
   try {
     const { connectToGlobalModlDb } = await import('./db/connectionManager');

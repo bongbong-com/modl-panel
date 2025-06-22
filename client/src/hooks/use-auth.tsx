@@ -8,7 +8,6 @@ interface User {
   _id: string;
   email: string;
   username: string;
-  profilePicture?: string;
   role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 

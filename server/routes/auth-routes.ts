@@ -12,13 +12,6 @@ import type { AuthenticatorTransport } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
 import { BYPASS_DEV_AUTH } from 'server/middleware/auth-middleware';
 import { getModlServersModel } from '../db/connectionManager';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { promisify } from 'util';
-
-const writeFile = promisify(fs.writeFile);
-const mkdir = promisify(fs.mkdir);
 
 
 const rpID = 'localhost';
@@ -27,23 +20,6 @@ const expectedOrigin = process.env.NODE_ENV === 'production'
   : 'http://localhost:5173';
 
 const router = Router();
-
-// Configure multer for profile picture uploads
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Check if file is an image
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(null, false);
-    }
-  }
-});
 
 const transporter = nodemailer.createTransport({
   host: 'localhost',
@@ -184,13 +160,10 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
         req.session.email = email;
         // @ts-ignore
         req.session.role = 'Super Admin';
-        const username = email.split('@')[0] || 'admin';
-        // @ts-ignore
+        const username = email.split('@')[0] || 'admin';        // @ts-ignore
         req.session.username = username;
         // @ts-ignore
         req.session.userId = email;
-        // @ts-ignore
-        req.session.profilePicture = ''; // Super Admin has no profile picture by default
         // @ts-ignore
         req.session.plan_type = 'premium';
         // @ts-ignore
@@ -213,8 +186,6 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
-      // @ts-ignore
-      req.session.profilePicture = user.profilePicture || '';
       // @ts-ignore
       req.session.plan_type = user.plan_type || 'free';
       // @ts-ignore
@@ -264,8 +235,6 @@ router.post('/verify-2fa-code', authRateLimit, async (req: Request, res: Respons
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
-      // @ts-ignore
-      req.session.profilePicture = user.profilePicture || '';
       // @ts-ignore
       req.session.plan_type = user.plan_type || 'free';
       // @ts-ignore
@@ -366,19 +335,12 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
 
     if (!authenticator) {
       return res.status(400).json({ message: 'Authenticator not recognized for this user.' });
-    }
-
-    const verification: VerifiedAuthenticationResponse = await verifyAuthenticationResponse({
+    }    const verification: VerifiedAuthenticationResponse = await verifyAuthenticationResponse({
       response: assertionResponse,
       expectedChallenge: storedChallengeEntry.challenge,
       expectedOrigin,
       expectedRPID: rpID,
-      authenticator: {
-        credentialID: authenticator.credentialID,
-        credentialPublicKey: authenticator.credentialPublicKey,
-        counter: authenticator.counter,
-        transports: authenticator.transports as AuthenticatorTransport[] | undefined,
-      },
+      authenticator: authenticator,
       requireUserVerification: true,
     });
 
@@ -475,9 +437,8 @@ router.patch('/profile', async (req: Request, res: Response) => {
   console.log('[PROFILE ENDPOINT] Request path:', req.path);
   console.log('[PROFILE ENDPOINT] Request body:', req.body);
   console.log('[PROFILE ENDPOINT] Session data:', req.session);
-  
-  try {
-    const { username, profilePicture } = req.body;
+    try {
+    const { username } = req.body;
     
     // Get user from session
     const userId = (req.session as any)?.userId;
@@ -496,9 +457,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
     const updateData: any = {};
     if (username !== undefined) {
       updateData.username = username;
-    }
-    if (profilePicture !== undefined) {
-      updateData.profilePicture = profilePicture;
     }
       // Determine if userId is an email (for Super Admin) or an ObjectId (for regular staff)
     const isEmail = userId.includes('@');
@@ -523,16 +481,14 @@ router.patch('/profile', async (req: Request, res: Response) => {
     let updatedUser = await StaffModel.findOneAndUpdate(
       userQuery,
       updateData,
-      { new: true, select: 'email username profilePicture role' }
+      { new: true, select: 'email username role' }
     );
     
     // If user not found and it's an email (Super Admin), create a new staff record
     if (!updatedUser && isEmail) {
-      console.log('[PROFILE ENDPOINT] Super Admin not found in Staff collection, creating new record');
-      const newStaffData = {
+      console.log('[PROFILE ENDPOINT] Super Admin not found in Staff collection, creating new record');      const newStaffData = {
         email: userId,
         username: username || userId.split('@')[0],
-        profilePicture: profilePicture || '',
         role: 'Super Admin'
       };
       
@@ -544,12 +500,8 @@ router.patch('/profile', async (req: Request, res: Response) => {
       console.log('[PROFILE ENDPOINT] User still not found after attempted creation');
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Update session with new user data
+      // Update session with new user data
     (req.session as any).username = updatedUser.username;
-    if (updatedUser.profilePicture) {
-      (req.session as any).profilePicture = updatedUser.profilePicture;
-    }
     
     res.json({ 
       message: 'Profile updated successfully',
@@ -557,7 +509,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
         _id: updatedUser._id,
         email: updatedUser.email,
         username: updatedUser.username,
-        profilePicture: updatedUser.profilePicture,
         role: updatedUser.role
       }
     });
@@ -581,17 +532,12 @@ router.patch('/profile', async (req: Request, res: Response) => {
     if (!userId) {
       console.log('[PROFILE UPDATE] No userId in session - returning 401');
       return res.status(401).json({ message: 'Not authenticated' });
-    }
-
-    const { username, profilePicture } = req.body;
+    }    const { username } = req.body;
 
     // If this is a Super Admin (identified by email as userId), update session only
     if (session.role === 'Super Admin') {
       if (username !== undefined) {
         session.username = username;
-      }
-      if (profilePicture !== undefined) {
-        session.profilePicture = profilePicture;
       }
       
       await req.session.save();
@@ -600,7 +546,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
         _id: session.userId,
         email: session.email,
         username: session.username,
-        profilePicture: session.profilePicture || '',
         role: session.role
       };
       
@@ -609,17 +554,12 @@ router.patch('/profile', async (req: Request, res: Response) => {
         message: 'Profile updated successfully',
         user 
       });
-    }
-
-    // For regular staff, update database
+    }    // For regular staff, update database
     const User = req.serverDbConnection!.model('User');
     const updateData: any = {};
     
     if (username !== undefined) {
       updateData.username = username;
-    }
-    if (profilePicture !== undefined) {
-      updateData.profilePicture = profilePicture;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -637,9 +577,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
     if (username !== undefined) {
       session.username = updatedUser.username;
     }
-    if (profilePicture !== undefined) {
-      session.profilePicture = updatedUser.profilePicture || '';
-    }
     
     await req.session.save();
 
@@ -647,7 +584,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
       _id: updatedUser._id.toString(),
       email: updatedUser.email,
       username: updatedUser.username,
-      profilePicture: updatedUser.profilePicture || '',
       role: updatedUser.role
     };
 
@@ -659,62 +595,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// Profile picture upload endpoint
-router.post('/profile/upload-picture', upload.single('profilePicture'), async (req: Request, res: Response) => {
-  console.log('[PROFILE PICTURE UPLOAD] Profile picture upload request received');
-  
-  try {
-    // Get user from session
-    const userId = (req.session as any)?.userId;
-    console.log('[PROFILE PICTURE UPLOAD] User ID from session:', userId);
-    
-    if (!userId) {
-      console.log('[PROFILE PICTURE UPLOAD] No userId in session - returning 401');
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-
-    if (!req.file) {
-      console.log('[PROFILE PICTURE UPLOAD] No file uploaded');
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    console.log('[PROFILE PICTURE UPLOAD] File received:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
-
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'profile-pictures');
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch (error) {
-      // Directory might already exist, ignore error
-    }
-
-    // Generate filename with timestamp and user ID to avoid conflicts
-    const fileExtension = path.extname(req.file.originalname) || '.png';
-    const fileName = `profile-${userId}-${Date.now()}${fileExtension}`;
-    const filePath = path.join(uploadsDir, fileName);
-
-    // Save file to disk
-    await writeFile(filePath, req.file.buffer);
-
-    // Generate URL for the uploaded file
-    const fileUrl = `/uploads/profile-pictures/${fileName}`;
-    
-    console.log('[PROFILE PICTURE UPLOAD] File saved successfully:', fileUrl);
-    
-    res.json({ 
-      url: fileUrl,
-      message: 'Profile picture uploaded successfully'
-    });
-  } catch (error) {
-    console.error('Profile picture upload error:', error);
     res.status(500).json({ message: 'Internal server error' });  }
 });
 
@@ -722,7 +602,23 @@ router.post('/profile/upload-picture', upload.single('profilePicture'), async (r
 router.get('/session', async (req: Request, res: Response) => {
   console.log('[SESSION] Session check request received');
   
-  try {
+  try {    // Check for development bypass first
+    if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
+      console.log('[SESSION] Using development bypass');
+      const user = {
+        _id: 'dev-user-id',
+        email: 'dev@example.com',
+        username: 'devuser',
+        role: 'Super Admin'
+      };
+      
+      console.log('[SESSION] Returning dev bypass user:', user);
+      return res.json({ 
+        isAuthenticated: true, 
+        user 
+      });
+    }
+
     const session = req.session as any;
     
     if (!session?.userId) {
@@ -731,24 +627,18 @@ router.get('/session', async (req: Request, res: Response) => {
         isAuthenticated: false, 
         user: null 
       });
-    }
-
-    console.log('[SESSION] Session found for user:', session.userId);
+    }    console.log('[SESSION] Session found for user:', session.userId);
     console.log('[SESSION] Session data:', {
       userId: session.userId,
       email: session.email,
       username: session.username,
-      role: session.role,
-      profilePicture: session.profilePicture
-    });
-
-    // If this is a Super Admin (identified by email as userId), return admin data
+      role: session.role
+    });    // If this is a Super Admin (identified by email as userId), return admin data
     if (session.role === 'Super Admin') {
       const user = {
         _id: session.userId,
         email: session.email,
         username: session.username,
-        profilePicture: session.profilePicture || '',
         role: session.role
       };
       
@@ -769,13 +659,10 @@ router.get('/session', async (req: Request, res: Response) => {
         isAuthenticated: false, 
         user: null 
       });
-    }
-
-    const userData = {
+    }    const userData = {
       _id: user._id.toString(),
       email: user.email,
       username: user.username,
-      profilePicture: user.profilePicture || '',
       role: user.role
     };
 

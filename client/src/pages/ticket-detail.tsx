@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
@@ -886,19 +886,9 @@ const TicketDetail = () => {
                 <div className="space-y-4">
                   <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
                     {ticketDetails.messages.map((message) => (
-                      <div 
-                        key={message.id} 
+                      <div                        key={message.id} 
                         className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
                       >                        <Avatar className="h-10 w-10">
-                          {/* Show profile picture for staff messages that match current user */}
-                          {(message.senderType === 'staff' || message.staff) && 
-                           message.sender === user?.username && 
-                           user?.profilePicture && (
-                            <AvatarImage 
-                              src={user.profilePicture} 
-                              alt="Profile"
-                            />
-                          )}
                           <AvatarFallback className={
                             message.senderType === 'user' 
                               ? 'bg-primary/10 text-primary' 
@@ -907,7 +897,7 @@ const TicketDetail = () => {
                                 : 'bg-muted text-muted-foreground'
                           }>
                             {message.senderType === 'system' ? 'SYS' : 
-                              message.sender && typeof message.sender === 'string' && message.sender !== 'user' 
+                              message.sender && typeof message.sender === 'string' && message.sender !== 'user'
                                 ? message.sender.substring(0, 2).toUpperCase() 
                                 : message.senderType === 'staff' || message.staff 
                                   ? 'ST' 

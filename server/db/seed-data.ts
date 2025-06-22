@@ -126,12 +126,10 @@ export async function seedDatabase() {
     // Create staff members
     const staffPassword = await hashPassword('admin123');
     const staff = [
-      {
-        _id: 'staff-001',
+      {        _id: 'staff-001',
         email: 'moderator@example.com',
         username: 'Moderator2',
         password: staffPassword,
-        profilePicture: 'https://ui-avatars.com/api/?name=Moderator2',
         admin: false,
         twoFaSecret: crypto.randomBytes(10).toString('hex')
       },
@@ -140,7 +138,6 @@ export async function seedDatabase() {
         email: 'admin@example.com',
         username: 'AdminUser',
         password: staffPassword,
-        profilePicture: 'https://ui-avatars.com/api/?name=AdminUser',
         admin: true,
         twoFaSecret: crypto.randomBytes(10).toString('hex')
       }

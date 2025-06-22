@@ -20,7 +20,6 @@ interface IPasskey {
 interface IStaff extends MongooseDocument {
   email: string;
   username: string;
-  profilePicture?: string;
   role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
   twoFaSecret?: string;
   isTwoFactorEnabled?: boolean;
@@ -314,14 +313,13 @@ router.get('/:username', async (req: Request<{ username: string }>, res: Respons
 interface CreateStaffBody {
   email: string;
   username: string;
-  profilePicture?: string;
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
 router.post('/', async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const { email, username, profilePicture, role } = req.body;
+    const { email, username, role } = req.body;
     
     const existingStaff = await Staff.findOne({ 
       $or: [{ email }, { username }] 
@@ -335,7 +333,6 @@ router.post('/', async (req: Request<{}, {}, CreateStaffBody>, res: Response) =>
     const newStaff = new Staff({
       email,
       username,
-      profilePicture,
       role: role || 'Helper',
       twoFaSecret
     });
@@ -352,7 +349,6 @@ router.post('/', async (req: Request<{}, {}, CreateStaffBody>, res: Response) =>
 
 interface UpdateStaffBody {
   email?: string;
-  profilePicture?: string;
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
@@ -360,7 +356,7 @@ interface UpdateStaffBody {
 router.patch('/:username', async (req: Request<{ username: string }, {}, UpdateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const { email, profilePicture, role } = req.body;
+    const { email, role } = req.body;
     
     const staffMember = await Staff.findOne({ username: req.params.username });
     if (!staffMember) {
@@ -380,16 +376,7 @@ router.patch('/:username', async (req: Request<{ username: string }, {}, UpdateS
       const existingStaffWithNewEmail = await Staff.findOne({ email: email, _id: { $ne: staffMember._id } });
       if (existingStaffWithNewEmail) {
         return res.status(409).json({ error: 'Email address already in use by another account.' });
-      }
-      staffMember.email = email;
-      changesMade = true;
-    }
-
-    if (profilePicture !== undefined && profilePicture !== staffMember.profilePicture) {
-      if (req.currentUser!.username !== staffMember.username && !['Super Admin', 'Admin'].includes(req.currentUser!.role)) {
-        return res.status(403).json({ error: 'Forbidden: You can only change your own profile picture, or an admin must perform this action.' });
-      }
-      staffMember.profilePicture = profilePicture;
+      }      staffMember.email = email;
       changesMade = true;
     }
 
