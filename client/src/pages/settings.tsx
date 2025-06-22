@@ -25,6 +25,7 @@ import BillingSettings from '@/components/settings/BillingSettings';
 import DomainSettings from '@/components/settings/DomainSettings';
 import KnowledgebaseSettings from '@/components/settings/KnowledgebaseSettings';
 import HomepageCardSettings from '@/components/settings/HomepageCardSettings';
+import ProfileSettings from '@/components/settings/ProfileSettings';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -92,10 +93,9 @@ const Settings = () => {
   const [dbConnectionStatus, setDbConnectionStatus] = useState(false);
   const [mongodbUri, setMongodbUri] = useState('');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
-
   // Punishment types state
   // State for all settings fields
-  const [punishmentTypes, setPunishmentTypesState] = useState<PunishmentType[]>([
+  const [punishmentTypes, setPunishmentTypes] = useState<PunishmentType[]>([
     // Administrative punishment types (IDs 0-5, not customizable) - minimal fallback
     { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
     { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
@@ -105,11 +105,11 @@ const Settings = () => {
     { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
     // Social and Gameplay punishment types are loaded from server during provisioning
   ]);
-  const [newPunishmentName, setNewPunishmentNameState] = useState('');
-  const [newPunishmentCategory, setNewPunishmentCategoryState] = useState<'Gameplay' | 'Social'>('Gameplay');
+  const [newPunishmentName, setNewPunishmentName] = useState('');
+  const [newPunishmentCategory, setNewPunishmentCategory] = useState<'Gameplay' | 'Social'>('Gameplay');
 
   // Threshold values for player status levels
-  const [statusThresholds, setStatusThresholdsState] = useState<StatusThresholds>({
+  const [statusThresholds, setStatusThresholds] = useState<StatusThresholds>({
     gameplay: {
       medium: 5,  // 5+ points = medium offender
       habitual: 10 // 10+ points = habitual offender
@@ -119,35 +119,33 @@ const Settings = () => {
       habitual: 8  // 8+ points = habitual offender
     }
   });
-
   // Selected punishment for editing
-  const [selectedPunishment, setSelectedPunishmentState] = useState<PunishmentType | null>(null);
+  const [selectedPunishment, setSelectedPunishment] = useState<PunishmentType | null>(null);
 
   // State to control visibility of core punishment types
-  const [showCorePunishments, setShowCorePunishmentsState] = useState(false);
+  const [showCorePunishments, setShowCorePunishments] = useState(false);
 
   // Tags state for each ticket category
-  const [bugReportTags, setBugReportTagsState] = useState<string[]>([
+  const [bugReportTags, setBugReportTags] = useState<string[]>([
     'UI Issue', 'Server', 'Performance', 'Crash', 'Game Mechanics'
   ]);
-  const [playerReportTags, setPlayerReportTagsState] = useState<string[]>([
+  const [playerReportTags, setPlayerReportTags] = useState<string[]>([
     'Harassment', 'Cheating', 'Spam', 'Inappropriate Content', 'Griefing'
   ]);
-  const [appealTags, setAppealTagsState] = useState<string[]>([
+  const [appealTags, setAppealTags] = useState<string[]>([
     'Ban Appeal', 'Mute Appeal', 'False Positive', 'Second Chance'
   ]);
 
   // For new tag input
-  const [newBugTag, setNewBugTagState] = useState('');
-  const [newPlayerTag, setNewPlayerTagState] = useState('');
-  const [newAppealTag, setNewAppealTagState] = useState('');
-
+  const [newBugTag, setNewBugTag] = useState('');
+  const [newPlayerTag, setNewPlayerTag] = useState('');
+  const [newAppealTag, setNewAppealTag] = useState('');
   // Security tab states
-  const [has2FA, setHas2FAState] = useState(false);
-  const [hasPasskey, setHasPasskeyState] = useState(false);
-  const [showSetup2FA, setShowSetup2FAState] = useState(false);
-  const [showSetupPasskey, setShowSetupPasskeyState] = useState(false);
-  const [recoveryCodesCopied, setRecoveryCodesCopiedState] = useState(false);
+  const [has2FA, setHas2FA] = useState(false);
+  const [hasPasskey, setHasPasskey] = useState(false);
+  const [showSetup2FA, setShowSetup2FA] = useState(false);
+  const [showSetupPasskey, setShowSetupPasskey] = useState(false);
+  const [recoveryCodesCopied, setRecoveryCodesCopied] = useState(false);
 
   // General tab states
   const [serverDisplayName, setServerDisplayName] = useState('');
@@ -171,10 +169,8 @@ const Settings = () => {
   const [isGeneratingMinecraftApiKey, setIsGeneratingMinecraftApiKey] = useState(false);
   const [isRevokingMinecraftApiKey, setIsRevokingMinecraftApiKey] = useState(false);
   const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);
-
   const { toast } = useToast();
-  const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
-  const [currentEmail, setCurrentEmail] = useState('');
+  const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();  const [currentEmail, setCurrentEmail] = useState('');
 
   useEffect(() => {
     if (user?.email) {
@@ -929,9 +925,164 @@ const Settings = () => {
                   Homepage Cards
                 </TabsTrigger>
               )}
-            </TabsList>
-
-            <TabsContent value="account" className="space-y-6 p-6">
+            </TabsList>            <TabsContent value="account" className="space-y-6 p-6">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Profile Information</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Update your profile information used in ticket conversations.
+                </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Username</label>
+                    <input
+                      type="text"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="Enter your username"
+                      defaultValue={user?.username || ''}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      This name will appear in ticket conversations and other interactions.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Profile Picture URL</label>
+                    <div className="flex items-center space-x-4">
+                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
+                        {user?.profilePicture ? (
+                          <img 
+                            src={user.profilePicture} 
+                            alt="Profile" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium">
+                            {user?.username ? user.username.substring(0, 2).toUpperCase() : 'ST'}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="url"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          placeholder="https://example.com/your-avatar.jpg"
+                          defaultValue={user?.profilePicture || ''}
+                        />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Enter a URL for your profile picture. Leave empty to use initials.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    onClick={() => {
+                      toast({
+                        title: "Work In Progress",
+                        description: "Profile update functionality will be available soon.",
+                      });
+                    }}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Profile Changes
+                  </Button>
+                </div>
+              </div>
+              <Separator />
+              <div>
+                <h3 className="text-lg font-medium mb-4">Profile Information</h3>
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>                      <Input
+                        id="username"
+                        type="text"
+                        value={profileUsername}
+                        onChange={(e) => setProfileUsername(e.target.value)}
+                        placeholder="Enter your username"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        This name will appear in ticket conversations and other interactions.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="profile-picture">Profile Picture URL</Label>
+                      <div className="flex items-center space-x-4">                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
+                          {profilePictureUrl ? (
+                            <img 
+                              src={profilePictureUrl} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to initials if image fails to load
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className={`w-full h-full rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium ${profilePictureUrl ? 'hidden' : 'flex'}`}
+                          >
+                            {profileUsername ? profileUsername.substring(0, 2).toUpperCase() : 'ST'}
+                          </div>
+                        </div>
+                        <div className="flex-1">                          <Input
+                            id="profile-picture"
+                            type="url"
+                            value={profilePictureUrl}
+                            onChange={(e) => setProfilePictureUrl(e.target.value)}
+                            placeholder="https://example.com/your-avatar.jpg"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Enter a URL for your profile picture. Leave empty to use initials.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                      <Button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/auth/profile', {
+                            method: 'PATCH',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              username: profileUsername,
+                              profilePicture: profilePictureUrl
+                            })
+                          });
+                          
+                          if (response.ok) {
+                            toast({
+                              title: "Profile Updated",
+                              description: "Your profile information has been successfully updated."
+                            });
+                            // Refresh the session to get updated user data
+                            window.location.reload();
+                          } else {
+                            throw new Error('Failed to update profile');
+                          }
+                        } catch (error) {
+                          toast({
+                            title: "Update Failed",
+                            description: "There was an error updating your profile. Please try again.",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Profile Changes
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <Separator />
               <div>
                 <h3 className="text-lg font-medium mb-4">Account Information</h3>
                 <div className="space-y-4">

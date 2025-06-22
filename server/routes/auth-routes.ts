@@ -441,4 +441,73 @@ router.post('/logout', (req: Request, res: Response) => {
   });
 });
 
+// Profile update endpoint
+router.patch('/profile', async (req: Request, res: Response) => {
+  try {
+    const { username, profilePicture } = req.body;
+    
+    // Get user from session
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+      // Get the staff model from the server database connection
+    // @ts-ignore
+    const StaffModel = req.serverDbConnection!.model('Staff');
+    
+    // Prepare update data
+    const updateData: any = {};
+    if (username !== undefined) {
+      updateData.username = username;
+    }
+    if (profilePicture !== undefined) {
+      updateData.profilePicture = profilePicture;
+    }
+      // Check if username is already taken (if updating username)
+    if (username) {
+      const existingUser = await StaffModel.findOne({ 
+        username, 
+        _id: { $ne: userId } 
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Username already taken' });
+      }
+    }
+    
+    // Update the user profile
+    const updatedUser = await StaffModel.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, select: 'email username profilePicture role' }
+    );
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Update session with new user data
+    (req.session as any).user = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      username: updatedUser.username,
+      profilePicture: updatedUser.profilePicture,
+      role: updatedUser.role
+    };
+    
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: {
+        _id: updatedUser._id,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        profilePicture: updatedUser.profilePicture,
+        role: updatedUser.role
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 export default router;

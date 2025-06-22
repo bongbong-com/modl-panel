@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
@@ -419,12 +419,11 @@ const TicketDetail = () => {
       const isClosing = ticketDetails.selectedAction && 
                        ticketDetails.selectedAction !== 'Comment' && 
                        ticketDetails.selectedAction !== 'Reopen';
-      
-      // Create the new message with proper structure
+        // Create the new message with proper structure
       const newMessage = {
         id: `msg-${Date.now()}`,
         // These map to the server-side schema fields
-        name: user?.username || "Admin", // Use Admin as fallback instead of Unknown
+        name: user?.username || "Admin", // Use the actual user's username
         type: "staff",
         content: messageContent,
         created: new Date(),
@@ -890,8 +889,16 @@ const TicketDetail = () => {
                       <div 
                         key={message.id} 
                         className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
-                      >
-                        <Avatar className="h-10 w-10">
+                      >                        <Avatar className="h-10 w-10">
+                          {/* Show profile picture for staff messages that match current user */}
+                          {(message.senderType === 'staff' || message.staff) && 
+                           message.sender === user?.username && 
+                           user?.profilePicture && (
+                            <AvatarImage 
+                              src={user.profilePicture} 
+                              alt="Profile"
+                            />
+                          )}
                           <AvatarFallback className={
                             message.senderType === 'user' 
                               ? 'bg-primary/10 text-primary' 
