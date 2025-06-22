@@ -53,11 +53,26 @@ router.get('/', async (req: Request, res: Response) => {
     const Ticket = req.serverDbConnection!.model('Ticket');
     const tickets = await Ticket.find({}).lean();
     console.log(`[Debug] Found ${tickets.length} tickets in database`);
-    if (tickets.length > 0) {
-      console.log(`[Debug] Sample ticket fields:`, Object.keys(tickets[0]));
-      console.log(`[Debug] Sample ticket:`, tickets[0]);
+      // Transform tickets to match client expectations
+    const transformedTickets = tickets.map(ticket => ({
+      ...ticket,
+      id: ticket._id,
+      date: ticket.created || new Date().toISOString(),
+      reportedBy: ticket.creator || ticket.creatorName || 'Unknown',
+      messages: ticket.replies ? ticket.replies.map((reply: any) => ({
+        id: reply._id || Math.random().toString(),
+        sender: reply.name,
+        senderType: reply.staff ? 'staff' : 'user',
+        content: reply.content,
+        timestamp: reply.created || new Date().toISOString(),
+        staff: reply.staff || false
+      })) : []
+    }));
+    
+    if (transformedTickets.length > 0) {
+      console.log(`[Debug] Sample transformed ticket:`, transformedTickets[0]);
     }
-    res.json(tickets);
+    res.json(transformedTickets);
   } catch (error) {
     console.error('Error fetching tickets:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -67,11 +82,27 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const ticket = await Ticket.findById(req.params.id);
+    const ticket = await Ticket.findById(req.params.id).lean();
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    res.json(ticket);
+      // Transform ticket to match client expectations
+    const transformedTicket = {
+      ...ticket,
+      id: ticket._id,
+      date: ticket.created || new Date().toISOString(),
+      reportedBy: ticket.creator || ticket.creatorName || 'Unknown',
+      messages: ticket.replies ? ticket.replies.map((reply: any) => ({
+        id: reply._id || Math.random().toString(),
+        sender: reply.name,
+        senderType: reply.staff ? 'staff' : 'user',
+        content: reply.content,
+        timestamp: reply.created || new Date().toISOString(),
+        staff: reply.staff || false
+      })) : []
+    };
+    
+    res.json(transformedTicket);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }

@@ -13,7 +13,13 @@ import {
 // Format date to MM/dd/yy HH:mm in browser's timezone
 const formatDate = (dateString: string): string => {
   try {
+    if (!dateString || dateString === 'Invalid Date') {
+      return 'Unknown';
+    }
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
     return date.toLocaleString('en-US', {
       month: '2-digit',
       day: '2-digit',
@@ -23,14 +29,21 @@ const formatDate = (dateString: string): string => {
       hour12: false
     });
   } catch (e) {
-    return dateString; // Return original string if formatting fails
+    console.error("Error formatting date:", e, "Input:", dateString);
+    return 'Invalid Date'; // Return clear error message if formatting fails
   }
 };
 
 // Format date as "X time ago"
 const formatTimeAgo = (dateString: string): string => {
   try {
+    if (!dateString || dateString === 'Invalid Date') {
+      return 'Unknown';
+    }
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     
@@ -59,7 +72,7 @@ const formatTimeAgo = (dateString: string): string => {
     return `${diffYear} year${diffYear !== 1 ? 's' : ''} ago`;
     
   } catch (e) {
-    console.error("Error formatting time ago:", e);
+    console.error("Error formatting time ago:", e, "Input:", dateString);
     return "Unknown";
   }
 };
@@ -145,10 +158,15 @@ const Tickets = () => {
     const statusMatch = statusFilter === "all" || simplifiedStatus === statusFilter;
     return typeMatch && statusMatch;
   }) : [];
-  
-  const handleNavigateToTicket = (ticketId: string) => {
+    const handleNavigateToTicket = (ticketId: string) => {
     // Navigate to the ticket detail page
     console.log('Navigating to ticket:', ticketId);
+    
+    // Ensure ticketId is defined and is a string
+    if (!ticketId || typeof ticketId !== 'string') {
+      console.error('Invalid ticket ID for navigation:', ticketId);
+      return;
+    }
     
     // Remove any characters that might cause issues in the URL
     // Replace # with "ID-" to avoid hash confusion in the URL

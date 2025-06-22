@@ -270,3 +270,147 @@ API keys are configured in your server settings:
 These can also be overridden with environment variables:
 - `MINECRAFT_API_KEY`
 - `TICKET_API_KEY`
+
+---
+
+## Panel API (Authentication Required)
+
+These endpoints are used internally by the admin panel and require user authentication via session cookies.
+
+### List All Tickets
+
+```bash
+# Get all tickets (requires authentication)
+curl -X GET "https://yourserver.modl.dev/api/panel/tickets" \
+  -H "Cookie: session-cookie-here"
+```
+
+### Get Specific Ticket
+
+```bash
+# Get ticket details for panel view
+curl -X GET "https://yourserver.modl.dev/api/panel/tickets/BUG-123456" \
+  -H "Cookie: session-cookie-here"
+```
+
+### Add Internal Note
+
+```bash
+# Add a staff-only note to a ticket
+curl -X POST "https://yourserver.modl.dev/api/panel/tickets/BUG-123456/notes" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session-cookie-here" \
+  -d '{
+    "text": "Internal note visible only to staff",
+    "issuerName": "StaffMember",
+    "issuerAvatar": "https://avatar-url.com/avatar.png"
+  }'
+```
+
+### Add Staff Reply
+
+```bash
+# Add a reply from staff member
+curl -X POST "https://yourserver.modl.dev/api/panel/tickets/BUG-123456/replies" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session-cookie-here" \
+  -d '{
+    "name": "StaffMember",
+    "content": "Thank you for the report. We are investigating this issue.",
+    "type": "public",
+    "staff": true,
+    "avatar": "https://avatar-url.com/avatar.png"
+  }'
+```
+
+### Update Ticket Data
+
+```bash
+# Update ticket status, assignment, or other data
+curl -X PATCH "https://yourserver.modl.dev/api/panel/tickets/BUG-123456/data" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session-cookie-here" \
+  -d '{
+    "data": {
+      "status": "Closed",
+      "assignedTo": "StaffMember",
+      "priority": "high"
+    },
+    "staffName": "StaffMember"
+  }'
+```
+
+### Add Tag
+
+```bash
+# Add a tag to a ticket
+curl -X POST "https://yourserver.modl.dev/api/panel/tickets/BUG-123456/tags" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session-cookie-here" \
+  -d '{
+    "tag": "urgent",
+    "staffName": "StaffMember"
+  }'
+```
+
+### Remove Tag
+
+```bash
+# Remove a tag from a ticket
+curl -X DELETE "https://yourserver.modl.dev/api/panel/tickets/BUG-123456/tags/urgent" \
+  -H "Cookie: session-cookie-here"
+```
+
+### Get Tickets by Tag
+
+```bash
+# Get all tickets with a specific tag
+curl -X GET "https://yourserver.modl.dev/api/panel/tickets/tag/urgent" \
+  -H "Cookie: session-cookie-here"
+```
+
+### Get Tickets by Creator
+
+```bash
+# Get all tickets created by a specific user
+curl -X GET "https://yourserver.modl.dev/api/panel/tickets/creator/123e4567-e89b-12d3-a456-426614174000" \
+  -H "Cookie: session-cookie-here"
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### "Invalid Date" in Ticket List
+
+If you see "Invalid Date" or "NaN years ago" in the ticket list, this indicates a data format issue. The server transforms ticket data to ensure compatibility:
+
+- Ticket creation dates are normalized to ISO format
+- Missing dates default to current timestamp
+- Invalid date strings are caught and display "Invalid Date"
+
+#### Ticket Navigation Errors
+
+If clicking "View" on a ticket throws a JavaScript error about undefined properties:
+
+- Ensure tickets have valid `id` fields (automatically added by server transformation)
+- Check that ticket IDs don't contain invalid URL characters
+- The navigation function now includes defensive checks for undefined IDs
+
+#### 404 Errors on Panel Routes
+
+If `/api/panel/tickets` returns 404:
+
+- Verify the server is running and routes are properly mounted
+- Check that authentication middleware is configured
+- Ensure database connection is established
+
+#### Data Format Mismatches
+
+The server automatically transforms ticket data between different formats:
+
+- **Server Schema**: Uses `created`, `creator`, `replies` fields
+- **Client Expectation**: Expects `date`, `reportedBy`, `messages` fields
+- **Transformation**: Server converts between formats automatically
