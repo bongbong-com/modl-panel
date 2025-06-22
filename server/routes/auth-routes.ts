@@ -451,7 +451,8 @@ router.patch('/profile', async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-      // Get the staff model from the server database connection
+    
+    // Get the staff model from the server database connection
     // @ts-ignore
     const StaffModel = req.serverDbConnection!.model('Staff');
     
@@ -463,20 +464,26 @@ router.patch('/profile', async (req: Request, res: Response) => {
     if (profilePicture !== undefined) {
       updateData.profilePicture = profilePicture;
     }
-      // Check if username is already taken (if updating username)
+    
+    // Determine if userId is an email (for Super Admin) or an ObjectId (for regular staff)
+    const isEmail = userId.includes('@');
+    const userQuery = isEmail ? { email: userId } : { _id: userId };
+    
+    // Check if username is already taken (if updating username)
     if (username) {
-      const existingUser = await StaffModel.findOne({ 
-        username, 
-        _id: { $ne: userId } 
-      });
+      const existingUserQuery = isEmail 
+        ? { username, email: { $ne: userId } }
+        : { username, _id: { $ne: userId } };
+      
+      const existingUser = await StaffModel.findOne(existingUserQuery);
       if (existingUser) {
         return res.status(400).json({ message: 'Username already taken' });
       }
     }
     
     // Update the user profile
-    const updatedUser = await StaffModel.findByIdAndUpdate(
-      userId,
+    const updatedUser = await StaffModel.findOneAndUpdate(
+      userQuery,
       updateData,
       { new: true, select: 'email username profilePicture role' }
     );
