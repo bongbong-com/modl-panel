@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useTicket, useUpdateTicket } from '@/hooks/use-data';
+import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';
 
@@ -135,18 +135,23 @@ const TicketDetail = () => {
       return dateString; // Return original string if formatting fails
     }
   };
-  
-  // More robust parsing of ticket ID from URL
+    // More robust parsing of ticket ID from URL
   const path = location[0];
   const pathParts = path.split('/');
   
   // Get the last part of the URL which should be the ticket ID
-  const ticketId = pathParts[pathParts.length - 1];
+  let ticketId = pathParts[pathParts.length - 1];
+  
+  // Reverse the transformation done in navigation (ID- back to #)
+  if (ticketId.startsWith('ID-')) {
+    ticketId = ticketId.replace('ID-', '#');
+  }
   
   // Debug
   console.log('Current URL path:', path);
   console.log('Path parts:', pathParts);
-  console.log('Extracted ticket ID:', ticketId);
+  console.log('Raw URL ticket ID:', pathParts[pathParts.length - 1]);
+  console.log('Processed ticket ID for API:', ticketId);
 
   // Sample default tags based on category
   const getDefaultTagsForCategory = (category: TicketCategory): string[] => {
@@ -189,9 +194,8 @@ const TicketDetail = () => {
     'Low': 'bg-info/10 text-info border-info/20',
     'Fixed': 'bg-success/10 text-success border-success/20'
   };
-
-  // Use React Query to fetch ticket data
-  const { data: ticketData, isLoading, isError } = useTicket(ticketId);
+  // Use React Query to fetch ticket data from panel API
+  const { data: ticketData, isLoading, isError } = usePanelTicket(ticketId);
   
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
@@ -615,6 +619,26 @@ const TicketDetail = () => {
                 onClick={() => window.location.reload()}
               >
                 Try Again
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {!isLoading && !isError && !ticketData && (
+          <div className="flex justify-center items-center py-20">
+            <div className="flex flex-col items-center">
+              <AlertCircle className="h-8 w-8 text-muted-foreground" />
+              <h3 className="mt-2 text-lg font-medium">Ticket not found</h3>
+              <p className="text-sm text-muted-foreground">
+                The ticket with ID "{ticketId}" could not be found.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4"
+                onClick={() => setLocation('/tickets')}
+              >
+                Back to Tickets
               </Button>
             </div>
           </div>

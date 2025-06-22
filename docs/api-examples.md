@@ -414,3 +414,19 @@ The server automatically transforms ticket data between different formats:
 - **Server Schema**: Uses `created`, `creator`, `replies` fields
 - **Client Expectation**: Expects `date`, `reportedBy`, `messages` fields
 - **Transformation**: Server converts between formats automatically
+
+#### Blank Ticket Detail Page
+
+If the `/tickets/:id` page is blank or shows a loading state indefinitely:
+
+- **Issue**: The ticket detail page was using the public API endpoint instead of the panel API endpoint
+- **Fix**: Now uses the correct `/api/panel/tickets/:id` endpoint with authentication
+- **ID Transformation**: The system correctly handles ticket ID transformations between URL-safe format and actual ticket IDs
+- **Debug Info**: Added comprehensive logging to help diagnose data issues
+
+#### Panel vs Public API Endpoints
+
+The system has two separate API endpoints for tickets:
+
+- **Panel API** (`/api/panel/tickets`): Used by the admin panel, requires authentication, returns transformed data for panel compatibility
+- **Public API** (`/api/public/tickets`): Used by player-facing pages, requires API key for creation, supports public viewing and replies

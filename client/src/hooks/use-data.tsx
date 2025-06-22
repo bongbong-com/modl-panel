@@ -402,3 +402,25 @@ export function useApplyPunishment() {
     }
   });
 }
+
+export function usePanelTicket(id: string) {
+  return useQuery({
+    queryKey: ['/api/panel/tickets', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/panel/tickets/${id}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          return null;
+        }
+        throw new Error('Failed to fetch ticket');
+      }
+      return res.json();
+    },
+    enabled: !!id,
+    // Disable caching to always get fresh data
+    staleTime: 0,
+    gcTime: 0, // This is the v5 replacement for cacheTime
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
+  });
+}

@@ -82,11 +82,16 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
+    console.log(`[Debug] Looking for ticket with ID: ${req.params.id}`);
     const ticket = await Ticket.findById(req.params.id).lean();
     if (!ticket) {
+      console.log(`[Debug] Ticket not found: ${req.params.id}`);
       return res.status(404).json({ error: 'Ticket not found' });
     }
-      // Transform ticket to match client expectations
+    
+    console.log(`[Debug] Found ticket:`, ticket);
+    
+    // Transform ticket to match client expectations
     const transformedTicket = {
       ...ticket,
       id: ticket._id,
@@ -102,9 +107,11 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       })) : []
     };
     
+    console.log(`[Debug] Transformed ticket:`, transformedTicket);
     res.json(transformedTicket);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    console.error('Error fetching ticket:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
