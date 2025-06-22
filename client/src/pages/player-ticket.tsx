@@ -63,7 +63,19 @@ interface FormField {
 // Format date to MM/dd/yy HH:mm in browser's timezone
 const formatDate = (dateString: string): string => {
   try {
+    // Handle various date formats and edge cases
+    if (!dateString) {
+      return 'Unknown';
+    }
+    
     const date = new Date(dateString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date string:', dateString);
+      return 'Invalid Date';
+    }
+    
     return date.toLocaleString('en-US', {
       month: '2-digit',
       day: '2-digit',
@@ -73,7 +85,8 @@ const formatDate = (dateString: string): string => {
       hour12: false
     });
   } catch (e) {
-    return dateString; // Return original string if formatting fails
+    console.error('Error formatting date:', e, 'Original string:', dateString);
+    return 'Unknown'; // Return a more user-friendly fallback
   }
 };
 
@@ -115,25 +128,42 @@ const PlayerTicket = () => {
   useEffect(() => {
     if (ticketData) {
       console.log('Received ticket data:', ticketData);
-      
-      // Map API data to our TicketDetails interface
+        // Map API data to our TicketDetails interface
       const status = ticketData.status || 'Unfinished';
       // Map the status to one of our three statuses: Unfinished, Open, or Closed
       const mappedStatus = status === 'Unfinished' 
         ? 'Unfinished' 
         : (status === 'Open' || status === 'In Progress') 
           ? 'Open' 
-          : 'Closed';
+          : 'Closed';      // Ensure we have a valid date
+      let validDate = new Date().toISOString(); // fallback to current time
+      if (ticketData.created) {
+        const createdDate = new Date(ticketData.created);
+        if (!isNaN(createdDate.getTime())) {
+          validDate = createdDate.toISOString();
+        }
+      } else if (ticketData.date) {
+        const dateFromField = new Date(ticketData.date);
+        if (!isNaN(dateFromField.getTime())) {
+          validDate = dateFromField.toISOString();
+        }
+      }
+
+      // Process messages and ensure valid timestamps
+      const processedMessages = (ticketData.replies || ticketData.messages || []).map((message: any) => ({
+        ...message,
+        timestamp: message.timestamp || message.created || new Date().toISOString()
+      }));
           
       setTicketDetails({
         id: ticketData.id || ticketData._id,
         subject: ticketData.subject || 'No Subject',
         status: mappedStatus as 'Unfinished' | 'Open' | 'Closed',
         reportedBy: ticketData.creator || ticketData.reportedBy || 'Unknown',
-        date: ticketData.created || ticketData.date || new Date().toISOString(),
+        date: validDate,
         category: ticketData.category || 'Other',
         type: ticketData.type || 'bug',
-        messages: (ticketData.replies || ticketData.messages || []),
+        messages: processedMessages,
         locked: ticketData.locked === true
       });
       

@@ -118,11 +118,22 @@ const TicketDetail = () => {
   const [isPunishWindowOpen, setIsPunishWindowOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
-  
-  // Format date to MM/dd/yy HH:mm in browser's timezone
+    // Format date to MM/dd/yy HH:mm in browser's timezone
   const formatDate = (dateString: string): string => {
     try {
+      // Handle various date formats and edge cases
+      if (!dateString) {
+        return 'Unknown';
+      }
+      
       const date = new Date(dateString);
+      
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return 'Invalid Date';
+      }
+      
       return date.toLocaleString('en-US', {
         month: '2-digit',
         day: '2-digit',
@@ -132,7 +143,8 @@ const TicketDetail = () => {
         hour12: false
       });
     } catch (e) {
-      return dateString; // Return original string if formatting fails
+      console.error('Error formatting date:', e, 'Original string:', dateString);
+      return 'Unknown'; // Return a more user-friendly fallback
     }
   };
     // More robust parsing of ticket ID from URL
@@ -238,9 +250,22 @@ const TicketDetail = () => {
       const category = (ticketData.type === 'bug' ? 'Bug Report' : 
                       ticketData.type === 'player' ? 'Player Report' : 
                       ticketData.type === 'appeal' ? 'Punishment Appeal' : 'Other') as TicketCategory;
-      
-      // Get default tags for this category if no tags are provided
+        // Get default tags for this category if no tags are provided
       const tags = ticketData.tags || getDefaultTagsForCategory(category);
+      
+      // Ensure we have a valid date
+      let validDate = new Date().toISOString(); // fallback to current time
+      if (ticketData.date) {
+        const dateFromField = new Date(ticketData.date);
+        if (!isNaN(dateFromField.getTime())) {
+          validDate = dateFromField.toISOString();
+        }
+      } else if (ticketData.created) {
+        const createdDate = new Date(ticketData.created);
+        if (!isNaN(createdDate.getTime())) {
+          validDate = createdDate.toISOString();
+        }
+      }
       
       // Map MongoDB data to our TicketDetails interface
       setTicketDetails({
@@ -249,7 +274,7 @@ const TicketDetail = () => {
         // Simplify status to Open/Closed - anything but Closed is Open
         status: (ticketData.locked === true || ticketData.status === 'Closed') ? 'Closed' : 'Open',
         reportedBy: ticketData.reportedBy || 'Unknown',
-        date: ticketData.date || new Date().toISOString(),
+        date: validDate,
         category,
         relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
         relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
@@ -259,7 +284,7 @@ const TicketDetail = () => {
           senderType: reply.type === 'staff' ? 'staff' : 
                      reply.type === 'system' ? 'system' : 'user',
           content: reply.content,
-          timestamp: reply.created ? reply.created : new Date().toISOString(),
+          timestamp: reply.created ? (new Date(reply.created).toISOString() || new Date().toISOString()) : new Date().toISOString(),
           staff: reply.staff,
           closedAs: (reply.action === "Comment" || reply.action === "Reopen") ? undefined : reply.action
         }))) || []),
