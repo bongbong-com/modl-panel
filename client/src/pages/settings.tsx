@@ -79,11 +79,11 @@ const Settings = () => {
       setActiveTab('billing');
     }
   }, [user]);
-
   // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const profileSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Separate timeout for profile
   const initialSettingsRef = useRef<any | null>(null);
   const justLoadedFromServerRef = useRef(true);
   const pendingChangesRef = useRef(false);
@@ -803,37 +803,33 @@ const Settings = () => {
   };  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
     setRecoveryCodesCopiedState(value);
   };
-
   // Profile settings auto-save wrapper functions
   const setProfileUsername = (value: React.SetStateAction<string>) => {
-    setProfileUsernameState(value);
-    // Trigger auto-save for profile updates
-    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
-      triggerProfileAutoSave();
-    }
+    const newValue = typeof value === 'function' ? value(profileUsernameState) : value;
+    setProfileUsernameState(newValue);
+    
+    console.log('Profile username changed to:', newValue);
+    
+    // Trigger auto-save for profile updates (always, not dependent on initialLoadCompletedRef)
+    triggerProfileAutoSave();
   };
 
   const setProfilePictureUrl = (value: React.SetStateAction<string>) => {
-    setProfilePictureUrlState(value);
-    // Trigger auto-save for profile updates
-    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
-      triggerProfileAutoSave();
-    }
+    const newValue = typeof value === 'function' ? value(profilePictureUrlState) : value;
+    setProfilePictureUrlState(newValue);    
+    console.log('Profile picture URL changed to:', newValue);
+    
+    // Trigger auto-save for profile updates (always, not dependent on initialLoadCompletedRef)
+    triggerProfileAutoSave();
   };
 
-  // Auto-save function for profile settings
-  const triggerProfileAutoSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    saveTimeoutRef.current = setTimeout(() => {
-      saveProfileSettings();
-    }, 1000); // 1 second delay
-  }, []);
-
   // Save profile settings function
-  const saveProfileSettings = async () => {
+  const saveProfileSettings = useCallback(async () => {
+    console.log('saveProfileSettings called with:', {
+      username: profileUsernameState,
+      profilePicture: profilePictureUrlState
+    });
+    
     try {
       const response = await fetch('/api/auth/profile', {
         method: 'PATCH',
@@ -847,22 +843,59 @@ const Settings = () => {
         })
       });
 
+      console.log('Profile save response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Profile save success:', data);
         setLastSaved(new Date());
         // Update the user context without refreshing
         if (user) {
           user.username = data.user.username;
           user.profilePicture = data.user.profilePicture;
         }
+        
+        // Show success toast
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved.",
+        });
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
         console.error('Profile auto-save failed:', errorData.message);
+        
+        // Show error toast
+        toast({
+          title: "Save Failed",
+          description: `Failed to save profile: ${errorData.message}`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Profile auto-save error:', error);
+      
+      // Show error toast
+      toast({
+        title: "Save Failed",
+        description: "Failed to save profile. Please try again.",
+        variant: "destructive",
+      });
     }
-  };
+  }, [profileUsernameState, profilePictureUrlState, user, toast, setLastSaved]);
+
+  // Auto-save function for profile settings
+  const triggerProfileAutoSave = useCallback(() => {
+    console.log('triggerProfileAutoSave called');
+    
+    if (profileSaveTimeoutRef.current) {
+      clearTimeout(profileSaveTimeoutRef.current);
+    }
+    
+    profileSaveTimeoutRef.current = setTimeout(() => {
+      console.log('Executing profile auto-save...');
+      saveProfileSettings();
+    }, 1000); // 1 second delay
+  }, [saveProfileSettings]);
 
   // Add a new punishment type
   const addPunishmentType = () => {

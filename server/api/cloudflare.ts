@@ -63,7 +63,8 @@ export function validateCloudflareConfig(): { valid: boolean; errors: string[] }
   };
 }
 
-if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ZONE_ID) {
+// Only require Cloudflare config in production
+if (process.env.NODE_ENV === 'production' && (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ZONE_ID)) {
   const configValidation = validateCloudflareConfig();
   throw new Error(`Cloudflare configuration invalid: ${configValidation.errors.join(', ')}`);
 }
