@@ -473,10 +473,13 @@ router.patch('/profile', async (req: Request, res: Response) => {
     if (profilePicture !== undefined) {
       updateData.profilePicture = profilePicture;
     }
-    
-    // Determine if userId is an email (for Super Admin) or an ObjectId (for regular staff)
+      // Determine if userId is an email (for Super Admin) or an ObjectId (for regular staff)
     const isEmail = userId.includes('@');
     const userQuery = isEmail ? { email: userId } : { _id: userId };
+    
+    console.log('[PROFILE ENDPOINT] Is email:', isEmail);
+    console.log('[PROFILE ENDPOINT] User query:', userQuery);
+    console.log('[PROFILE ENDPOINT] Update data:', updateData);
     
     // Check if username is already taken (if updating username)
     if (username) {
@@ -489,26 +492,37 @@ router.patch('/profile', async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Username already taken' });
       }
     }
-    
-    // Update the user profile
-    const updatedUser = await StaffModel.findOneAndUpdate(
+      // Update the user profile
+    let updatedUser = await StaffModel.findOneAndUpdate(
       userQuery,
       updateData,
       { new: true, select: 'email username profilePicture role' }
     );
     
+    // If user not found and it's an email (Super Admin), create a new staff record
+    if (!updatedUser && isEmail) {
+      console.log('[PROFILE ENDPOINT] Super Admin not found in Staff collection, creating new record');
+      const newStaffData = {
+        email: userId,
+        username: username || userId.split('@')[0],
+        profilePicture: profilePicture || '',
+        role: 'Super Admin'
+      };
+      
+      updatedUser = await StaffModel.create(newStaffData);
+      console.log('[PROFILE ENDPOINT] Created new Staff record for Super Admin:', updatedUser);
+    }
+    
     if (!updatedUser) {
+      console.log('[PROFILE ENDPOINT] User still not found after attempted creation');
       return res.status(404).json({ message: 'User not found' });
     }
     
     // Update session with new user data
-    (req.session as any).user = {
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      username: updatedUser.username,
-      profilePicture: updatedUser.profilePicture,
-      role: updatedUser.role
-    };
+    (req.session as any).username = updatedUser.username;
+    if (updatedUser.profilePicture) {
+      (req.session as any).profilePicture = updatedUser.profilePicture;
+    }
     
     res.json({ 
       message: 'Profile updated successfully',
