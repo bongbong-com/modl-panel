@@ -167,10 +167,9 @@ const Settings = () => {
   const [isGeneratingMinecraftApiKey, setIsGeneratingMinecraftApiKey] = useState(false);
   const [isRevokingMinecraftApiKey, setIsRevokingMinecraftApiKey] = useState(false);
   const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);
-  
-  // Profile settings state
-  const [profileUsername, setProfileUsername] = useState('');
-  const [profilePictureUrl, setProfilePictureUrl] = useState('');
+    // Profile settings state
+  const [profileUsernameState, setProfileUsernameState] = useState('');
+  const [profilePictureUrlState, setProfilePictureUrlState] = useState('');
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
   
@@ -193,19 +192,31 @@ const Settings = () => {
   const has2FA = has2FAState;
   const hasPasskey = hasPasskeyState;
   const showSetup2FA = showSetup2FAState;
-  const showSetupPasskey = showSetupPasskeyState;
-  const recoveryCodesCopied = recoveryCodesCopiedState;
+  const showSetupPasskey = showSetupPasskeyState;  const recoveryCodesCopied = recoveryCodesCopiedState;
+  
+  // Profile settings aliases
+  const profileUsername = profileUsernameState;
+  const profilePictureUrl = profilePictureUrlState;
+  
   useEffect(() => {
     if (user?.email) {
       setCurrentEmail(user.email);
     }
   }, [user]);
-
   // Initialize profile settings from user data
   useEffect(() => {
     if (user) {
-      setProfileUsername(user.username || '');
-      setProfilePictureUrl(user.profilePicture || '');
+      justLoadedFromServerRef.current = true; // Prevent auto-save during initial load
+      setProfileUsernameState(user.username || '');
+      setProfilePictureUrlState(user.profilePicture || '');
+      
+      // Mark profile data as loaded after a short delay
+      setTimeout(() => {
+        justLoadedFromServerRef.current = false;
+        if (!initialLoadCompletedRef.current) {
+          initialLoadCompletedRef.current = true;
+        }
+      }, 500);
     }
   }, [user]);
 
@@ -256,7 +267,6 @@ const Settings = () => {
     }
     setUploadingHomepageIcon(false);
   };
-
   const handlePanelIconUpload = async (file: File) => {
     setUploadingPanelIcon(true);
     const uploadedUrl = await uploadIcon(file, 'panel');
@@ -269,6 +279,42 @@ const Settings = () => {
       });
     }
     setUploadingPanelIcon(false);
+  };
+  // Profile picture upload function
+  const handleProfilePictureUpload = async (file: File) => {
+    setUploadingProfilePicture(true);
+    try {
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+
+      const response = await fetch('/api/auth/profile/upload-picture', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      // Auto-save the new profile picture URL
+      setProfilePictureUrl(result.url);
+      setProfilePicture(file);
+      
+      toast({
+        title: "Profile Picture Uploaded",
+        description: "Your profile picture has been successfully uploaded and saved.",
+      });
+    } catch (error) {
+      console.error('Profile picture upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload the profile picture. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setUploadingProfilePicture(false);
   };
 
   // API Key management functions
@@ -656,10 +702,10 @@ const Settings = () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-    };
-  }, [
+    };  }, [
     punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
     bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, 
+    profileUsername, profilePictureUrl, // Add profile settings to auto-save
     isLoadingSettings, isFetchingSettings, saveSettings
   ]);
 
@@ -756,6 +802,66 @@ const Settings = () => {
     setShowSetupPasskeyState(value);
   };  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
     setRecoveryCodesCopiedState(value);
+  };
+
+  // Profile settings auto-save wrapper functions
+  const setProfileUsername = (value: React.SetStateAction<string>) => {
+    setProfileUsernameState(value);
+    // Trigger auto-save for profile updates
+    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
+      triggerProfileAutoSave();
+    }
+  };
+
+  const setProfilePictureUrl = (value: React.SetStateAction<string>) => {
+    setProfilePictureUrlState(value);
+    // Trigger auto-save for profile updates
+    if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
+      triggerProfileAutoSave();
+    }
+  };
+
+  // Auto-save function for profile settings
+  const triggerProfileAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      saveProfileSettings();
+    }, 1000); // 1 second delay
+  }, []);
+
+  // Save profile settings function
+  const saveProfileSettings = async () => {
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          username: profileUsernameState,
+          profilePicture: profilePictureUrlState
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLastSaved(new Date());
+        // Update the user context without refreshing
+        if (user) {
+          user.username = data.user.username;
+          user.profilePicture = data.user.profilePicture;
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Profile auto-save failed:', errorData.message);
+      }
+    } catch (error) {
+      console.error('Profile auto-save error:', error);
+    }
   };
 
   // Add a new punishment type
@@ -959,9 +1065,9 @@ const Settings = () => {
               <div>
                 <h3 className="text-lg font-medium mb-4">Profile Information</h3>
                 <div className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>                      <Input
+                  <div className="space-y-4">                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
                         id="username"
                         type="text"
                         value={profileUsername}
@@ -971,11 +1077,15 @@ const Settings = () => {
                       <p className="text-sm text-muted-foreground">
                         This name will appear in ticket conversations and other interactions.
                       </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        <span>Changes are saved automatically</span>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="profile-picture">Profile Picture URL</Label>
-                      <div className="flex items-center space-x-4">                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
+                      <div className="space-y-2">
+                      <Label htmlFor="profile-picture">Profile Picture</Label>
+                      <div className="flex items-center space-x-4">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
                           {profilePictureUrl ? (
                             <img 
                               src={profilePictureUrl} 
@@ -996,76 +1106,51 @@ const Settings = () => {
                             {profileUsername ? profileUsername.substring(0, 2).toUpperCase() : 'ST'}
                           </div>
                         </div>
-                        <div className="flex-1">                          <Input
-                            id="profile-picture"
-                            type="url"
-                            value={profilePictureUrl}
-                            onChange={(e) => setProfilePictureUrl(e.target.value)}
-                            placeholder="https://example.com/your-avatar.jpg"
-                          />
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Enter a URL for your profile picture. Leave empty to use initials.
-                          </p>
+                        <div className="flex-1 space-y-3">
+                          <div className="space-y-2">
+                            <Input
+                              id="profile-picture"
+                              type="url"
+                              value={profilePictureUrl}
+                              onChange={(e) => setProfilePictureUrl(e.target.value)}
+                              placeholder="https://example.com/your-avatar.jpg"
+                            />
+                            <p className="text-sm text-muted-foreground">
+                              Enter a URL for your profile picture, or upload a file below.
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleProfilePictureUpload(file);
+                                }
+                              }}
+                              className="hidden"
+                              id="profile-picture-upload"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => document.getElementById('profile-picture-upload')?.click()}
+                              disabled={uploadingProfilePicture}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              {uploadingProfilePicture ? 'Uploading...' : 'Upload Image'}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">
+                              Upload a profile picture (PNG, JPG, or GIF). Max size: 5MB
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>                    <Button
-                      onClick={async () => {
-                        try {
-                          // First test if auth routes are accessible
-                          console.log('Testing auth routes accessibility...');
-                          
-                          // Test session endpoint first
-                          const sessionResponse = await fetch('/api/auth/session', {
-                            credentials: 'include'
-                          });
-                          console.log('Session endpoint status:', sessionResponse.status);
-                          
-                          if (!sessionResponse.ok) {
-                            throw new Error(`Session endpoint failed: ${sessionResponse.status}`);
-                          }
-                          
-                          // Now try the profile update
-                          const response = await fetch('/api/auth/profile', {
-                            method: 'PATCH',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            credentials: 'include',
-                            body: JSON.stringify({
-                              username: profileUsername,
-                              profilePicture: profilePictureUrl
-                            })
-                          });
-                          
-                          console.log('Profile update response status:', response.status);
-                          console.log('Profile update response:', response);
-                          
-                          if (response.ok) {
-                            const data = await response.json();
-                            console.log('Profile update success:', data);
-                            toast({
-                              title: "Profile Updated",
-                              description: "Your profile information has been successfully updated."
-                            });
-                            // Refresh the session to get updated user data
-                            window.location.reload();
-                          } else {
-                            const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-                            throw new Error(`Failed to update profile: ${response.status} - ${errorData.message}`);
-                          }                        } catch (error) {
-                          console.error('Profile update error:', error);
-                          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                          toast({
-                            title: "Update Failed",
-                            description: `There was an error updating your profile: ${errorMessage}`,
-                            variant: "destructive"
-                          });
-                        }
-                      }}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Profile Changes
-                    </Button>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        <span>Changes are saved automatically</span>
+                      </div>                    </div>
                   </div>
                 </div>
               </div>

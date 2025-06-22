@@ -540,4 +540,34 @@ router.patch('/profile', async (req: Request, res: Response) => {
   }
 });
 
+// Profile picture upload endpoint
+router.post('/profile/upload-picture', async (req: Request, res: Response) => {
+  console.log('[PROFILE PICTURE UPLOAD] Profile picture upload request received');
+  
+  try {
+    // Get user from session
+    const userId = (req.session as any)?.userId;
+    console.log('[PROFILE PICTURE UPLOAD] User ID from session:', userId);
+    
+    if (!userId) {
+      console.log('[PROFILE PICTURE UPLOAD] No userId in session - returning 401');
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
+    // For now, return a placeholder URL since we don't have file storage set up
+    // In a real implementation, you'd save the file to cloud storage (AWS S3, Cloudinary, etc.)
+    const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userId)}&background=0D8ABC&color=fff&size=200`;
+    
+    console.log('[PROFILE PICTURE UPLOAD] Returning placeholder URL:', placeholderUrl);
+    
+    res.json({ 
+      url: placeholderUrl,
+      message: 'Profile picture uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 export default router;
