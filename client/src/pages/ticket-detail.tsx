@@ -524,9 +524,14 @@ const TicketDetail = () => {
         break;
     }
   
-    
-    // Set a default reply based on the action
-    if (action && action !== 'Comment') {
+      // Set a default reply based on the action
+    if (action === 'Comment') {
+      // Clear the text box when switching to Comment action
+      setTicketDetails(prev => ({
+        ...prev,
+        newReply: ''
+      }));
+    } else if (action) {
       let text = '';
       
       if (action === 'Accepted') {
