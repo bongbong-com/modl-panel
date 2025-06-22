@@ -179,8 +179,7 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
     if (!user) {
       // @ts-ignore
       const serverConfigAdminEmail = req.modlServer?.adminEmail?.toLowerCase();
-      if (email.toLowerCase() === serverConfigAdminEmail) {
-        // This is the server admin, create a session for them
+      if (email.toLowerCase() === serverConfigAdminEmail) {        // This is the server admin, create a session for them
         // @ts-ignore
         req.session.email = email;
         // @ts-ignore
@@ -190,6 +189,8 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
         req.session.username = username;
         // @ts-ignore
         req.session.userId = email;
+        // @ts-ignore
+        req.session.profilePicture = ''; // Super Admin has no profile picture by default
         // @ts-ignore
         req.session.plan_type = 'premium';
         // @ts-ignore
@@ -203,8 +204,7 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
       } else {
         return res.status(404).json({ message: 'User not found after code verification.' });
       }
-    } else {
-      // Store user information in session for regular staff member
+    } else {      // Store user information in session for regular staff member
       // @ts-ignore
       req.session.userId = user._id.toString();
       // @ts-ignore
@@ -213,6 +213,8 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
+      // @ts-ignore
+      req.session.profilePicture = user.profilePicture || '';
       // @ts-ignore
       req.session.plan_type = user.plan_type || 'free';
       // @ts-ignore
@@ -253,8 +255,7 @@ router.post('/verify-2fa-code', authRateLimit, async (req: Request, res: Respons
 
     const isValid = authenticator.verify({ token: code, secret: user.twoFaSecret });
 
-    if (isValid) {
-      // Store user information in session
+    if (isValid) {      // Store user information in session
       // @ts-ignore
       req.session.userId = user._id.toString();
       // @ts-ignore
@@ -263,6 +264,8 @@ router.post('/verify-2fa-code', authRateLimit, async (req: Request, res: Respons
       req.session.username = user.username;
       // @ts-ignore
       req.session.role = user.role;
+      // @ts-ignore
+      req.session.profilePicture = user.profilePicture || '';
       // @ts-ignore
       req.session.plan_type = user.plan_type || 'free';
       // @ts-ignore
@@ -564,6 +567,102 @@ router.patch('/profile', async (req: Request, res: Response) => {
   }
 });
 
+// Profile update endpoint
+router.patch('/profile', async (req: Request, res: Response) => {
+  console.log('[PROFILE UPDATE] Profile update request received');
+  
+  try {
+    const session = req.session as any;
+    const userId = session?.userId;
+    
+    console.log('[PROFILE UPDATE] User ID from session:', userId);
+    console.log('[PROFILE UPDATE] Request body:', req.body);
+    
+    if (!userId) {
+      console.log('[PROFILE UPDATE] No userId in session - returning 401');
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    const { username, profilePicture } = req.body;
+
+    // If this is a Super Admin (identified by email as userId), update session only
+    if (session.role === 'Super Admin') {
+      if (username !== undefined) {
+        session.username = username;
+      }
+      if (profilePicture !== undefined) {
+        session.profilePicture = profilePicture;
+      }
+      
+      await req.session.save();
+      
+      const user = {
+        _id: session.userId,
+        email: session.email,
+        username: session.username,
+        profilePicture: session.profilePicture || '',
+        role: session.role
+      };
+      
+      console.log('[PROFILE UPDATE] Super Admin profile updated:', user);
+      return res.json({ 
+        message: 'Profile updated successfully',
+        user 
+      });
+    }
+
+    // For regular staff, update database
+    const User = req.serverDbConnection!.model('User');
+    const updateData: any = {};
+    
+    if (username !== undefined) {
+      updateData.username = username;
+    }
+    if (profilePicture !== undefined) {
+      updateData.profilePicture = profilePicture;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      console.log('[PROFILE UPDATE] User not found in database for ID:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update session data
+    if (username !== undefined) {
+      session.username = updatedUser.username;
+    }
+    if (profilePicture !== undefined) {
+      session.profilePicture = updatedUser.profilePicture || '';
+    }
+    
+    await req.session.save();
+
+    const userData = {
+      _id: updatedUser._id.toString(),
+      email: updatedUser.email,
+      username: updatedUser.username,
+      profilePicture: updatedUser.profilePicture || '',
+      role: updatedUser.role
+    };
+
+    console.log('[PROFILE UPDATE] Profile updated successfully:', userData);
+    
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: userData 
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Profile picture upload endpoint
 router.post('/profile/upload-picture', upload.single('profilePicture'), async (req: Request, res: Response) => {
   console.log('[PROFILE PICTURE UPLOAD] Profile picture upload request received');
@@ -616,7 +715,82 @@ router.post('/profile/upload-picture', upload.single('profilePicture'), async (r
     });
   } catch (error) {
     console.error('Profile picture upload error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' });  }
+});
+
+// Session endpoint - get current user information
+router.get('/session', async (req: Request, res: Response) => {
+  console.log('[SESSION] Session check request received');
+  
+  try {
+    const session = req.session as any;
+    
+    if (!session?.userId) {
+      console.log('[SESSION] No userId in session');
+      return res.json({ 
+        isAuthenticated: false, 
+        user: null 
+      });
+    }
+
+    console.log('[SESSION] Session found for user:', session.userId);
+    console.log('[SESSION] Session data:', {
+      userId: session.userId,
+      email: session.email,
+      username: session.username,
+      role: session.role,
+      profilePicture: session.profilePicture
+    });
+
+    // If this is a Super Admin (identified by email as userId), return admin data
+    if (session.role === 'Super Admin') {
+      const user = {
+        _id: session.userId,
+        email: session.email,
+        username: session.username,
+        profilePicture: session.profilePicture || '',
+        role: session.role
+      };
+      
+      console.log('[SESSION] Returning Super Admin user:', user);
+      return res.json({ 
+        isAuthenticated: true, 
+        user 
+      });
+    }
+
+    // For regular staff, fetch from database to get latest profile data
+    const User = req.serverDbConnection!.model('User');
+    const user = await User.findById(session.userId);
+    
+    if (!user) {
+      console.log('[SESSION] User not found in database for ID:', session.userId);
+      return res.status(401).json({ 
+        isAuthenticated: false, 
+        user: null 
+      });
+    }
+
+    const userData = {
+      _id: user._id.toString(),
+      email: user.email,
+      username: user.username,
+      profilePicture: user.profilePicture || '',
+      role: user.role
+    };
+
+    console.log('[SESSION] Returning user data:', userData);
+    
+    res.json({ 
+      isAuthenticated: true, 
+      user: userData 
+    });
+  } catch (error) {
+    console.error('Session check error:', error);
+    res.status(500).json({ 
+      isAuthenticated: false, 
+      user: null 
+    });
   }
 });
 
