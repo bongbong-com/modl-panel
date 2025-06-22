@@ -958,69 +958,6 @@ const Settings = () => {
             </TabsList>            <TabsContent value="account" className="space-y-6 p-6">
               <div>
                 <h3 className="text-lg font-medium mb-4">Profile Information</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Update your profile information used in ticket conversations.
-                </p>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Username</label>
-                    <input
-                      type="text"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="Enter your username"
-                      defaultValue={user?.username || ''}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      This name will appear in ticket conversations and other interactions.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Profile Picture URL</label>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center overflow-hidden">
-                        {user?.profilePicture ? (
-                          <img 
-                            src={user.profilePicture} 
-                            alt="Profile" 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium">
-                            {user?.username ? user.username.substring(0, 2).toUpperCase() : 'ST'}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="url"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          placeholder="https://example.com/your-avatar.jpg"
-                          defaultValue={user?.profilePicture || ''}
-                        />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Enter a URL for your profile picture. Leave empty to use initials.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    onClick={() => {
-                      toast({
-                        title: "Work In Progress",
-                        description: "Profile update functionality will be available soon.",
-                      });
-                    }}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Profile Changes
-                  </Button>
-                </div>
-              </div>
-              <Separator />
-              <div>
-                <h3 className="text-lg font-medium mb-4">Profile Information</h3>
                 <div className="space-y-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
