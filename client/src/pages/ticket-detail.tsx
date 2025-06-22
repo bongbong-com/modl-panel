@@ -103,8 +103,8 @@ export interface TicketDetails {
   selectedAction?: string;
   newDuration?: string; // For backward compatibility
   duration?: {
-    value: number;
-    unit: 'hours' | 'days' | 'weeks' | 'months';
+    value?: number;
+    unit?: 'hours' | 'days' | 'weeks' | 'months';
   };
   isPermanent?: boolean;
   tags?: string[];
@@ -199,18 +199,27 @@ const TicketDetail = () => {
   
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
-
   useEffect(() => {
+    console.log('useEffect triggered. ticketData:', ticketData);
+    console.log('isLoading:', isLoading, 'isError:', isError);
+    console.log('ticketId:', ticketId);
+    
     if (ticketData) {
       console.log('Received ticket data from MongoDB:', ticketData);
-      
-      // Convert ticket type to category
-
-
-      ticketData.id.startsWith("BUG") ? ticketData.type = 'bug' :
-        ticketData.id.startsWith("PLAYER") ? ticketData.type = 'player' :
-        ticketData.id.startsWith("APPEAL") ? ticketData.type = 'appeal' :
-        ticketData.type = 'other'
+      console.log('Ticket data keys:', Object.keys(ticketData));
+        // Convert ticket type to category
+      if (!ticketData.type) {
+        // Try to infer type from ID if not present
+        if (ticketData.id?.startsWith("BUG")) {
+          ticketData.type = 'bug';
+        } else if (ticketData.id?.startsWith("PLAYER")) {
+          ticketData.type = 'player';
+        } else if (ticketData.id?.startsWith("APPEAL")) {
+          ticketData.type = 'appeal';
+        } else {
+          ticketData.type = 'support'; // default fallback
+        }
+      }
       
       const category = (ticketData.type === 'bug' ? 'Bug Report' : 
                       ticketData.type === 'player' ? 'Player Report' : 
@@ -230,7 +239,7 @@ const TicketDetail = () => {
         category,
         relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
         relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
-        messages: (ticketData.messages || (ticketData.replies && ticketData.replies.map(reply => ({
+        messages: (ticketData.messages || (ticketData.replies && ticketData.replies.map((reply: any) => ({
           id: reply._id || reply.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           sender: reply.name,
           senderType: reply.type === 'staff' ? 'staff' : 
@@ -1041,8 +1050,7 @@ const TicketDetail = () => {
                                   type="number" 
                                   className="w-full mt-1 h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
                                   value={ticketDetails.duration?.value || ''}
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
+                                  onChange={(e) => {                                    const value = parseInt(e.target.value) || 0;
                                     setTicketDetails(prev => ({
                                       ...prev,
                                       duration: {

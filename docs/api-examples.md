@@ -424,6 +424,24 @@ If the `/tickets/:id` page is blank or shows a loading state indefinitely:
 - **ID Transformation**: The system correctly handles ticket ID transformations between URL-safe format and actual ticket IDs
 - **Debug Info**: Added comprehensive logging to help diagnose data issues
 
+#### TypeScript Compilation Errors
+
+If you see TypeScript errors in the ticket detail page related to duration properties:
+
+- **Issue**: Interface definition had optional/required property mismatches
+- **Fix**: Updated `TicketDetails` interface to make `duration.value` and `duration.unit` optional
+- **Error**: "Type 'undefined' is not assignable to type..."
+- **Solution**: Ensured all optional properties are properly typed with `?` operator
+
+#### Ticket Data Transformation Issues
+
+If tickets aren't loading or display incorrectly:
+
+- Added defensive checks for missing ticket type
+- Improved data validation and fallback handling
+- Enhanced debug logging to diagnose data issues
+- Automatic type inference from ticket ID if type field is missing
+
 #### Panel vs Public API Endpoints
 
 The system has two separate API endpoints for tickets:
