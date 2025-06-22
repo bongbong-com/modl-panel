@@ -463,3 +463,43 @@ npm install react-markdown
 ```
 
 This dependency is required for the knowledgebase article display functionality.
+
+---
+
+## Debugging Remote Environment Issues
+
+If you're experiencing issues with the ticket detail page being blank in your remote environment, enhanced debugging has been added to help identify the root cause.
+
+### Client-Side Debugging
+
+When you open the ticket detail page, check the browser console for debugging output that includes:
+- Current environment details (URL, origin, pathname)
+- Ticket ID being requested
+- User authentication status
+- React Query state (loading, error, data)
+- API fetch details including full request URL and response data
+
+### Server-Side Debugging
+
+The server will log detailed information for each panel API request:
+- Request URL, method, and parameters
+- Authentication and session data
+- Database connection status
+- Ticket lookup and transformation process
+
+### Common Remote Environment Issues
+
+1. **Authentication Problems**: Check if your session cookies are being properly sent in the remote environment
+2. **Database Connection**: Verify that the server-specific database connection is established
+3. **Route Mounting**: Ensure the panel routes are properly mounted at `/api/panel`
+4. **Network Configuration**: Check if there are any proxy or load balancer issues affecting API requests
+
+### Debugging Steps
+
+1. Open browser developer tools (F12)
+2. Navigate to the ticket detail page
+3. Check the Console tab for debugging output
+4. Check the Network tab to see if the API request is being made and what the response is
+5. Check your server logs for the corresponding debugging output
+
+If the issue persists, compare the debugging output between your local and remote environments to identify differences.

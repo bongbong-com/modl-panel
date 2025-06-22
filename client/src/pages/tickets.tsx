@@ -175,7 +175,7 @@ const Tickets = () => {
     
     // Add a small delay to make sure the navigation occurs
     setTimeout(() => {
-      setLocation(`/tickets/${safeTicketId}`);
+      setLocation(`/panel/tickets/${safeTicketId}`);
     }, 50);
   };
 
