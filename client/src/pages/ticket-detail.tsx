@@ -575,7 +575,7 @@ const TicketDetail = () => {
             variant="ghost" 
             size="sm" 
             className="gap-1" 
-            onClick={() => setLocation('/tickets')}
+            onClick={() => setLocation('/panel/tickets')}
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Tickets
@@ -659,7 +659,7 @@ const TicketDetail = () => {
                 variant="outline" 
                 size="sm" 
                 className="mt-4"
-                onClick={() => setLocation('/tickets')}
+                onClick={() => setLocation('/panel/tickets')}
               >
                 Back to Tickets
               </Button>
