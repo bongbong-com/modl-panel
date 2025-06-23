@@ -4,6 +4,11 @@ import { v4 as uuidv4 } from 'uuid'; // For generating new player UUIDs
 import { createSystemLog } from './log-routes'; // Import createSystemLog
 import { verifyMinecraftApiKey } from '../middleware/api-auth';
 
+enum PunishmentType {
+  Mute = 1,
+  Ban = 2,
+}
+
 interface IUsername {
   username: string;
   date: Date;
@@ -38,13 +43,11 @@ interface IPunishment {
   issuerName: string;
   issued: Date;
   started?: Date;
-  type_ordinal: number | Types.Decimal128 | { valueOf(): number }; // Adjusted for lean objects
+  type: PunishmentType;
   modifications: IModification[];
   notes: INote[];
   attachedTicketIds: string[];
   data?: Map<string, any>;
-  // Helper to get numeric value of type_ordinal
-  getTypeOrdinalValue?(): number;
 }
 
 interface IPlayer extends Document {
@@ -81,11 +84,7 @@ interface ITicket extends Document {
  * Utility function to check if a punishment is currently active
  */
 function isPunishmentActive(punishment: IPunishment): boolean {
-  if (!punishment.type_ordinal) return false;
-  // Get the numeric value consistently
-  const typeOrdinalValue = typeof punishment.type_ordinal === 'number' 
-    ? punishment.type_ordinal 
-    : (typeof punishment.type_ordinal.valueOf === 'function' ? punishment.type_ordinal.valueOf() : parseFloat(punishment.type_ordinal.toString()));
+  if (!punishment.type) return false;
 
   if (punishment.data && punishment.data.has('active') && !punishment.data.get('active')) {
     return false;
@@ -96,12 +95,12 @@ function isPunishmentActive(punishment: IPunishment): boolean {
       return false;
     }
   }
-  if (typeOrdinalValue === 2) { // Ban type
+  if (punishment.type === PunishmentType.Ban) {
     if (!punishment.started) {
       return false;
     }
   }
-  if (typeOrdinalValue === 1) { // Mute type
+  if (punishment.type === PunishmentType.Mute) {
     if (!punishment.started) {
       return false;
     }
@@ -234,10 +233,7 @@ export function setupMinecraftRoutes(app: Express) {
 
             // Similar to handleNewIP in Java, check for alt blocking on new accounts
             for (const linkedAccount of linkedPlayers) {
-              const activeBans = linkedAccount.punishments.filter((p: IPunishment) => {
-                  const pType = typeof p.type_ordinal === 'number' ? p.type_ordinal : p.type_ordinal.valueOf();
-                  return pType === 2 && isPunishmentActive(p);
-              });
+              const activeBans = linkedAccount.punishments.filter((p: IPunishment) => p.type === PunishmentType.Ban && isPunishmentActive(p));
               if (activeBans.length > 0) {
                 // Create a new ban for the new player (ban evasion)
                 const newBanId = uuidv4().substring(0, 8);
@@ -247,7 +243,7 @@ export function setupMinecraftRoutes(app: Express) {
                   issuerName: 'System', // Or a specific admin/system user
                   issued: new Date(),
                   started: new Date(), // Evasion bans start immediately
-                  type_ordinal: 2, // Ban type
+                  type: PunishmentType.Ban,
                   modifications: [],
                   notes: [{ text: banReason, date: new Date(), issuerName: 'System' } as INote],
                   attachedTicketIds: [],
@@ -269,21 +265,11 @@ export function setupMinecraftRoutes(app: Express) {
       // Handle mutes separately (similar to handleMute method in Java)
       // Find all mutes for sorting
       const unstartedMutes = player.punishments
-        .filter((p: IPunishment) =>
-          p.type_ordinal &&
-          p.type_ordinal.valueOf() === 1 && // Mute type
-          !p.started &&
-          isPunishmentActive(p)
-        )
+        .filter((p: IPunishment) => p.type === PunishmentType.Mute && !p.started && isPunishmentActive(p))
         .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
       const activeMutes = player.punishments
-        .filter((p: IPunishment) =>
-          p.type_ordinal &&
-          p.type_ordinal.valueOf() === 1 && // Mute type
-          p.started &&
-          isPunishmentActive(p)
-        )
+        .filter((p: IPunishment) => p.type === PunishmentType.Mute && p.started && isPunishmentActive(p))
         .sort((a: IPunishment, b: IPunishment) => new Date(a.started!).getTime() - new Date(b.started!).getTime());
 
       // Start the oldest unstarted mute if there are no active mutes
@@ -297,15 +283,15 @@ export function setupMinecraftRoutes(app: Express) {
       // Get all active punishments (both bans and mutes)
       const activePunishments = player.punishments.filter((p: IPunishment) => isPunishmentActive(p));
 
-      // Convert type_ordinal to plain number for JSON response
-      const formattedPunishments = activePunishments.map((p: IPunishment) => ({
+      // Convert enum to string for JSON response
+      const formattedPunishments = activePunishments.map(p => ({
         ...p,
-        type_ordinal: typeof p.type_ordinal === 'number' ? p.type_ordinal : (typeof p.type_ordinal.valueOf === 'function' ? p.type_ordinal.valueOf() : parseFloat(p.type_ordinal.toString()))
+        type: PunishmentType[p.type],
       }));
 
       return res.status(200).json({
         status: 200,
-        activePunishments: formattedPunishments
+        activePunishments: formattedPunishments,
       });
     } catch (error: any) {
       console.error('Error in player login:', error);
@@ -414,7 +400,7 @@ export function setupMinecraftRoutes(app: Express) {
    * - Create a new punishment and update player profile
    */
   app.post('/api/minecraft/punishment/create', async (req: Request, res: Response) => {
-    const { targetUuid, issuerName, typeOrdinal, reason, duration, data, notes, attachedTicketIds } = req.body;
+    const { targetUuid, issuerName, type, reason, duration, data, notes, attachedTicketIds } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
     const Player = serverDbConnection.model<IPlayer>('Player');
@@ -427,6 +413,11 @@ export function setupMinecraftRoutes(app: Express) {
 
       const punishmentId = uuidv4().substring(0, 8); // Generate an 8-char ID
 
+      const punishmentType: PunishmentType = PunishmentType[type as keyof typeof PunishmentType];
+      if (!punishmentType) {
+        return res.status(400).json({ status: 400, message: 'Invalid punishment type' });
+      }
+
       const newPunishmentData = new Map<string, any>([
         ['reason', reason],
         ...(duration ? [['duration', duration] as [string, any]] : []),
@@ -437,8 +428,8 @@ export function setupMinecraftRoutes(app: Express) {
         id: punishmentId,
         issuerName,
         issued: new Date(),
-        started: (typeOrdinal === 2 || typeOrdinal === 1) ? new Date() : undefined, // Bans/Mutes start immediately, others might not
-        type_ordinal: typeOrdinal,
+        started: (punishmentType === PunishmentType.Ban || punishmentType === PunishmentType.Mute) ? new Date() : undefined, // Bans/Mutes start immediately, others might not
+        type: punishmentType,
         modifications: [],
         notes: notes ? notes.map((note: any) => ({ text: note.text, date: new Date(), issuerName: note.issuerName || issuerName } as INote)) : [],
         attachedTicketIds: attachedTicketIds || [],
@@ -447,7 +438,7 @@ export function setupMinecraftRoutes(app: Express) {
 
       player.punishments.push(newPunishment);
       await player.save();
-      await createSystemLog(serverDbConnection, serverName, `Punishment ID ${punishmentId} (Type: ${typeOrdinal}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
+      await createSystemLog(serverDbConnection, serverName, `Punishment ID ${punishmentId} (Type: ${type}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
 
       return res.status(201).json({
         status: 201,
@@ -520,16 +511,14 @@ export function setupMinecraftRoutes(app: Express) {
       if (!player) {
         return res.status(404).json({ status: 404, message: 'Player not found' });
       }
-      if (player.punishments) {
-        // Ensure type_ordinal is consistently a number after .lean()
-        player.punishments = player.punishments.map((p: IPunishment) => ({
+      const responsePlayer = {
+        ...player,
+        punishments: player.punishments ? player.punishments.map(p => ({
           ...p,
-          type_ordinal: typeof p.type_ordinal === 'number' 
-            ? p.type_ordinal 
-            : (typeof p.type_ordinal.valueOf === 'function' ? p.type_ordinal.valueOf() : parseFloat(p.type_ordinal.toString())),
-        } as IPunishment)); // Cast back to IPunishment after transformation
-      }
-      return res.status(200).json({ status: 200, player });
+          type: PunishmentType[p.type],
+        })) : [],
+      };
+      return res.status(200).json({ status: 200, player: responsePlayer });
     } catch (error: any) {
       console.error('Error getting player profile:', error);
       return res.status(500).json({
@@ -566,14 +555,8 @@ export function setupMinecraftRoutes(app: Express) {
       const formattedLinkedAccounts = linkedPlayers.map((acc: IPlayer) => ({
         minecraftUuid: acc.minecraftUuid,
         username: acc.usernames && acc.usernames.length > 0 ? acc.usernames[0].username : 'N/A',
-        activeBans: acc.punishments ? acc.punishments.filter((p: IPunishment) => {
-            const pType = typeof p.type_ordinal === 'number' ? p.type_ordinal : p.type_ordinal.valueOf();
-            return pType === 2 && isPunishmentActive(p);
-        }).length : 0,
-        activeMutes: acc.punishments ? acc.punishments.filter((p: IPunishment) => {
-            const pType = typeof p.type_ordinal === 'number' ? p.type_ordinal : p.type_ordinal.valueOf();
-            return pType === 1 && isPunishmentActive(p);
-        }).length : 0,
+        activeBans: acc.punishments ? acc.punishments.filter(p => p.type === PunishmentType.Ban && isPunishmentActive(p)).length : 0,
+        activeMutes: acc.punishments ? acc.punishments.filter(p => p.type === PunishmentType.Mute && isPunishmentActive(p)).length : 0,
       }));
       return res.status(200).json({ status: 200, linkedAccounts: formattedLinkedAccounts });
     } catch (error: any) {

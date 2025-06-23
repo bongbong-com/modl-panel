@@ -125,7 +125,7 @@ Base URL: `/api/minecraft`
     {
       "targetUuid": "string",
       "issuerName": "string",
-      "typeOrdinal": "number",
+      "type": "string",
       "reason": "string",
       "duration": "number",
       "data": {},
@@ -195,7 +195,7 @@ Base URL: `/api/minecraft`
             "issuerName": "string",
             "issued": "date",
             "started": "date",
-            "type_ordinal": "number",
+            "type": "string",
             "modifications": [
               {
                 "type": "string",
