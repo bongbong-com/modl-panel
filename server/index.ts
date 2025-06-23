@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MongoStore from "connect-mongo";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware";
@@ -74,6 +75,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 (async () => {
+  // Serve static files from uploads directory (for server icons)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  
   const server = await registerRoutes(app);
 
   // Start the domain status updater for monitoring custom domains

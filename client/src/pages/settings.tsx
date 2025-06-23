@@ -25,7 +25,6 @@ import BillingSettings from '@/components/settings/BillingSettings';
 import DomainSettings from '@/components/settings/DomainSettings';
 import KnowledgebaseSettings from '@/components/settings/KnowledgebaseSettings';
 import HomepageCardSettings from '@/components/settings/HomepageCardSettings';
-import ProfileSettings from '@/components/settings/ProfileSettings';
 
 // Type definitions for punishment types
 interface PunishmentType {
@@ -77,16 +76,20 @@ const Settings = () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('session_id') && user?.role === 'Super Admin') {
       setActiveTab('billing');
-    }
-  }, [user]);  // Auto-save state
+    }  }, [user]);
+  
+  // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isSaving, setIsSaving] = useState(false);  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const profileSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Separate timeout for profile
   const initialSettingsRef = useRef<any | null>(null);
   const justLoadedFromServerRef = useRef(true);
   const pendingChangesRef = useRef(false);
   const initialLoadCompletedRef = useRef(false);
-    // Refs to capture latest profile values for auto-save  const profileUsernameRef = useRef('');
+  
+  // Refs to capture latest profile values for auto-save
+  const profileUsernameRef = useRef('');
 
   // Database connection state
   const [dbConnectionStatus, setDbConnectionStatus] = useState(false);
@@ -753,23 +756,25 @@ const Settings = () => {
   };
   const setShowSetup2FA = (value: React.SetStateAction<boolean>) => {
     setShowSetup2FAState(value);
-  };
-  const setShowSetupPasskey = (value: React.SetStateAction<boolean>) => {
+  };  const setShowSetupPasskey = (value: React.SetStateAction<boolean>) => {
     setShowSetupPasskeyState(value);
-  };  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
+  };
+  const setRecoveryCodesCopied = (value: React.SetStateAction<boolean>) => {
     setRecoveryCodesCopiedState(value);
-  };  // Profile settings auto-save wrapper functions
+  };
+  
+  // Profile settings auto-save wrapper functions
   const setProfileUsername = (value: React.SetStateAction<string>) => {
     const newValue = typeof value === 'function' ? value(profileUsernameState) : value;
     setProfileUsernameState(newValue);
     profileUsernameRef.current = newValue; // Keep ref in sync
     
     console.log('Profile username changed to:', newValue);
-    
-    // Trigger auto-save for profile updates, but skip during initial load
+      // Trigger auto-save for profile updates, but skip during initial load
     if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
       triggerProfileAutoSave();
-    }  };
+    }
+  };
   
   // Save profile settings function
   const saveProfileSettings = useCallback(async () => {
@@ -822,10 +827,12 @@ const Settings = () => {
       // Show error toast
       toast({
         title: "Save Failed",
-        description: "Failed to save profile. Please try again.",
-        variant: "destructive",
-      });    }
-  }, [profileUsernameState, user, toast, setLastSaved]);  // Auto-save function for profile settings
+        description: "Failed to save profile. Please try again.",        variant: "destructive",
+      });
+    }
+  }, [profileUsernameState, user, toast, setLastSaved]);
+  
+  // Auto-save function for profile settings
   const triggerProfileAutoSave = useCallback(() => {
     console.log('triggerProfileAutoSave called');
     console.log('Current profile state:', {
@@ -900,10 +907,10 @@ const Settings = () => {
         // Show error toast
         toast({
           title: "Save Failed",
-          description: "Failed to save profile. Please try again.",
-          variant: "destructive",
+          description: "Failed to save profile. Please try again.",          variant: "destructive",
         });
-      }    }, 500); // Reduced to 500ms for faster response
+      }
+    }, 500); // Reduced to 500ms for faster response
   }, []); // Empty dependencies since we use refs to get current values
 
   // Add a new punishment type
