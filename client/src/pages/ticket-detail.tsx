@@ -27,9 +27,7 @@ import {
   X,
   Lock as LockIcon,
   Unlock as UnlockIcon,
-  Loader2,
-  Bot,
-  User as UserIcon
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -888,15 +886,6 @@ const TicketDetail = () => {
                     {ticketDetails.messages.map((message) => (                      <div                        key={message.id} 
                         className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
                       >
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium bg-muted border">
-                          {message.senderType === 'system' ? (
-                            <Bot className="h-4 w-4" />
-                          ) : message.senderType === 'staff' || message.staff ? (
-                            <Shield className="h-4 w-4" />
-                          ) : (
-                            <UserIcon className="h-4 w-4" />
-                          )}
-                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">

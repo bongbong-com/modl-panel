@@ -11,9 +11,7 @@ import {
   Tag,
   Link2,
   Copy,
-  CheckSquare,
-  Bot,
-  Shield
+  CheckSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -691,15 +689,6 @@ const PlayerTicket = () => {
                             : ''
                         }`}
                       >
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium bg-muted border">
-                          {message.senderType === 'system' ? (
-                            <Bot className="h-4 w-4" />
-                          ) : message.senderType === 'staff' || message.staff ? (
-                            <Shield className="h-4 w-4" />
-                          ) : (
-                            <User className="h-4 w-4" />
-                          )}
-                        </div>
                         <div className="flex-1">
                           <div className="flex justify-between items-center mb-1">
                             <div className="font-medium flex items-center gap-2">
