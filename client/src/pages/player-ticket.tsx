@@ -11,11 +11,12 @@ import {
   Tag,
   Link2,
   Copy,
-  CheckSquare
+  CheckSquare,
+  Bot,
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -681,8 +682,7 @@ const PlayerTicket = () => {
                 {ticketDetails.messages.length > 0 ? (
                   <div className="flex flex-col gap-4">
                     {ticketDetails.messages.map((message) => (
-                      <div
-                        key={message.id}
+                      <div                        key={message.id}
                         className={`flex gap-3 ${
                           message.senderType === 'staff' || message.staff
                             ? 'bg-primary/5 p-3 rounded-lg'
@@ -691,15 +691,15 @@ const PlayerTicket = () => {
                             : ''
                         }`}
                       >
-                        <Avatar className={message.senderType === 'system' ? 'bg-muted border-muted-foreground/20' : message.senderType === 'staff' || message.staff ? 'bg-primary/20 border-primary' : 'bg-muted border-muted-foreground/50'}>
-                          <AvatarFallback>
-                            {message.senderType === 'system' 
-                              ? 'SYS' 
-                              : message.sender 
-                                ? message.sender.substring(0, 2).toUpperCase() 
-                                : 'UN'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium bg-muted border">
+                          {message.senderType === 'system' ? (
+                            <Bot className="h-4 w-4" />
+                          ) : message.senderType === 'staff' || message.staff ? (
+                            <Shield className="h-4 w-4" />
+                          ) : (
+                            <User className="h-4 w-4" />
+                          )}
+                        </div>
                         <div className="flex-1">
                           <div className="flex justify-between items-center mb-1">
                             <div className="font-medium flex items-center gap-2">

@@ -16,8 +16,7 @@ import {
   Send,
   ArrowUpRight,
   Link2,
-  StickyNote,
-  ArrowLeft,
+  StickyNote,  ArrowLeft,
   ThumbsUp,
   ThumbsDown,
   Bug,
@@ -28,11 +27,12 @@ import {
   X,
   Lock as LockIcon,
   Unlock as UnlockIcon,
-  Loader2
+  Loader2,
+  Bot,
+  User as UserIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
@@ -885,25 +885,18 @@ const TicketDetail = () => {
               {activeTab === 'conversation' && (
                 <div className="space-y-4">
                   <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
-                    {ticketDetails.messages.map((message) => (
-                      <div                        key={message.id} 
+                    {ticketDetails.messages.map((message) => (                      <div                        key={message.id} 
                         className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
-                      >                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className={
-                            message.senderType === 'user' 
-                              ? 'bg-primary/10 text-primary' 
-                              : message.senderType === 'staff' || message.staff
-                                ? 'bg-success/10 text-success' 
-                                : 'bg-muted text-muted-foreground'
-                          }>
-                            {message.senderType === 'system' ? 'SYS' : 
-                              message.sender && typeof message.sender === 'string' && message.sender !== 'user'
-                                ? message.sender.substring(0, 2).toUpperCase() 
-                                : message.senderType === 'staff' || message.staff 
-                                  ? 'ST' 
-                                  : 'US'}
-                          </AvatarFallback>
-                        </Avatar>
+                      >
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium bg-muted border">
+                          {message.senderType === 'system' ? (
+                            <Bot className="h-4 w-4" />
+                          ) : message.senderType === 'staff' || message.staff ? (
+                            <Shield className="h-4 w-4" />
+                          ) : (
+                            <UserIcon className="h-4 w-4" />
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <div className="font-medium text-sm flex items-center">
