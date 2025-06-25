@@ -78,7 +78,7 @@ router.get('/', async (req: Request, res: Response) => {
       // Update database with latest status if different
       if (actualStatus !== server.customDomain_status || lastError !== server.customDomain_error) {
         const globalDb = await connectToGlobalModlDb();
-        const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+        const ServerModel = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
         await ServerModel.findByIdAndUpdate(server._id, {
           customDomain_status: actualStatus,
           customDomain_lastChecked: new Date(),
@@ -125,7 +125,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const globalDb = await connectToGlobalModlDb();
-    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+    const ServerModel = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
 
     // Check if domain is already in use by another server
     const existingServer = await ServerModel.findOne({ 
@@ -236,7 +236,7 @@ router.post('/verify', async (req: Request, res: Response) => {
 
     // Update server status in database
     const globalDb = await connectToGlobalModlDb();
-    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+    const ServerModel = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
     const updatedServer = await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_status: internalStatus,
       customDomain_lastChecked: new Date(),
@@ -297,7 +297,7 @@ router.delete('/', async (req: Request, res: Response) => {
 
     // Remove custom domain from server config
     const globalDb = await connectToGlobalModlDb();
-    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+    const ServerModel = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
     await ServerModel.findByIdAndUpdate(server._id, {
       customDomain_override: null,
       customDomain_status: null,
@@ -446,7 +446,7 @@ router.get('/debug', async (req: Request, res: Response) => {
     }
 
     const globalDb = await connectToGlobalModlDb();
-    const ServerModel = globalDb.model('ModlServer', ModlServerSchema);
+    const ServerModel = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
 
     // Get all information about this domain
     const exactMatch = await ServerModel.findOne({ customDomain_override: domain });

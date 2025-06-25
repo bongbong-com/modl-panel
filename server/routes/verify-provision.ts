@@ -55,7 +55,7 @@ export async function provisionNewServerInstance(
   await seedDefaultHomepageCards(dbConnection);
     
 
-  const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
+  const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
   await ModlServerModel.findByIdAndUpdate(serverConfigId, {
     provisioningStatus: 'completed',
     databaseName: dbConnection.name, // Store the actual database name used
@@ -74,7 +74,7 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
     let globalConnection: Connection;
     try {
       globalConnection = await connectToGlobalModlDb();
-      const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
+      const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
       const server = await ModlServerModel.findOne({ emailVerificationToken: token });
 
       if (!server) {
@@ -130,7 +130,7 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
     let globalConnection: Connection;
     try {
       globalConnection = await connectToGlobalModlDb();
-      const ModlServerModel = globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
+      const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
       const server = await ModlServerModel.findOne({ serverName: serverName });
 
       if (!server) {

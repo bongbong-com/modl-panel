@@ -106,7 +106,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
   let globalConnection: MongooseConnection;
   try {
     globalConnection = await connectToGlobalModlDb();
-    const ModlServerModel = globalConnection.model('ModlServer', ModlServerSchema);
+    const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model('ModlServer', ModlServerSchema);
     
     let serverConfig;
     

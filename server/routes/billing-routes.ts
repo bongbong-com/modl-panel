@@ -109,7 +109,7 @@ router.get('/status', isAuthenticated, async (req, res) => {
             console.log(`[BILLING STATUS] Status mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${subscription.status}`);
 
             const globalDb = await connectToGlobalModlDb();
-            const Server = globalDb.model('ModlServer', ModlServerSchema);
+            const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
 
             // Validate current_period_end before creating Date object
             let periodEndDate = null;
@@ -166,7 +166,7 @@ router.post('/debug-status/:customDomain', async (req, res) => {
   try {
     const { customDomain } = req.params;
     const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.model('ModlServer', ModlServerSchema);
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
 
     const server = await Server.findOne({ customDomain });
     if (!server) {
@@ -219,7 +219,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
 
   try {
     const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.model('ModlServer', ModlServerSchema);
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
 
     switch (event.type) {
       case 'checkout.session.completed': {

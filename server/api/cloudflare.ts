@@ -387,7 +387,7 @@ export async function getDomainSetupInstructions(domain: string): Promise<{
 export async function updateDomainStatuses(serverDbConnection: any) {
   try {
     // Ensure the ModlServer model is registered with the connection
-    const ServerModel = serverDbConnection.model('ModlServer', ModlServerSchema);
+    const ServerModel = serverDbConnection.models.ModlServer || serverDbConnection.model('ModlServer', ModlServerSchema);
     
     // Find all servers with custom domains that aren't active
     const serversWithDomains = await ServerModel.find({
