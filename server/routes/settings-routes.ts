@@ -39,6 +39,7 @@ interface IPunishmentType {
   permanentUntilUsernameChange?: boolean;
   permanentUntilSkinChange?: boolean;
   customPoints?: number; // For permanent punishments that don't use severity-based points
+  appealForm?: IAppealFormSettings; // Punishment-specific appeal form configuration
 }
 
 interface IAppealFormField {
