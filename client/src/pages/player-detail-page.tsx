@@ -40,7 +40,14 @@ interface PunishmentType {
       habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
     };
   };
-  points?: number;
+  points?: {
+    low: number;
+    regular: number;
+    severe: number;
+  };
+  permanentUntilUsernameChange?: boolean;
+  permanentUntilSkinChange?: boolean;
+  customPoints?: number; // For permanent punishments that don't use severity-based points
 }
 
 interface PlayerInfo {

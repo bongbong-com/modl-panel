@@ -12,6 +12,80 @@ import { IPunishmentType, IStatusThresholds, ISystemSettings, ITicketForms, ISet
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 
+interface IDurationDetail {
+  value: number;
+  unit: string;
+}
+
+interface IPunishmentDurations {
+  low: { first: IDurationDetail; medium: IDurationDetail; habitual: IDurationDetail };
+  regular: { first: IDurationDetail; medium: IDurationDetail; habitual: IDurationDetail };
+  severe: { first: IDurationDetail; medium: IDurationDetail; habitual: IDurationDetail };
+}
+
+interface IPunishmentPoints {
+  low: number;
+  regular: number;
+  severe: number;
+}
+
+interface IPunishmentType {
+  id: number;
+  name: string;
+  category: string;
+  isCustomizable: boolean;
+  ordinal: number;
+  durations?: IPunishmentDurations;
+  points?: IPunishmentPoints;
+  permanentUntilUsernameChange?: boolean;
+  permanentUntilSkinChange?: boolean;
+  customPoints?: number; // For permanent punishments that don't use severity-based points
+  appealForm?: IAppealFormSettings; // Punishment-specific appeal form configuration
+}
+
+interface IAppealFormField {
+  id: string;
+  type: 'checkbox' | 'text' | 'textarea' | 'dropdown';
+  label: string;
+  description?: string;
+  required: boolean;
+  options?: string[]; // For dropdown fields
+  order: number;
+}
+
+interface IAppealFormSettings {
+  fields: IAppealFormField[];
+}
+
+interface IStatusThresholds {
+  gameplay: { medium: number; habitual: number };
+  social: { medium: number; habitual: number };
+}
+
+interface ISystemSettings {
+  maxLoginAttempts: number;
+  lockoutDuration: number;
+  sessionTimeout: number;
+  requireAdminApproval: boolean;
+  requireTwoFactor: boolean;
+}
+
+interface ITicketFormField {
+  fieldName: string;
+  fieldLabel: string;
+  fieldType: string;
+  required: boolean;
+  options?: string[];
+}
+
+interface ITicketForms {
+  [key: string]: ITicketFormField[];
+}
+
+interface ISettingsDocument extends MongooseDocument {
+  settings: Map<string, any>;
+}
+
 const router = express.Router();
 
 router.use((req: Request, res: Response, next: NextFunction) => {
@@ -108,6 +182,37 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       ]
     };
     defaultSettingsMap.set('ticketForms', ticketForms);
+    
+    // Add default appeal form settings
+    const defaultAppealForm: IAppealFormSettings = {
+      fields: [
+        {
+          id: 'reason',
+          type: 'textarea',
+          label: 'Appeal Reason',
+          description: 'Please explain why you believe this punishment should be reviewed',
+          required: true,
+          order: 1
+        },
+        {
+          id: 'evidence',
+          type: 'text',
+          label: 'Evidence Links (Optional)',
+          description: 'Provide links to any screenshots, videos, or other evidence',
+          required: false,
+          order: 2
+        },
+        {
+          id: 'acknowledge_error',
+          type: 'checkbox',
+          label: 'I believe this punishment was issued in error',
+          description: 'Check this box if you believe you were wrongfully punished',
+          required: false,
+          order: 3
+        }
+      ]
+    };
+    defaultSettingsMap.set('appealForm', defaultAppealForm);
     
     // Add general settings defaults
     const generalSettings = {

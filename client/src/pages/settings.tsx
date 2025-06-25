@@ -50,7 +50,29 @@ interface PunishmentType {
       habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
     };
   };
-  points?: number;
+  points?: {
+    low: number;
+    regular: number;
+    severe: number;
+  };
+  permanentUntilUsernameChange?: boolean;
+  permanentUntilSkinChange?: boolean;
+  customPoints?: number; // For permanent punishments that don't use severity-based points
+  appealForm?: AppealFormSettings; // Punishment-specific appeal form configuration
+}
+
+interface AppealFormField {
+  id: string;
+  type: 'checkbox' | 'text' | 'textarea' | 'dropdown';
+  label: string;
+  description?: string;
+  required: boolean;
+  options?: string[]; // For dropdown fields
+  order: number;
+}
+
+interface AppealFormSettings {
+  fields: AppealFormField[];
 }
 
 // Type definition for offender status thresholds
@@ -136,6 +158,46 @@ const Settings = () => {
   const [appealTagsState, setAppealTagsState] = useState<string[]>([
     'Ban Appeal', 'Mute Appeal', 'False Positive', 'Second Chance'
   ]);
+  
+  // Appeal form settings state
+  const [appealFormState, setAppealFormState] = useState<AppealFormSettings>({
+    fields: [
+      {
+        id: 'reason',
+        type: 'textarea',
+        label: 'Appeal Reason',
+        description: 'Please explain why you believe this punishment should be reviewed',
+        required: true,
+        order: 1
+      },
+      {
+        id: 'evidence',
+        type: 'text',
+        label: 'Evidence Links (Optional)',
+        description: 'Provide links to any screenshots, videos, or other evidence',
+        required: false,
+        order: 2
+      },
+      {
+        id: 'acknowledge_error',
+        type: 'checkbox',
+        label: 'I believe this punishment was issued in error',
+        description: 'Check this box if you believe you were wrongfully punished',
+        required: false,
+        order: 3
+      }
+    ]
+  });
+
+  // Appeal form UI state
+  const [selectedAppealFieldState, setSelectedAppealFieldState] = useState<AppealFormField | null>(null);
+  const [showAddFieldDialogState, setShowAddFieldDialogState] = useState(false);
+  const [newFieldTypeState, setNewFieldTypeState] = useState<'checkbox' | 'text' | 'textarea' | 'dropdown'>('text');
+  const [newFieldLabelState, setNewFieldLabelState] = useState('');
+  const [newFieldDescriptionState, setNewFieldDescriptionState] = useState('');
+  const [newFieldRequiredState, setNewFieldRequiredState] = useState(false);
+  const [newFieldOptionsState, setNewFieldOptionsState] = useState<string[]>([]);
+  const [newOptionInputState, setNewOptionInputState] = useState('');
 
   // For new tag input
   const [newBugTagState, setNewBugTagState] = useState('');
@@ -191,6 +253,18 @@ const Settings = () => {
   const hasPasskey = hasPasskeyState;
   const showSetup2FA = showSetup2FAState;
   const showSetupPasskey = showSetupPasskeyState;  const recoveryCodesCopied = recoveryCodesCopiedState;  
+  
+  // Appeal form aliases
+  const appealForm = appealFormState;
+  const selectedAppealField = selectedAppealFieldState;
+  const showAddFieldDialog = showAddFieldDialogState;
+  const newFieldType = newFieldTypeState;
+  const newFieldLabel = newFieldLabelState;
+  const newFieldDescription = newFieldDescriptionState;
+  const newFieldRequired = newFieldRequiredState;
+  const newFieldOptions = newFieldOptionsState;
+  const newOptionInput = newOptionInputState;
+  
   // Profile settings aliases
   const profileUsername = profileUsernameState;
   
@@ -748,6 +822,35 @@ const Settings = () => {
   const setNewAppealTag = (value: React.SetStateAction<string>) => {
     setNewAppealTagState(value);
   };
+  
+  // Appeal form wrapper functions
+  const setAppealForm = (value: React.SetStateAction<AppealFormSettings>) => {
+    setAppealFormState(value);
+  };
+  const setSelectedAppealField = (value: React.SetStateAction<AppealFormField | null>) => {
+    setSelectedAppealFieldState(value);
+  };
+  const setShowAddFieldDialog = (value: React.SetStateAction<boolean>) => {
+    setShowAddFieldDialogState(value);
+  };
+  const setNewFieldType = (value: React.SetStateAction<'checkbox' | 'text' | 'textarea' | 'dropdown'>) => {
+    setNewFieldTypeState(value);
+  };
+  const setNewFieldLabel = (value: React.SetStateAction<string>) => {
+    setNewFieldLabelState(value);
+  };
+  const setNewFieldDescription = (value: React.SetStateAction<string>) => {
+    setNewFieldDescriptionState(value);
+  };
+  const setNewFieldRequired = (value: React.SetStateAction<boolean>) => {
+    setNewFieldRequiredState(value);
+  };
+  const setNewFieldOptions = (value: React.SetStateAction<string[]>) => {
+    setNewFieldOptionsState(value);
+  };
+  const setNewOptionInput = (value: React.SetStateAction<string>) => {
+    setNewOptionInputState(value);
+  };
   const setHas2FA = (value: React.SetStateAction<boolean>) => {
     setHas2FAState(value);
   };
@@ -961,10 +1064,18 @@ const Settings = () => {
         }
       };
 
-      const defaultGameplayPoints = 4;
-      const defaultSocialPoints = 3;
+      const defaultGameplayPoints = {
+        low: 2,
+        regular: 4,
+        severe: 6
+      };
+      const defaultSocialPoints = {
+        low: 1,
+        regular: 3,
+        severe: 5
+      };
 
-      const newPunishment = {
+      const newPunishment: PunishmentType = {
         id: newId,
         name: newPunishmentName.trim(),
         category: newPunishmentCategory,
@@ -988,6 +1099,61 @@ const Settings = () => {
     setPunishmentTypes(prevTypes =>
       prevTypes.map(pt => (pt.id === id ? { ...pt, ...updates } : pt))
     );
+  };
+
+  // Appeal form helper functions
+  const addAppealFormField = () => {
+    if (newFieldLabelState.trim()) {
+      const newField: AppealFormField = {
+        id: `field_${Date.now()}`,
+        type: newFieldTypeState,
+        label: newFieldLabelState.trim(),
+        description: newFieldDescriptionState.trim() || undefined,
+        required: newFieldRequiredState,
+        options: newFieldTypeState === 'dropdown' ? newFieldOptionsState : undefined,
+        order: appealFormState.fields.length + 1
+      };
+      
+      setAppealForm(prev => ({
+        ...prev,
+        fields: [...prev.fields, newField]
+      }));
+      
+      // Reset form
+      setNewFieldLabel('');
+      setNewFieldDescription('');
+      setNewFieldRequired(false);
+      setNewFieldOptions([]);
+      setNewOptionInput('');
+      setShowAddFieldDialog(false);
+    }
+  };
+
+  const removeAppealFormField = (fieldId: string) => {
+    setAppealForm(prev => ({
+      ...prev,
+      fields: prev.fields.filter(field => field.id !== fieldId)
+    }));
+  };
+
+  const updateAppealFormField = (fieldId: string, updates: Partial<AppealFormField>) => {
+    setAppealForm(prev => ({
+      ...prev,
+      fields: prev.fields.map(field => 
+        field.id === fieldId ? { ...field, ...updates } : field
+      )
+    }));
+  };
+
+  const addNewFieldOption = () => {
+    if (newOptionInputState.trim() && !newFieldOptionsState.includes(newOptionInputState.trim())) {
+      setNewFieldOptions(prev => [...prev, newOptionInputState.trim()]);
+      setNewOptionInput('');
+    }
+  };
+
+  const removeFieldOption = (option: string) => {
+    setNewFieldOptions(prev => prev.filter(opt => opt !== option));
   };
 
   // Format the last saved time
@@ -1066,6 +1232,13 @@ const Settings = () => {
               >
                 <Tag className="h-4 w-4 mr-2" />
                 Ticket Tags
+              </TabsTrigger>
+              <TabsTrigger
+                value="appeal-form"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Appeal Form
               </TabsTrigger>
               {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
                 <TabsTrigger
@@ -2279,6 +2452,89 @@ const Settings = () => {
               </div>
             </TabsContent>
 
+            <TabsContent value="appeal-form" className="space-y-6 p-6">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Appeal Form Customization</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Customize the form fields that appear on the player appeal submission page. Configure the fields that players will see when submitting ban or mute appeals.
+                </p>
+
+                {/* Current Appeal Form Fields */}
+                <div className="space-y-4">
+                  <h4 className="text-base font-medium">Current Form Fields</h4>
+                  <div className="space-y-3">
+                    {appealForm.fields
+                      .sort((a, b) => a.order - b.order)
+                      .map((field, index) => (
+                        <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
+                          <div className="flex items-center space-x-3">
+                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{field.label}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {field.type}
+                                </Badge>
+                                {field.required && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Required
+                                  </Badge>
+                                )}
+                              </div>
+                              {field.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
+                              )}
+                              {field.type === 'dropdown' && field.options && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Options: {field.options.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedAppealField(field)}
+                              className="text-xs px-2 h-7"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeAppealFormField(field.id)}
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  {/* Add New Field Button */}
+                  <Button
+                    onClick={() => setShowAddFieldDialog(true)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Field
+                  </Button>
+                </div>
+
+                <div className="bg-muted/30 p-4 rounded-md">
+                  <h5 className="text-sm font-medium mb-2">About Appeal Forms</h5>
+                  <p className="text-xs text-muted-foreground">
+                    These fields will appear on the appeal submission page where players can submit ban or mute appeals.
+                    You can add different field types: checkboxes for confirmations, text inputs for short responses,
+                    text areas for longer explanations, and dropdowns for predefined options.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+
             <TabsContent value="domain" className="p-6">
               <DomainSettings />
             </TabsContent>
@@ -2312,10 +2568,216 @@ const Settings = () => {
           </Tabs>
         </Card>
 
+        {/* Add/Edit Appeal Form Field Dialog */}
+        <Dialog open={showAddFieldDialog || Boolean(selectedAppealField)} onOpenChange={() => {
+          setShowAddFieldDialog(false);
+          setSelectedAppealField(null);
+          setNewFieldLabel('');
+          setNewFieldDescription('');
+          setNewFieldRequired(false);
+          setNewFieldOptions([]);
+          setNewOptionInput('');
+        }}>
+          <DialogContent className="max-w-xl p-6">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">
+                {selectedAppealField ? 'Edit Form Field' : 'Add New Form Field'}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                {selectedAppealField ? 'Modify the selected form field.' : 'Create a new field for the appeal form.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Field Type */}
+              <div className="space-y-2">
+                <Label>Field Type</Label>
+                <Select
+                  value={selectedAppealField ? selectedAppealField.type : newFieldType}
+                  onValueChange={(value) => {
+                    if (selectedAppealField) {
+                      setSelectedAppealField({ ...selectedAppealField, type: value as 'checkbox' | 'text' | 'textarea' | 'dropdown' });
+                    } else {
+                      setNewFieldType(value as 'checkbox' | 'text' | 'textarea' | 'dropdown');
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select field type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Short Text Input</SelectItem>
+                    <SelectItem value="textarea">Long Text Area</SelectItem>
+                    <SelectItem value="checkbox">Checkbox</SelectItem>
+                    <SelectItem value="dropdown">Dropdown Selection</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Field Label */}
+              <div className="space-y-2">
+                <Label>Field Label</Label>
+                <Input
+                  placeholder="Enter field label"
+                  value={selectedAppealField ? selectedAppealField.label : newFieldLabel}
+                  onChange={(e) => {
+                    if (selectedAppealField) {
+                      setSelectedAppealField({ ...selectedAppealField, label: e.target.value });
+                    } else {
+                      setNewFieldLabel(e.target.value);
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Field Description */}
+              <div className="space-y-2">
+                <Label>Description (Optional)</Label>
+                <Input
+                  placeholder="Enter field description or help text"
+                  value={selectedAppealField ? selectedAppealField.description || '' : newFieldDescription}
+                  onChange={(e) => {
+                    if (selectedAppealField) {
+                      setSelectedAppealField({ ...selectedAppealField, description: e.target.value });
+                    } else {
+                      setNewFieldDescription(e.target.value);
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Required Field Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="fieldRequired"
+                  checked={selectedAppealField ? selectedAppealField.required : newFieldRequired}
+                  onChange={(e) => {
+                    if (selectedAppealField) {
+                      setSelectedAppealField({ ...selectedAppealField, required: e.target.checked });
+                    } else {
+                      setNewFieldRequired(e.target.checked);
+                    }
+                  }}
+                  className="rounded"
+                />
+                <Label htmlFor="fieldRequired">Required Field</Label>
+              </div>
+
+              {/* Dropdown Options (only for dropdown type) */}
+              {((selectedAppealField && selectedAppealField.type === 'dropdown') || (!selectedAppealField && newFieldType === 'dropdown')) && (
+                <div className="space-y-3">
+                  <Label>Dropdown Options</Label>
+                  <div className="space-y-2">
+                    {(selectedAppealField ? selectedAppealField.options || [] : newFieldOptions).map((option, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 border rounded-md">
+                        <span>{option}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (selectedAppealField) {
+                              setSelectedAppealField({
+                                ...selectedAppealField,
+                                options: (selectedAppealField.options || []).filter((_, i) => i !== index)
+                              });
+                            } else {
+                              removeFieldOption(option);
+                            }
+                          }}
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add new option"
+                        value={newOptionInput}
+                        onChange={(e) => setNewOptionInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && newOptionInput.trim()) {
+                            if (selectedAppealField) {
+                              const currentOptions = selectedAppealField.options || [];
+                              if (!currentOptions.includes(newOptionInput.trim())) {
+                                setSelectedAppealField({
+                                  ...selectedAppealField,
+                                  options: [...currentOptions, newOptionInput.trim()]
+                                });
+                                setNewOptionInput('');
+                              }
+                            } else {
+                              addNewFieldOption();
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newOptionInput.trim()) {
+                            if (selectedAppealField) {
+                              const currentOptions = selectedAppealField.options || [];
+                              if (!currentOptions.includes(newOptionInput.trim())) {
+                                setSelectedAppealField({
+                                  ...selectedAppealField,
+                                  options: [...currentOptions, newOptionInput.trim()]
+                                });
+                                setNewOptionInput('');
+                              }
+                            } else {
+                              addNewFieldOption();
+                            }
+                          }
+                        }}
+                        disabled={!newOptionInput.trim()}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddFieldDialog(false);
+                  setSelectedAppealField(null);
+                  setNewFieldLabel('');
+                  setNewFieldDescription('');
+                  setNewFieldRequired(false);
+                  setNewFieldOptions([]);
+                  setNewOptionInput('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedAppealField) {
+                    updateAppealFormField(selectedAppealField.id, selectedAppealField);
+                    setSelectedAppealField(null);
+                  } else {
+                    addAppealFormField();
+                  }
+                }}
+                disabled={selectedAppealField ? !selectedAppealField.label.trim() : !newFieldLabel.trim()}
+              >
+                {selectedAppealField ? 'Update Field' : 'Add Field'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Punishment Configuration Dialog */}
         {selectedPunishment && (
           <Dialog open={Boolean(selectedPunishment)} onOpenChange={() => setSelectedPunishmentState(null)}>
-            <DialogContent className="max-w-2xl p-6">
+            <DialogContent className="max-w-4xl p-6 max-h-[90vh] overflow-hidden">
               <DialogHeader>
                 <DialogTitle className="text-lg font-semibold">
                   Configure Punishment Type
@@ -2325,280 +2787,543 @@ const Settings = () => {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4">
-                {/* Punishment Name and Category */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-punishment-name">Punishment Name</Label>
-                    <Input
-                      id="edit-punishment-name"
-                      value={selectedPunishment.name}
-                      onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, name: e.target.value } : null)}
-                    />
-                  </div>
+              <Tabs defaultValue="configuration" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                  <TabsTrigger value="appeal-form">Appeal Form</TabsTrigger>
+                </TabsList>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-punishment-category">Category</Label>
-                    <Select
-                      value={selectedPunishment.category}
-                      onValueChange={(value) => setSelectedPunishment(prev => prev ? { ...prev, category: value as 'Gameplay' | 'Social' } : null)}
-                    >
-                      <SelectTrigger id="edit-punishment-category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Gameplay">Gameplay</SelectItem>
-                        <SelectItem value="Social">Social</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                <TabsContent value="configuration" className="space-y-4 max-h-[60vh] overflow-y-auto">
+                  {/* Punishment Name and Category */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-punishment-name">Punishment Name</Label>
+                      <Input
+                        id="edit-punishment-name"
+                        value={selectedPunishment.name}
+                        onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, name: e.target.value } : null)}
+                      />
+                    </div>
 
-                {/* Durations and Points Configuration */}
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-base font-medium mb-2">Durations</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Set the durations and units for low, regular, and severe levels of this punishment.
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Low Severity */}
-                      <div className="space-y-2">
-                        <Label className="font-medium">Low Severity Durations</Label>
-                        <div className="space-y-3 p-2 border rounded-md">
-                          {['first', 'medium', 'habitual'].map((offenseType) => (
-                            <div key={`low-${offenseType}`}>
-                              <Label htmlFor={`low-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
-                                {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
-                              </Label>
-                              <div className="flex gap-2 mt-1">
-                                <Input
-                                  id={`low-${offenseType}-${selectedPunishment.id}`}
-                                  type="number"
-                                  min="0"
-                                  value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.value || ''}
-                                  onChange={(e) => {
-                                    const value = Number(e.target.value);
-                                    setSelectedPunishment(prev => prev && prev.durations ? {
-                                      ...prev,
-                                      durations: {
-                                        ...prev.durations,
-                                        low: {
-                                          ...prev.durations.low,
-                                          [offenseType]: {
-                                            ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                            value
-                                          }
-                                        }
-                                      }
-                                    } : null);
-                                  }}
-                                  className="text-center w-full"
-                                  placeholder="e.g., 24"
-                                />
-                                <Select
-                                  value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.unit || 'hours'}
-                                  onValueChange={(unit) => {
-                                    setSelectedPunishment(prev => prev && prev.durations ? {
-                                      ...prev,
-                                      durations: {
-                                        ...prev.durations,
-                                        low: {
-                                          ...prev.durations.low,
-                                          [offenseType]: {
-                                            ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                            unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                          }
-                                        }
-                                      }
-                                    } : null);
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="hours">Hours</SelectItem>
-                                    <SelectItem value="days">Days</SelectItem>
-                                    <SelectItem value="weeks">Weeks</SelectItem>
-                                    <SelectItem value="months">Months</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Regular Severity */}
-                      <div className="space-y-2">
-                        <Label className="font-medium">Regular Severity Durations</Label>
-                        <div className="space-y-3 p-2 border rounded-md">
-                          {['first', 'medium', 'habitual'].map((offenseType) => (
-                            <div key={`regular-${offenseType}`}>
-                              <Label htmlFor={`regular-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
-                                {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
-                              </Label>
-                              <div className="flex gap-2 mt-1">
-                                <Input
-                                  id={`regular-${offenseType}-${selectedPunishment.id}`}
-                                  type="number"
-                                  min="0"
-                                  value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.value || ''}
-                                  onChange={(e) => {
-                                    const value = Number(e.target.value);
-                                    setSelectedPunishment(prev => prev && prev.durations ? {
-                                      ...prev,
-                                      durations: {
-                                        ...prev.durations,
-                                        regular: {
-                                          ...prev.durations.regular,
-                                          [offenseType]: {
-                                            ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                            value
-                                          }
-                                        }
-                                      }
-                                    } : null);
-                                  }}
-                                  className="text-center w-full"
-                                  placeholder="e.g., 48"
-                                />
-                                <Select
-                                  value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.unit || 'hours'}
-                                  onValueChange={(unit) => {
-                                    setSelectedPunishment(prev => prev && prev.durations ? {
-                                      ...prev,
-                                      durations: {
-                                        ...prev.durations,
-                                        regular: {
-                                          ...prev.durations.regular,
-                                          [offenseType]: {
-                                            ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                            unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                          }
-                                        }
-                                      }
-                                    } : null);
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="hours">Hours</SelectItem>
-                                    <SelectItem value="days">Days</SelectItem>
-                                    <SelectItem value="weeks">Weeks</SelectItem>
-                                    <SelectItem value="months">Months</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Severe Severity */}
-                      <div className="space-y-2">
-                        <Label className="font-medium">Severe Severity Durations</Label>
-                        <div className="space-y-3 p-2 border rounded-md">
-                          {['first', 'medium', 'habitual'].map((offenseType) => (
-                            <div key={`severe-${offenseType}`}>
-                              <Label htmlFor={`severe-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
-                                {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
-                              </Label>
-                              <div className="flex gap-2 mt-1">
-                                <Input
-                                  id={`severe-${offenseType}-${selectedPunishment.id}`}
-                                  type="number"
-                                  min="0"
-
-                                  value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.value || ''}
-                                  onChange={(e) => {
-                                    const value = Number(e.target.value);
-                                    setSelectedPunishment(prev => prev && prev.durations ? {
-                                      ...prev,
-                                      durations: {
-                                        ...prev.durations,
-                                        severe: {
-                                          ...prev.durations.severe,
-                                          [offenseType]: {
-                                            ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                            value
-                                          }
-                                        }
-                                      }
-                                    } : null);
-                                  }}
-                                  className="text-center w-full"
-                                  placeholder="e.g., 72"
-                                />
-                                <Select
-                                  value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.unit || 'hours'}
-                                  onValueChange={(unit) => {
-                                    setSelectedPunishment(prev => prev && prev.durations ? {
-                                      ...prev,
-                                      durations: {
-                                        ...prev.durations,
-                                        severe: {
-                                          ...prev.durations.severe,
-                                          [offenseType]: {
-                                            ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                            unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                          }
-                                        }
-                                      }
-                                    } : null);
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="hours">Hours</SelectItem>
-                                    <SelectItem value="days">Days</SelectItem>
-                                    <SelectItem value="weeks">Weeks</SelectItem>
-                                    <SelectItem value="months">Months</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-punishment-category">Category</Label>
+                      <Select
+                        value={selectedPunishment.category}
+                        onValueChange={(value) => setSelectedPunishment(prev => prev ? { ...prev, category: value as 'Gameplay' | 'Social' } : null)}
+                      >
+                        <SelectTrigger id="edit-punishment-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Gameplay">Gameplay</SelectItem>
+                          <SelectItem value="Social">Social</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
-                  <div>
-                    <h4 className="text-base font-medium mb-2">Points</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Set the points for this punishment.
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2 md:col-span-1"> {/* Adjusted to take less space */}
-                        <Label className="font-medium">Points Value</Label>
-                        <Input
-                          type="number"
-                          placeholder="Points"
-                          value={selectedPunishment.points || ''}
-                          onChange={(e) => {                            const value = Number(e.target.value);
-                            setSelectedPunishment(prev => {
-                              if (!prev) return null;
-                              return {
-                                ...prev,
-                                points: value,
-                              };
-                            });
+                  {/* Permanent Punishment Options */}
+                  <div className="space-y-3 p-3 border rounded-md">
+                    <h5 className="text-sm font-medium">Permanent Punishment Options</h5>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="permanentUntilUsernameChange"
+                          checked={selectedPunishment.permanentUntilUsernameChange || false}
+                          onChange={(e) => {
+                            setSelectedPunishment(prev => prev ? {
+                              ...prev,
+                              permanentUntilUsernameChange: e.target.checked,
+                              // Clear other permanent option if this one is checked
+                              permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange
+                            } : null);
                           }}
-                          className="text-center w-full"
+                          className="rounded"
                         />
+                        <Label htmlFor="permanentUntilUsernameChange" className="text-sm">
+                          Permanent until username change
+                        </Label>
                       </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="permanentUntilSkinChange"
+                          checked={selectedPunishment.permanentUntilSkinChange || false}
+                          onChange={(e) => {
+                            setSelectedPunishment(prev => prev ? {
+                              ...prev,
+                              permanentUntilSkinChange: e.target.checked,
+                              // Clear other permanent option if this one is checked
+                              permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange
+                            } : null);
+                          }}
+                          className="rounded"
+                        />
+                        <Label htmlFor="permanentUntilSkinChange" className="text-sm">
+                          Permanent until skin change
+                        </Label>
+                      </div>
+                      {(selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange) && (
+                        <div className="mt-2">
+                          <Label className="text-sm font-medium">Custom Points (for permanent punishment)</Label>
+                          <Input
+                            type="number"
+                            placeholder="Points"
+                            value={selectedPunishment.customPoints || ''}
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              setSelectedPunishment(prev => prev ? {
+                                ...prev,
+                                customPoints: value
+                              } : null);
+                            }}
+                            className="text-center w-full mt-1"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              </div>
+
+                  {/* Only show Durations and Points if no permanent options are selected */}
+                  {!selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && (
+                    <div className="space-y-4">
+                      {/* Durations Configuration */}
+                      <div>
+                        <h4 className="text-base font-medium mb-2">Durations</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Set the durations and units for low, regular, and severe levels of this punishment.
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Low Severity */}
+                          <div className="space-y-2">
+                            <Label className="font-medium">Low Severity Durations</Label>
+                            <div className="space-y-3 p-2 border rounded-md">
+                              {['first', 'medium', 'habitual'].map((offenseType) => (
+                                <div key={`low-${offenseType}`}>
+                                  <Label htmlFor={`low-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
+                                    {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                                  </Label>
+                                  <div className="flex gap-2 mt-1">
+                                    <Input
+                                      id={`low-${offenseType}-${selectedPunishment.id}`}
+                                      type="number"
+                                      min="0"
+                                      value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.value || ''}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            low: {
+                                              ...prev.durations.low,
+                                              [offenseType]: {
+                                                ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                                value
+                                              }
+                                            }
+                                          }
+                                        } : null);
+                                      }}
+                                      className="text-center w-full"
+                                      placeholder="e.g., 24"
+                                    />
+                                    <Select
+                                      value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.unit || 'hours'}
+                                      onValueChange={(unit) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            low: {
+                                              ...prev.durations.low,
+                                              [offenseType]: {
+                                                ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                              }
+                                            }
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hours">Hours</SelectItem>
+                                        <SelectItem value="days">Days</SelectItem>
+                                        <SelectItem value="weeks">Weeks</SelectItem>
+                                        <SelectItem value="months">Months</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Regular Severity */}
+                          <div className="space-y-2">
+                            <Label className="font-medium">Regular Severity Durations</Label>
+                            <div className="space-y-3 p-2 border rounded-md">
+                              {['first', 'medium', 'habitual'].map((offenseType) => (
+                                <div key={`regular-${offenseType}`}>
+                                  <Label htmlFor={`regular-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
+                                    {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                                  </Label>
+                                  <div className="flex gap-2 mt-1">
+                                    <Input
+                                      id={`regular-${offenseType}-${selectedPunishment.id}`}
+                                      type="number"
+                                      min="0"
+                                      value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.value || ''}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            regular: {
+                                              ...prev.durations.regular,
+                                              [offenseType]: {
+                                                ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                                value
+                                              }
+                                            }
+                                          }
+                                        } : null);
+                                      }}
+                                      className="text-center w-full"
+                                      placeholder="e.g., 48"
+                                    />
+                                    <Select
+                                      value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.unit || 'hours'}
+                                      onValueChange={(unit) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            regular: {
+                                              ...prev.durations.regular,
+                                              [offenseType]: {
+                                                ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                              }
+                                            }
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hours">Hours</SelectItem>
+                                        <SelectItem value="days">Days</SelectItem>
+                                        <SelectItem value="weeks">Weeks</SelectItem>
+                                        <SelectItem value="months">Months</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Severe Severity */}
+                          <div className="space-y-2">
+                            <Label className="font-medium">Severe Severity Durations</Label>
+                            <div className="space-y-3 p-2 border rounded-md">
+                              {['first', 'medium', 'habitual'].map((offenseType) => (
+                                <div key={`severe-${offenseType}`}>
+                                  <Label htmlFor={`severe-${offenseType}-${selectedPunishment.id}`} className="text-xs text-muted-foreground">
+                                    {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                                  </Label>
+                                  <div className="flex gap-2 mt-1">
+                                    <Input
+                                      id={`severe-${offenseType}-${selectedPunishment.id}`}
+                                      type="number"
+                                      min="0"
+                                      value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.value || ''}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            severe: {
+                                              ...prev.durations.severe,
+                                              [offenseType]: {
+                                                ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                                value
+                                              }
+                                            }
+                                          }
+                                        } : null);
+                                      }}
+                                      className="text-center w-full"
+                                      placeholder="e.g., 72"
+                                    />
+                                    <Select
+                                      value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.unit || 'hours'}
+                                      onValueChange={(unit) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            severe: {
+                                              ...prev.durations.severe,
+                                              [offenseType]: {
+                                                ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                              }
+                                            }
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hours">Hours</SelectItem>
+                                        <SelectItem value="days">Days</SelectItem>
+                                        <SelectItem value="weeks">Weeks</SelectItem>
+                                        <SelectItem value="months">Months</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Points Configuration */}
+                      <div>
+                        <h4 className="text-base font-medium mb-2">Points</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Set the points for each severity level.
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Low Severity Points */}
+                          <div className="space-y-2">
+                            <Label className="font-medium">Low Severity Points</Label>
+                            <Input
+                              type="number"
+                              placeholder="Points"
+                              value={selectedPunishment.points?.low || ''}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  points: {
+                                    low: value,
+                                    regular: prev.points?.regular || 0,
+                                    severe: prev.points?.severe || 0
+                                  }
+                                } : null);
+                              }}
+                              className="text-center w-full"
+                            />
+                          </div>
+
+                          {/* Regular Severity Points */}
+                          <div className="space-y-2">
+                            <Label className="font-medium">Regular Severity Points</Label>
+                            <Input
+                              type="number"
+                              placeholder="Points"
+                              value={selectedPunishment.points?.regular || ''}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  points: {
+                                    low: prev.points?.low || 0,
+                                    regular: value,
+                                    severe: prev.points?.severe || 0
+                                  }
+                                } : null);
+                              }}
+                              className="text-center w-full"
+                            />
+                          </div>
+
+                          {/* Severe Severity Points */}
+                          <div className="space-y-2">
+                            <Label className="font-medium">Severe Severity Points</Label>
+                            <Input
+                              type="number"
+                              placeholder="Points"
+                              value={selectedPunishment.points?.severe || ''}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  points: {
+                                    low: prev.points?.low || 0,
+                                    regular: prev.points?.regular || 0,
+                                    severe: value
+                                  }
+                                } : null);
+                              }}
+                              className="text-center w-full"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="appeal-form" className="space-y-4 max-h-[60vh] overflow-y-auto">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-base font-medium mb-2">Custom Appeal Form</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Configure a custom appeal form for this specific punishment type. If no custom form is defined, the global appeal form will be used.
+                      </p>
+                    </div>
+
+                    {/* Appeal Form Fields */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-medium">Appeal Form Fields</h5>
+                        <Button
+                          onClick={() => {
+                            // Add a new field to this punishment's appeal form
+                            const newField: AppealFormField = {
+                              id: `field_${Date.now()}`,
+                              type: 'text',
+                              label: 'New Field',
+                              required: false,
+                              order: (selectedPunishment.appealForm?.fields.length || 0) + 1
+                            };
+                            setSelectedPunishment(prev => prev ? {
+                              ...prev,
+                              appealForm: {
+                                fields: [...(prev.appealForm?.fields || []), newField]
+                              }
+                            } : null);
+                          }}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Field
+                        </Button>
+                      </div>
+
+                      {selectedPunishment.appealForm?.fields.length === 0 || !selectedPunishment.appealForm ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No custom appeal form fields configured.</p>
+                          <p className="text-xs">The global appeal form will be used for this punishment type.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {selectedPunishment.appealForm.fields
+                            .sort((a, b) => a.order - b.order)
+                            .map((field, index) => (
+                              <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
+                                <div className="flex items-center space-x-3">
+                                  <div className="flex items-center space-x-2">
+                                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                                    <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted">{index + 1}</span>
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm">{field.label}</div>
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {field.type}
+                                      </Badge>
+                                      {field.required && (
+                                        <Badge variant="secondary" className="text-xs">Required</Badge>
+                                      )}
+                                      {field.description && (
+                                        <span className="text-xs">{field.description}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Edit field logic here - could open a dialog similar to global appeal form
+                                      const newLabel = prompt('Edit field label:', field.label);
+                                      if (newLabel && newLabel.trim()) {
+                                        setSelectedPunishment(prev => prev ? {
+                                          ...prev,
+                                          appealForm: {
+                                            fields: prev.appealForm?.fields.map(f => 
+                                              f.id === field.id ? { ...f, label: newLabel.trim() } : f
+                                            ) || []
+                                          }
+                                        } : null);
+                                      }
+                                    }}
+                                    className="text-xs px-2 h-7"
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setSelectedPunishment(prev => prev ? {
+                                        ...prev,
+                                        appealForm: {
+                                          fields: prev.appealForm?.fields.filter(f => f.id !== field.id) || []
+                                        }
+                                      } : null);
+                                    }}
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Reset to Global Form */}
+                    {selectedPunishment.appealForm?.fields && selectedPunishment.appealForm.fields.length > 0 && (
+                      <div className="pt-4 border-t">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedPunishment(prev => prev ? {
+                              ...prev,
+                              appealForm: { fields: [] }
+                            } : null);
+                          }}
+                          className="w-full"
+                        >
+                          Reset to Global Appeal Form
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="bg-muted/30 p-4 rounded-md">
+                      <h5 className="text-sm font-medium mb-2">About Custom Appeal Forms</h5>
+                      <p className="text-xs text-muted-foreground">
+                        Custom appeal forms allow you to create punishment-specific appeal questions. 
+                        If no custom form is configured, the global appeal form (configured in the Appeal Form tab) will be used. 
+                        Custom forms are useful for collecting specific information relevant to particular punishment types.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
 
               <DialogFooter className="flex justify-end gap-2">
                 <Button
@@ -2606,7 +3331,8 @@ const Settings = () => {
                   onClick={() => setSelectedPunishment(null)}
                 >
                   Cancel
-                </Button>                <Button
+                </Button>
+                <Button
                   onClick={() => {
                     if (selectedPunishment) {
                       setPunishmentTypes(prev =>
@@ -2615,7 +3341,6 @@ const Settings = () => {
                       toast({
                         title: "Punishment Type Updated",
                         description: `The punishment type "${selectedPunishment.name}" has been updated`
-                        // Removed invalid variant: "success"
                       });
                     }
                     setSelectedPunishment(null);
