@@ -7,7 +7,7 @@ interface IModlServer extends Document {
   adminEmail: string;
   serverName: string;
   customDomain: string;
-  plan_type: 'free' | 'premium';
+  plan: 'free' | 'premium';
   emailVerified: boolean;
   provisioningStatus: 'pending' | 'in-progress' | 'completed' | 'failed';
   databaseName?: string;

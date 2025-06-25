@@ -151,7 +151,7 @@ router.get('/status', isAuthenticated, async (req, res) => {
     }
 
     res.send({
-      plan_type: server.plan_type,
+      plan: server.plan,
       subscription_status: currentStatus,
       current_period_end: currentPeriodEnd,
     });
@@ -179,7 +179,7 @@ router.post('/debug-status/:customDomain', async (req, res) => {
       current_period_end: server.current_period_end,
       stripe_customer_id: server.stripe_customer_id,
       stripe_subscription_id: server.stripe_subscription_id,
-      plan_type: server.plan_type
+      plan: server.plan
     });
   } catch (error) {
     console.error('Error fetching debug status:', error);
@@ -234,7 +234,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
               {
                 stripe_subscription_id: session.subscription,
                 subscription_status: 'active',
-                plan_type: 'premium' // Assuming checkout means premium plan
+                plan: 'premium' // Assuming checkout means premium plan
               }
             );
             console.log(`[WEBHOOK] Updated server ${server.customDomain} - checkout completed`);
@@ -263,7 +263,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
           const updateData: any = {
             stripe_subscription_id: subscription.id,
             subscription_status: subscription.status, // Use status from the event
-            plan_type: 'premium', // Assume new subscriptions are premium
+            plan: 'premium', // Assume new subscriptions are premium
           };
           if (periodEndDate) {
             updateData.current_period_end = periodEndDate;
@@ -329,7 +329,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             { _id: server._id },
             {
               subscription_status: 'canceled',
-              plan_type: 'free',
+              plan: 'free',
               current_period_end: null
             }
           );

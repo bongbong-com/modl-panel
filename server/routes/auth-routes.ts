@@ -165,7 +165,7 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
         // @ts-ignore
         req.session.userId = email;
         // @ts-ignore
-        req.session.plan_type = 'premium';
+        req.session.plan = 'premium';
         // @ts-ignore
         req.session.subscription_status = 'active';
 
@@ -187,7 +187,7 @@ router.post('/verify-email-code', authRateLimit, async (req: Request, res: Respo
       // @ts-ignore
       req.session.role = user.role;
       // @ts-ignore
-      req.session.plan_type = user.plan_type || 'free';
+      req.session.plan = user.plan || 'free';
       // @ts-ignore
       req.session.subscription_status = user.subscription_status || 'inactive';
 
@@ -236,7 +236,7 @@ router.post('/verify-2fa-code', authRateLimit, async (req: Request, res: Respons
       // @ts-ignore
       req.session.role = user.role;
       // @ts-ignore
-      req.session.plan_type = user.plan_type || 'free';
+      req.session.plan = user.plan || 'free';
       // @ts-ignore
       req.session.subscription_status = user.subscription_status || 'inactive';
 
@@ -360,7 +360,7 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
       // @ts-ignore
       req.session.role = user.role;
       // @ts-ignore
-      req.session.plan_type = user.plan_type || 'free';
+      req.session.plan = user.plan || 'free';
       // @ts-ignore
       req.session.subscription_status = user.subscription_status || 'inactive';
 

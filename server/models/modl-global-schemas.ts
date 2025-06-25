@@ -6,7 +6,11 @@ const ModlServerSchema = new Schema({
   adminEmail: { type: String, required: true },
   serverName: { type: String, required: true, unique: true },
   customDomain: { type: String, required: true, unique: true }, // This will be the subdomain
-  plan: { type: String, required: true, enum: ['free', 'paid'] }, // Added enum for plan
+  plan: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free'
+  },
   emailVerificationToken: { type: String, unique: true, sparse: true }, // Made optional, unique only when a value is present
   emailVerified: { type: Boolean, default: false },
   provisioningSignInToken: { type: String, unique: true, sparse: true }, // For secure auto-login post-provisioning
@@ -16,11 +20,7 @@ const ModlServerSchema = new Schema({
   provisioningNotes: { type: String }, // To store any notes or error messages during provisioning
   stripe_customer_id: { type: String, unique: true, sparse: true },
   stripe_subscription_id: { type: String, unique: true, sparse: true },
-  plan_type: {
-    type: String,
-    enum: ['free', 'premium'],
-    default: 'free'
-  },  subscription_status: {
+  subscription_status: {
     type: String,
     enum: [
       'active', 
