@@ -27,5 +27,5 @@ jobs:
           git pull origin main
           npm install
           npm run build
-          pm2 restart modl-panel
+          pm2 reload modl-panel
         EOF
