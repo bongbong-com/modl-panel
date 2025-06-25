@@ -40,11 +40,6 @@ export async function provisionNewServerInstance(
   globalConnection: Connection, // Added globalConnection parameter
   serverConfigId: string // Added serverConfigId to update the document
 ) {
-  dbConnection.model('Player', Player.schema);
-  dbConnection.model('Staff', Staff.schema);
-  dbConnection.model('Ticket', Ticket.schema);
-  dbConnection.model('Log', Log.schema);
-
   // Create default settings with core Administrative punishment types
   await createDefaultSettings(dbConnection, serverName);
   
