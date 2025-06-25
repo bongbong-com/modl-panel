@@ -36,6 +36,23 @@ interface IPunishmentType {
   ordinal: number;
   durations?: IPunishmentDurations;
   points?: IPunishmentPoints;
+  permanentUntilUsernameChange?: boolean;
+  permanentUntilSkinChange?: boolean;
+  customPoints?: number; // For permanent punishments that don't use severity-based points
+}
+
+interface IAppealFormField {
+  id: string;
+  type: 'checkbox' | 'text' | 'textarea' | 'dropdown';
+  label: string;
+  description?: string;
+  required: boolean;
+  options?: string[]; // For dropdown fields
+  order: number;
+}
+
+interface IAppealFormSettings {
+  fields: IAppealFormField[];
 }
 
 interface IStatusThresholds {
@@ -163,6 +180,37 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       ]
     };
     defaultSettingsMap.set('ticketForms', ticketForms);
+    
+    // Add default appeal form settings
+    const defaultAppealForm: IAppealFormSettings = {
+      fields: [
+        {
+          id: 'reason',
+          type: 'textarea',
+          label: 'Appeal Reason',
+          description: 'Please explain why you believe this punishment should be reviewed',
+          required: true,
+          order: 1
+        },
+        {
+          id: 'evidence',
+          type: 'text',
+          label: 'Evidence Links (Optional)',
+          description: 'Provide links to any screenshots, videos, or other evidence',
+          required: false,
+          order: 2
+        },
+        {
+          id: 'acknowledge_error',
+          type: 'checkbox',
+          label: 'I believe this punishment was issued in error',
+          description: 'Check this box if you believe you were wrongfully punished',
+          required: false,
+          order: 3
+        }
+      ]
+    };
+    defaultSettingsMap.set('appealForm', defaultAppealForm);
     
     // Add general settings defaults
     const generalSettings = {
