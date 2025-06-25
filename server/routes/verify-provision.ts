@@ -3,11 +3,11 @@ import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mong
 import { randomBytes } from 'crypto';
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
 import { 
-  playerSchema, 
-  staffSchema, 
-  ticketSchema, 
-  logSchema, 
-  settingsSchema,
+  PlayerSchema, 
+  StaffSchema, 
+  TicketSchema, 
+  LogSchema, 
+  SettingsSchema,
   ModlServerSchema
 } from 'modl-shared-web';
 import { seedDefaultHomepageCards } from '../db/seed-data';

@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 import { 
-  playerSchema, 
-  staffSchema, 
-  ticketSchema, 
-  logSchema, 
-  settingsSchema,
-  homepageCardSchema,
+  PlayerSchema, 
+  StaffSchema, 
+  TicketSchema, 
+  LogSchema, 
+  SettingsSchema,
+  HomepageCardSchema,
   IHomepageCard
 } from 'modl-shared-web';
 import { createDefaultSettings, addDefaultPunishmentTypes } from '../routes/settings-routes';
@@ -31,9 +31,9 @@ export async function seedDatabase() {
   
   try {
     // Only seed if database is empty
-    const playerCount = await playerSchema.countDocuments();
-    const staffCount = await staffSchema.countDocuments();
-    const ticketCount = await ticketSchema.countDocuments();
+    const playerCount = await PlayerSchema.countDocuments();
+    const staffCount = await StaffSchema.countDocuments();
+    const ticketCount = await TicketSchema.countDocuments();
     
     if (playerCount > 0 || staffCount > 0 || ticketCount > 0) {
       console.log('Database already has data, skipping seed operation');
@@ -322,11 +322,11 @@ export async function seedDatabase() {
     ];
     
     // Insert data into collections
-    await playerSchema.insertMany(players);
-    await staffSchema.insertMany(staff);
-    await ticketSchema.insertMany(tickets);
-    await logSchema.insertMany(logs);
-    await settingsSchema.insertMany(settings);
+    await PlayerSchema.insertMany(players);
+    await StaffSchema.insertMany(staff);
+    await TicketSchema.insertMany(tickets);
+    await LogSchema.insertMany(logs);
+    await SettingsSchema.insertMany(settings);
     
     console.log('Database seeded successfully!');
   } catch (error) {
@@ -341,7 +341,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
   try {
     // Register the HomepageCard model on this connection if not already registered
     if (!dbConnection.models.HomepageCard) {
-      dbConnection.model<IHomepageCard>('HomepageCard', homepageCardSchema);
+      dbConnection.model<IHomepageCard>('HomepageCard', HomepageCardSchema);
     }
     
     // Register the KnowledgebaseCategory model for category dropdown cards

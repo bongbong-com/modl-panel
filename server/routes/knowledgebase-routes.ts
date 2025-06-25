@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import {
-  knowledgebaseCategorySchema,
-  knowledgebaseArticleSchema,
+  KnowledgebaseCategorySchema,
+  KnowledgebaseArticleSchema,
   IKnowledgebaseCategory,
   IKnowledgebaseArticle
 } from 'modl-shared-web';
@@ -19,7 +19,7 @@ const getKnowledgebaseCategoryModel = (req: Request): Model<IKnowledgebaseCatego
   }
   // Ensure the model is registered on the connection if not already
   if (!req.serverDbConnection.models.KnowledgebaseCategory) {
-    req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory', knowledgebaseCategorySchema);
+    req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory', KnowledgebaseCategorySchema);
   }
   return req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory');
 };
@@ -30,7 +30,7 @@ const getKnowledgebaseArticleModel = (req: Request): Model<IKnowledgebaseArticle
     throw new Error('Database connection not found for this tenant.');
   }
   if (!req.serverDbConnection.models.KnowledgebaseArticle) {
-    req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle', knowledgebaseArticleSchema);
+    req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle', KnowledgebaseArticleSchema);
   }
   return req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle');
 };

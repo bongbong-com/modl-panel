@@ -1,15 +1,15 @@
 import dotenv from 'dotenv';
 import mongoose, { Connection } from 'mongoose';
 import {
-  playerSchema,
-  ticketSchema,
-  staffSchema,
-  settingsSchema,
-  logSchema,
-  invitationSchema,
-  knowledgebaseArticleSchema,
-  knowledgebaseCategorySchema,
-  homepageCardSchema
+  PlayerSchema,
+  TicketSchema,
+  StaffSchema,
+  SettingsSchema,
+  LogSchema,
+  InvitationSchema,
+  KnowledgebaseArticleSchema,
+  KnowledgebaseCategorySchema,
+  HomepageCardSchema
 } from 'modl-shared-web';
 import { ModlServerSchema } from 'modl-shared-web';
 
@@ -25,15 +25,15 @@ const serverConnections = new Map<string, Connection>();
 // Helper to register all tenant-specific models on a given connection
 // Using the correctly imported raw schema variables
 const tenantSchemas: Record<string, mongoose.Schema<any>> = {
-  Player: playerSchema,
-  Ticket: ticketSchema,
-  Staff: staffSchema,
-  Settings: settingsSchema,
-  Log: logSchema,
-  Invitation: invitationSchema,
-  KnowledgebaseArticle: knowledgebaseArticleSchema,
-  KnowledgebaseCategory: knowledgebaseCategorySchema,
-  HomepageCard: homepageCardSchema
+  Player: PlayerSchema,
+  Ticket: TicketSchema,
+  Staff: StaffSchema,
+  Settings: SettingsSchema,
+  Log: LogSchema,
+  Invitation: InvitationSchema,
+  KnowledgebaseArticle: KnowledgebaseArticleSchema,
+  KnowledgebaseCategory: KnowledgebaseCategorySchema,
+  HomepageCard: HomepageCardSchema
 };
 
 function registerTenantModels(connection: Connection): void {
