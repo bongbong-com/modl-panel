@@ -5,10 +5,13 @@ import {
   ticketSchema,
   staffSchema,
   settingsSchema,
-  logSchema
-} from '../models/mongodb-schemas';
-import { invitationSchema } from '../models/invitation-schema';
-import { ModlServerSchema } from '../models/modl-global-schemas';
+  logSchema,
+  invitationSchema,
+  knowledgebaseArticleSchema,
+  knowledgebaseCategorySchema,
+  homepageCardSchema
+} from 'modl-shared-web';
+import { ModlServerSchema } from 'modl-shared-web';
 
 dotenv.config();
 
@@ -28,6 +31,9 @@ const tenantSchemas: Record<string, mongoose.Schema<any>> = {
   Settings: settingsSchema,
   Log: logSchema,
   Invitation: invitationSchema,
+  KnowledgebaseArticle: knowledgebaseArticleSchema,
+  KnowledgebaseCategory: knowledgebaseCategorySchema,
+  HomepageCard: homepageCardSchema
 };
 
 function registerTenantModels(connection: Connection): void {

@@ -1,12 +1,12 @@
 import express, { Request, Response } from 'express';
 import {
+  HomepageCardSchema,
+  KnowledgebaseCategorySchema,
+  KnowledgebaseArticleSchema,
   IHomepageCard,
-  HomepageCardSchema
-} from '../models/homepage-card-schema';
-import {
   IKnowledgebaseCategory,
-  KnowledgebaseCategorySchema
-} from '../models/knowledgebase-schema';
+  IKnowledgebaseArticle
+} from 'modl-shared-web';
 import mongoose, { Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware';

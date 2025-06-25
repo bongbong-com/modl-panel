@@ -1,6 +1,15 @@
 import mongoose from 'mongoose';
-import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
-import { HomepageCardSchema, IHomepageCard } from '../models/homepage-card-schema';
+import { 
+  playerSchema, 
+  staffSchema, 
+  ticketSchema, 
+  logSchema, 
+  settingsSchema,
+  homepageCardSchema,
+  IHomepageCard
+} from 'modl-shared-web';
+import { createDefaultSettings, addDefaultPunishmentTypes } from '../routes/settings-routes';
+import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
@@ -22,9 +31,9 @@ export async function seedDatabase() {
   
   try {
     // Only seed if database is empty
-    const playerCount = await Player.countDocuments();
-    const staffCount = await Staff.countDocuments();
-    const ticketCount = await Ticket.countDocuments();
+    const playerCount = await playerSchema.countDocuments();
+    const staffCount = await staffSchema.countDocuments();
+    const ticketCount = await ticketSchema.countDocuments();
     
     if (playerCount > 0 || staffCount > 0 || ticketCount > 0) {
       console.log('Database already has data, skipping seed operation');
@@ -313,11 +322,11 @@ export async function seedDatabase() {
     ];
     
     // Insert data into collections
-    await Player.insertMany(players);
-    await Staff.insertMany(staff);
-    await Ticket.insertMany(tickets);
-    await Log.insertMany(logs);
-    await Settings.insertMany(settings);
+    await playerSchema.insertMany(players);
+    await staffSchema.insertMany(staff);
+    await ticketSchema.insertMany(tickets);
+    await logSchema.insertMany(logs);
+    await settingsSchema.insertMany(settings);
     
     console.log('Database seeded successfully!');
   } catch (error) {
@@ -332,7 +341,7 @@ export async function seedDefaultHomepageCards(dbConnection: mongoose.Connection
   try {
     // Register the HomepageCard model on this connection if not already registered
     if (!dbConnection.models.HomepageCard) {
-      dbConnection.model<IHomepageCard>('HomepageCard', HomepageCardSchema);
+      dbConnection.model<IHomepageCard>('HomepageCard', homepageCardSchema);
     }
     
     // Register the KnowledgebaseCategory model for category dropdown cards

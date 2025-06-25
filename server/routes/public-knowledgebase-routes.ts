@@ -1,34 +1,36 @@
 import express, { Request, Response } from 'express';
 import {
-  IKnowledgebaseCategory,
   KnowledgebaseCategorySchema,
-  IKnowledgebaseArticle,
-  KnowledgebaseArticleSchema
-} from '../models/knowledgebase-schema';
-import mongoose, { Model } from 'mongoose';
+  KnowledgebaseArticleSchema,
+  KnowledgebaseCategory,
+  KnowledgebaseArticle
+} from 'modl-shared-web';
+import mongoose, { Model, Connection } from 'mongoose';
 
 const router = express.Router();
 
 // Helper to get the KnowledgebaseCategory model for the current tenant
-const getKnowledgebaseCategoryModel = (req: Request): Model<IKnowledgebaseCategory> => {
-  if (!req.serverDbConnection) {
+const getKnowledgebaseCategoryModel = (req: Request): Model<KnowledgebaseCategory> => {
+  const customReq = req as Request & { serverDbConnection?: Connection };
+  if (!customReq.serverDbConnection) {
     throw new Error('Database connection not found for this tenant.');
   }
-  if (!req.serverDbConnection.models.KnowledgebaseCategory) {
-    req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory', KnowledgebaseCategorySchema);
+  if (!customReq.serverDbConnection.models.KnowledgebaseCategory) {
+    customReq.serverDbConnection.model<KnowledgebaseCategory>('KnowledgebaseCategory', KnowledgebaseCategorySchema);
   }
-  return req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory');
+  return customReq.serverDbConnection.model<KnowledgebaseCategory>('KnowledgebaseCategory');
 };
 
 // Helper to get the KnowledgebaseArticle model for the current tenant
-const getKnowledgebaseArticleModel = (req: Request): Model<IKnowledgebaseArticle> => {
-  if (!req.serverDbConnection) {
+const getKnowledgebaseArticleModel = (req: Request): Model<KnowledgebaseArticle> => {
+  const customReq = req as Request & { serverDbConnection?: Connection };
+  if (!customReq.serverDbConnection) {
     throw new Error('Database connection not found for this tenant.');
   }
-  if (!req.serverDbConnection.models.KnowledgebaseArticle) {
-    req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle', KnowledgebaseArticleSchema);
+  if (!customReq.serverDbConnection.models.KnowledgebaseArticle) {
+    customReq.serverDbConnection.model<KnowledgebaseArticle>('KnowledgebaseArticle', KnowledgebaseArticleSchema);
   }
-  return req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle');
+  return customReq.serverDbConnection.model<KnowledgebaseArticle>('KnowledgebaseArticle');
 };
 
 // GET /api/public/knowledgebase/categories - List all visible categories and their visible articles
@@ -71,7 +73,10 @@ router.get('/categories', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error fetching public knowledgebase categories:', error);
     if (error.message.startsWith('Database connection')) {
-      return res.status(503).json({ message: error.message });
+      const customReq = req as Request & { serverDbConnection?: Connection };
+      if (!customReq.serverDbConnection) {
+        return res.status(503).json({ message: error.message });
+      }
     }
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
@@ -121,7 +126,10 @@ router.get('/articles/:articleIdOrSlug', async (req: Request, res: Response) => 
   } catch (error: any) {
     console.error('Error fetching public article:', error);
     if (error.message.startsWith('Database connection')) {
-      return res.status(503).json({ message: error.message });
+      const customReq = req as Request & { serverDbConnection?: Connection };
+      if (!customReq.serverDbConnection) {
+        return res.status(503).json({ message: error.message });
+      }
     }
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
@@ -169,7 +177,10 @@ router.get('/search', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error searching public articles:', error);
     if (error.message.startsWith('Database connection')) {
-      return res.status(503).json({ message: error.message });
+      const customReq = req as Request & { serverDbConnection?: Connection };
+      if (!customReq.serverDbConnection) {
+        return res.status(503).json({ message: error.message });
+      }
     }
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }

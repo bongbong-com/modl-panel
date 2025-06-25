@@ -3,81 +3,11 @@ import { Request, Response, NextFunction, Express } from 'express'; // Added Exp
 import { v4 as uuidv4 } from 'uuid'; // For generating new player UUIDs
 import { createSystemLog } from './log-routes'; // Import createSystemLog
 import { verifyMinecraftApiKey } from '../middleware/api-auth';
+import { IIPAddress, IModification, INote, IPunishment, IPlayer, ITicket, IUsername } from 'modl-shared-web/types';
 
 enum PunishmentType {
   Mute = 1,
   Ban = 2,
-}
-
-interface IUsername {
-  username: string;
-  date: Date;
-}
-
-interface IIPAddress {
-  ipAddress: string;
-  country?: string;
-  region?: string;
-  asn?: string;
-  proxy?: boolean;
-  firstLogin: Date;
-  logins: Date[];
-}
-
-interface IModification {
-  type: string;
-  issuerName: string;
-  issued: Date;
-  effectiveDuration?: number;
-}
-
-interface INote {
-  text: string;
-  date: Date;
-  issuerName: string;
-  issuerId?: string;
-}
-
-interface IPunishment {
-  id: string;
-  issuerName: string;
-  issued: Date;
-  started?: Date;
-  type: PunishmentType;
-  modifications: IModification[];
-  notes: INote[];
-  attachedTicketIds: string[];
-  data?: Map<string, any>;
-}
-
-interface IPlayer extends Document {
-  _id: string;
-  minecraftUuid: string;
-  usernames: IUsername[];
-  notes: INote[];
-  ipList: IIPAddress[];
-  punishments: IPunishment[];
-  pendingNotifications: string[];
-  data?: Map<string, any>;
-}
-
-interface ITicket extends Document {
-  _id: string;
-  tags: string[];
-  type: string;
-  status: string;
-  subject?: string;
-  created: Date;
-  creator: string;
-  creatorUuid: string;
-  reportedPlayer?: string;
-  reportedPlayerUuid?: string;
-  chatMessages?: string[];
-  notes: any[]; // Define more specific type if needed
-  replies: any[]; // Define more specific type if needed
-  locked: boolean;
-  formData?: Map<string, any>;
-  data?: Map<string, any>;
 }
 
 /**

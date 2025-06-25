@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ModlServerSchema } from '../models/modl-global-schemas';
+import { ModlServerSchema } from 'modl-shared-web';
 
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_ZONE_ID = process.env.CLOUDFLARE_ZONE_ID;

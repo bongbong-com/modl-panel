@@ -10,33 +10,12 @@ import { Plus, Edit, Trash2, GripVertical, Eye, EyeOff, ArrowUpDown } from 'luci
 import { DndProvider, useDrag, useDrop, DropTargetMonitor } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ArticleListItem, { ItemTypes as ArticleItemTypes } from './ArticleListItem';
-import MarkdownEditor from '@/components/ui/MarkdownEditor'; // Import the new editor
+import MarkdownEditor from '@/components/ui/MarkdownEditor';
+import { KnowledgebaseCategory, KnowledgebaseArticle } from 'modl-shared-web/types';
 // For now, we'll mock dnd as it's a larger setup.
 // Consider using a library like @dnd-kit/core for a more modern approach if not already in use.
 
 // TODO: Define these types based on your backend schema
-export interface KnowledgebaseCategory { // Added export
-  id: string;
-  name: string;
-  description?: string;
-  ordinal: number;
-  articles: KnowledgebaseArticle[];
-}
-
-export interface KnowledgebaseArticle { // Added export
-  id: string;
-  title: string;
-  content: string;
-  is_visible: boolean;
-  ordinal: number;
-  categoryId: string; // Keep track of parent category
-}
-
-interface CategoryDragItem {
-  id: string;
-  originalIndex: number;
-  type: 'category';
-}
 
 const fetchCategories = async (): Promise<KnowledgebaseCategory[]> => {
   const response = await fetch('/api/panel/knowledgebase/categories');

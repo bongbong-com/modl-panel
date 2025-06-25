@@ -2,7 +2,7 @@ import express from 'express';
 import Stripe from 'stripe';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { connectToGlobalModlDb } from '../db/connectionManager';
-import { ModlServerSchema } from '../models/modl-global-schemas';
+import { ModlServerSchema } from 'modl-shared-web';
 
 const router = express.Router();
 

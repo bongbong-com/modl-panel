@@ -2,16 +2,15 @@ import { Express, Request, Response } from 'express';
 import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mongoose for Types.ObjectId
 import { randomBytes } from 'crypto';
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
-import {
-  Player,
-  Staff,
-  Ticket,
-  Log,
-  Settings,
-  settingsSchema
-} from '../models/mongodb-schemas';
+import { 
+  playerSchema, 
+  staffSchema, 
+  ticketSchema, 
+  logSchema, 
+  settingsSchema,
+  ModlServerSchema
+} from 'modl-shared-web';
 import { seedDefaultHomepageCards } from '../db/seed-data';
-import { ModlServerSchema } from '../models/modl-global-schemas';
 import { strictRateLimit } from '../middleware/rate-limiter';
 import { createDefaultSettings, addDefaultPunishmentTypes } from './settings-routes';
 

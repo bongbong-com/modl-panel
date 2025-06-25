@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
+import { ITicket, TicketMessage, TicketNote } from 'modl-shared-web/types';
 
 interface INote {
   text: string;
