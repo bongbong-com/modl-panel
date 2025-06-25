@@ -10,7 +10,7 @@ import ResizableWindow from '@/components/layout/ResizableWindow';
 import { usePlayer, useApplyPunishment, useSettings } from '@/hooks/use-data';
 import { toast } from '@/hooks/use-toast';
 
-import { WindowPosition } from '@/lib/types';
+import { WindowPosition, Player, PunishmentType as PunishmentTypeInterface } from 'modl-shared-web/types';
 
 interface PlayerWindowProps {
   playerId: string;

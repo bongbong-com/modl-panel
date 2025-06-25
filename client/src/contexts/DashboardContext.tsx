@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
-import { WindowPosition } from '@/lib/types';
-import { WindowState, initialWindowState, windowActions } from '@/lib/window-manager';
+import { WindowPosition, WindowState } from 'modl-shared-web/types';
+import { windowActions, initialWindowState } from '@/lib/window-manager';
 
 interface DashboardContextType {
   windowState: WindowState;

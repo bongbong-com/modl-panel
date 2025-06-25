@@ -1,12 +1,6 @@
 import { Router } from 'express';
 import { Connection, Document } from 'mongoose';
-
-interface ILogDocument extends Document {
-  description: string;
-  level: string;
-  source: string;
-  created: Date;
-}
+import { ISystemLog } from 'modl-shared-web/types';
 
 export async function createSystemLog(
   dbConnection: Connection | undefined | null,
@@ -14,7 +8,7 @@ export async function createSystemLog(
   description: string,
   level: 'info' | 'warning' | 'error' | 'moderation' = 'info',
   source: string = 'system'
-): Promise<ILogDocument | null> {
+): Promise<ISystemLog | null> {
   if (!dbConnection) {
     console.error('createSystemLog called without a dbConnection. Log will not be saved.');
     const serverIdMessage = serverName || 'Unknown Server';
@@ -22,7 +16,7 @@ export async function createSystemLog(
     return null;
   }
   try {
-    const LogModel = dbConnection.model<ILogDocument>('Log');
+    const LogModel = dbConnection.model<ISystemLog>('Log');
     const logEntry = new LogModel({
       description,
       level,
@@ -49,7 +43,7 @@ router.get('/', async (req, res) => {
   }
 
   try {
-    const LogModel = req.serverDbConnection.model<ILogDocument>('Log');
+    const LogModel = req.serverDbConnection.model<ISystemLog>('Log');
     const limit = parseInt(req.query.limit as string) || 100;
     const logs = await LogModel.find().sort({ created: -1 }).limit(limit);
     res.json(logs);

@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Connection, Document } from 'mongoose';
 import { createSystemLog } from './log-routes';
+import { IIPAddress, IUsername, INote, IPunishment, IPlayer } from 'modl-shared-web/types';
 
 interface IIPInfo {
   status?: string;
@@ -12,59 +13,6 @@ interface IIPInfo {
   as?: string;
   proxy?: boolean;
   hosting?: boolean;
-}
-
-interface IIP {
-  ipAddress: string;
-  country?: string;
-  region?: string;
-  asn?: string;
-  proxy?: boolean;
-  firstLogin: Date;
-  logins: Date[];
-}
-
-interface IUsername {
-  username: string;
-  date: Date;
-}
-
-interface INote {
-  text: string;
-  issuerName: string;
-  issuerId?: string; // Added issuerId
-  date: Date;
-}
-
-interface IModification {
-  type: string;
-  issuerName: string;
-  issued: Date;
-  effectiveDuration?: number;
-  reason?: string; 
-}
-
-interface IPunishment {
-  id: string;
-  issuerName: string;
-  issued: Date;
-  started?: Date;
-  type_ordinal: number;
-  modifications: IModification[];
-  notes: string[]; // Assuming notes are strings, adjust if they are INote objects
-  attachedTicketIds: string[];
-  data: Map<string, any>;
-}
-
-interface IPlayer extends Document {
-  _id: string;
-  minecraftUuid: string;
-  usernames: IUsername[];
-  notes: INote[];
-  ipList: IIP[];
-  punishments: IPunishment[];
-  pendingNotifications: any[]; // Define further if structure is known
-  data: Map<string, any>;
 }
 
 const router = express.Router();

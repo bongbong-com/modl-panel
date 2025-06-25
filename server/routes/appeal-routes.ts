@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document, Types, Model } from 'mongoose';
 import { createSystemLog } from './log-routes';
+import { ITicket, IPlayer } from 'modl-shared-web/types';
 
 interface ITicketData extends Map<string, any> {
   punishmentId?: string;
@@ -20,22 +21,6 @@ interface IReply {
   action?: string;
 }
 
-interface ITicket extends Document {
-  _id: string;
-  type: string;
-  status: string;
-  subject?: string;
-  tags: string[];
-  created: Date;
-  updatedAt?: Date;
-  creator: string;
-  creatorUuid: string;
-  notes: any[];
-  replies: IReply[];
-  data: ITicketData;
-  locked?: boolean;
-}
-
 interface IPunishmentModification {
   type: string;
   issuerName: string;
@@ -48,12 +33,6 @@ interface IPunishmentInPlayer {
   attachedTicketIds: string[];
   modifications: IPunishmentModification[];
   data: Map<string, any>;
-}
-
-interface IPlayer extends Document {
-  minecraftUuid: string;
-  usernames: { username: string; date: Date }[];
-  punishments: IPunishmentInPlayer[];
 }
 
 const router = express.Router();

@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose'; // Renamed Document to MongooseDocument, Added HydratedDocument
+import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import domainRoutes from './domain-routes';
 import multer from 'multer';
@@ -7,65 +7,10 @@ import path from 'path';
 import fs from 'fs';
 import { promisify } from 'util';
 import { generateTicketApiKey } from '../middleware/ticket-api-auth';
+import { IPunishmentType, IStatusThresholds, ISystemSettings, ITicketForms, ISettingsDocument } from 'modl-shared-web/types';
 
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
-
-interface IDurationDetail {
-  value: number;
-  unit: string;
-}
-
-interface IPunishmentDurations {
-  low: { first: IDurationDetail; medium: IDurationDetail; habitual: IDurationDetail };
-  regular: { first: IDurationDetail; medium: IDurationDetail; habitual: IDurationDetail };
-  severe: { first: IDurationDetail; medium: IDurationDetail; habitual: IDurationDetail };
-}
-
-interface IPunishmentPoints {
-  low: number;
-  regular: number;
-  severe: number;
-}
-
-interface IPunishmentType {
-  id: number;
-  name: string;
-  category: string;
-  isCustomizable: boolean;
-  ordinal: number;
-  durations?: IPunishmentDurations;
-  points?: IPunishmentPoints;
-}
-
-interface IStatusThresholds {
-  gameplay: { medium: number; habitual: number };
-  social: { medium: number; habitual: number };
-}
-
-interface ISystemSettings {
-  maxLoginAttempts: number;
-  lockoutDuration: number;
-  sessionTimeout: number;
-  requireAdminApproval: boolean;
-  requireTwoFactor: boolean;
-}
-
-interface ITicketFormField {
-  fieldName: string;
-  fieldLabel: string;
-  fieldType: string;
-  required: boolean;
-  options?: string[];
-}
-
-interface ITicketForms {
-  [key: string]: ITicketFormField[];
-}
-
-interface ISettingsDocument extends MongooseDocument {
-  settings: Map<string, any>;
-}
 
 const router = express.Router();
 

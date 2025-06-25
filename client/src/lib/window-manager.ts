@@ -1,4 +1,4 @@
-import { WindowPosition } from './types';
+import { WindowPosition, WindowState, Window } from 'modl-shared-web/types';
 
 export interface Window {
   id: string;

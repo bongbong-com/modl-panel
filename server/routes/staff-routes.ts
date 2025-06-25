@@ -3,41 +3,10 @@ import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware';
-import { Invitation } from '../models/invitation-schema';
+import { InvitationSchema, IPasskey, IStaff, IModlServer } from 'modl-shared-web';
 import nodemailer from 'nodemailer';
 import { getModlServersModel } from '../db/connectionManager';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
-
-interface IPasskey {
-  credentialID: Buffer; // Changed from string, made required
-  credentialPublicKey: Buffer; // Changed from string, made required
-  counter: number; // Renamed from signCount, made required
-  transports?: string[]; // Added transports array
-  aaguid?: string; // Made optional as per schema
-  createdAt: Date;
-}
-
-interface IStaff extends MongooseDocument {
-  email: string;
-  username: string;
-  role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
-  twoFaSecret?: string;
-  isTwoFactorEnabled?: boolean;
-  passkeys?: IPasskey[]; // Changed to an array of IPasskey
-}
-
-interface IModlServer extends MongooseDocument {
-  adminEmail: string;
-  serverName: string;
-  customDomain: string;
-  plan: 'free' | 'paid';
-  emailVerified?: boolean;
-  provisioningStatus?: 'pending' | 'in-progress' | 'completed' | 'failed';
-  databaseName?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 
 const router = express.Router();
 
@@ -71,7 +40,7 @@ router.get('/invitations/accept', strictRateLimit, async (req: Request, res: Res
   }
 
   try {
-    const InvitationModel = req.serverDbConnection!.model('Invitation', Invitation.schema);
+    const InvitationModel = req.serverDbConnection!.model('Invitation', InvitationSchema);
     const invitation = await InvitationModel.findOne({ token: token as string });
 
     if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < new Date()) {
@@ -165,7 +134,7 @@ router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async
       return res.status(409).json({ message: 'Email is already associated with an existing user.' });
     }
 
-    const InvitationModel = req.serverDbConnection!.model('Invitation', Invitation.schema);
+    const InvitationModel = req.serverDbConnection!.model('Invitation', InvitationSchema);
     const existingInvitation = await InvitationModel.findOne({ email, status: 'pending' });
     if (existingInvitation) {
       return res.status(409).json({ message: 'An invitation for this email is already pending.' });

@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
 import {
+  knowledgebaseCategorySchema,
+  knowledgebaseArticleSchema,
   IKnowledgebaseCategory,
-  KnowledgebaseCategorySchema,
-  IKnowledgebaseArticle,
-  KnowledgebaseArticleSchema
-} from '../models/knowledgebase-schema';
+  IKnowledgebaseArticle
+} from 'modl-shared-web';
 import mongoose, { Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware'; // Import checkRole
@@ -19,7 +19,7 @@ const getKnowledgebaseCategoryModel = (req: Request): Model<IKnowledgebaseCatego
   }
   // Ensure the model is registered on the connection if not already
   if (!req.serverDbConnection.models.KnowledgebaseCategory) {
-    req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory', KnowledgebaseCategorySchema);
+    req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory', knowledgebaseCategorySchema);
   }
   return req.serverDbConnection.model<IKnowledgebaseCategory>('KnowledgebaseCategory');
 };
@@ -30,7 +30,7 @@ const getKnowledgebaseArticleModel = (req: Request): Model<IKnowledgebaseArticle
     throw new Error('Database connection not found for this tenant.');
   }
   if (!req.serverDbConnection.models.KnowledgebaseArticle) {
-    req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle', KnowledgebaseArticleSchema);
+    req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle', knowledgebaseArticleSchema);
   }
   return req.serverDbConnection.model<IKnowledgebaseArticle>('KnowledgebaseArticle');
 };

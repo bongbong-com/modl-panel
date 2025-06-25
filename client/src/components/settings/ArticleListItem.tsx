@@ -3,7 +3,7 @@ import { useDrag, useDrop, DropTargetMonitor } from 'react-dnd';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GripVertical, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
-import { KnowledgebaseArticle } from './KnowledgebaseSettings'; // Assuming types are exported or defined here
+import { KnowledgebaseArticle } from 'modl-shared-web/types';
 
 export const ItemTypes = {
   ARTICLE: 'article',
