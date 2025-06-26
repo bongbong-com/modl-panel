@@ -625,9 +625,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 6,
         durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+          low: { first: { value: 24, unit: 'hours', type: 'mute' }, medium: { value: 2, unit: 'days', type: 'mute' }, habitual: { value: 4, unit: 'days', type: 'mute' } },
+          regular: { first: { value: 2, unit: 'days', type: 'mute' }, medium: { value: 4, unit: 'days', type: 'mute' }, habitual: { value: 7, unit: 'days', type: 'mute' } },
+          severe: { first: { value: 3, unit: 'days', type: 'mute' }, medium: { value: 7, unit: 'days', type: 'mute' }, habitual: { value: 14, unit: 'days', type: 'mute' } }
         },
         points: { low: 1, regular: 2, severe: 4 }
       },
@@ -638,9 +638,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 7,
         durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 2, unit: 'days' }, habitual: { value: 4, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+          low: { first: { value: 24, unit: 'hours', type: 'mute' }, medium: { value: 2, unit: 'days', type: 'mute' }, habitual: { value: 4, unit: 'days', type: 'mute' } },
+          regular: { first: { value: 2, unit: 'days', type: 'mute' }, medium: { value: 4, unit: 'days', type: 'mute' }, habitual: { value: 7, unit: 'days', type: 'mute' } },
+          severe: { first: { value: 3, unit: 'days', type: 'mute' }, medium: { value: 7, unit: 'days', type: 'mute' }, habitual: { value: 14, unit: 'days', type: 'mute' } }
         },
         points: { low: 2, regular: 3, severe: 4 }
       },
@@ -651,9 +651,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 8,
         durations: {
-          low: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+          low: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } }
         },
         points: { low: 2, regular: 4, severe: 6 }
       },
@@ -664,9 +664,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 9,
         durations: {
-          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+          low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } }
         },
         points: { low: 3, regular: 5, severe: 7 }
       },
@@ -677,9 +677,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 10,
         durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 10, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } }
         },
         points: { low: 1, regular: 2, severe: 3 }
       },
@@ -690,9 +690,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 11,
         durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-          severe: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } }
+          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 10, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } }
         },
         points: { low: 1, regular: 2, severe: 3 }
       }
@@ -707,9 +707,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 12,
         durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 2, unit: 'days' }, medium: { value: 4, unit: 'days' }, habitual: { value: 10, unit: 'days' } },
-          severe: { first: { value: 4, unit: 'days' }, medium: { value: 10, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 10, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 4, unit: 'days', type: 'ban' }, medium: { value: 10, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } }
         },
         points: { low: 1, regular: 2, severe: 3 }
       },
@@ -720,9 +720,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 13,
         durations: {
-          low: { first: { value: 24, unit: 'hours' }, medium: { value: 3, unit: 'days' }, habitual: { value: 7, unit: 'days' } },
-          regular: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          severe: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } }
+          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } }
         },
         points: { low: 2, regular: 4, severe: 6 }
       },
@@ -733,9 +733,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 14,
         durations: {
-          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+          low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } }
         },
         points: { low: 3, regular: 5, severe: 7 }
       },
@@ -746,9 +746,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 15,
         durations: {
-          low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
-          severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 120, unit: 'days' } }
+          low: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 120, unit: 'days', type: 'ban' } }
         },
         points: { low: 4, regular: 6, severe: 8 }
       },
@@ -759,9 +759,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 16,
         durations: {
-          low: { first: { value: 3, unit: 'days' }, medium: { value: 7, unit: 'days' }, habitual: { value: 14, unit: 'days' } },
-          regular: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          severe: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } }
+          low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } }
         },
         points: { low: 3, regular: 5, severe: 7 }
       },
@@ -772,9 +772,9 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 17,
         durations: {
-          low: { first: { value: 7, unit: 'days' }, medium: { value: 14, unit: 'days' }, habitual: { value: 30, unit: 'days' } },
-          regular: { first: { value: 14, unit: 'days' }, medium: { value: 30, unit: 'days' }, habitual: { value: 60, unit: 'days' } },
-          severe: { first: { value: 30, unit: 'days' }, medium: { value: 60, unit: 'days' }, habitual: { value: 180, unit: 'days' } }
+          low: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } }
         },
         points: { low: 4, regular: 7, severe: 10 }
       }

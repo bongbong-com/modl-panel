@@ -189,7 +189,7 @@ const PlayerDetailPage = () => {
       // Show success message
       toast({
         title: "Punishment applied",
-        description: `Successfully applied ${playerInfo.selectedPunishmentCategory} to ${playerInfo.username}`
+        description: `Successfully applied ${playerInfo.selectedPunishmentCategory} to ${playerInfo.username || 'Unknown Player'}`
       });
       
       // Reset the punishment form

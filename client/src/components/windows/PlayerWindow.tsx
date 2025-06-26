@@ -455,10 +455,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           <div className="bg-background-lighter p-4 rounded-lg">
             <div className="flex items-start gap-4">
               <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary">{playerInfo.username.substring(0, 2)}</span>
+                <span className="text-2xl font-bold text-primary">{playerInfo.username?.substring(0, 2) || '??'}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h5 className="text-lg font-medium">{playerInfo.username}</h5>
+                <h5 className="text-lg font-medium">{playerInfo.username || 'Unknown'}</h5>
                 <div className="flex flex-wrap gap-2 mt-1">
                   <Badge variant="outline" className={playerInfo.status === 'Online' ? 
                     "bg-success/10 text-success border-success/20" : 

@@ -9,7 +9,7 @@ import { Separator } from 'modl-shared-web/components/ui/separator';
 import { usePlayers } from '@/hooks/use-data';
 
 interface Player {
-  username: string;
+  username?: string;
   uuid: string;
   lastOnline: string;
   status: 'Active' | 'Warned' | 'Banned';
@@ -47,7 +47,7 @@ const LookupPage = () => {
   // Filter players based on search query
   const filteredPlayers = players 
     ? players.filter((player: Player) => 
-        player.username.toLowerCase().includes(searchQuery.toLowerCase())
+        player.username?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
 
@@ -122,12 +122,12 @@ const LookupPage = () => {
                   <Avatar className="mr-3 h-9 w-9">
                     <div className="bg-primary/10 flex items-center justify-center h-full rounded-full">
                       <span className="text-sm font-medium text-primary">
-                        {player.username.substring(0, 2)}
+                        {player.username?.substring(0, 2) || '??'}
                       </span>
                     </div>
                   </Avatar>
                   <div>
-                    <p className="font-medium text-sm">{player.username}</p>
+                    <p className="font-medium text-sm">{player.username || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">Last seen: {player.lastOnline}</p>
                   </div>
                 </div>
@@ -160,12 +160,12 @@ const LookupPage = () => {
                     <Avatar className="mr-3 h-9 w-9">
                       <div className="bg-primary/10 flex items-center justify-center h-full rounded-full">
                         <span className="text-sm font-medium text-primary">
-                          {player.username.substring(0, 2)}
+                          {player.username?.substring(0, 2) || '??'}
                         </span>
                       </div>
                     </Avatar>
                     <div>
-                      <p className="font-medium text-sm">{player.username}</p>
+                      <p className="font-medium text-sm">{player.username || 'Unknown'}</p>
                       <p className="text-xs text-muted-foreground">Last seen: {player.lastOnline}</p>
                     </div>
                   </div>
@@ -192,12 +192,12 @@ const LookupPage = () => {
                     <Avatar className="mr-3 h-9 w-9">
                       <div className="bg-primary/10 flex items-center justify-center h-full rounded-full">
                         <span className="text-sm font-medium text-primary">
-                          {player.username.substring(0, 2)}
+                          {player.username?.substring(0, 2) || '??'}
                         </span>
                       </div>
                     </Avatar>
                     <div>
-                      <p className="font-medium text-sm">{player.username}</p>
+                      <p className="font-medium text-sm">{player.username || 'Unknown'}</p>
                       <p className="text-xs text-muted-foreground">Last seen: {player.lastOnline}</p>
                     </div>
                   </div>

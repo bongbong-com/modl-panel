@@ -199,7 +199,7 @@ const Sidebar = () => {
   // Define player type to avoid 'implicitly has an any type' errors
   interface Player {
     uuid: string;
-    username: string;
+    username?: string;
     status: string;
     lastOnline?: string;
   }
@@ -209,7 +209,7 @@ const Sidebar = () => {
     searchQuery && players
       ? players.filter(
           (player: Player) =>
-            player.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            player.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             player.uuid.toLowerCase().includes(searchQuery.toLowerCase()),
         )
       : players || [];
@@ -387,7 +387,7 @@ const Sidebar = () => {
                         }}
                       >
                         <div className="flex flex-col items-start">
-                          <span className="font-medium">{player.username}</span>
+                          <span className="font-medium">{player.username || 'Unknown'}</span>
                           <span className="text-muted-foreground text-[10px]">
                             {player.status}
                           </span>
@@ -419,7 +419,7 @@ const Sidebar = () => {
                       }}
                     >
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">{player.username}</span>
+                        <span className="font-medium">{player.username || 'Unknown'}</span>
                         <span className="text-muted-foreground text-[10px]">
                           {player.status}
                         </span>
