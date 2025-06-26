@@ -63,19 +63,19 @@ interface PunishmentType {
   ordinal: number;
   durations?: {
     low: { 
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
     };
     regular: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
     };
     severe: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
     };
   };
   points?: {

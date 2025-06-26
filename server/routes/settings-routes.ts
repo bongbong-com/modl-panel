@@ -15,6 +15,8 @@ const mkdir = promisify(fs.mkdir);
 interface IDurationDetail {
   value: number;
   unit: string;
+  banValue?: number;
+  banUnit?: string;
 }
 
 interface IPunishmentDurations {
