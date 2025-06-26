@@ -27,12 +27,14 @@ import {
   X,
   Lock as LockIcon,
   Unlock as UnlockIcon,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
+import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';
 
@@ -51,6 +53,16 @@ interface TicketNote {
   content: string;
   author: string;
   date: string;
+}
+
+interface AIAnalysis {
+  analysis: string;
+  suggestedAction: {
+    punishmentTypeId: number;
+    severity: 'low' | 'regular' | 'severe';
+  } | null;
+  wasAppliedAutomatically: boolean;
+  createdAt: Date;
 }
 
 // Define types for ticket categories and actions
@@ -107,6 +119,7 @@ export interface TicketDetails {
   isPermanent?: boolean;
   tags?: string[];
   newTag?: string;
+  aiAnalysis?: AIAnalysis;
 }
 
 const TicketDetail = () => {
@@ -114,8 +127,10 @@ const TicketDetail = () => {
   const [activeTab, setActiveTab] = useState('conversation');
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   const [isPunishWindowOpen, setIsPunishWindowOpen] = useState(false);
+  const [punishmentTypes, setPunishmentTypes] = useState<any[]>([]);
   const location = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
     // Format date to MM/dd/yy HH:mm in browser's timezone
   const formatDate = (dateString: string): string => {
     try {
@@ -223,6 +238,110 @@ const TicketDetail = () => {
   
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
+
+  // Load punishment types for AI analysis display
+  useEffect(() => {
+    const loadPunishmentTypes = async () => {
+      try {
+        const response = await fetch('/api/panel/settings/punishment-types');
+        if (response.ok) {
+          const data = await response.json();
+          setPunishmentTypes(data);
+        }
+      } catch (error) {
+        console.error('Error loading punishment types:', error);
+      }
+    };
+    loadPunishmentTypes();
+  }, []);
+
+  // Function to apply AI-suggested punishment
+  const applyAISuggestion = async () => {
+    if (!ticketDetails?.aiAnalysis?.suggestedAction || !user?.username) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/panel/settings/ai-apply-punishment/${ticketDetails.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          staffName: user.username
+        })
+      });
+
+      if (response.ok) {
+        // Refresh ticket data to show updated AI analysis
+        // This would trigger a re-fetch of the ticket data
+        window.location.reload(); // Simple approach, could be optimized
+        
+        toast({
+          title: "Success",
+          description: "AI-suggested punishment has been applied successfully.",
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to apply AI suggestion",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error applying AI suggestion:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Function to dismiss AI suggestion
+  const dismissAISuggestion = async (reason?: string) => {
+    if (!ticketDetails?.aiAnalysis || !user?.username) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/panel/settings/ai-dismiss-suggestion/${ticketDetails.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          staffName: user.username,
+          reason: reason || 'No reason provided'
+        })
+      });
+
+      if (response.ok) {
+        // Refresh ticket data to show dismissed AI analysis
+        window.location.reload(); // Simple approach, could be optimized
+        
+        toast({
+          title: "Success",
+          description: "AI suggestion has been dismissed.",
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to dismiss AI suggestion",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error dismissing AI suggestion:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
   useEffect(() => {
     console.log('useEffect triggered. ticketData:', ticketData);
     console.log('isLoading:', isLoading, 'isError:', isError);
@@ -290,7 +409,9 @@ const TicketDetail = () => {
         tags,
         locked: ticketData.locked === true,
         // Set default action to "Comment" to highlight the Comment button
-        selectedAction: 'Comment' 
+        selectedAction: 'Comment',
+        // Extract AI analysis from ticket data if present
+        aiAnalysis: ticketData.data?.get ? ticketData.data.get('aiAnalysis') : ticketData.data?.aiAnalysis
       });
     }
   }, [ticketData]);
@@ -857,6 +978,94 @@ const TicketDetail = () => {
                 </div>
               </div>
             </div>
+
+            {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis */}
+            {ticketDetails.category === 'Player Report' && ticketDetails.aiAnalysis && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 rounded-full">
+                    <ShieldAlert className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-blue-900">
+                        {ticketDetails.aiAnalysis.wasAppliedAutomatically 
+                          ? 'AI Action Taken' 
+                          : 'AI Suggestion'}
+                      </h3>
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                        AI Analysis
+                      </Badge>
+                    </div>
+
+                    {/* AI Analysis Text */}
+                    <p className="text-sm text-blue-800 mb-3">
+                      {ticketDetails.aiAnalysis.analysis}
+                    </p>
+
+                    {/* Suggested Action */}
+                    {ticketDetails.aiAnalysis.suggestedAction && (
+                      <div className="bg-white rounded-md p-3 border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {ticketDetails.aiAnalysis.wasAppliedAutomatically 
+                                ? 'Applied: ' 
+                                : 'Suggested: '}
+                              {(() => {
+                                const punishmentType = punishmentTypes.find(
+                                  pt => pt.id === ticketDetails.aiAnalysis?.suggestedAction?.punishmentTypeId
+                                );
+                                return punishmentType ? punishmentType.name : 'Unknown Punishment';
+                              })()} 
+                              ({ticketDetails.aiAnalysis.suggestedAction.severity} severity)
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Analyzed on {new Date(ticketDetails.aiAnalysis.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          
+                          {/* Action buttons - only show if not automatically applied */}
+                          {!ticketDetails.aiAnalysis.wasAppliedAutomatically && (
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={applyAISuggestion}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                Apply
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => dismissAISuggestion()}
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" />
+                                Dismiss
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No action case */}
+                    {!ticketDetails.aiAnalysis.suggestedAction && (
+                      <div className="bg-white rounded-md p-3 border border-blue-200">
+                        <p className="text-sm text-gray-700">
+                          <strong>AI Recommendation:</strong> No disciplinary action required
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Analyzed on {new Date(ticketDetails.aiAnalysis.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="bg-background-lighter p-4 rounded-lg">
               <div className="flex gap-2 mb-4">

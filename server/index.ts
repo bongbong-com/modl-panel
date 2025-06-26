@@ -92,6 +92,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     console.warn('⚠️  Failed to start domain status updater:', error);
   }
 
+  // Initialize AI moderation system if Gemini API key is provided
+  if (process.env.GEMINI_API_KEY) {
+    console.log('🤖 Initializing AI moderation system...');
+    // The AI moderation service will be initialized per server connection
+    // as it needs access to each server's database
+    console.log('✅ AI moderation system ready - will initialize per server connection');
+  } else {
+    console.log('⚠️  GEMINI_API_KEY not found - AI moderation features will be disabled');
+  }
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

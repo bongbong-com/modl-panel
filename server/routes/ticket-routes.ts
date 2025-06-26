@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { ITicket, TicketMessage, TicketNote } from 'modl-shared-web/types';
+import AIModerationService from '../services/ai-moderation-service';
 
 interface INote {
   text: string;
@@ -160,6 +161,17 @@ router.post('/', async (req: Request<{}, {}, CreateTicketBody>, res: Response) =
     });
 
     await newTicket.save();
+
+    // Trigger AI analysis for Player Report tickets with chat messages
+    if (req.serverDbConnection) {
+      try {
+        const aiModerationService = new AIModerationService(req.serverDbConnection);
+        await aiModerationService.processNewTicket(ticketId, newTicket);
+      } catch (aiError) {
+        console.error(`[Ticket Routes] AI moderation processing failed for ticket ${ticketId}:`, aiError);
+        // Don't fail the ticket creation if AI processing fails
+      }
+    }
 
     res.status(201).json(newTicket);
   } catch (error: any) {

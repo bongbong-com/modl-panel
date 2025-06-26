@@ -88,6 +88,11 @@ interface StatusThresholds {
   };
 }
 
+interface IAIModerationSettings {
+  enableAutomatedActions: boolean;
+  strictnessLevel: 'lenient' | 'standard' | 'strict';
+}
+
 const Settings = () => {
   const { } = useSidebar();
   const [, navigateWouter] = useLocation();
@@ -205,6 +210,14 @@ const Settings = () => {
   const [isRevokingMinecraftApiKey, setIsRevokingMinecraftApiKey] = useState(false);
   const [minecraftApiKeyCopied, setMinecraftApiKeyCopied] = useState(false);    // Profile settings state
   const [profileUsernameState, setProfileUsernameState] = useState('');
+  
+  // AI Moderation settings state
+  const [aiModerationSettings, setAiModerationSettings] = useState<IAIModerationSettings>({
+    enableAutomatedActions: true,
+    strictnessLevel: 'standard'
+  });
+  const [isLoadingAiSettings, setIsLoadingAiSettings] = useState(false);
+  const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
   
   const { toast } = useToast();
   const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();  const [currentEmail, setCurrentEmail] = useState('');
@@ -508,6 +521,70 @@ const Settings = () => {
       description: "Minecraft API key copied to clipboard",
     });
   };
+
+  // AI Moderation settings functions
+  const loadAiModerationSettings = async () => {
+    setIsLoadingAiSettings(true);
+    try {
+      const response = await fetch('/api/panel/settings/ai-moderation-settings');
+      if (response.ok) {
+        const data = await response.json();
+        setAiModerationSettings(data.data);
+      } else {
+        console.error('Failed to load AI moderation settings:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading AI moderation settings:', error);
+    } finally {
+      setIsLoadingAiSettings(false);
+    }
+  };
+
+  const saveAiModerationSettings = async (settings: IAIModerationSettings) => {
+    setIsSavingAiSettings(true);
+    try {
+      const response = await fetch('/api/panel/settings/ai-moderation-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings),
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Settings Saved",
+          description: "AI moderation settings have been updated successfully.",
+        });
+      } else {
+        throw new Error('Failed to save AI moderation settings');
+      }
+    } catch (error) {
+      console.error('Error saving AI moderation settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save AI moderation settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingAiSettings(false);
+    }
+  };
+
+  // Load AI moderation settings on component mount
+  useEffect(() => {
+    loadAiModerationSettings();
+  }, []);
+
+  // Auto-save AI moderation settings when they change
+  useEffect(() => {
+    if (!isLoadingAiSettings && initialLoadCompletedRef.current) {
+      const saveTimeout = setTimeout(() => {
+        saveAiModerationSettings(aiModerationSettings);
+      }, 1000);
+      return () => clearTimeout(saveTimeout);
+    }
+  }, [aiModerationSettings, isLoadingAiSettings]);
 
   // Define captureInitialSettings first, before it's used anywhere else
   const captureInitialSettings = useCallback(() => {
@@ -1184,7 +1261,7 @@ const Settings = () => {
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <Tag className="h-4 w-4 mr-2" />
-                Ticket Tags
+                Tickets
               </TabsTrigger>
               {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
                 <TabsTrigger
@@ -2392,6 +2469,85 @@ const Settings = () => {
                         <Plus className="h-4 w-4 mr-1" />
                         Add Tag
                       </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* AI Moderation Settings Section */}
+                  <div className="space-y-4">
+                    <h4 className="text-base font-medium">AI Moderation Settings</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Configure how the AI analyzes and moderates chat reports. AI suggestions can help staff make faster, more consistent decisions.
+                    </p>
+
+                    <div className="space-y-6">
+                      {/* Enable Automated Actions Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label htmlFor="enable-automated-actions" className="text-sm font-medium">
+                            Enable Automated Actions
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            When enabled, the AI will automatically apply suggested punishments for clear violations. When disabled, the AI will only provide suggestions for staff review.
+                          </p>
+                        </div>
+                        <Switch
+                          id="enable-automated-actions"
+                          checked={aiModerationSettings.enableAutomatedActions}
+                          onCheckedChange={(checked) => 
+                            setAiModerationSettings(prev => ({ ...prev, enableAutomatedActions: checked }))
+                          }
+                          disabled={isSavingAiSettings}
+                        />
+                      </div>
+
+                      {/* AI Strictness Level */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">AI Strictness Level</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Adjust how strict the AI is when analyzing violations. Higher strictness means the AI will be more conservative and require stronger evidence before suggesting actions.
+                        </p>
+                        <Select
+                          value={aiModerationSettings.strictnessLevel}
+                          onValueChange={(value: 'lenient' | 'standard' | 'strict') =>
+                            setAiModerationSettings(prev => ({ ...prev, strictnessLevel: value }))
+                          }
+                          disabled={isSavingAiSettings}
+                        >
+                          <SelectTrigger className="w-full max-w-xs">
+                            <SelectValue placeholder="Select strictness level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="lenient">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">Lenient</span>
+                                <span className="text-xs text-muted-foreground">More permissive, faster decisions</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="standard">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">Standard</span>
+                                <span className="text-xs text-muted-foreground">Balanced approach (recommended)</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="strict">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">Strict</span>
+                                <span className="text-xs text-muted-foreground">Conservative, requires strong evidence</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Status Indicator */}
+                      {isSavingAiSettings && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span>Saving AI settings...</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

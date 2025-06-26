@@ -82,6 +82,11 @@ interface ITicketForms {
   [key: string]: ITicketFormField[];
 }
 
+interface IAIModerationSettings {
+  enableAutomatedActions: boolean;
+  strictnessLevel: 'lenient' | 'standard' | 'strict';
+}
+
 interface ISettingsDocument extends MongooseDocument {
   settings: Map<string, any>;
 }
@@ -221,6 +226,12 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       panelIconUrl: ''
     };
     defaultSettingsMap.set('general', generalSettings);
+    
+    // AI Moderation settings
+    defaultSettingsMap.set('aiModerationSettings', {
+      enableAutomatedActions: true,
+      strictnessLevel: 'standard'
+    });
     
     const newSettingsDoc = new SettingsModel({ settings: defaultSettingsMap });
     await newSettingsDoc.save();
@@ -779,5 +790,174 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
     throw error;
   }
 }
+
+// Get AI moderation settings
+router.get('/ai-moderation-settings', async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
+    const settingsDoc = await SettingsModel.findOne({});
+
+    if (!settingsDoc) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+
+    const aiSettings = settingsDoc.settings.get('aiModerationSettings') || {
+      enableAutomatedActions: true,
+      strictnessLevel: 'standard'
+    };
+
+    res.json({ success: true, data: aiSettings });
+  } catch (error) {
+    console.error('Error fetching AI moderation settings:', error);
+    res.status(500).json({ error: 'Failed to fetch AI moderation settings' });
+  }
+});
+
+// Update AI moderation settings
+router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { enableAutomatedActions, strictnessLevel } = req.body;
+
+    // Validate input
+    if (typeof enableAutomatedActions !== 'boolean') {
+      return res.status(400).json({ error: 'enableAutomatedActions must be a boolean' });
+    }
+
+    if (!['lenient', 'standard', 'strict'].includes(strictnessLevel)) {
+      return res.status(400).json({ error: 'strictnessLevel must be lenient, standard, or strict' });
+    }
+
+    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
+    const settingsDoc = await SettingsModel.findOne({});
+
+    if (!settingsDoc) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+
+    settingsDoc.settings.set('aiModerationSettings', {
+      enableAutomatedActions,
+      strictnessLevel
+    });
+
+    await settingsDoc.save();
+
+    res.json({ success: true, message: 'AI moderation settings updated successfully' });
+  } catch (error) {
+    console.error('Error updating AI moderation settings:', error);
+    res.status(500).json({ error: 'Failed to update AI moderation settings' });
+  }
+});
+
+// Apply AI-suggested punishment to a player
+router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { ticketId } = req.params;
+    const { staffName } = req.body;
+
+    // Get the ticket with AI analysis
+    const TicketModel = req.serverDbConnection.model('Ticket');
+    const ticket = await TicketModel.findById(ticketId);
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
+    if (!aiAnalysis || !aiAnalysis.suggestedAction) {
+      return res.status(400).json({ error: 'No AI suggestion found for this ticket' });
+    }
+
+    if (aiAnalysis.wasAppliedAutomatically) {
+      return res.status(400).json({ error: 'Punishment was already applied automatically' });
+    }
+
+    // Get the reported player
+    const reportedPlayer = ticket.relatedPlayer || ticket.data?.get?.('reportedPlayer') || ticket.data?.reportedPlayer;
+    if (!reportedPlayer) {
+      return res.status(400).json({ error: 'No reported player found for this ticket' });
+    }
+
+    // Update the AI analysis to mark it as manually applied
+    aiAnalysis.wasAppliedAutomatically = true; // Mark as applied (even though manually)
+    aiAnalysis.appliedBy = staffName;
+    aiAnalysis.appliedAt = new Date();
+
+    ticket.data.set('aiAnalysis', aiAnalysis);
+    await ticket.save();
+
+    console.log(`[AI Moderation] Manual punishment application approved for ticket ${ticketId} by ${staffName}`);
+
+    res.json({ 
+      success: true, 
+      message: 'AI-suggested punishment applied successfully',
+      punishmentData: {
+        punishmentTypeId: aiAnalysis.suggestedAction.punishmentTypeId,
+        severity: aiAnalysis.suggestedAction.severity,
+        reason: `AI-suggested moderation (applied by ${staffName}) - ${aiAnalysis.analysis}`,
+        ticketId: ticketId,
+        staffName: staffName
+      }
+    });
+  } catch (error) {
+    console.error('Error applying AI-suggested punishment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Dismiss AI suggestion for a ticket
+router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { ticketId } = req.params;
+    const { staffName, reason } = req.body;
+
+    // Get the ticket with AI analysis
+    const TicketModel = req.serverDbConnection.model('Ticket');
+    const ticket = await TicketModel.findById(ticketId);
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
+    if (!aiAnalysis) {
+      return res.status(400).json({ error: 'No AI analysis found for this ticket' });
+    }
+
+    // Mark the suggestion as dismissed
+    aiAnalysis.dismissed = true;
+    aiAnalysis.dismissedBy = staffName;
+    aiAnalysis.dismissedAt = new Date();
+    aiAnalysis.dismissalReason = reason || 'No reason provided';
+
+    ticket.data.set('aiAnalysis', aiAnalysis);
+    await ticket.save();
+
+    console.log(`[AI Moderation] AI suggestion dismissed for ticket ${ticketId} by ${staffName}`);
+
+    res.json({ 
+      success: true, 
+      message: 'AI suggestion dismissed successfully'
+    });
+  } catch (error) {
+    console.error('Error dismissing AI suggestion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;
