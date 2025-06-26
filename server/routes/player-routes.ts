@@ -39,7 +39,15 @@ router.get('/', async (req: Request, res: Response) => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const players = await Player.find({});
-    res.json(players);
+    const formattedPlayers = players.map(player => ({
+      uuid: player.minecraftUuid,
+      username: player.usernames?.length > 0 
+        ? player.usernames[player.usernames.length - 1].username 
+        : 'Unknown',
+      status: player.punishments?.some(p => p.type === 'BAN' && p.active) ? 'Banned' : 'Active',
+      lastOnline: player.data?.get('lastLogin') || null
+    }));
+    res.json(formattedPlayers);
   } catch (error) {
     console.error('Error fetching players:', error);
     res.status(500).json({ error: 'Internal server error' });
