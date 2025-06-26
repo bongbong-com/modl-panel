@@ -210,7 +210,7 @@ const Sidebar = () => {
       ? players.filter(
           (player: Player) =>
             player.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            player.uuid.toLowerCase().includes(searchQuery.toLowerCase()),
+            player.uuid?.toLowerCase().includes(searchQuery.toLowerCase()),
         )
       : players || [];
 
