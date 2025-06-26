@@ -41,6 +41,8 @@ interface IPunishmentType {
   permanentUntilSkinChange?: boolean;
   customPoints?: number; // For permanent punishments that don't use severity-based points
   appealForm?: IAppealFormSettings; // Punishment-specific appeal form configuration
+  staffDescription?: string; // Description shown to staff when applying this punishment
+  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
 }
 
 interface IAppealFormField {

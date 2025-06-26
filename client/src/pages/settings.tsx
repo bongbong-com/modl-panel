@@ -74,6 +74,8 @@ interface PunishmentType {
   permanentUntilSkinChange?: boolean;
   customPoints?: number; // For permanent punishments that don't use severity-based points
   appealForm?: AppealFormSettings; // Punishment-specific appeal form configuration
+  staffDescription?: string; // Description shown to staff when applying this punishment
+  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
 }
 
 // Type definition for offender status thresholds
@@ -2044,7 +2046,7 @@ const Settings = () => {
                 <h3 className="text-lg font-medium mb-2">Punishment Types</h3>
                 <p className="text-sm text-muted-foreground mb-6">
                   Configure the punishment types available in your system. Each type is stored with an ordinal value for persistence.
-                  Core punishment types cannot be modified.
+                  Core administrative punishment types can be configured (staff/player descriptions and appeal forms) but their names, categories, durations, and points cannot be modified.
                 </p>
 
                 {/* Administrative Punishment Types Section (Ordinals 0-5) */}
@@ -2077,6 +2079,16 @@ const Settings = () => {
                               </span>
                               <span>{type.name} ({type.category})</span>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedPunishment(type)}
+                                className="text-xs px-2 h-7 text-muted-foreground"
+                              >
+                                Configure
+                              </Button>
+                            </div>
                           </div>
                         ))
                       }
@@ -2085,7 +2097,7 @@ const Settings = () => {
 
                   {!showCorePunishments && (
                     <div className="text-sm text-muted-foreground mb-6">
-                      Click 'Show' to view administrative punishment types (ordinals 0-5) that cannot be modified or removed.
+                      Click 'Show' to view administrative punishment types (ordinals 0-5) that can be configured for descriptions and appeal forms but cannot be modified or removed.
                     </div>
                   )}
                 </div>
@@ -2451,98 +2463,160 @@ const Settings = () => {
                 </TabsList>
 
                 <TabsContent value="configuration" className="space-y-4 max-h-[60vh] overflow-y-auto">
-                  {/* Punishment Name and Category */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-punishment-name">Punishment Name</Label>
-                      <Input
-                        id="edit-punishment-name"
-                        value={selectedPunishment.name}
-                        onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, name: e.target.value } : null)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-punishment-category">Category</Label>
-                      <Select
-                        value={selectedPunishment.category}
-                        onValueChange={(value) => setSelectedPunishment(prev => prev ? { ...prev, category: value as 'Gameplay' | 'Social' } : null)}
-                      >
-                        <SelectTrigger id="edit-punishment-category">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Gameplay">Gameplay</SelectItem>
-                          <SelectItem value="Social">Social</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Permanent Punishment Options */}
-                  <div className="space-y-3 p-3 border rounded-md">
-                    <h5 className="text-sm font-medium">Restrictions</h5>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="permanentUntilUsernameChange"
-                          checked={selectedPunishment.permanentUntilUsernameChange || false}
-                          onChange={(e) => {
-                            setSelectedPunishment(prev => prev ? {
-                              ...prev,
-                              permanentUntilUsernameChange: e.target.checked,
-                              // Clear other permanent option if this one is checked
-                              permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange
-                            } : null);
-                          }}
-                          className="rounded"
-                        />
-                        <Label htmlFor="permanentUntilUsernameChange" className="text-sm">
-                          Permanent until username change
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="permanentUntilSkinChange"
-                          checked={selectedPunishment.permanentUntilSkinChange || false}
-                          onChange={(e) => {
-                            setSelectedPunishment(prev => prev ? {
-                              ...prev,
-                              permanentUntilSkinChange: e.target.checked,
-                              // Clear other permanent option if this one is checked
-                              permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange
-                            } : null);
-                          }}
-                          className="rounded"
-                        />
-                        <Label htmlFor="permanentUntilSkinChange" className="text-sm">
-                          Permanent until skin change
-                        </Label>
-                      </div>
-                      {(selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange) && (
-                        <div className="mt-2">
+                  {/* Show different fields based on whether it's a core administrative punishment */}
+                  {selectedPunishment.isCustomizable ? (
+                    <>
+                      {/* Punishment Name and Category - Only for customizable punishments */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-punishment-name">Punishment Name</Label>
                           <Input
-                            type="number"
-                            placeholder="Points"
-                            value={selectedPunishment.customPoints || ''}
-                            onChange={(e) => {
-                              const value = Number(e.target.value);
-                              setSelectedPunishment(prev => prev ? {
-                                ...prev,
-                                customPoints: value
-                              } : null);
-                            }}
-                            className="text-center w-full mt-1"
+                            id="edit-punishment-name"
+                            value={selectedPunishment.name}
+                            onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, name: e.target.value } : null)}
                           />
                         </div>
-                      )}
+
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-punishment-category">Category</Label>
+                          <Select
+                            value={selectedPunishment.category}
+                            onValueChange={(value) => setSelectedPunishment(prev => prev ? { ...prev, category: value as 'Gameplay' | 'Social' } : null)}
+                          >
+                            <SelectTrigger id="edit-punishment-category">
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Gameplay">Gameplay</SelectItem>
+                              <SelectItem value="Social">Social</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Core Administrative Punishment - Show read-only info */}
+                      <div className="bg-muted/30 p-4 rounded-lg">
+                        <h5 className="text-sm font-medium mb-2">Core Administrative Punishment</h5>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          This is a core administrative punishment type. The name, category, durations, and points cannot be modified.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Name</Label>
+                            <div className="text-sm font-medium">{selectedPunishment.name}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Category</Label>
+                            <div className="text-sm font-medium">{selectedPunishment.category}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Staff and Player Descriptions - Available for all punishment types */}
+                  <div className="space-y-4">
+                    <h5 className="text-sm font-medium">Descriptions</h5>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="staff-description">Staff Description</Label>
+                        <textarea
+                          id="staff-description"
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[80px]"
+                          placeholder="Description shown to staff when applying this punishment (optional)"
+                          value={selectedPunishment.staffDescription || ''}
+                          onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, staffDescription: e.target.value } : null)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This description will be shown to staff members when they apply this punishment type.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="player-description">Player Description</Label>
+                        <textarea
+                          id="player-description"
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[80px]"
+                          placeholder="Description shown to players in appeals, notifications, etc. (optional)"
+                          value={selectedPunishment.playerDescription || ''}
+                          onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, playerDescription: e.target.value } : null)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This description will be shown to players in appeals, notifications, and other player-facing contexts.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Only show Durations and Points if no permanent options are selected */}
-                  {!selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && (
+                  {/* Restrictions, Durations, and Points - Only for customizable punishments */}
+                  {selectedPunishment.isCustomizable && (
+                    <>
+                      {/* Permanent Punishment Options */}
+                      <div className="space-y-3 p-3 border rounded-md">
+                        <h5 className="text-sm font-medium">Restrictions</h5>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="permanentUntilUsernameChange"
+                              checked={selectedPunishment.permanentUntilUsernameChange || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  permanentUntilUsernameChange: e.target.checked,
+                                  // Clear other permanent option if this one is checked
+                                  permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="permanentUntilUsernameChange" className="text-sm">
+                              Permanent until username change
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="permanentUntilSkinChange"
+                              checked={selectedPunishment.permanentUntilSkinChange || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  permanentUntilSkinChange: e.target.checked,
+                                  // Clear other permanent option if this one is checked
+                                  permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="permanentUntilSkinChange" className="text-sm">
+                              Permanent until skin change
+                            </Label>
+                          </div>
+                          {(selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange) && (
+                            <div className="mt-2">
+                              <Input
+                                type="number"
+                                placeholder="Points"
+                                value={selectedPunishment.customPoints || ''}
+                                onChange={(e) => {
+                                  const value = Number(e.target.value);
+                                  setSelectedPunishment(prev => prev ? {
+                                    ...prev,
+                                    customPoints: value
+                                  } : null);
+                                }}
+                                className="text-center w-full mt-1"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Only show Durations and Points if no permanent options are selected */}
+                      {!selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && (
                     <div className="space-y-4">
                       {/* Durations Configuration */}
                       <div>
@@ -2830,6 +2904,8 @@ const Settings = () => {
                         </div>
                       </div>
                     </div>
+                      )}
+                    </>
                   )}
                 </TabsContent>
 
