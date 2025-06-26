@@ -389,12 +389,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           
           console.log('Punishment types categorized:', categorized);
           
-          // Only update if we have data in at least one category
-          if (categorized.Administrative.length > 0 || categorized.Social.length > 0 || categorized.Gameplay.length > 0) {
-            setPunishmentTypesByCategory(categorized);
-          } else {
-            console.warn('No punishment types found in any category, keeping defaults');
-          }
+          // Update the state with the loaded punishment types
+          // Always update with the data from the server, even if some categories are empty
+          setPunishmentTypesByCategory(categorized);
         }
       } catch (error) {
         console.error("Error parsing punishment types:", error);
@@ -727,7 +724,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Administrative Actions</label>
                       <div className="grid grid-cols-6 gap-2">
-                        {punishmentTypesByCategory.Administrative.map(type => (
+                        {punishmentTypesByCategory.Administrative.length > 0 ? punishmentTypesByCategory.Administrative.map(type => (
                           <Button 
                             key={type.id}
                             variant="outline" 
@@ -747,7 +744,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           >
                             {type.name}
                           </Button>
-                        ))}
+                        )) : (
+                          <div className="col-span-6 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                            {isLoadingSettings ? 'Loading punishment types...' : 'No administrative punishment types configured'}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -755,7 +756,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
                       <div className="grid grid-cols-6 gap-2">
-                        {punishmentTypesByCategory.Social.map(type => (
+                        {punishmentTypesByCategory.Social.length > 0 ? punishmentTypesByCategory.Social.map(type => (
                           <Button 
                             key={type.id}
                             variant="outline" 
@@ -768,7 +769,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           >
                             {type.name}
                           </Button>
-                        ))}
+                        )) : (
+                          <div className="col-span-6 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                            {isLoadingSettings ? 'Loading punishment types...' : 'No social punishment types configured'}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -776,7 +781,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">Game & Account</label>
                       <div className="grid grid-cols-6 gap-2">
-                        {punishmentTypesByCategory.Gameplay.map(type => (
+                        {punishmentTypesByCategory.Gameplay.length > 0 ? punishmentTypesByCategory.Gameplay.map(type => (
                           <Button 
                             key={type.id}
                             variant="outline" 
@@ -789,7 +794,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           >
                             {type.name}
                           </Button>
-                        ))}
+                        )) : (
+                          <div className="col-span-6 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                            {isLoadingSettings ? 'Loading punishment types...' : 'No gameplay punishment types configured'}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

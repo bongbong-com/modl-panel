@@ -364,6 +364,8 @@ const PlayerDetailPage = () => {
             Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
           };
           
+          console.log('Punishment types categorized in player-detail-page:', categorized);
+          
           setPunishmentTypesByCategory(categorized);
         }
       } catch (error) {
@@ -654,7 +656,7 @@ const PlayerDetailPage = () => {
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Administrative Actions</label>
           <div className="grid grid-cols-3 gap-2">
-            {punishmentTypesByCategory.Administrative.map(type => (
+            {punishmentTypesByCategory.Administrative.length > 0 ? punishmentTypesByCategory.Administrative.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
@@ -674,7 +676,11 @@ const PlayerDetailPage = () => {
               >
                 {type.name}
               </Button>
-            ))}
+            )) : (
+              <div className="col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                {isLoadingSettings ? 'Loading punishment types...' : 'No administrative punishment types configured'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -682,7 +688,7 @@ const PlayerDetailPage = () => {
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
           <div className="grid grid-cols-3 gap-2">
-            {punishmentTypesByCategory.Social.map(type => (
+            {punishmentTypesByCategory.Social.length > 0 ? punishmentTypesByCategory.Social.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
@@ -696,7 +702,11 @@ const PlayerDetailPage = () => {
               >
                 {type.name}
               </Button>
-            ))}
+            )) : (
+              <div className="col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                {isLoadingSettings ? 'Loading punishment types...' : 'No social punishment types configured'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -704,7 +714,7 @@ const PlayerDetailPage = () => {
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Game & Account</label>
           <div className="grid grid-cols-3 gap-2">
-            {punishmentTypesByCategory.Gameplay.map(type => (
+            {punishmentTypesByCategory.Gameplay.length > 0 ? punishmentTypesByCategory.Gameplay.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
@@ -718,7 +728,11 @@ const PlayerDetailPage = () => {
               >
                 {type.name}
               </Button>
-            ))}
+            )) : (
+              <div className="col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                {isLoadingSettings ? 'Loading punishment types...' : 'No gameplay punishment types configured'}
+              </div>
+            )}
           </div>
         </div>
       </div>

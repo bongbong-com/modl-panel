@@ -275,6 +275,14 @@ const Sidebar = () => {
                                 }
                                 openLookup();
                               }}
+                              onMouseOver={() => {
+                                // Also handle onMouseOver to ensure consistent behavior
+                                if (closeTimeoutRef.current) {
+                                  clearTimeout(closeTimeoutRef.current);
+                                  closeTimeoutRef.current = null;
+                                }
+                                openLookup();
+                              }}
                               onMouseLeave={closeLookup}
                               data-lookup="true"
                             >
@@ -357,7 +365,7 @@ const Sidebar = () => {
                 placeholder="Search players..."
                 className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-3"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 autoFocus
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
