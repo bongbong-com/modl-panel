@@ -50,19 +50,19 @@ interface PunishmentType {
   ordinal: number;
   durations?: {
     low: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
     };
     regular: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
     };
     severe: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
     };
   };
   points?: {
@@ -1039,7 +1039,7 @@ const Settings = () => {
       const defaultUnit = 'hours' as 'hours' | 'days' | 'weeks' | 'months';
 
       // Helper function to create duration objects
-      const createDuration = (value: number) => ({ value, unit: defaultUnit });
+      const createDuration = (value: number) => ({ value, unit: defaultUnit, type: 'mute' as const });
 
       const defaultGameplayDurations = {
         low: {
@@ -2792,120 +2792,84 @@ const Settings = () => {
                                     {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
                                   </Label>
                                   
-                                  {/* Mute Duration */}
-                                  <div className="mt-1">
-                                    <Label className="text-xs text-muted-foreground">Mute</Label>
-                                    <div className="flex gap-1 mt-0.5">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.value || ''}
-                                        onChange={(e) => {
-                                          const value = Number(e.target.value);
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              low: {
-                                                ...prev.durations.low,
-                                                [offenseType]: {
-                                                  ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                                  value
-                                                }
+                                  <div className="flex gap-1 mt-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.value || ''}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            low: {
+                                              ...prev.durations.low,
+                                              [offenseType]: {
+                                                ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                                value
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                        className="text-center text-xs h-8"
-                                        placeholder="24"
-                                      />
-                                      <Select
-                                        value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.unit || 'hours'}
-                                        onValueChange={(unit) => {
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              low: {
-                                                ...prev.durations.low,
-                                                [offenseType]: {
-                                                  ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                                  unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                                }
+                                          }
+                                        } : null);
+                                      }}
+                                      className="text-center text-xs h-8 w-16"
+                                      placeholder="24"
+                                    />
+                                    <Select
+                                      value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.unit || 'hours'}
+                                      onValueChange={(unit) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            low: {
+                                              ...prev.durations.low,
+                                              [offenseType]: {
+                                                ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[70px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="hours">H</SelectItem>
-                                          <SelectItem value="days">D</SelectItem>
-                                          <SelectItem value="weeks">W</SelectItem>
-                                          <SelectItem value="months">M</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-
-                                  {/* Ban Duration */}
-                                  <div className="mt-1">
-                                    <Label className="text-xs text-muted-foreground">Ban</Label>
-                                    <div className="flex gap-1 mt-0.5">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.banValue || ''}
-                                        onChange={(e) => {
-                                          const banValue = Number(e.target.value);
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              low: {
-                                                ...prev.durations.low,
-                                                [offenseType]: {
-                                                  ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                                  banValue
-                                                }
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[60px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hours">H</SelectItem>
+                                        <SelectItem value="days">D</SelectItem>
+                                        <SelectItem value="weeks">W</SelectItem>
+                                        <SelectItem value="months">M</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.type || 'mute'}
+                                      onValueChange={(type) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            low: {
+                                              ...prev.durations.low,
+                                              [offenseType]: {
+                                                ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
+                                                type: type as 'mute' | 'ban'
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                        className="text-center text-xs h-8"
-                                        placeholder="48"
-                                      />
-                                      <Select
-                                        value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.banUnit || 'hours'}
-                                        onValueChange={(banUnit) => {
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              low: {
-                                                ...prev.durations.low,
-                                                [offenseType]: {
-                                                  ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                                  banUnit: banUnit as 'hours' | 'days' | 'weeks' | 'months'
-                                                }
-                                              }
-                                            }
-                                          } : null);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[70px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="hours">H</SelectItem>
-                                          <SelectItem value="days">D</SelectItem>
-                                          <SelectItem value="weeks">W</SelectItem>
-                                          <SelectItem value="months">M</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[70px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="mute">Mute</SelectItem>
+                                        <SelectItem value="ban">Ban</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                 </div>
                               ))}
@@ -2922,120 +2886,84 @@ const Settings = () => {
                                     {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
                                   </Label>
                                   
-                                  {/* Mute Duration */}
-                                  <div className="mt-1">
-                                    <Label className="text-xs text-muted-foreground">Mute</Label>
-                                    <div className="flex gap-1 mt-0.5">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.value || ''}
-                                        onChange={(e) => {
-                                          const value = Number(e.target.value);
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              regular: {
-                                                ...prev.durations.regular,
-                                                [offenseType]: {
-                                                  ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                                  value
-                                                }
+                                  <div className="flex gap-1 mt-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.value || ''}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            regular: {
+                                              ...prev.durations.regular,
+                                              [offenseType]: {
+                                                ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                                value
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                        className="text-center text-xs h-8"
-                                        placeholder="48"
-                                      />
-                                      <Select
-                                        value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.unit || 'hours'}
-                                        onValueChange={(unit) => {
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              regular: {
-                                                ...prev.durations.regular,
-                                                [offenseType]: {
-                                                  ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                                  unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                                }
+                                          }
+                                        } : null);
+                                      }}
+                                      className="text-center text-xs h-8 w-16"
+                                      placeholder="48"
+                                    />
+                                    <Select
+                                      value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.unit || 'hours'}
+                                      onValueChange={(unit) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            regular: {
+                                              ...prev.durations.regular,
+                                              [offenseType]: {
+                                                ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[70px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="hours">H</SelectItem>
-                                          <SelectItem value="days">D</SelectItem>
-                                          <SelectItem value="weeks">W</SelectItem>
-                                          <SelectItem value="months">M</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-
-                                  {/* Ban Duration */}
-                                  <div className="mt-1">
-                                    <Label className="text-xs text-muted-foreground">Ban</Label>
-                                    <div className="flex gap-1 mt-0.5">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.banValue || ''}
-                                        onChange={(e) => {
-                                          const banValue = Number(e.target.value);
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              regular: {
-                                                ...prev.durations.regular,
-                                                [offenseType]: {
-                                                  ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                                  banValue
-                                                }
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[60px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hours">H</SelectItem>
+                                        <SelectItem value="days">D</SelectItem>
+                                        <SelectItem value="weeks">W</SelectItem>
+                                        <SelectItem value="months">M</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.type || 'mute'}
+                                      onValueChange={(type) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            regular: {
+                                              ...prev.durations.regular,
+                                              [offenseType]: {
+                                                ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
+                                                type: type as 'mute' | 'ban'
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                        className="text-center text-xs h-8"
-                                        placeholder="72"
-                                      />
-                                      <Select
-                                        value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.banUnit || 'hours'}
-                                        onValueChange={(banUnit) => {
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              regular: {
-                                                ...prev.durations.regular,
-                                                [offenseType]: {
-                                                  ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                                  banUnit: banUnit as 'hours' | 'days' | 'weeks' | 'months'
-                                                }
-                                              }
-                                            }
-                                          } : null);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[70px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="hours">H</SelectItem>
-                                          <SelectItem value="days">D</SelectItem>
-                                          <SelectItem value="weeks">W</SelectItem>
-                                          <SelectItem value="months">M</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[70px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="mute">Mute</SelectItem>
+                                        <SelectItem value="ban">Ban</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                 </div>
                               ))}
@@ -3052,120 +2980,84 @@ const Settings = () => {
                                     {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
                                   </Label>
                                   
-                                  {/* Mute Duration */}
-                                  <div className="mt-1">
-                                    <Label className="text-xs text-muted-foreground">Mute</Label>
-                                    <div className="flex gap-1 mt-0.5">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.value || ''}
-                                        onChange={(e) => {
-                                          const value = Number(e.target.value);
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              severe: {
-                                                ...prev.durations.severe,
-                                                [offenseType]: {
-                                                  ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                                  value
-                                                }
+                                  <div className="flex gap-1 mt-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.value || ''}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            severe: {
+                                              ...prev.durations.severe,
+                                              [offenseType]: {
+                                                ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                                value
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                        className="text-center text-xs h-8"
-                                        placeholder="72"
-                                      />
-                                      <Select
-                                        value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.unit || 'hours'}
-                                        onValueChange={(unit) => {
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              severe: {
-                                                ...prev.durations.severe,
-                                                [offenseType]: {
-                                                  ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                                  unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                                }
+                                          }
+                                        } : null);
+                                      }}
+                                      className="text-center text-xs h-8 w-16"
+                                      placeholder="72"
+                                    />
+                                    <Select
+                                      value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.unit || 'hours'}
+                                      onValueChange={(unit) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            severe: {
+                                              ...prev.durations.severe,
+                                              [offenseType]: {
+                                                ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[70px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="hours">H</SelectItem>
-                                          <SelectItem value="days">D</SelectItem>
-                                          <SelectItem value="weeks">W</SelectItem>
-                                          <SelectItem value="months">M</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-
-                                  {/* Ban Duration */}
-                                  <div className="mt-1">
-                                    <Label className="text-xs text-muted-foreground">Ban</Label>
-                                    <div className="flex gap-1 mt-0.5">
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.banValue || ''}
-                                        onChange={(e) => {
-                                          const banValue = Number(e.target.value);
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              severe: {
-                                                ...prev.durations.severe,
-                                                [offenseType]: {
-                                                  ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                                  banValue
-                                                }
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[60px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="hours">H</SelectItem>
+                                        <SelectItem value="days">D</SelectItem>
+                                        <SelectItem value="weeks">W</SelectItem>
+                                        <SelectItem value="months">M</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.type || 'mute'}
+                                      onValueChange={(type) => {
+                                        setSelectedPunishment(prev => prev && prev.durations ? {
+                                          ...prev,
+                                          durations: {
+                                            ...prev.durations,
+                                            severe: {
+                                              ...prev.durations.severe,
+                                              [offenseType]: {
+                                                ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
+                                                type: type as 'mute' | 'ban'
                                               }
                                             }
-                                          } : null);
-                                        }}
-                                        className="text-center text-xs h-8"
-                                        placeholder="96"
-                                      />
-                                      <Select
-                                        value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.banUnit || 'hours'}
-                                        onValueChange={(banUnit) => {
-                                          setSelectedPunishment(prev => prev && prev.durations ? {
-                                            ...prev,
-                                            durations: {
-                                              ...prev.durations,
-                                              severe: {
-                                                ...prev.durations.severe,
-                                                [offenseType]: {
-                                                  ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                                  banUnit: banUnit as 'hours' | 'days' | 'weeks' | 'months'
-                                                }
-                                              }
-                                            }
-                                          } : null);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[70px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="hours">H</SelectItem>
-                                          <SelectItem value="days">D</SelectItem>
-                                          <SelectItem value="weeks">W</SelectItem>
-                                          <SelectItem value="months">M</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                          }
+                                        } : null);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[70px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="mute">Mute</SelectItem>
+                                        <SelectItem value="ban">Ban</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                 </div>
                               ))}
