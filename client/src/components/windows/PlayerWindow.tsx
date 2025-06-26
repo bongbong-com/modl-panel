@@ -86,6 +86,8 @@ interface PunishmentType {
   permanentUntilUsernameChange?: boolean;
   permanentUntilSkinChange?: boolean;
   customPoints?: number; // For permanent punishments that don't use severity-based points
+  staffDescription?: string; // Description shown to staff when applying this punishment
+  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
 }
 
 const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWindowProps) => {
