@@ -3,9 +3,9 @@ import {
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2 
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
 import { usePlayer, useApplyPunishment, useSettings } from '@/hooks/use-data';
 import { toast } from '@/hooks/use-toast';

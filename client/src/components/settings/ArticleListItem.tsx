@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useDrag, useDrop, DropTargetMonitor } from 'react-dnd';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from 'modl-shared-web/components/ui/card';
+import { Button } from 'modl-shared-web/components/ui/button';
 import { GripVertical, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { KnowledgebaseArticle } from 'modl-shared-web/types';
 

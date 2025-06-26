@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
 import ChangeRoleModal from './ChangeRoleModal'; // Import the new modal
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'modl-shared-web/components/ui/table';
 import { useStaff } from '@/hooks/use-data';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
 import { MoreHorizontal, Plus, PlusIcon, RefreshCw } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from 'modl-shared-web/components/ui/dropdown-menu';
 import InviteStaffModal from './InviteStaffModal';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from 'modl-shared-web/components/ui/alert-dialog';
 
 interface StaffMember {
   _id: string;

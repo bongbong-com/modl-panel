@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Globe, CheckCircle, AlertCircle, Copy, ExternalLink, RefreshCw, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
+import { Input } from 'modl-shared-web/components/ui/input';
+import { Label } from 'modl-shared-web/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from 'modl-shared-web/components/ui/alert';
+import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Separator } from 'modl-shared-web/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 

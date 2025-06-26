@@ -7,8 +7,8 @@ import { Eye, EyeOff, Fingerprint, KeyRound, LockKeyhole, Mail, ShieldCheck } fr
 import { useAuth } from '@/hooks/use-auth';
 import { usePublicSettings } from '@/hooks/use-public-settings';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "modl-shared-web/components/ui/button";
+import { Input } from "modl-shared-web/components/ui/input";
 import {
   Form,
   FormControl,
@@ -17,7 +17,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "modl-shared-web/components/ui/form";
 import {
   Card,
   CardContent,
@@ -25,16 +25,16 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "modl-shared-web/components/ui/card";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
+} from "modl-shared-web/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Separator } from 'modl-shared-web/components/ui/separator';
 
 // Define the login form schema
 const loginSchema = z.object({

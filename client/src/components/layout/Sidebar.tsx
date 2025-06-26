@@ -15,10 +15,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+} from "modl-shared-web/components/ui/tooltip";
+import { Button } from "modl-shared-web/components/ui/button";
+import { Badge } from "modl-shared-web/components/ui/badge";
+import { Input } from "modl-shared-web/components/ui/input";
 import { usePlayers, useBillingStatus } from "@/hooks/use-data";
 import { useDashboard } from "@/contexts/DashboardContext";
 import PlayerWindow from "../../components/windows/PlayerWindow";

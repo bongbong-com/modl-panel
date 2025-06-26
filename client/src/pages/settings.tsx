@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload, Key, Eye, EyeOff, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Card, CardContent } from 'modl-shared-web/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
+import { Switch } from 'modl-shared-web/components/ui/switch';
+import { Label } from 'modl-shared-web/components/ui/label';
+import { Separator } from 'modl-shared-web/components/ui/separator';
+import { Slider } from 'modl-shared-web/components/ui/slider';
+import { Input } from 'modl-shared-web/components/ui/input';
+import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
 import { useSettings } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "modl-shared-web/components/ui/dialog";
 import { queryClient } from '@/lib/queryClient';
 import { useBeforeUnload } from 'react-router-dom';
 import { useLocation } from "wouter"; // For wouter navigation
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "modl-shared-web/components/ui/tooltip";
 import { useAuth } from '@/hooks/use-auth';
 import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
 import BillingSettings from '@/components/settings/BillingSettings';

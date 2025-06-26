@@ -22,6 +22,7 @@ export default defineConfig({
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
+    preserveSymlinks: true,
   },
   root: path.resolve(import.meta.dirname, "client"),
   envDir: path.resolve(import.meta.dirname),

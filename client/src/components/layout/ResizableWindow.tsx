@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, ReactNode } from 'react';
 import { X, Maximize2, Minimize2, ChevronUp, ChevronDown, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WindowPosition } from 'modl-shared-web/types';
-import { Button } from '@/components/ui/button';
+import { Button } from 'modl-shared-web/components/ui/button';
 
 // Global static tracker for last player window state to share between instances
 const lastPlayerWindowConfig: {

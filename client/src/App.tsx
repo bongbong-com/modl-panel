@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "modl-shared-web/components/ui/toaster";
+import { TooltipProvider } from "modl-shared-web/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNavbar from "@/components/layout/MobileNavbar";
 import { SidebarProvider } from "@/hooks/use-sidebar";
 import { DashboardProvider } from "@/contexts/DashboardContext";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ProtectedRoute, AuthRoute } from "@/lib/protected-route";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -26,6 +26,8 @@ import ApiDocs from "@/pages/api-docs";
 import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 import { WelcomeModal } from "@/components/layout/WelcomeModal";
+import MaintenancePage from "./pages/MaintenancePage";
+import { Loader2 } from "lucide-react";
 
 // Knowledgebase Pages
 import KnowledgebasePage from "@/pages/KnowledgebasePage";
@@ -33,9 +35,7 @@ import ArticleDetailPage from "@/pages/ArticleDetailPage";
 import HomePage from "@/pages/HomePage";
 
 function Router() {
-  console.log('[App.tsx Router] Before useLocation');
   const [location] = useLocation();
-  console.log('[App.tsx Router] After useLocation, location:', location);
   const isMobile = useIsMobile();
 
   // Handle public Knowledgebase routes first
@@ -98,11 +98,11 @@ function Router() {
             <Route path="/appeals" component={AppealsPage} />
             <Route path="/player-ticket/:id" component={PlayerTicket} />
             <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />          <Route path="/accept-invitation" component={AcceptInvitationPage} />
-          {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
-          <Route path="/knowledgebase" component={KnowledgebasePage} />
-          <Route path="/:articleSlug" component={ArticleDetailPage} />
-          <Route path="/" component={HomePage} />
-          <Route component={NotFound} />
+            {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
+            <Route path="/knowledgebase" component={KnowledgebasePage} />
+            <Route path="/:articleSlug" component={ArticleDetailPage} />
+            <Route path="/" component={HomePage} />
+            <Route component={NotFound} />
           </Switch>
         </main>
         { location.startsWith("/panel") && <MobileNavbar /> }
@@ -141,41 +141,29 @@ function Router() {
   );
 }
 
-function App() {
-  console.log('[App.tsx App] Before useLocation in App');
+function AppContent() {
+  const { user, isLoading, maintenanceMode, maintenanceMessage } = useAuth();
   const [location] = useLocation();
-  console.log('[App.tsx App] After useLocation in App, location:', location);
   const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
-  
-  // Initialize document title and favicon management
+
   useDocumentTitle();
   
   useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
-    // Welcome modal should appear on the admin panel's home page
     const isOnPanelHomePage = location === '/panel';
     const isFromProvisioning = new URLSearchParams(window.location.search).get('fromProvisioning') === 'true';
     
-    // Explicitly exclude certain pages from showing the welcome modal
-    // Note: /auth is now /panel/auth for admin, but we might have a general /auth too.
     const excludedPages = ['/auth', '/panel/auth', '/appeals', '/provisioning-in-progress'];
     const isOnExcludedPage = excludedPages.some(page => location.startsWith(page));
     const isOnPlayerTicketPage = location.startsWith('/player-ticket/');
     const isOnAcceptInvitationPage = location.startsWith('/accept-invitation');
     
-    // Hide welcome modal if not on the panel home page
     if (!isOnPanelHomePage) {
       setWelcomeModalOpen(false);
       return;
     }
     
-    // Only show welcome modal on panel home page, not coming from provisioning, and not on excluded pages
-    if (!hasSeenModal &&
-        isOnPanelHomePage &&
-        !isFromProvisioning &&
-        !isOnExcludedPage &&
-        !isOnPlayerTicketPage &&
-        !isOnAcceptInvitationPage) {
+    if (!hasSeenModal && isOnPanelHomePage && !isFromProvisioning && !isOnExcludedPage && !isOnPlayerTicketPage && !isOnAcceptInvitationPage) {
       setWelcomeModalOpen(true);
     }
   }, [location]);
@@ -185,14 +173,36 @@ function App() {
     setWelcomeModalOpen(false);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const isAdmin = user?.role === 'Super Admin' || user?.role === 'Admin';
+
+  if (maintenanceMode && !isAdmin) {
+    return <MaintenancePage message={maintenanceMessage} />;
+  }
+
+  return (
+    <>
+      <Toaster />
+      <WelcomeModal isOpen={isWelcomeModalOpen} onClose={handleCloseWelcomeModal} />
+      <Router />
+    </>
+  );
+}
+
+function App() {
   return (
     <AuthProvider>
       <SidebarProvider>
         <DashboardProvider>
           <TooltipProvider>
-            <Toaster />
-            <WelcomeModal isOpen={isWelcomeModalOpen} onClose={handleCloseWelcomeModal} />
-            <Router />
+            <AppContent />
           </TooltipProvider>
         </DashboardProvider>
       </SidebarProvider>

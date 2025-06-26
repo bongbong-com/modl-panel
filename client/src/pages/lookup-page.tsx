@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Search, ChevronRight, X, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Avatar } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Input } from 'modl-shared-web/components/ui/input';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Avatar } from 'modl-shared-web/components/ui/avatar';
+import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Separator } from 'modl-shared-web/components/ui/separator';
 import { usePlayers } from '@/hooks/use-data';
 
 interface Player {

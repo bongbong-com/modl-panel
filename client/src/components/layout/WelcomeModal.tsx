@@ -5,8 +5,8 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
-  } from "@/components/ui/dialog";
-  import { Button } from "@/components/ui/button";
+  } from "modl-shared-web/components/ui/dialog";
+  import { Button } from "modl-shared-web/components/ui/button";
   
   interface WelcomeModalProps {
     isOpen: boolean;

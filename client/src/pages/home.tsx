@@ -11,11 +11,11 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
+import { Separator } from 'modl-shared-web/components/ui/separator';
 import { useTheme } from 'next-themes';
 import { useRecentActivity, useStats, ClientActivity } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';

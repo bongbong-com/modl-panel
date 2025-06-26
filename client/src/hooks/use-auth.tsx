@@ -15,6 +15,8 @@ interface User {
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
   login: (email: string, authMethod: string, code?: string, assertionResponse?: AuthenticationResponseJSON) => Promise<boolean>;
   logout: () => void;
   requestEmailVerification: (email: string) => Promise<string | undefined>;
@@ -32,6 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [maintenanceMode, setMaintenanceMode] = useState<boolean>(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState<string>('');
+
   // Check for existing user session on mount
   useEffect(() => {
     const checkSession = async () => {
@@ -45,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             setUser(null);
           }
+          setMaintenanceMode(data.maintenanceMode || false);
+          setMaintenanceMessage(data.maintenanceMessage || '');
         } else {
           // If session check fails (e.g., 401), ensure user is null
           setUser(null);
@@ -72,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUser(null);
         }
+        setMaintenanceMode(data.maintenanceMode || false);
+        setMaintenanceMessage(data.maintenanceMessage || '');
       } else {
         setUser(null);
       }
@@ -395,6 +404,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
+        maintenanceMode,
+        maintenanceMessage,
         login,
         logout,
         requestEmailVerification,

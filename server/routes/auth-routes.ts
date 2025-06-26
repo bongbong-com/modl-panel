@@ -396,6 +396,10 @@ router.get('/session', (req: Request, res: Response) => {
         username: 'devuser',
         role: 'Super Admin', // Or any default role suitable for development
       },
+      // @ts-ignore
+      maintenanceMode: req.maintenanceConfig?.maintenanceMode || false,
+      // @ts-ignore
+      maintenanceMessage: req.maintenanceConfig?.maintenanceMessage || ''
     });
   }
 
@@ -413,9 +417,19 @@ router.get('/session', (req: Request, res: Response) => {
         // @ts-ignore
         role: req.session.role,
       },
+      // @ts-ignore
+      maintenanceMode: req.maintenanceConfig?.maintenanceMode || false,
+      // @ts-ignore
+      maintenanceMessage: req.maintenanceConfig?.maintenanceMessage || ''
     });
   } else {
-    return res.status(200).json({ isAuthenticated: false });
+    return res.status(200).json({ 
+      isAuthenticated: false,
+      // @ts-ignore
+      maintenanceMode: req.maintenanceConfig?.maintenanceMode || false,
+      // @ts-ignore
+      maintenanceMessage: req.maintenanceConfig?.maintenanceMessage || ''
+    });
   }
 });
 

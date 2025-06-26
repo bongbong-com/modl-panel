@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Filter } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
+import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useSidebar } from '@/hooks/use-sidebar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
+import { Separator } from 'modl-shared-web/components/ui/separator';
 import { useLogs } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 

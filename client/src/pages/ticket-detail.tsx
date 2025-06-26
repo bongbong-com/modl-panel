@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from 'modl-shared-web/components/ui/popover';
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import {
@@ -29,9 +29,9 @@ import {
   Unlock as UnlockIcon,
   Loader2
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';

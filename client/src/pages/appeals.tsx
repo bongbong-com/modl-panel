@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send } from 'lucide-react';
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "modl-shared-web/components/ui/label";
+import { Button } from "modl-shared-web/components/ui/button";
+import { Input } from "modl-shared-web/components/ui/input";
+import { Checkbox } from "modl-shared-web/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "modl-shared-web/components/ui/select";
 import {
   Form,
   FormControl,
@@ -17,7 +17,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "modl-shared-web/components/ui/form";
 import {
   Card,
   CardContent,
@@ -25,16 +25,16 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "modl-shared-web/components/ui/card";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
-} from "@/components/ui/alert";
+} from "modl-shared-web/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Separator } from 'modl-shared-web/components/ui/separator';
+import { Textarea } from 'modl-shared-web/components/ui/textarea';
+import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useSettings, useCreateAppeal, useAppealsByPunishment } from '@/hooks/use-data';
 
 // Appeal form field interfaces

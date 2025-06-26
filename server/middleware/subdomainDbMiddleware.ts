@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Connection as MongooseConnection } from 'mongoose';
 import { connectToGlobalModlDb, connectToServerDb } from '../db/connectionManager';
 import { ModlServerSchema } from 'modl-shared-web/schemas/ModlServerSchema';
+import { SystemConfigSchema } from 'modl-shared-web';
 import { reservedSubdomains } from '../config/reserved-subdomains';
 
 const DOMAIN = process.env.DOMAIN || 'modl.gg';
@@ -106,6 +107,15 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
   let globalConnection: MongooseConnection;
   try {
     globalConnection = await connectToGlobalModlDb();
+
+    // Fetch system-wide configuration (like maintenance mode)
+    const SystemConfig = globalConnection.models.SystemConfig || globalConnection.model('SystemConfig', SystemConfigSchema);
+    const systemConfig = await SystemConfig.findOne({ configId: 'main_config' });
+    if (systemConfig) {
+      // @ts-ignore
+      req.maintenanceConfig = systemConfig.general;
+    }
+
     const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model('ModlServer', ModlServerSchema);
     
     let serverConfig;

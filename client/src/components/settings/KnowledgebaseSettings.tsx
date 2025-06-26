@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from 'modl-shared-web/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from 'modl-shared-web/components/ui/card';
+import { Input } from 'modl-shared-web/components/ui/input';
+import { Textarea } from 'modl-shared-web/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { Plus, Edit, Trash2, GripVertical, Eye, EyeOff, ArrowUpDown } from 'luci
 import { DndProvider, useDrag, useDrop, DropTargetMonitor } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import ArticleListItem, { ItemTypes as ArticleItemTypes } from './ArticleListItem';
-import MarkdownEditor from '@/components/ui/MarkdownEditor';
+import MarkdownEditor from 'modl-shared-web/components/ui/MarkdownEditor';
 import { KnowledgebaseCategory, KnowledgebaseArticle } from 'modl-shared-web/types';
 // For now, we'll mock dnd as it's a larger setup.
 // Consider using a library like @dnd-kit/core for a more modern approach if not already in use.
