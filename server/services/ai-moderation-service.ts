@@ -1,4 +1,5 @@
 import { Connection } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 import GeminiService from './gemini-service';
 import SystemPromptsService from './system-prompts-service';
 
@@ -90,8 +91,7 @@ export class AIModerationService {
 
       console.log(`[AI Moderation] Analysis complete for ticket ${ticketId}:`, {
         hasAction: !!geminiResponse.suggestedAction,
-        severity: geminiResponse.suggestedAction?.severity,
-        confidence: geminiResponse.confidence
+        severity: geminiResponse.suggestedAction?.severity
       });
 
       // Prepare AI analysis result
@@ -134,43 +134,153 @@ export class AIModerationService {
   }
 
   /**
-   * Apply a punishment to a player
+   * Apply a punishment to a player directly via database
+   * @param playerIdentifier Player's UUID (preferred) or username
+   * @param punishmentTypeId The ID of the punishment type to apply
+   * @param severity The severity level of the punishment
+   * @param reason The reason for the punishment
+   * @param ticketId The ticket ID this punishment is associated with
    */
   private async applyPunishment(
-    playerName: string,
+    playerIdentifier: string,
     punishmentTypeId: number,
     severity: 'low' | 'regular' | 'severe',
     reason: string,
     ticketId: string
   ): Promise<boolean> {
     try {
-      // This would integrate with your existing punishment system
-      // For now, we'll make an API call to the punishment endpoint
-      const response = await fetch(`${process.env.INTERNAL_API_URL || 'http://localhost:3000'}/api/panel/players/${playerName}/punish`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add any necessary auth headers for internal API calls
-        },
-        body: JSON.stringify({
-          punishmentTypeId,
-          severity,
-          reason,
-          ticketId,
-          automated: true
-        })
-      });
-
-      if (response.ok) {
-        console.log(`[AI Moderation] Successfully applied punishment to ${playerName}`);
-        return true;
+      const Player = this.dbConnection.model('Player');
+      const Settings = this.dbConnection.model('Settings');
+      
+      // Try to find player by UUID first (more efficient), fallback to username
+      let player;
+      
+      // Check if the identifier looks like a UUID (36 chars with hyphens or 32 chars without)
+      const isUuid = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(playerIdentifier);
+      
+      if (isUuid) {
+        // Search by UUID (most efficient)
+        player = await Player.findOne({ minecraftUuid: playerIdentifier });
       } else {
-        console.error(`[AI Moderation] Failed to apply punishment to ${playerName}: ${response.status}`);
+        // Fallback to username search (case-insensitive search in usernames array)
+        player = await Player.findOne({
+          'usernames.username': { $regex: new RegExp(`^${playerIdentifier}$`, 'i') }
+        });
+      }
+      
+      if (!player) {
+        console.error(`[AI Moderation] Player ${playerIdentifier} not found`);
         return false;
       }
+      
+      // Get punishment type details from settings to determine duration
+      const settings = await Settings.findOne({});
+      let punishmentTypes = [];
+      let duration = -1; // Default to permanent
+      let punishmentTypeName = 'Unknown';
+      
+      if (settings?.settings?.punishmentTypes) {
+        punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
+          ? JSON.parse(settings.settings.punishmentTypes) 
+          : settings.settings.punishmentTypes;
+        
+        const punishmentType = punishmentTypes.find((pt: any) => 
+          pt.id === punishmentTypeId || pt.ordinal === punishmentTypeId
+        );
+        
+        if (punishmentType) {
+          punishmentTypeName = punishmentType.name;
+          
+          // Get duration based on severity if available
+          if (punishmentType.durations?.[severity]) {
+            const severityDuration = punishmentType.durations[severity];
+            // For AI moderation, we'll use the 'first' offense duration
+            const durationConfig = severityDuration.first;
+            if (durationConfig) {
+              const multiplierMap: Record<string, number> = {
+                'hours': 60 * 60 * 1000,
+                'days': 24 * 60 * 60 * 1000,
+                'weeks': 7 * 24 * 60 * 60 * 1000,
+                'months': 30 * 24 * 60 * 60 * 1000
+              };
+              const multiplier = multiplierMap[durationConfig.unit] || 1;
+              duration = durationConfig.value * multiplier;
+            }
+          }
+        }
+      }
+      
+      // Generate punishment ID
+      const id = uuidv4().substring(0, 8).toUpperCase();
+      
+      // Create punishment data map
+      const punishmentData = new Map<string, any>();
+      punishmentData.set('reason', reason);
+      punishmentData.set('automated', true);
+      punishmentData.set('severity', severity);
+      punishmentData.set('aiGenerated', true);
+      
+      if (duration > 0) {
+        punishmentData.set('duration', duration);
+        punishmentData.set('expires', new Date(Date.now() + duration));
+      } else {
+        punishmentData.set('duration', -1); // Permanent
+      }
+      
+      // Create punishment object matching the structure in player routes
+      const newPunishment = {
+        id,
+        issuerName: 'AI Moderation System',
+        issued: new Date(),
+        started: (punishmentTypeId === 1 || punishmentTypeId === 2) ? new Date() : undefined, // Start immediately for bans/mutes
+        type_ordinal: punishmentTypeId,
+        modifications: [],
+        notes: [],
+        attachedTicketIds: [ticketId],
+        data: punishmentData
+      };
+      
+      // Add punishment to player
+      player.punishments.push(newPunishment);
+      await player.save();
+      
+             // Create system log
+       await this.createSystemLog(
+         `AI automatically applied punishment ID ${id} (${punishmentTypeName}, Severity: ${severity}) to player ${playerIdentifier} (${player.minecraftUuid}) for ticket ${ticketId}. Reason: ${reason}`,
+         'moderation',
+         'ai-moderation'
+       );
+       
+       console.log(`[AI Moderation] Successfully applied punishment ${id} to ${playerIdentifier}`);
+       return true;
+     } catch (error) {
+       console.error(`[AI Moderation] Error applying punishment to ${playerIdentifier}:`, error);
+       return false;
+     }
+  }
+
+  /**
+   * Create a system log entry
+   */
+  private async createSystemLog(
+    description: string,
+    level: 'info' | 'warning' | 'error' | 'moderation' = 'info',
+    source: string = 'system'
+  ): Promise<void> {
+    try {
+      const Log = this.dbConnection.model('Log');
+      
+      const logEntry = new Log({
+        created: new Date(),
+        description,
+        level,
+        source
+      });
+      
+      await logEntry.save();
     } catch (error) {
-      console.error(`[AI Moderation] Error applying punishment to ${playerName}:`, error);
-      return false;
+      console.error('[AI Moderation] Error creating system log:', error);
+      // Don't throw here as logging failure shouldn't break the main flow
     }
   }
 
@@ -268,7 +378,7 @@ export class AIModerationService {
   async processNewTicket(ticketId: string, ticketData: any): Promise<void> {
     try {
       // Only process Chat Report tickets with chat messages
-      if (ticketData.category !== 'Player Report') {
+      if (ticketData.category !== 'chat') {
         return;
       }
 
