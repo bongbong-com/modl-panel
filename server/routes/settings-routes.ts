@@ -7,7 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { promisify } from 'util';
 import { generateTicketApiKey } from '../middleware/ticket-api-auth';
-import { IPunishmentType, IStatusThresholds, ISystemSettings, ITicketForms, ISettingsDocument } from 'modl-shared-web/types';
+// Removed unused imports - interfaces are defined locally below
 
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
