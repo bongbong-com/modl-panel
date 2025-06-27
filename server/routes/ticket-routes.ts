@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import AIModerationService from '../services/ai-moderation-service';
+import { IReply, ITicket } from 'modl-shared-web/types';
 
 interface INote {
   text: string;
@@ -40,7 +41,7 @@ const router = express.Router();
 
 router.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.serverDbConnection) {
-    return res.status(503).json({ error: 'Service unavailable. Database connection not established for this server.' });
+    return res.status(503).json({ error: 'Service unavailable. Database connection not established.' });
   }
   if (!req.serverName) {
     return res.status(500).json({ error: 'Internal server error. Server name missing.' });
@@ -50,30 +51,34 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 
 router.use(isAuthenticated);
 
+function getCategoryFromType(type: string): string {
+  switch(type) {
+    case 'bug': return 'Bug Report';
+    case 'player': return 'Player Report';
+    case 'chat': return 'Chat Report';
+    case 'appeal': return 'Ban Appeal';
+    case 'staff': return 'Staff Application';
+    case 'support': return 'General Support';
+    default: return 'Other';
+  }
+}
+
 router.get('/', async (req: Request, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model('Ticket');
-    const tickets = await Ticket.find({}).lean();
-    console.log(`[Debug] Found ${tickets.length} tickets in database`);
-      // Transform tickets to match client expectations
-    const transformedTickets = tickets.map(ticket => ({
-      ...ticket,
+    const tickets = await Ticket.find({ status: { $ne: 'Unfinished' } }).lean();
+    
+    const transformedTickets = tickets.map((ticket: any) => ({
       id: ticket._id,
-      date: ticket.created || new Date().toISOString(),
-      reportedBy: ticket.creator || ticket.creatorName || 'Unknown',
-      messages: ticket.replies ? ticket.replies.map((reply: any) => ({
-        id: reply._id || Math.random().toString(),
-        sender: reply.name,
-        senderType: reply.staff ? 'staff' : 'user',
-        content: reply.content,
-        timestamp: reply.created || new Date().toISOString(),
-        staff: reply.staff || false
-      })) : []
+      subject: ticket.subject || 'No Subject',
+      status: ticket.status,
+      reportedBy: ticket.creator,
+      date: ticket.created,
+      category: getCategoryFromType(ticket.type),
+      locked: ticket.locked || false,
+      type: ticket.type
     }));
     
-    if (transformedTickets.length > 0) {
-      console.log(`[Debug] Sample transformed ticket:`, transformedTickets[0]);
-    }
     res.json(transformedTickets);
   } catch (error) {
     console.error('Error fetching tickets:', error);
@@ -83,52 +88,46 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
-    console.log('=== PANEL TICKET DETAIL REQUEST DEBUG ===');
-    console.log('Request URL:', req.originalUrl);
-    console.log('Request method:', req.method);
-    // @ts-ignore
-    console.log('Server name:', req.serverName);
-    console.log('User session:', req.session);
-    console.log('Request headers:', req.headers);
-    console.log('Request params:', req.params);
-    console.log('Database connection available:', !!req.serverDbConnection);
-    
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    console.log(`[Debug] Looking for ticket with ID: ${req.params.id}`);
     const ticket = await Ticket.findById(req.params.id).lean();
+    
     if (!ticket) {
-      console.log(`[Debug] Ticket not found: ${req.params.id}`);
-      console.log('==========================================');
       return res.status(404).json({ error: 'Ticket not found' });
     }
-    
-    console.log(`[Debug] Found ticket:`, ticket);
-    
-    // Transform ticket to match client expectations
+
+    // Manually construct the object to send, ensuring Maps are converted
     const transformedTicket = {
-      ...ticket,
       id: ticket._id,
-      date: ticket.created || new Date().toISOString(),
-      reportedBy: ticket.creator || ticket.creatorName || 'Unknown',
-      messages: ticket.replies ? ticket.replies.map((reply: any) => ({
-        id: reply._id || Math.random().toString(),
+      subject: ticket.subject || 'No Subject',
+      status: ticket.status,
+      type: ticket.type,
+      category: getCategoryFromType(ticket.type),
+      reportedBy: ticket.creator || 'Unknown',
+      date: ticket.created,
+      locked: ticket.locked || false,
+      formData: ticket.formData ? Object.fromEntries(ticket.formData) : {},
+      reportedPlayer: ticket.reportedPlayer,
+      reportedPlayerUuid: ticket.reportedPlayerUuid,
+      creator: ticket.creator,
+      creatorUuid: ticket.creatorUuid,
+      chatMessages: ticket.chatMessages || [],
+      messages: ticket.replies?.map((reply: any) => ({
+        id: reply._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         sender: reply.name,
-        senderType: reply.staff ? 'staff' : 'user',
+        senderType: reply.type,
         content: reply.content,
-        timestamp: reply.created || new Date().toISOString(),
-        staff: reply.staff || false
-      })) : [],
-      notes: ticket.notes,
-      tags: ticket.tags,
-      data: ticket.data ? Object.fromEntries(ticket.data) : {}
+        timestamp: reply.created,
+        staff: reply.staff,
+        closedAs: reply.action
+      })) || [],
+      notes: ticket.notes || [],
+      tags: ticket.tags || [],
+      data: ticket.data ? Object.fromEntries(ticket.data) : {} // Correctly convert Map to object
     };
     
-    console.log(`[Debug] Transformed ticket:`, transformedTicket);
-    console.log('==========================================');
     res.json(transformedTicket);
   } catch (error: any) {
     console.error('Error fetching ticket:', error);
-    console.log('==========================================');
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
