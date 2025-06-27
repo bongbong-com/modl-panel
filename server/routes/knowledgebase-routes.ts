@@ -449,8 +449,8 @@ router.put(
       const KnowledgebaseArticle = getKnowledgebaseArticleModel(req);
       const { categoryId, articleId } = req.params;
       const { title, content, is_visible } = req.body;
-      // @ts-ignore - Assuming req.user is populated by authenticate middleware
-      // const editorId = req.user?._id; // Optional: track who edited
+      // @ts-ignore
+      const editorId = req.user?._id; // Optional: track who edited
 
 
       if (!mongoose.Types.ObjectId.isValid(categoryId) || !mongoose.Types.ObjectId.isValid(articleId)) {

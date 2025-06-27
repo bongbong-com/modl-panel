@@ -33,6 +33,7 @@ interface ITicket extends MongooseDocument {
   status: string; // e.g., 'Open', 'Closed', 'In Progress'
   assignedTo?: string; // Staff username or ID
   priority?: string; // e.g., 'Low', 'Medium', 'High'
+  locked?: boolean;
 }
 
 const router = express.Router();
@@ -85,6 +86,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     console.log('=== PANEL TICKET DETAIL REQUEST DEBUG ===');
     console.log('Request URL:', req.originalUrl);
     console.log('Request method:', req.method);
+    // @ts-ignore
     console.log('Server name:', req.serverName);
     console.log('User session:', req.session);
     console.log('Request headers:', req.headers);
@@ -332,8 +334,7 @@ router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, 
 
     // Update locked status if provided
     if (updates.locked !== undefined) {
-      // Add locked field to ticket data Map
-      ticket.data.set('locked', updates.locked);
+      ticket.locked = updates.locked;
     }
 
     // Add new reply if provided
@@ -380,7 +381,7 @@ router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, 
       notes: ticket.notes,
       replies: ticket.replies,
       data: Object.fromEntries(ticket.data),
-      locked: ticket.data.get('locked') || false
+      locked: ticket.locked || false
     });
   } catch (error: any) {
     console.error('Error updating ticket:', error);
