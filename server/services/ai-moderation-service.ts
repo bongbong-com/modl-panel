@@ -382,15 +382,21 @@ export class AIModerationService {
    */
   async processNewTicket(ticketId: string, ticketData: any): Promise<void> {
     try {
+      console.log(`[AI Moderation] Processing new ticket ${ticketId}. Data received:`, JSON.stringify(ticketData, null, 2));
       // Only process Chat Report tickets with chat messages
       if (ticketData.category !== 'chat' && ticketData.type !== 'chat') {
+        console.log(`[AI Moderation] Ticket ${ticketId} is not a chat report. Skipping. Type: ${ticketData.type}, Category: ${ticketData.category}`);
         return;
       }
 
       // Extract chat messages from ticket data
-      const chatMessagesRaw = ticketData.data?.get ? 
-        ticketData.data.get('chatMessages') : 
-        ticketData.data?.chatMessages;
+      let chatMessagesRaw = ticketData.chatMessages;
+      if (!chatMessagesRaw) {
+        // Fallback for when it might be in the 'data' map
+        chatMessagesRaw = ticketData.data?.get ? ticketData.data.get('chatMessages') : ticketData.data?.chatMessages;
+      }
+
+      console.log(`[AI Moderation] Extracted chatMessagesRaw for ticket ${ticketId}:`, chatMessagesRaw);
 
       if (!chatMessagesRaw || !Array.isArray(chatMessagesRaw) || chatMessagesRaw.length === 0) {
         console.log(`[AI Moderation] No chat messages found for ticket ${ticketId}, skipping analysis`);
