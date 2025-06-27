@@ -117,7 +117,10 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
         content: reply.content,
         timestamp: reply.created || new Date().toISOString(),
         staff: reply.staff || false
-      })) : []
+      })) : [],
+      notes: ticket.notes,
+      tags: ticket.tags,
+      data: ticket.data ? Object.fromEntries(ticket.data) : {}
     };
     
     console.log(`[Debug] Transformed ticket:`, transformedTicket);
