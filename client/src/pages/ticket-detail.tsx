@@ -33,10 +33,13 @@ import {
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
-import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
+import { useTicket, usePanelTicket, useUpdateTicket, useSettings } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from 'modl-shared-web/components/ui/card';
+import { apiRequest } from '@/lib/queryClient';
+import { useAddTicketReply } from '@/hooks/use-add-ticket-reply';
 
 export interface TicketMessage {
   id: string;
@@ -66,7 +69,7 @@ interface AIAnalysis {
 }
 
 // Define types for ticket categories and actions
-type TicketCategory = 'Player Report' | 'Bug Report' | 'Punishment Appeal' | 'Other';
+type TicketCategory = 'Player Report' | 'Chat Report' | 'Bug Report' | 'Punishment Appeal' | 'Other';
 type PlayerReportAction = 'Accepted' | 'Rejected' | 'Close';
 type BugReportAction = 'Completed' | 'Stale' | 'Duplicate' | 'Close';
 type PunishmentAppealAction = 'Pardon' | 'Reduce' | 'Reject' | 'Close';
@@ -74,6 +77,11 @@ type PunishmentAppealAction = 'Pardon' | 'Reduce' | 'Reject' | 'Close';
 // Default responses for different ticket actions
 export const defaultReplies: Record<TicketCategory, Record<string, string>> = {
   'Player Report': {
+    'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+    'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+    'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
+  },
+  'Chat Report': {
     'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
     'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
     'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
@@ -131,7 +139,11 @@ const TicketDetail = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-    // Format date to MM/dd/yy HH:mm in browser's timezone
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formSubject, setFormSubject] = useState('');
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  
+  // Format date to MM/dd/yy HH:mm in browser's timezone
   const formatDate = (dateString: string): string => {
     try {
       // Handle various date formats and edge cases
@@ -236,24 +248,23 @@ const TicketDetail = () => {
   console.log('Raw ticket data:', ticketData);
   console.log('================================================');
   
+  useEffect(() => {
+    if (ticketData) {
+      console.log('Ticket data received in component:', JSON.stringify(ticketData, null, 2));
+    }
+  }, [ticketData]);
+  
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
 
-  // Load punishment types for AI analysis display
+  // Fetch settings to get punishment types
+  const { data: settingsData } = useSettings();
+
   useEffect(() => {
-    const loadPunishmentTypes = async () => {
-      try {
-        const response = await fetch('/api/panel/settings/punishment-types');
-        if (response.ok) {
-          const data = await response.json();
-          setPunishmentTypes(data);
-        }
-      } catch (error) {
-        console.error('Error loading punishment types:', error);
-      }
-    };
-    loadPunishmentTypes();
-  }, []);
+    if (settingsData?.settings?.punishmentTypes) {
+      setPunishmentTypes(settingsData.settings.punishmentTypes);
+    }
+  }, [settingsData]);
 
   // Function to apply AI-suggested punishment
   const applyAISuggestion = async () => {
@@ -365,6 +376,7 @@ const TicketDetail = () => {
       }
       
       const category = (ticketData.type === 'bug' ? 'Bug Report' : 
+                      ticketData.type === 'chat' ? 'Chat Report' :
                       ticketData.type === 'player' ? 'Player Report' : 
                       ticketData.type === 'appeal' ? 'Punishment Appeal' : 'Other') as TicketCategory;
         // Get default tags for this category if no tags are provided
@@ -411,7 +423,7 @@ const TicketDetail = () => {
         // Set default action to "Comment" to highlight the Comment button
         selectedAction: 'Comment',
         // Extract AI analysis from ticket data if present
-        aiAnalysis: ticketData.data?.get ? ticketData.data.get('aiAnalysis') : ticketData.data?.aiAnalysis
+        aiAnalysis: ticketData.data?.aiAnalysis
       });
     }
   }, [ticketData]);
@@ -463,29 +475,20 @@ const TicketDetail = () => {
     return "Type your reply here...";
   };
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
+    if (!ticketDetails.newReply?.trim() || !ticketDetails.selectedAction) return;
+    
     const now = new Date();
-    // Use ISO format for consistent timestamps
     const timestamp = now.toISOString();
     
-    // Determine the content and subject based on selected action
-    let messageContent = ticketDetails.newReply?.trim() || '';
-    // Simplified status: only Open or Closed
+    let messageContent = ticketDetails.newReply.trim();
     let status: 'Open' | 'Closed' = ticketDetails.status;
     
-    // If no message content but default text is available, use that
-    if (!messageContent && ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
-      messageContent = getPlaceholderText();
-    }
-    
-    // If an action is selected and it's not "Comment", format accordingly
     if (ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
-      // Create action description
       let actionDesc = '';
       switch(ticketDetails.selectedAction) {
         case 'Accepted':
           actionDesc = "accepted this report";
-          // Map all resolved statuses to Closed in simplified system
           status = 'Closed';
           break;
         case 'Rejected':
@@ -494,7 +497,6 @@ const TicketDetail = () => {
           break;
         case 'Completed':
           actionDesc = "marked this bug as completed";
-          // Map all resolved statuses to Closed in simplified system
           status = 'Closed';
           break;
         case 'Stale':
@@ -507,14 +509,12 @@ const TicketDetail = () => {
           break;
         case 'Pardon':
           actionDesc = "pardoned this punishment";
-          // Map all resolved statuses to Closed in simplified system
           status = 'Closed';
           break;
         case 'Reduce':
           actionDesc = ticketDetails.isPermanent 
             ? 'changed the punishment to permanent' 
             : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
-          // Map all resolved statuses to Closed in simplified system
           status = 'Closed';
           break;
         case 'Reject':
@@ -530,28 +530,24 @@ const TicketDetail = () => {
           status = 'Open';
           break;
       }
+      messageContent = actionDesc;
     }
     
-    // Only send if there's content or an action selected
     if (messageContent) {
-      // Determine if this is a closing message
       const isClosing = ticketDetails.selectedAction && 
                        ticketDetails.selectedAction !== 'Comment' && 
                        ticketDetails.selectedAction !== 'Reopen';
-        // Create the new message with proper structure
+      
       const newMessage = {
         id: `msg-${Date.now()}`,
-        // These map to the server-side schema fields
-        name: user?.username || "Admin", // Use the actual user's username
+        name: user?.username || "Admin",
         type: "staff",
         content: messageContent,
         created: new Date(),
         staff: true,
-        // Add action field to track closing/reopening status
         action: ticketDetails.selectedAction
       };
       
-      // Create client-side message for rendering
       const clientMessage: TicketMessage = {
         id: newMessage.id,
         sender: newMessage.name,
@@ -563,7 +559,6 @@ const TicketDetail = () => {
         closedAs: isClosing ? ticketDetails.selectedAction : undefined
       };
       
-      // Local state update
       setTicketDetails(prev => ({
         ...prev,
         messages: [...prev.messages, clientMessage],
@@ -572,33 +567,38 @@ const TicketDetail = () => {
         newDuration: undefined,
         isPermanent: undefined,
         duration: undefined,
-        // Only update status if a closing action is sent (not just when clicking an action button)
         status: isClosing ? status : prev.status,
-        // Make sure to lock the ticket if it's closed
         locked: isClosing || status === 'Closed' ? true : prev.locked
       }));
       
-      // Server update
-      updateTicketMutation.mutate({
-        id: ticketDetails.id,
-        data: {
-          status,
-          newReply: newMessage,
-          locked: isClosing || status === 'Closed' ? true : ticketDetails.locked
-        }
-      });
+      try {
+        await updateTicketMutation.mutateAsync({
+          id: ticketDetails.id,
+          data: {
+            status,
+            newReply: newMessage,
+            locked: isClosing || status === 'Closed' ? true : ticketDetails.locked
+          }
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets', ticketId] });
+      } catch (error) {
+        console.error('Error sending reply:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send reply. Please try again later.",
+          variant: "destructive"
+        });
+      }
     }
   };
   
   const handleUpdateTagsWithPersistence = (tags: string[]) => {
-    // Update local state for immediate UI feedback
     setTicketDetails(prev => ({
       ...prev,
       tags,
       newTag: ''
     }));
     
-    // Update in database
     updateTicketMutation.mutate({
       id: ticketDetails.id,
       data: { tags }
@@ -618,15 +618,12 @@ const TicketDetail = () => {
   };
   
   const handleStatusChange = (newStatus: 'Open' | 'Closed', lockTicket = false) => {
-    // First update local state for immediate UI feedback
     setTicketDetails(prev => ({
       ...prev,
       status: newStatus,
-      // Auto-lock the ticket when it's closed or explicitly requested
       locked: lockTicket || newStatus === 'Closed' ? true : prev.locked
     }));
     
-    // Then update in database
     updateTicketMutation.mutate({
       id: ticketDetails.id,
       data: {
@@ -637,13 +634,11 @@ const TicketDetail = () => {
   };
   
   const handleTicketAction = (action: string) => {
-    // Set selected action
     setTicketDetails(prev => ({
       ...prev,
       selectedAction: action
     }));
     
-    // Update status based on action
     let newStatus: 'Open' | 'Closed' = ticketDetails.status;
     
     switch(action) {
@@ -656,20 +651,16 @@ const TicketDetail = () => {
       case 'Duplicate':
       case 'Reject':
       case 'Close':
-        // All resolution actions map to Closed in simplified system
         newStatus = 'Closed';
         break;
       case 'Reopen':
         newStatus = 'Open';
         break;
       case 'Comment':
-        // No status change for simple comments
         break;
     }
   
-      // Set a default reply based on the action
     if (action === 'Comment') {
-      // Clear the text box when switching to Comment action
       setTicketDetails(prev => ({
         ...prev,
         newReply: ''
@@ -980,7 +971,7 @@ const TicketDetail = () => {
             </div>
 
             {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis */}
-            {ticketDetails.category === 'Player Report' && ticketDetails.aiAnalysis && (
+            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-100 rounded-full">

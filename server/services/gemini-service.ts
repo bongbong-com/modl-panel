@@ -52,7 +52,7 @@ export class GeminiService {
   ): Promise<GeminiAnalysisResponse> {
     try {
       const model = this.genAI.getGenerativeModel({ 
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.5-flash-lite-preview-06-17",
         generationConfig: {
           temperature: 0.1, // Lower temperature for more consistent responses
           topP: 0.8,
@@ -82,10 +82,6 @@ ${chatTranscript}
 ${reportedPlayer ? `REPORTED PLAYER: ${reportedPlayer}` : ''}
 
 Please analyze the chat transcript and respond with a JSON object following the exact format specified in the system prompt.`;
-
-      console.log('[Gemini Service] Sending request to Gemini API');
-      console.log('[Gemini Service] Chat messages count:', chatMessages.length);
-      console.log('[Gemini Service] Reported player:', reportedPlayer);
 
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
@@ -179,7 +175,7 @@ Please analyze the chat transcript and respond with a JSON object following the 
    */
   async testConnection(): Promise<boolean> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
       const result = await model.generateContent("Test connection. Respond with 'OK'.");
       const response = await result.response;
       const text = response.text();

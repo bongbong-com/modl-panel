@@ -150,6 +150,18 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     // Create and save ticket
     const newTicket = new Ticket(ticketData);
     await newTicket.save();
+    
+    // Trigger AI analysis for Player Report tickets with chat messages
+    if (req.serverDbConnection && type === 'chat' && chatMessages && chatMessages.length > 0) {
+      try {
+        const AIModerationService = (await import('../services/ai-moderation-service')).default;
+        const aiModerationService = new AIModerationService(req.serverDbConnection);
+        await aiModerationService.processNewTicket(ticketId, newTicket.toObject());
+      } catch (aiError: any) {
+        console.error(`[Public Ticket API] AI moderation processing failed for ticket ${ticketId}:`, aiError.message);
+        // Don't fail the ticket creation if AI processing fails
+      }
+    }
       // Log the creation
     console.log(`[Ticket API] Created ticket ${ticketId} of type ${type} (${ticketStatus}) via API`);
     
@@ -286,7 +298,18 @@ router.post('/tickets/unfinished', async (req: Request, res: Response) => {
     const newTicket = new Ticket(ticketData);
     await newTicket.save();
     
-    // Log the creation
+    // Trigger AI analysis for Player Report tickets with chat messages
+    if (req.serverDbConnection && type === 'chat' && chatMessages && chatMessages.length > 0) {
+      try {
+        const AIModerationService = (await import('../services/ai-moderation-service')).default;
+        const aiModerationService = new AIModerationService(req.serverDbConnection);
+        await aiModerationService.processNewTicket(ticketId, newTicket.toObject());
+      } catch (aiError: any) {
+        console.error(`[Public Ticket API] AI moderation processing failed for ticket ${ticketId}:`, aiError.message);
+        // Don't fail the ticket creation if AI processing fails
+      }
+    }
+      // Log the creation
     console.log(`[Ticket API] Created ticket ${ticketId} of type ${type} (Unfinished) via API`);
     
     res.status(201).json({

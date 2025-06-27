@@ -57,7 +57,8 @@ export class AIModerationService {
   async analyzeTicket(
     ticketId: string,
     chatMessages: ChatMessage[],
-    reportedPlayer?: string
+    playerIdentifier?: string,
+    playerNameForAI?: string
   ): Promise<AIAnalysisResult | null> {
     try {
       console.log(`[AI Moderation] Starting analysis for ticket ${ticketId}`);
@@ -86,13 +87,8 @@ export class AIModerationService {
         chatMessages,
         punishmentTypes,
         systemPrompt,
-        reportedPlayer
+        playerNameForAI
       );
-
-      console.log(`[AI Moderation] Analysis complete for ticket ${ticketId}:`, {
-        hasAction: !!geminiResponse.suggestedAction,
-        severity: geminiResponse.suggestedAction?.severity
-      });
 
       // Prepare AI analysis result
       const analysisResult: AIAnalysisResult = {
@@ -103,10 +99,10 @@ export class AIModerationService {
       };
 
       // Apply punishment automatically if enabled and action is suggested
-      if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && reportedPlayer) {
+      if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && playerIdentifier) {
         try {
           const punishmentApplied = await this.applyPunishment(
-            reportedPlayer,
+            playerIdentifier,
             geminiResponse.suggestedAction.punishmentTypeId,
             geminiResponse.suggestedAction.severity,
             `Automated AI moderation - ${geminiResponse.analysis}`,
@@ -334,18 +330,45 @@ export class AIModerationService {
    */
   private async getPunishmentTypes(): Promise<PunishmentType[]> {
     try {
-      const PunishmentTypeModel = this.dbConnection.model('PunishmentType');
-      const punishmentTypes = await PunishmentTypeModel.find({ isActive: true });
-      
-      return punishmentTypes.map(pt => ({
-        id: pt.id || pt._id,
-        name: pt.name,
-        category: pt.category,
-        points: pt.points,
-        duration: pt.duration
-      }));
+      const SettingsModel = this.dbConnection.model('Settings');
+      const settingsDoc = await SettingsModel.findOne({});
+
+      if (!settingsDoc || !settingsDoc.settings || !settingsDoc.settings.get('punishmentTypes')) {
+        console.error('[AI Moderation] Punishment types not found in settings document.');
+        return [];
+      }
+
+      let punishmentTypesData = settingsDoc.settings.get('punishmentTypes');
+
+      // It might be stored as a stringified JSON
+      if (typeof punishmentTypesData === 'string') {
+        try {
+          punishmentTypesData = JSON.parse(punishmentTypesData);
+        } catch (e) {
+          console.error('[AI Moderation] Failed to parse punishmentTypes from settings:', e);
+          return [];
+        }
+      }
+
+      if (!Array.isArray(punishmentTypesData)) {
+        console.error('[AI Moderation] Punishment types in settings is not an array.');
+        return [];
+      }
+
+      console.log(`[AI Moderation] Found ${punishmentTypesData.length} punishment types in settings.`);
+
+      // Map the data to the expected interface, filtering for active ones if the field exists.
+      return punishmentTypesData
+        .filter((pt: any) => pt.isActive !== false) // Assume active if property doesn't exist
+        .map((pt: any) => ({
+          id: pt.id,
+          name: pt.name,
+          category: pt.category,
+          points: pt.points,
+          duration: pt.duration,
+        }));
     } catch (error) {
-      console.error('[AI Moderation] Error fetching punishment types:', error);
+      console.error('[AI Moderation] Error fetching punishment types from settings:', error);
       return [];
     }
   }
@@ -378,26 +401,51 @@ export class AIModerationService {
   async processNewTicket(ticketId: string, ticketData: any): Promise<void> {
     try {
       // Only process Chat Report tickets with chat messages
-      if (ticketData.category !== 'chat') {
+      if (ticketData.category !== 'chat' && ticketData.type !== 'chat') {
         return;
       }
 
       // Extract chat messages from ticket data
-      const chatMessages = ticketData.data?.get ? 
-        ticketData.data.get('chatMessages') : 
-        ticketData.data?.chatMessages;
+      let chatMessagesRaw = ticketData.chatMessages;
+      if (!chatMessagesRaw) {
+        // Fallback for when it might be in the 'data' map
+        chatMessagesRaw = ticketData.data?.get ? ticketData.data.get('chatMessages') : ticketData.data?.chatMessages;
+      }
 
-      if (!chatMessages || !Array.isArray(chatMessages) || chatMessages.length === 0) {
+      if (!chatMessagesRaw || !Array.isArray(chatMessagesRaw) || chatMessagesRaw.length === 0) {
         console.log(`[AI Moderation] No chat messages found for ticket ${ticketId}, skipping analysis`);
         return;
       }
 
-      // Get reported player from ticket
-      const reportedPlayer = ticketData.relatedPlayer || ticketData.reportedPlayer;
+      // Parse chat messages if they are strings
+      const chatMessages: ChatMessage[] = chatMessagesRaw.map((msg: any) => {
+        if (typeof msg === 'string') {
+          try {
+            return JSON.parse(msg);
+          } catch (e) {
+            console.error(`[AI Moderation] Failed to parse chat message string: ${msg}`, e);
+            return null;
+          }
+        }
+        return msg;
+      }).filter((msg): msg is ChatMessage => msg !== null);
+
+      if (chatMessages.length === 0) {
+        console.log(`[AI Moderation] No valid chat messages found after parsing for ticket ${ticketId}, skipping analysis`);
+        return;
+      }
+
+      // Get reported player's name and identifier (UUID preferred) from ticket
+      const reportedPlayerName = ticketData.reportedPlayer || ticketData.relatedPlayer;
+      const reportedPlayerIdentifier = ticketData.reportedPlayerUuid || ticketData.relatedPlayerUuid || reportedPlayerName;
+
+      if (!reportedPlayerIdentifier) {
+        console.log(`[AI Moderation] No reported player identifier found for ticket ${ticketId}, skipping punishment application.`);
+      }
 
       // Run analysis asynchronously
       setImmediate(() => {
-        this.analyzeTicket(ticketId, chatMessages, reportedPlayer)
+        this.analyzeTicket(ticketId, chatMessages, reportedPlayerIdentifier, reportedPlayerName)
           .catch(error => {
             console.error(`[AI Moderation] Async analysis failed for ticket ${ticketId}:`, error);
           });

@@ -150,8 +150,14 @@ const PlayerTicket = () => {
 
       // Process messages and ensure valid timestamps
       const processedMessages = (ticketData.replies || ticketData.messages || []).map((message: any) => ({
-        ...message,
-        timestamp: message.timestamp || message.created || new Date().toISOString()
+        id: message.id || message._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        sender: message.name,
+        senderType: message.type === 'staff' ? 'staff' : message.type === 'system' ? 'system' : 'user',
+        content: message.content,
+        timestamp: message.timestamp || message.created || new Date().toISOString(),
+        staff: message.staff,
+        attachments: message.attachments,
+        closedAs: (message.action === "Comment" || message.action === "Reopen") ? undefined : message.action
       }));
           
       setTicketDetails({
@@ -725,7 +731,7 @@ const PlayerTicket = () => {
             </div>
 
             {/* Reply section - only show for non-unfinished tickets */}
-            {!ticketDetails.locked ? (
+            {ticketDetails.status !== 'Closed' && !ticketDetails.locked ? (
               <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
                 <div className="p-4">
                   <div className="mb-4">
