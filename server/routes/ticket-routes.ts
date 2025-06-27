@@ -89,7 +89,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const ticket = await Ticket.findById(req.params.id).lean();
+    const ticket: ITicket | null = await Ticket.findById(req.params.id);
     
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found' });
