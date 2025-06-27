@@ -57,11 +57,13 @@ export class AIModerationService {
   async analyzeTicket(
     ticketId: string,
     chatMessages: ChatMessage[],
-    reportedPlayer?: string
+    playerIdentifier?: string,
+    playerNameForAI?: string
   ): Promise<AIAnalysisResult | null> {
     try {
       console.log(`[AI Moderation] Starting analysis for ticket ${ticketId}`);
-      console.log(`[AI Moderation] Reported Player: ${reportedPlayer}`);
+      console.log(`[AI Moderation] Player Identifier for punishment: ${playerIdentifier}`);
+      console.log(`[AI Moderation] Player Name for AI context: ${playerNameForAI}`);
       console.log(`[AI Moderation] Chat Messages:`, JSON.stringify(chatMessages, null, 2));
 
       // Get AI settings
@@ -91,7 +93,7 @@ export class AIModerationService {
         chatMessages,
         punishmentTypes,
         systemPrompt,
-        reportedPlayer
+        playerNameForAI
       );
 
       console.log(`[AI Moderation] Analysis complete for ticket ${ticketId}:`, {
@@ -108,10 +110,10 @@ export class AIModerationService {
       };
 
       // Apply punishment automatically if enabled and action is suggested
-      if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && reportedPlayer) {
+      if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && playerIdentifier) {
         try {
           const punishmentApplied = await this.applyPunishment(
-            reportedPlayer,
+            playerIdentifier,
             geminiResponse.suggestedAction.punishmentTypeId,
             geminiResponse.suggestedAction.severity,
             `Automated AI moderation - ${geminiResponse.analysis}`,
@@ -448,12 +450,17 @@ export class AIModerationService {
         return;
       }
 
-      // Get reported player from ticket
-      const reportedPlayer = ticketData.relatedPlayer || ticketData.reportedPlayer;
+      // Get reported player's name and identifier (UUID preferred) from ticket
+      const reportedPlayerName = ticketData.reportedPlayer || ticketData.relatedPlayer;
+      const reportedPlayerIdentifier = ticketData.reportedPlayerUuid || ticketData.relatedPlayerUuid || reportedPlayerName;
+
+      if (!reportedPlayerIdentifier) {
+        console.log(`[AI Moderation] No reported player identifier found for ticket ${ticketId}, skipping punishment application.`);
+      }
 
       // Run analysis asynchronously
       setImmediate(() => {
-        this.analyzeTicket(ticketId, chatMessages, reportedPlayer)
+        this.analyzeTicket(ticketId, chatMessages, reportedPlayerIdentifier, reportedPlayerName)
           .catch(error => {
             console.error(`[AI Moderation] Async analysis failed for ticket ${ticketId}:`, error);
           });
