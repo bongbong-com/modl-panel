@@ -69,7 +69,7 @@ interface AIAnalysis {
 }
 
 // Define types for ticket categories and actions
-type TicketCategory = 'Player Report' | 'Bug Report' | 'Punishment Appeal' | 'Other';
+type TicketCategory = 'Player Report' | 'Chat Report' | 'Bug Report' | 'Punishment Appeal' | 'Other';
 type PlayerReportAction = 'Accepted' | 'Rejected' | 'Close';
 type BugReportAction = 'Completed' | 'Stale' | 'Duplicate' | 'Close';
 type PunishmentAppealAction = 'Pardon' | 'Reduce' | 'Reject' | 'Close';
@@ -77,6 +77,11 @@ type PunishmentAppealAction = 'Pardon' | 'Reduce' | 'Reject' | 'Close';
 // Default responses for different ticket actions
 export const defaultReplies: Record<TicketCategory, Record<string, string>> = {
   'Player Report': {
+    'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+    'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+    'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
+  },
+  'Chat Report': {
     'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
     'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
     'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
@@ -965,7 +970,7 @@ const TicketDetail = () => {
             </div>
 
             {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis */}
-            {ticketDetails.category === 'Player Report' && ticketDetails.aiAnalysis && (
+            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-100 rounded-full">
