@@ -61,6 +61,8 @@ export class AIModerationService {
   ): Promise<AIAnalysisResult | null> {
     try {
       console.log(`[AI Moderation] Starting analysis for ticket ${ticketId}`);
+      console.log(`[AI Moderation] Reported Player: ${reportedPlayer}`);
+      console.log(`[AI Moderation] Chat Messages:`, JSON.stringify(chatMessages, null, 2));
 
       // Get AI settings
       const aiSettings = await this.getAISettings();
@@ -68,6 +70,7 @@ export class AIModerationService {
         console.log('[AI Moderation] AI settings not found, skipping analysis');
         return null;
       }
+      console.log(`[AI Moderation] AI Settings:`, aiSettings);
 
       // Get punishment types
       const punishmentTypes = await this.getPunishmentTypes();
@@ -75,11 +78,13 @@ export class AIModerationService {
         console.log('[AI Moderation] No punishment types found, skipping analysis');
         return null;
       }
+      console.log(`[AI Moderation] Punishment Types:`, JSON.stringify(punishmentTypes.map(p => ({id: p.id, name: p.name})), null, 2));
 
       // Get system prompt for strictness level
       const systemPrompt = await this.systemPromptsService.getPromptForStrictnessLevel(
         aiSettings.strictnessLevel
       );
+      console.log(`[AI Moderation] System prompt for ${aiSettings.strictnessLevel} strictness will be used.`);
 
       // Analyze with Gemini
       const geminiResponse = await this.geminiService.analyzeChatMessages(
@@ -378,17 +383,35 @@ export class AIModerationService {
   async processNewTicket(ticketId: string, ticketData: any): Promise<void> {
     try {
       // Only process Chat Report tickets with chat messages
-      if (ticketData.category !== 'chat') {
+      if (ticketData.category !== 'chat' && ticketData.type !== 'chat') {
         return;
       }
 
       // Extract chat messages from ticket data
-      const chatMessages = ticketData.data?.get ? 
+      const chatMessagesRaw = ticketData.data?.get ? 
         ticketData.data.get('chatMessages') : 
         ticketData.data?.chatMessages;
 
-      if (!chatMessages || !Array.isArray(chatMessages) || chatMessages.length === 0) {
+      if (!chatMessagesRaw || !Array.isArray(chatMessagesRaw) || chatMessagesRaw.length === 0) {
         console.log(`[AI Moderation] No chat messages found for ticket ${ticketId}, skipping analysis`);
+        return;
+      }
+
+      // Parse chat messages if they are strings
+      const chatMessages: ChatMessage[] = chatMessagesRaw.map((msg: any) => {
+        if (typeof msg === 'string') {
+          try {
+            return JSON.parse(msg);
+          } catch (e) {
+            console.error(`[AI Moderation] Failed to parse chat message string: ${msg}`, e);
+            return null;
+          }
+        }
+        return msg;
+      }).filter((msg): msg is ChatMessage => msg !== null);
+
+      if (chatMessages.length === 0) {
+        console.log(`[AI Moderation] No valid chat messages found after parsing for ticket ${ticketId}, skipping analysis`);
         return;
       }
 
