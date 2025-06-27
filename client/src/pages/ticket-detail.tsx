@@ -243,6 +243,12 @@ const TicketDetail = () => {
   console.log('Raw ticket data:', ticketData);
   console.log('================================================');
   
+  useEffect(() => {
+    if (ticketData) {
+      console.log('Ticket data received in component:', JSON.stringify(ticketData, null, 2));
+    }
+  }, [ticketData]);
+  
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
 
