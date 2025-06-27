@@ -248,10 +248,8 @@ const Sidebar = () => {
                   const isActive =
                     location === item.path || // Exact match for current page
                     (item.path === "/panel/lookup" && isLookupOpen) || // Lookup is active
-                    (item.path === "/panel" && location.startsWith("/panel/player/")); // Home active if on player detail from panel
-
-                  // Special handling for lookup icon
-                  if (item.path === "/lookup") {
+                    (item.path === "/panel" && location.startsWith("/panel/player/")); // Home active if on player detail from panel                  // Special handling for lookup icon
+                  if (item.path === "/panel/lookup") {
                     return (
                       <li key={item.path} className="relative">
                         <Tooltip>
