@@ -441,3 +441,23 @@ export function usePanelTicket(id: string) {
     refetchOnWindowFocus: true
   });
 }
+
+export function usePlayerTickets(uuid: string) {
+  return useQuery({
+    queryKey: ['/api/panel/tickets/creator', uuid],
+    queryFn: async () => {
+      const res = await fetch(`/api/panel/tickets/creator/${uuid}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          return [];
+        }
+        throw new Error('Failed to fetch player tickets');
+      }
+      return res.json();
+    },
+    enabled: !!uuid,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
+  });
+}

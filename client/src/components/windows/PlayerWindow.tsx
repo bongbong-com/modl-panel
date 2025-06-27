@@ -7,7 +7,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { usePlayer, useApplyPunishment, useSettings } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets } from '@/hooks/use-data';
 import { toast } from '@/hooks/use-toast';
 
 import { WindowPosition, Player, PunishmentType as PunishmentTypeInterface } from 'modl-shared-web/types';
@@ -242,6 +242,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   
   // Use React Query hook to fetch player data with refetch capability
   const { data: player, isLoading, error, refetch } = usePlayer(playerId);
+  
+  // Fetch player tickets
+  const { data: playerTickets, isLoading: isLoadingTickets } = usePlayerTickets(playerId);
   
   // Refetch player data whenever the window is opened
   useEffect(() => {
@@ -694,9 +697,54 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           
           <TabsContent value="tickets" className="space-y-2 mx-1 mt-3">
             <h4 className="font-medium">Player Tickets</h4>
-            <div className="bg-muted/30 p-3 rounded-lg">
-              <p className="text-sm">No tickets found for this player.</p>
-            </div>
+            {isLoadingTickets ? (
+              <div className="bg-muted/30 p-3 rounded-lg flex items-center justify-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Loading tickets...</span>
+              </div>
+            ) : playerTickets && playerTickets.length > 0 ? (
+              <div className="space-y-2">
+                {playerTickets.map((ticket: any) => (
+                  <div key={ticket._id} className="bg-muted/30 p-3 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-medium text-sm">{ticket._id}</span>
+                          <Badge variant={ticket.status === 'Open' ? 'destructive' : ticket.status === 'Closed' ? 'secondary' : 'default'} className="text-xs">
+                            {ticket.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Category: {ticket.category}
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Created: {new Date(ticket.created).toLocaleDateString()}
+                        </p>
+                        {ticket.creatorName && (
+                          <p className="text-sm text-muted-foreground">
+                            Creator: {ticket.creatorName}
+                          </p>
+                        )}
+                        {ticket.tags && ticket.tags.length > 0 && (
+                          <div className="flex gap-1 mt-2">
+                            {ticket.tags.map((tag: string, index: number) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-muted/30 p-3 rounded-lg">
+                <p className="text-sm">No tickets found for this player.</p>
+              </div>
+            )}
           </TabsContent>
           
           <TabsContent value="names" className="space-y-2 mx-1 mt-3">
