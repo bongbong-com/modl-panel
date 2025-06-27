@@ -4,6 +4,33 @@ This document provides example cURL requests for common API operations in the MO
 
 ## Authentication
 
+curl -X POST "https://123.cobl.gg/api/public/tickets" \
+  -H "Content-Type: application/json" \
+  -H "X-Ticket-API-Key: 5pJlpVShLOBQwNeUMCqZ3M0iT5Yy-IheNHEiFfIW_Dk" \
+  -d '{
+    "type": "chat",
+    "subject": "Chat Report: ToxicPlayer123",
+    "description": "Player was being toxic and using offensive language in chat",
+    "creatorName": "ReporterPlayer",
+    "creatorUuid": "123e4567-e89b-12d3-a456-426614174000",
+    "reportedPlayerName": "ToxicPlayer123",
+    "reportedPlayerUuid": "123e4567-e89b-12d3-a456-426614174001",
+    "chatMessages": [
+      "ToxicPlayer123: hey everyone",
+      "NormalPlayer: hi there",
+      "ToxicPlayer123: you all suck at this game",
+      "NormalPlayer: thats not nice",
+      "ToxicPlayer123: shut up noob, youre trash",
+      "ToxicPlayer123: this server is garbage and so are all of you",
+      "NormalPlayer: please stop being mean",
+      "ToxicPlayer123: go kill yourself loser",
+      "ReporterPlayer: thats way too far dude",
+      "ToxicPlayer123: whatever, this place is full of idiots anyway"
+    ],
+    "tags": ["toxic", "harassment"],
+    "priority": "high"
+  }'
+
 The API uses different authentication methods for different endpoints:
 
 - **Minecraft API**: Uses `X-API-Key` header

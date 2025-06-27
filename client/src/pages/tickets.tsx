@@ -337,7 +337,7 @@ const Tickets = () => {
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Support
-                    <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'support').length : 0}</Badge>
+                    <Badge className="ml-2 bg-info text-info-foreground text-xs font-medium">{tickets ? tickets.filter((t: Ticket) => t.type === 'support').length : 0}</Badge>
                   </TabsTrigger>
                 <TabsTrigger 
                   value="bug" 
@@ -345,7 +345,7 @@ const Tickets = () => {
                 >
                   <Bug className="h-4 w-4 mr-2" />
                   Bug Reports
-                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'bug').length : 0}</Badge>
+                  <Badge className="ml-2 bg-warning text-warning-foreground text-xs font-medium">{tickets ? tickets.filter((t: Ticket) => t.type === 'bug').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="player" 
@@ -353,7 +353,7 @@ const Tickets = () => {
                 >
                   <Users className="h-4 w-4 mr-2" />
                   Player Reports
-                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'player').length : 0}</Badge>
+                  <Badge className="ml-2 bg-warning text-warning-foreground text-xs font-medium">{tickets ? tickets.filter((t: Ticket) => t.type === 'player').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chat" 
@@ -361,7 +361,7 @@ const Tickets = () => {
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat Reports
-                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'chat').length : 0}</Badge>
+                  <Badge className="ml-2 bg-warning text-warning-foreground text-xs font-medium">{tickets ? tickets.filter((t: Ticket) => t.type === 'chat').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="appeal" 
@@ -369,7 +369,7 @@ const Tickets = () => {
                 >
                   <LockKeyhole className="h-4 w-4 mr-2" />
                   Ban Appeals
-                  <Badge className="ml-2 bg-info text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'appeal').length : 0}</Badge>
+                  <Badge className="ml-2 bg-info text-info-foreground text-xs font-medium">{tickets ? tickets.filter((t: Ticket) => t.type === 'appeal').length : 0}</Badge>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="staff" 
@@ -377,7 +377,7 @@ const Tickets = () => {
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Staff Applications
-                  <Badge className="ml-2 bg-warning text-white">{tickets ? tickets.filter((t: Ticket) => t.type === 'staff').length : 0}</Badge>
+                  <Badge className="ml-2 bg-warning text-warning-foreground text-xs font-medium">{tickets ? tickets.filter((t: Ticket) => t.type === 'staff').length : 0}</Badge>
                 </TabsTrigger>
               
               </TabsList>

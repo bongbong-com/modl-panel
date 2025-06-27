@@ -76,6 +76,15 @@ interface PunishmentType {
   appealForm?: AppealFormSettings; // Punishment-specific appeal form configuration
   staffDescription?: string; // Description shown to staff when applying this punishment
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
+  canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
+  canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
+  singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
+  singleSeverityDuration?: {
+    value: number;
+    unit: 'hours' | 'days' | 'weeks' | 'months';
+    type: 'mute' | 'ban';
+  };
+  singleSeverityPoints?: number; // Points for single severity punishments
 }
 
 // Type definition for offender status thresholds
@@ -2771,8 +2780,157 @@ const Settings = () => {
                         </div>
                       </div>
 
-                      {/* Only show Durations and Points if no permanent options are selected */}
-                      {!selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && (
+                      {/* New Punishment Options */}
+                      <div className="space-y-3 p-3 border rounded-md">
+                        <h5 className="text-sm font-medium">Punishment Options</h5>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="canBeAltBlocking"
+                              checked={selectedPunishment.canBeAltBlocking || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  canBeAltBlocking: e.target.checked
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="canBeAltBlocking" className="text-sm">
+                              Can be alt-blocking
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="canBeStatWiping"
+                              checked={selectedPunishment.canBeStatWiping || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  canBeStatWiping: e.target.checked
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="canBeStatWiping" className="text-sm">
+                              Can be stat-wiping
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="singleSeverityPunishment"
+                              checked={selectedPunishment.singleSeverityPunishment || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  singleSeverityPunishment: e.target.checked,
+                                  // Initialize single severity settings if checked
+                                  singleSeverityDuration: e.target.checked && !prev.singleSeverityDuration ? {
+                                    value: 24,
+                                    unit: 'hours',
+                                    type: 'mute'
+                                  } : prev.singleSeverityDuration,
+                                  singleSeverityPoints: e.target.checked && !prev.singleSeverityPoints ? 3 : prev.singleSeverityPoints
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="singleSeverityPunishment" className="text-sm">
+                              Single-severity punishment
+                            </Label>
+                          </div>
+                          {selectedPunishment.singleSeverityPunishment && (
+                            <div className="ml-6 space-y-3 p-3 border rounded-md bg-muted/20">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Single Severity Duration</Label>
+                                <div className="flex gap-1 mt-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={selectedPunishment.singleSeverityDuration?.value || ''}
+                                    onChange={(e) => {
+                                      const value = Number(e.target.value);
+                                      setSelectedPunishment(prev => prev ? {
+                                        ...prev,
+                                        singleSeverityDuration: {
+                                          ...prev.singleSeverityDuration!,
+                                          value
+                                        }
+                                      } : null);
+                                    }}
+                                    className="text-center text-xs h-8 w-16"
+                                    placeholder="24"
+                                  />
+                                  <Select
+                                    value={selectedPunishment.singleSeverityDuration?.unit || 'hours'}
+                                    onValueChange={(unit) => {
+                                      setSelectedPunishment(prev => prev ? {
+                                        ...prev,
+                                        singleSeverityDuration: {
+                                          ...prev.singleSeverityDuration!,
+                                          unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                        }
+                                      } : null);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[60px] h-8 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="hours">H</SelectItem>
+                                      <SelectItem value="days">D</SelectItem>
+                                      <SelectItem value="weeks">W</SelectItem>
+                                      <SelectItem value="months">M</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Select
+                                    value={selectedPunishment.singleSeverityDuration?.type || 'mute'}
+                                    onValueChange={(type) => {
+                                      setSelectedPunishment(prev => prev ? {
+                                        ...prev,
+                                        singleSeverityDuration: {
+                                          ...prev.singleSeverityDuration!,
+                                          type: type as 'mute' | 'ban'
+                                        }
+                                      } : null);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[70px] h-8 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="mute">Mute</SelectItem>
+                                      <SelectItem value="ban">Ban</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Single Severity Points</Label>
+                                <Input
+                                  type="number"
+                                  placeholder="Points"
+                                  value={selectedPunishment.singleSeverityPoints || ''}
+                                  onChange={(e) => {
+                                    const value = Number(e.target.value);
+                                    setSelectedPunishment(prev => prev ? {
+                                      ...prev,
+                                      singleSeverityPoints: value
+                                    } : null);
+                                  }}
+                                  className="text-center w-full mt-1"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Only show Durations and Points if no permanent options are selected and not single severity */}
+                      {!selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && !selectedPunishment.singleSeverityPunishment && (
                     <div className="space-y-4">
                       {/* Durations Configuration */}
                       <div>

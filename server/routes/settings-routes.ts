@@ -44,6 +44,15 @@ interface IPunishmentType {
   appealForm?: IAppealFormSettings; // Punishment-specific appeal form configuration
   staffDescription?: string; // Description shown to staff when applying this punishment
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
+  canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
+  canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
+  singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
+  singleSeverityDuration?: {
+    value: number;
+    unit: 'hours' | 'days' | 'weeks' | 'months';
+    type: 'mute' | 'ban';
+  };
+  singleSeverityPoints?: number; // Points for single severity punishments
 }
 
 interface IAppealFormField {
