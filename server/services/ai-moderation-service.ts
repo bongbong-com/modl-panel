@@ -339,18 +339,45 @@ export class AIModerationService {
    */
   private async getPunishmentTypes(): Promise<PunishmentType[]> {
     try {
-      const PunishmentTypeModel = this.dbConnection.model('PunishmentType');
-      const punishmentTypes = await PunishmentTypeModel.find({ isActive: true });
-      
-      return punishmentTypes.map(pt => ({
-        id: pt.id || pt._id,
-        name: pt.name,
-        category: pt.category,
-        points: pt.points,
-        duration: pt.duration
-      }));
+      const SettingsModel = this.dbConnection.model('Settings');
+      const settingsDoc = await SettingsModel.findOne({});
+
+      if (!settingsDoc || !settingsDoc.settings || !settingsDoc.settings.get('punishmentTypes')) {
+        console.error('[AI Moderation] Punishment types not found in settings document.');
+        return [];
+      }
+
+      let punishmentTypesData = settingsDoc.settings.get('punishmentTypes');
+
+      // It might be stored as a stringified JSON
+      if (typeof punishmentTypesData === 'string') {
+        try {
+          punishmentTypesData = JSON.parse(punishmentTypesData);
+        } catch (e) {
+          console.error('[AI Moderation] Failed to parse punishmentTypes from settings:', e);
+          return [];
+        }
+      }
+
+      if (!Array.isArray(punishmentTypesData)) {
+        console.error('[AI Moderation] Punishment types in settings is not an array.');
+        return [];
+      }
+
+      console.log(`[AI Moderation] Found ${punishmentTypesData.length} punishment types in settings.`);
+
+      // Map the data to the expected interface, filtering for active ones if the field exists.
+      return punishmentTypesData
+        .filter((pt: any) => pt.isActive !== false) // Assume active if property doesn't exist
+        .map((pt: any) => ({
+          id: pt.id,
+          name: pt.name,
+          category: pt.category,
+          points: pt.points,
+          duration: pt.duration,
+        }));
     } catch (error) {
-      console.error('[AI Moderation] Error fetching punishment types:', error);
+      console.error('[AI Moderation] Error fetching punishment types from settings:', error);
       return [];
     }
   }
