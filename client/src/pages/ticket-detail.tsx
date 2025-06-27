@@ -33,7 +33,7 @@ import {
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
-import { useTicket, usePanelTicket, useUpdateTicket } from '@/hooks/use-data';
+import { useTicket, usePanelTicket, useUpdateTicket, useSettings } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 import PlayerWindow from '@/components/windows/PlayerWindow';
@@ -239,21 +239,14 @@ const TicketDetail = () => {
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
 
-  // Load punishment types for AI analysis display
+  // Fetch settings to get punishment types
+  const { data: settingsData } = useSettings();
+
   useEffect(() => {
-    const loadPunishmentTypes = async () => {
-      try {
-        const response = await fetch('/api/panel/settings/punishment-types');
-        if (response.ok) {
-          const data = await response.json();
-          setPunishmentTypes(data);
-        }
-      } catch (error) {
-        console.error('Error loading punishment types:', error);
-      }
-    };
-    loadPunishmentTypes();
-  }, []);
+    if (settingsData?.settings?.punishmentTypes) {
+      setPunishmentTypes(settingsData.settings.punishmentTypes);
+    }
+  }, [settingsData]);
 
   // Function to apply AI-suggested punishment
   const applyAISuggestion = async () => {
