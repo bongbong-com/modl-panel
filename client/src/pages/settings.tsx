@@ -70,8 +70,6 @@ interface PunishmentType {
     regular: number;
     severe: number;
   };
-  permanentUntilUsernameChange?: boolean;
-  permanentUntilSkinChange?: boolean;
   customPoints?: number; // For permanent punishments that don't use severity-based points
   appealForm?: AppealFormSettings; // Punishment-specific appeal form configuration
   staffDescription?: string; // Description shown to staff when applying this punishment
@@ -79,10 +77,10 @@ interface PunishmentType {
   canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
-  singleSeverityDuration?: {
-    value: number;
-    unit: 'hours' | 'days' | 'weeks' | 'months';
-    type: 'mute' | 'ban';
+  singleSeverityDurations?: {
+    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
 }
@@ -2719,67 +2717,6 @@ const Settings = () => {
                   {selectedPunishment.isCustomizable && (
                     <>
                       {/* Permanent Punishment Options */}
-                      <div className="space-y-3 p-3 border rounded-md">
-                        <h5 className="text-sm font-medium">Restrictions</h5>
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="permanentUntilUsernameChange"
-                              checked={selectedPunishment.permanentUntilUsernameChange || false}
-                              onChange={(e) => {
-                                setSelectedPunishment(prev => prev ? {
-                                  ...prev,
-                                  permanentUntilUsernameChange: e.target.checked,
-                                  // Clear other permanent option if this one is checked
-                                  permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange
-                                } : null);
-                              }}
-                              className="rounded"
-                            />
-                            <Label htmlFor="permanentUntilUsernameChange" className="text-sm">
-                              Permanent until username change
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="permanentUntilSkinChange"
-                              checked={selectedPunishment.permanentUntilSkinChange || false}
-                              onChange={(e) => {
-                                setSelectedPunishment(prev => prev ? {
-                                  ...prev,
-                                  permanentUntilSkinChange: e.target.checked,
-                                  // Clear other permanent option if this one is checked
-                                  permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange
-                                } : null);
-                              }}
-                              className="rounded"
-                            />
-                            <Label htmlFor="permanentUntilSkinChange" className="text-sm">
-                              Permanent until skin change
-                            </Label>
-                          </div>
-                          {(selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange) && (
-                            <div className="mt-2">
-                              <Input
-                                type="number"
-                                placeholder="Points"
-                                value={selectedPunishment.customPoints || ''}
-                                onChange={(e) => {
-                                  const value = Number(e.target.value);
-                                  setSelectedPunishment(prev => prev ? {
-                                    ...prev,
-                                    customPoints: value
-                                  } : null);
-                                }}
-                                className="text-center w-full mt-1"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
                       {/* New Punishment Options */}
                       <div className="space-y-3 p-3 border rounded-md">
                         <h5 className="text-sm font-medium">Punishment Options</h5>
@@ -2828,11 +2765,11 @@ const Settings = () => {
                                   ...prev,
                                   singleSeverityPunishment: e.target.checked,
                                   // Initialize single severity settings if checked
-                                  singleSeverityDuration: e.target.checked && !prev.singleSeverityDuration ? {
-                                    value: 24,
-                                    unit: 'hours',
-                                    type: 'mute'
-                                  } : prev.singleSeverityDuration,
+                                  singleSeverityDurations: e.target.checked && !prev.singleSeverityDurations ? {
+                                    first: { value: 24, unit: 'hours', type: 'mute' },
+                                    medium: { value: 3, unit: 'days', type: 'mute' },
+                                    habitual: { value: 7, unit: 'days', type: 'mute' }
+                                  } : prev.singleSeverityDurations,
                                   singleSeverityPoints: e.target.checked && !prev.singleSeverityPoints ? 3 : prev.singleSeverityPoints
                                 } : null);
                               }}
@@ -2845,67 +2782,94 @@ const Settings = () => {
                           {selectedPunishment.singleSeverityPunishment && (
                             <div className="ml-6 space-y-3 p-3 border rounded-md bg-muted/20">
                               <div>
-                                <Label className="text-xs text-muted-foreground">Single Severity Duration</Label>
-                                <div className="flex gap-1 mt-1">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={selectedPunishment.singleSeverityDuration?.value || ''}
-                                    onChange={(e) => {
-                                      const value = Number(e.target.value);
-                                      setSelectedPunishment(prev => prev ? {
-                                        ...prev,
-                                        singleSeverityDuration: {
-                                          ...prev.singleSeverityDuration!,
-                                          value
-                                        }
-                                      } : null);
-                                    }}
-                                    className="text-center text-xs h-8 w-16"
-                                    placeholder="24"
-                                  />
-                                  <Select
-                                    value={selectedPunishment.singleSeverityDuration?.unit || 'hours'}
-                                    onValueChange={(unit) => {
-                                      setSelectedPunishment(prev => prev ? {
-                                        ...prev,
-                                        singleSeverityDuration: {
-                                          ...prev.singleSeverityDuration!,
-                                          unit: unit as 'hours' | 'days' | 'weeks' | 'months'
-                                        }
-                                      } : null);
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-[60px] h-8 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="hours">H</SelectItem>
-                                      <SelectItem value="days">D</SelectItem>
-                                      <SelectItem value="weeks">W</SelectItem>
-                                      <SelectItem value="months">M</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={selectedPunishment.singleSeverityDuration?.type || 'mute'}
-                                    onValueChange={(type) => {
-                                      setSelectedPunishment(prev => prev ? {
-                                        ...prev,
-                                        singleSeverityDuration: {
-                                          ...prev.singleSeverityDuration!,
-                                          type: type as 'mute' | 'ban'
-                                        }
-                                      } : null);
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-[70px] h-8 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="mute">Mute</SelectItem>
-                                      <SelectItem value="ban">Ban</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                <Label className="text-xs text-muted-foreground mb-2 block">Single Severity Durations</Label>
+                                <div className="space-y-3">
+                                  {['first', 'medium', 'habitual'].map((offenseType) => (
+                                    <div key={`single-${offenseType}`}>
+                                      <Label className="text-xs text-muted-foreground">
+                                        {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
+                                      </Label>
+                                      <div className="flex gap-1 mt-1">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={selectedPunishment.singleSeverityDurations?.[offenseType as keyof typeof selectedPunishment.singleSeverityDurations]?.value || ''}
+                                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                            const value = Number(e.target.value);
+                                            setSelectedPunishment(prev => prev ? {
+                                              ...prev,
+                                              singleSeverityDurations: {
+                                                first: { value: 24, unit: 'hours', type: 'mute' },
+                                                medium: { value: 3, unit: 'days', type: 'mute' },
+                                                habitual: { value: 7, unit: 'days', type: 'mute' },
+                                                ...prev.singleSeverityDurations,
+                                                [offenseType]: {
+                                                  ...(prev.singleSeverityDurations?.[offenseType as keyof typeof prev.singleSeverityDurations] || { value: 24, unit: 'hours', type: 'mute' }),
+                                                  value
+                                                }
+                                              }
+                                            } : null);
+                                          }}
+                                          className="text-center text-xs h-8 w-16"
+                                          placeholder="24"
+                                        />
+                                        <Select
+                                          value={selectedPunishment.singleSeverityDurations?.[offenseType as keyof typeof selectedPunishment.singleSeverityDurations]?.unit || 'hours'}
+                                          onValueChange={(unit: string) => {
+                                            setSelectedPunishment(prev => prev ? {
+                                              ...prev,
+                                              singleSeverityDurations: {
+                                                first: { value: 24, unit: 'hours', type: 'mute' },
+                                                medium: { value: 3, unit: 'days', type: 'mute' },
+                                                habitual: { value: 7, unit: 'days', type: 'mute' },
+                                                ...prev.singleSeverityDurations,
+                                                [offenseType]: {
+                                                  ...(prev.singleSeverityDurations?.[offenseType as keyof typeof prev.singleSeverityDurations] || { value: 24, unit: 'hours', type: 'mute' }),
+                                                  unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                                }
+                                              }
+                                            } : null);
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-[60px] h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="hours">H</SelectItem>
+                                            <SelectItem value="days">D</SelectItem>
+                                            <SelectItem value="weeks">W</SelectItem>
+                                            <SelectItem value="months">M</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Select
+                                          value={selectedPunishment.singleSeverityDurations?.[offenseType as keyof typeof selectedPunishment.singleSeverityDurations]?.type || 'mute'}
+                                          onValueChange={(type: string) => {
+                                            setSelectedPunishment(prev => prev ? {
+                                              ...prev,
+                                              singleSeverityDurations: {
+                                                first: { value: 24, unit: 'hours', type: 'mute' },
+                                                medium: { value: 3, unit: 'days', type: 'mute' },
+                                                habitual: { value: 7, unit: 'days', type: 'mute' },
+                                                ...prev.singleSeverityDurations,
+                                                [offenseType]: {
+                                                  ...(prev.singleSeverityDurations?.[offenseType as keyof typeof prev.singleSeverityDurations] || { value: 24, unit: 'hours', type: 'mute' }),
+                                                  type: type as 'mute' | 'ban'
+                                                }
+                                              }
+                                            } : null);
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-[70px] h-8 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="mute">Mute</SelectItem>
+                                            <SelectItem value="ban">Ban</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                               <div>
@@ -2929,8 +2893,8 @@ const Settings = () => {
                         </div>
                       </div>
 
-                      {/* Only show Durations and Points if no permanent options are selected and not single severity */}
-                      {!selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && !selectedPunishment.singleSeverityPunishment && (
+                      {/* Only show Durations and Points if not single severity */}
+                      {!selectedPunishment.singleSeverityPunishment && (
                     <div className="space-y-4">
                       {/* Durations Configuration */}
                       <div>

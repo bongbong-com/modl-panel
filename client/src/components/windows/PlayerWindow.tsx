@@ -39,6 +39,7 @@ interface PlayerInfo {
   isAddingNote?: boolean;
   selectedPunishmentCategory?: string;
   selectedSeverity?: 'Lenient' | 'Regular' | 'Aggravated';
+  selectedOffenseLevel?: 'first' | 'medium' | 'habitual'; // For single-severity punishments
   duration?: {
     value: number;
     unit: 'hours' | 'days' | 'weeks' | 'months';
@@ -85,18 +86,16 @@ interface PunishmentType {
     regular: number;
     severe: number;
   };
-  permanentUntilUsernameChange?: boolean;
-  permanentUntilSkinChange?: boolean;
   customPoints?: number; // For permanent punishments that don't use severity-based points
   staffDescription?: string; // Description shown to staff when applying this punishment
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
   canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
-  singleSeverityDuration?: {
-    value: number;
-    unit: 'hours' | 'days' | 'weeks' | 'months';
-    type: 'mute' | 'ban';
+  singleSeverityDurations?: {
+    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
 }
@@ -133,8 +132,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       return;
     }
     
-    // For single-severity punishments, no severity selection is needed
+    // For single-severity punishments, offense level is required
     // For multi-severity punishments, severity is required
+    if (punishmentType?.singleSeverityPunishment && !playerInfo.selectedOffenseLevel) {
+      toast({
+        title: "Missing information",
+        description: "Please select an offense level",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!punishmentType?.singleSeverityPunishment && !playerInfo.selectedSeverity) {
       toast({
         title: "Missing information",
@@ -168,6 +176,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       const punishmentData = {
         type: playerInfo.selectedPunishmentCategory,
         severity: punishmentType?.singleSeverityPunishment ? 'Single' : (playerInfo.selectedSeverity || 'Regular'),
+        offenseLevel: punishmentType?.singleSeverityPunishment ? playerInfo.selectedOffenseLevel : undefined,
         reason: playerInfo.reason,
         evidence: playerInfo.evidence || '',
         notes: playerInfo.staffNotes || '',
@@ -203,6 +212,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         ...prev,
         selectedPunishmentCategory: undefined,
         selectedSeverity: undefined,
+        selectedOffenseLevel: undefined,
         duration: undefined,
         isPermanent: false,
         reason: '',
@@ -499,8 +509,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     let preview = punishmentType.name;
     
     if (punishmentType.singleSeverityPunishment) {
-      if (punishmentType.singleSeverityDuration) {
-        preview += ` (${punishmentType.singleSeverityDuration.value} ${punishmentType.singleSeverityDuration.unit})`;
+      if (punishmentType.singleSeverityDurations) {
+        // For single-severity punishments, use the selected offense level or default to 'first'
+        const offenseLevel = playerInfo.selectedOffenseLevel || 'first';
+        const duration = punishmentType.singleSeverityDurations[offenseLevel];
+        if (duration) {
+          preview += ` (${duration.value} ${duration.unit})`;
+        }
       }
     } else if (punishmentType.durations && playerInfo.selectedSeverity) {
       const severityKey = playerInfo.selectedSeverity === 'Lenient' ? 'low' : 
@@ -873,13 +888,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   selectedPunishmentCategory: type.name,
                                   // Reset previous selections
                                   selectedSeverity: undefined as 'Lenient' | 'Regular' | 'Aggravated' | undefined,
+                                  selectedOffenseLevel: undefined as 'first' | 'medium' | 'habitual' | undefined,
                                   altBlocking: false,
                                   statWiping: false
                                 };
                                 
-                                // For single-severity punishments, automatically set severity to Regular
+                                // For single-severity punishments, automatically set default offense level
                                 if (punishmentType.singleSeverityPunishment) {
-                                  newPlayerInfo.selectedSeverity = 'Regular';
+                                  newPlayerInfo.selectedOffenseLevel = 'first';
                                 }
                                 
                                 return newPlayerInfo;
@@ -914,13 +930,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 selectedPunishmentCategory: type.name,
                                 // Reset previous selections
                                 selectedSeverity: undefined as 'Lenient' | 'Regular' | 'Aggravated' | undefined,
+                                selectedOffenseLevel: undefined as 'first' | 'medium' | 'habitual' | undefined,
                                 altBlocking: false,
                                 statWiping: false
                               };
                               
-                              // For single-severity punishments, automatically set severity to Regular
+                              // For single-severity punishments, automatically set default offense level
                               if (punishmentType.singleSeverityPunishment) {
-                                newPlayerInfo.selectedSeverity = 'Regular';
+                                newPlayerInfo.selectedOffenseLevel = 'first';
                               }
                               
                               return newPlayerInfo;
@@ -953,13 +970,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 selectedPunishmentCategory: type.name,
                                 // Reset previous selections
                                 selectedSeverity: undefined as 'Lenient' | 'Regular' | 'Aggravated' | undefined,
+                                selectedOffenseLevel: undefined as 'first' | 'medium' | 'habitual' | undefined,
                                 altBlocking: false,
                                 statWiping: false
                               };
                               
-                              // For single-severity punishments, automatically set severity to Regular
+                              // For single-severity punishments, automatically set default offense level
                               if (punishmentType.singleSeverityPunishment) {
-                                newPlayerInfo.selectedSeverity = 'Regular';
+                                newPlayerInfo.selectedOffenseLevel = 'first';
                               }
                               
                               return newPlayerInfo;
@@ -988,6 +1006,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         ...prev, 
                         selectedPunishmentCategory: undefined, 
                         selectedSeverity: undefined,
+                        selectedOffenseLevel: undefined,
                         duration: undefined,
                         reason: undefined,
                         evidence: undefined,
@@ -1589,6 +1608,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             className="text-xs h-7 px-2"
                           >
                             + Add
+
                           </Button>
                         </div>
                         <div className="space-y-2">
@@ -1682,149 +1702,33 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               </div>
                             )}
                             
-                            {/* Display punishment options */}
-                            {(punishmentType?.canBeAltBlocking || punishmentType?.canBeStatWiping) && (
+                            {isSingleSeverity && (
                               <div className="space-y-2">
-                                <label className="text-sm font-medium">Punishment Options</label>
-                                <div className="space-y-2">
-                                  {punishmentType.canBeAltBlocking && (
-                                    <div className="flex items-center">
-                                      <input 
-                                        type="checkbox" 
-                                        id="alt-blocking" 
-                                        className="rounded mr-2"
-                                        checked={!!playerInfo.altBlocking}
-                                        onChange={(e) => setPlayerInfo(prev => ({...prev, altBlocking: e.target.checked}))}
-                                      />
-                                      <label htmlFor="alt-blocking" className="text-sm">Alt-blocking</label>
-                                      <span className="text-xs text-muted-foreground ml-2">- Prevents alternative accounts from connecting</span>
-                                    </div>
-                                  )}
-                                  {punishmentType.canBeStatWiping && (
-                                    <div className="flex items-center">
-                                      <input 
-                                        type="checkbox" 
-                                        id="stat-wiping" 
-                                        className="rounded mr-2"
-                                        checked={!!playerInfo.statWiping}
-                                        onChange={(e) => setPlayerInfo(prev => ({...prev, statWiping: e.target.checked}))}
-                                      />
-                                      <label htmlFor="stat-wiping" className="text-sm">Stat-wiping</label>
-                                      <span className="text-xs text-muted-foreground ml-2">- Resets player statistics and progress</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Evidence</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm" 
-                            placeholder="URLs, screenshots, or text evidence"
-                            value={playerInfo.evidence || ''}
-                            onChange={(e) => setPlayerInfo(prev => ({...prev, evidence: e.target.value}))}
-                          />
-                          <Button variant="outline" size="sm" className="whitespace-nowrap">
-                            <Upload className="h-3.5 w-3.5 mr-1" />
-                            Upload
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-sm font-medium">Attach Reports</label>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setPlayerInfo(prev => ({
-                              ...prev, 
-                              attachedReports: [...(prev.attachedReports || []), 'ticket-new']
-                            }))}
-                            className="text-xs h-7 px-2"
-                          >
-                            + Add
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          {(playerInfo.attachedReports || []).map((report, index) => (
-                            <div key={index} className="flex gap-2 items-center">
-                              <select 
-                                className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
-                                value={report}
-                                onChange={(e) => {
-                                  const newReports = [...(playerInfo.attachedReports || [])];
-                                  newReports[index] = e.target.value;
-                                  setPlayerInfo(prev => ({...prev, attachedReports: newReports}));
-                                }}
-                              >
-                                <option value="">Select a report</option>
-                                <option value="ticket-123">Ticket #123 - Chat Report</option>
-                                <option value="ticket-456">Ticket #456 - Chat Report</option>
-                              </select>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="p-0 h-8 w-8 text-destructive"
-                                onClick={() => {
-                                  const newReports = [...(playerInfo.attachedReports || [])];
-                                  newReports.splice(index, 1);
-                                  setPlayerInfo(prev => ({...prev, attachedReports: newReports}));
-                                }}
-                              >
-                                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
-                                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                                </svg>
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Targeting, Bad Content */}
-                  {(playerInfo.selectedPunishmentCategory === 'Targeting' || 
-                    playerInfo.selectedPunishmentCategory === 'Bad Content') && (
-                    <>
-                      {(() => {
-                        const punishmentType = getCurrentPunishmentType();
-                        const isSingleSeverity = punishmentType?.singleSeverityPunishment;
-                        return (
-                          <>
-                            {!isSingleSeverity && (
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Severity</label>
+                                <label className="text-sm font-medium">Offense Level</label>
                                 <div className="flex gap-2">
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
-                                    className={`flex-1 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
-                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Lenient'}))}
+                                    className={`flex-1 ${playerInfo.selectedOffenseLevel === 'first' ? 'bg-primary/20 border-primary/40' : ''}`}
+                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedOffenseLevel: 'first'}))}
                                   >
-                                    Lenient
+                                    First Offense
                                   </Button>
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
-                                    className={`flex-1 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
-                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Regular'}))}
+                                    className={`flex-1 ${playerInfo.selectedOffenseLevel === 'medium' ? 'bg-primary/20 border-primary/40' : ''}`}
+                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedOffenseLevel: 'medium'}))}
                                   >
-                                    Regular
+                                    Medium
                                   </Button>
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
-                                    className={`flex-1 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
-                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Aggravated'}))}
+                                    className={`flex-1 ${playerInfo.selectedOffenseLevel === 'habitual' ? 'bg-primary/20 border-primary/40' : ''}`}
+                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedOffenseLevel: 'habitual'}))}
                                   >
-                                    Aggravated
+                                    Habitual
                                   </Button>
                                 </div>
                               </div>
@@ -1914,7 +1818,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               >
                                 <option value="">Select a report</option>
                                 <option value="ticket-123">Ticket #123 - Chat Report</option>
-                                <option value="ticket-456">Ticket #456 - Chat Report</option>
+                                <option value="ticket-456">Ticket #456 - Player Report</option>
                               </select>
                               <Button 
                                 variant="ghost" 
@@ -1977,6 +1881,38 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Aggravated'}))}
                                   >
                                     Aggravated
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {isSingleSeverity && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Offense Level</label>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className={`flex-1 ${playerInfo.selectedOffenseLevel === 'first' ? 'bg-primary/20 border-primary/40' : ''}`}
+                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedOffenseLevel: 'first'}))}
+                                  >
+                                    First Offense
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className={`flex-1 ${playerInfo.selectedOffenseLevel === 'medium' ? 'bg-primary/20 border-primary/40' : ''}`}
+                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedOffenseLevel: 'medium'}))}
+                                  >
+                                    Medium
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className={`flex-1 ${playerInfo.selectedOffenseLevel === 'habitual' ? 'bg-primary/20 border-primary/40' : ''}`}
+                                    onClick={() => setPlayerInfo(prev => ({...prev, selectedOffenseLevel: 'habitual'}))}
+                                  >
+                                    Habitual
                                   </Button>
                                 </div>
                               </div>
