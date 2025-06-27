@@ -62,9 +62,6 @@ export class AIModerationService {
   ): Promise<AIAnalysisResult | null> {
     try {
       console.log(`[AI Moderation] Starting analysis for ticket ${ticketId}`);
-      console.log(`[AI Moderation] Player Identifier for punishment: ${playerIdentifier}`);
-      console.log(`[AI Moderation] Player Name for AI context: ${playerNameForAI}`);
-      console.log(`[AI Moderation] Chat Messages:`, JSON.stringify(chatMessages, null, 2));
 
       // Get AI settings
       const aiSettings = await this.getAISettings();
@@ -72,7 +69,6 @@ export class AIModerationService {
         console.log('[AI Moderation] AI settings not found, skipping analysis');
         return null;
       }
-      console.log(`[AI Moderation] AI Settings:`, aiSettings);
 
       // Get punishment types
       const punishmentTypes = await this.getPunishmentTypes();
@@ -80,13 +76,11 @@ export class AIModerationService {
         console.log('[AI Moderation] No punishment types found, skipping analysis');
         return null;
       }
-      console.log(`[AI Moderation] Punishment Types:`, JSON.stringify(punishmentTypes.map(p => ({id: p.id, name: p.name})), null, 2));
 
       // Get system prompt for strictness level
       const systemPrompt = await this.systemPromptsService.getPromptForStrictnessLevel(
         aiSettings.strictnessLevel
       );
-      console.log(`[AI Moderation] System prompt for ${aiSettings.strictnessLevel} strictness will be used.`);
 
       // Analyze with Gemini
       const geminiResponse = await this.geminiService.analyzeChatMessages(
@@ -95,11 +89,6 @@ export class AIModerationService {
         systemPrompt,
         playerNameForAI
       );
-
-      console.log(`[AI Moderation] Analysis complete for ticket ${ticketId}:`, {
-        hasAction: !!geminiResponse.suggestedAction,
-        severity: geminiResponse.suggestedAction?.severity
-      });
 
       // Prepare AI analysis result
       const analysisResult: AIAnalysisResult = {
@@ -411,10 +400,8 @@ export class AIModerationService {
    */
   async processNewTicket(ticketId: string, ticketData: any): Promise<void> {
     try {
-      console.log(`[AI Moderation] Processing new ticket ${ticketId}. Data received:`, JSON.stringify(ticketData, null, 2));
       // Only process Chat Report tickets with chat messages
       if (ticketData.category !== 'chat' && ticketData.type !== 'chat') {
-        console.log(`[AI Moderation] Ticket ${ticketId} is not a chat report. Skipping. Type: ${ticketData.type}, Category: ${ticketData.category}`);
         return;
       }
 
@@ -424,8 +411,6 @@ export class AIModerationService {
         // Fallback for when it might be in the 'data' map
         chatMessagesRaw = ticketData.data?.get ? ticketData.data.get('chatMessages') : ticketData.data?.chatMessages;
       }
-
-      console.log(`[AI Moderation] Extracted chatMessagesRaw for ticket ${ticketId}:`, chatMessagesRaw);
 
       if (!chatMessagesRaw || !Array.isArray(chatMessagesRaw) || chatMessagesRaw.length === 0) {
         console.log(`[AI Moderation] No chat messages found for ticket ${ticketId}, skipping analysis`);

@@ -83,13 +83,6 @@ ${reportedPlayer ? `REPORTED PLAYER: ${reportedPlayer}` : ''}
 
 Please analyze the chat transcript and respond with a JSON object following the exact format specified in the system prompt.`;
 
-      console.log('[Gemini Service] Sending request to Gemini API');
-      console.log('[Gemini Service] Chat messages count:', chatMessages.length);
-      console.log('[Gemini Service] Reported player:', reportedPlayer);
-      console.log('----------- START OF GEMINI PROMPT -----------');
-      console.log(fullPrompt);
-      console.log('----------- END OF GEMINI PROMPT -----------');
-
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
       const text = response.text();
