@@ -376,6 +376,7 @@ const TicketDetail = () => {
       }
       
       const category = (ticketData.type === 'bug' ? 'Bug Report' : 
+                      ticketData.type === 'chat' ? 'Chat Report' :
                       ticketData.type === 'player' ? 'Player Report' : 
                       ticketData.type === 'appeal' ? 'Punishment Appeal' : 'Other') as TicketCategory;
         // Get default tags for this category if no tags are provided
