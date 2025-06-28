@@ -680,7 +680,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
               active: punishment.data?.active !== false || (punishment.data?.get ? punishment.data.get('active') !== false : punishment.active),
-              expires: punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : punishment.expires),
+              expires: punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null),
               data: punishment.data || {},
               altBlocking: punishment.data?.altBlocking || (punishment.data?.get ? punishment.data.get('altBlocking') : false)
             });
