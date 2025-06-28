@@ -48,6 +48,7 @@ interface PunishmentType {
   customPoints?: number; // For permanent punishments that don't use severity-based points
   staffDescription?: string; // Description shown to staff when applying this punishment
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
+  aiDescription?: string; // Description provided to AI for context when analyzing reports
 }
 
 interface PlayerInfo {

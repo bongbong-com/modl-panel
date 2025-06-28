@@ -42,6 +42,7 @@ interface IPunishmentType {
   appealForm?: IAppealFormSettings; // Punishment-specific appeal form configuration
   staffDescription?: string; // Description shown to staff when applying this punishment
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
+  aiDescription?: string; // Description provided to AI for context when analyzing reports
   canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
@@ -135,6 +136,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ordinal: 0,
         staffDescription: 'Kick a player.',
         playerDescription: 'BOOT!',
+        aiDescription: 'Immediately removes a player from the server. Use for immediate disruption that needs to stop but doesn\'t warrant a longer punishment.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         isAppealable: false,
@@ -149,6 +151,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ordinal: 1,
         staffDescription: 'Manually mute a player.',
         playerDescription: 'You have been silenced.',
+        aiDescription: 'Prevents a player from sending chat messages. Use for chat-based violations when communication privileges need to be revoked.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         isAppealable: true,
@@ -172,6 +175,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ordinal: 2,
         staffDescription: 'Manually ban a player.',
         playerDescription: 'The ban hammer has spoken.',
+        aiDescription: 'Completely prevents a player from accessing the server. Use for serious violations that require the player to be removed from the server entirely.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         isAppealable: true,
@@ -195,6 +199,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ordinal: 3,
         staffDescription: 'Compromised or potentially compromised account.',
         playerDescription: 'Suspicious activity has been detected on your account. Please secure your account and appeal this ban.',
+        aiDescription: 'Used for compromised or potentially compromised accounts showing suspicious activity. Should not be used for regular rule violations.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         isAppealable: true,
@@ -219,6 +224,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ordinal: 4,
         staffDescription: 'Usually automatically applied due to ban evasion.',
         playerDescription: 'Evading bans through the use of alternate accounts or sharing your account is strictly prohibited. This ban was automatically issued through a high-confidence IP address linking system for ban #{linked-id}.',
+        aiDescription: 'Automatically applied for ban evasion through alternate accounts. Should not be used for regular chat violations - this is for players circumventing existing bans.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         isAppealable: true,
@@ -251,6 +257,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ordinal: 5,
         staffDescription: 'Remove a player (unappealable).',
         playerDescription: 'You are blacklisted from the server.',
+        aiDescription: 'Permanent removal from the server with no appeal process. Only use for the most severe violations or repeated serious offenses. This is irreversible.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         isAppealable: false,
@@ -935,6 +942,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 1, regular: 1, severe: 2 },
         staffDescription: 'Inappropriate language, excessive caps, or disruptive chat behavior.',
         playerDescription: 'Public chat channels are reserved for decent messages. Review acceptable public chat decorum here: https://www.server.com/rules#chat',
+        aiDescription: 'Use for inappropriate language, excessive caps, spam, or disruptive chat behavior. Applies to profanity, caps lock abuse, and general chat disruption.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         appealForm: {
@@ -964,6 +972,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 2, regular: 3, severe: 4 },
         staffDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment.',
         playerDescription: 'Anti-social and disruptive behavior is strictly prohibited from public channels. If you would not want your mom to hear it, keep it yourself!',
+        aiDescription: 'Use for hostile, toxic, or deliberately antisocial behavior that creates a negative environment for other players. Includes passive-aggressive behavior and creating drama.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         appealForm: {
@@ -993,6 +1002,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 4, regular: 6, severe: 10 },
         staffDescription: 'Persistent harassment, bullying, or targeting of specific players with malicious intent.',
         playerDescription: 'This server has a zero tolerance policy on targeting individuals regardless of the basis or medium. This policy encompasses Harassment, Torment, Threats, and Cyber attacks.',
+        aiDescription: 'Use for persistent harassment, bullying, or deliberate targeting of specific players. Includes threats, doxxing attempts, coordinated harassment, and malicious targeting based on identity.',
         canBeAltBlocking: true,
         canBeStatWiping: false,
         appealForm: {
@@ -1022,6 +1032,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 3, regular: 4, severe: 5 },
         staffDescription: 'Inappropriate content including builds, signs, books, or other user-generated content.',
         playerDescription: 'Creating obscene, insensitive, or hateful content in-game is strictly prohibited. This extends to builds, books, item-names, name-tags, and signs.',
+        aiDescription: 'Use for inappropriate content created in-game including offensive builds, signs, books, item names, or any user-generated content that violates content policies.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         appealForm: {
@@ -1045,6 +1056,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         customPoints: 2,
         staffDescription: 'Inappropriate Minecraft skin that contains offensive imagery.',
         playerDescription: 'Please help us maintain a safe environment for players of all ages and backgrounds by refraining from the use of obscene/insensitive skins. Change your skin at https://www.minecraft.net',
+        aiDescription: 'Use for inappropriate Minecraft skins containing offensive, sexual, or discriminatory imagery. Note: This is a special punishment type that is automatically lifted when the player changes their skin.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         permanentUntilSkinChange: true,
@@ -1077,6 +1089,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         customPoints: 2,
         staffDescription: 'Inappropriate Minecraft username that contains offensive content.',
         playerDescription: 'Please help us maintain a safe environment for players of all ages and backgrounds by refraining from the use of obscene/insensitive usernames. Change your username at https://www.minecraft.net',
+        aiDescription: 'Use for inappropriate Minecraft usernames containing offensive, sexual, or discriminatory content. Note: This is a special punishment type that is automatically lifted when the player changes their username.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         permanentUntilUsernameChange: true,
@@ -1119,6 +1132,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 2, regular: 2, severe: 3 },
         staffDescription: 'Intentionally harming teammates, cross-teaming, or aiding cheaters.',
         playerDescription: 'Please be considerate to fellow playres by not team-griefing, aiding cheaters, or cross-teaming.',
+        aiDescription: 'Use for intentionally harming teammates, cross-teaming with opponents, aiding cheaters, or other forms of team-based rule violations in competitive games.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
@@ -1148,6 +1162,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 2, regular: 3, severe: 5 },
         staffDescription: 'Violating game specific rules for fair play.',
         playerDescription: 'Violating game specific rules for competitive fair-play. It is your responsibility to be aware of and abide by all network-wide and game-specific rules.',
+        aiDescription: 'Use for violations of game-specific rules that affect fair play but don\'t fall into other categories. Includes unsporting behavior and rule violations specific to individual game modes.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
@@ -1177,6 +1192,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 2, regular: 3, severe: 5 },
         staffDescription: 'Abusing server functions by opening redundant tickets, creating lag machines, etc.',
         playerDescription: 'Using server systems in an unintended and harmful way is strictly prohibited. This encompasses lag machines, ticket spam, etc.',
+        aiDescription: 'Use for abusing server systems or functions including ticket spam, lag machines, exploiting server commands, or other technical abuse that affects server performance or functionality.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
@@ -1205,6 +1221,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 4, regular: 6, severe: 10 },
         staffDescription: 'Account sharing, alt-account boosting, selling/trading accounts.',
         playerDescription: 'Misuse of accounts for the purposes of financial or levelling gain is prohibited. This encompasses account sharing, trading, selling and boosting through the use of alternate accounts.',
+        aiDescription: 'Use for account-related violations including account sharing, alt-account boosting for stats/rewards, selling or trading accounts, or other misuse of the account system.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
@@ -1234,6 +1251,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 4, regular: 6, severe: 10 },
         staffDescription: 'Trading or selling in-game items, content, or services on unauthorized third-party platforms.',
         playerDescription: 'Trading or selling in-game items, content, or services on unauthorized third-party platforms is strictly prohibited.',
+        aiDescription: 'Use for trading or selling in-game items, content, or services on unauthorized third-party platforms or for real money outside of approved systems.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
@@ -1263,6 +1281,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         points: { low: 5, regular: 7, severe: 9 },
         staffDescription: 'Using hacks, mods, exploits, or other software to gain an unfair advantage.',
         playerDescription: 'Cheating through the use of client-side modifications or game exploits to gain an unfair advantage over other players is strictly prohibited.',
+        aiDescription: 'Use for using hacks, unauthorized mods, exploits, or other software/methods to gain an unfair advantage. Includes fly hacks, speed hacks, x-ray, kill aura, and other cheating methods.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {

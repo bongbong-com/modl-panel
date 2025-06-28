@@ -8,6 +8,13 @@ interface ISystemPrompt extends Document {
   updatedAt: Date;
 }
 
+interface PunishmentType {
+  id: number;
+  name: string;
+  category: string;
+  aiDescription?: string;
+}
+
 const SystemPromptSchema = new Schema<ISystemPrompt>({
   strictnessLevel: {
     type: String,
@@ -43,9 +50,12 @@ export class SystemPromptsService {
   }
 
   /**
-   * Get system prompt for a specific strictness level
+   * Get system prompt for a specific strictness level with placeholders injected
    */
-  async getPromptForStrictnessLevel(strictnessLevel: 'lenient' | 'standard' | 'strict'): Promise<string> {
+  async getPromptForStrictnessLevel(
+    strictnessLevel: 'lenient' | 'standard' | 'strict',
+    punishmentTypes?: PunishmentType[]
+  ): Promise<string> {
     try {
       const SystemPromptModel = this.dbConnection.model<ISystemPrompt>('SystemPrompt', SystemPromptSchema);
       
@@ -54,16 +64,54 @@ export class SystemPromptsService {
         isActive: true
       });
 
+      let promptText: string;
       if (!prompt) {
         console.warn(`[System Prompts] No prompt found for strictness level: ${strictnessLevel}, using default`);
-        return this.getDefaultPrompt(strictnessLevel);
+        promptText = this.getDefaultPrompt(strictnessLevel);
+      } else {
+        promptText = prompt.prompt;
       }
 
-      return prompt.prompt;
+      // Inject placeholders
+      return this.injectPlaceholders(promptText, punishmentTypes);
     } catch (error) {
       console.error('[System Prompts] Error fetching prompt:', error);
-      return this.getDefaultPrompt(strictnessLevel);
+      return this.injectPlaceholders(this.getDefaultPrompt(strictnessLevel), punishmentTypes);
     }
+  }
+
+  /**
+   * Inject placeholders into prompt text
+   */
+  private injectPlaceholders(promptText: string, punishmentTypes?: PunishmentType[]): string {
+    let injectedPrompt = promptText;
+
+    // Inject JSON format placeholder
+    const jsonFormat = `
+{
+  "analysis": "Brief explanation of what rule violations (if any) were found in the chat",
+  "suggestedAction": {
+    "punishmentTypeId": <punishment_type_id_number>,
+    "severity": "low|regular|severe"
+  } OR null if no action needed,
+  "confidence": <number between 0 and 1>
+}`;
+    injectedPrompt = injectedPrompt.replace(/\{\{JSON_FORMAT\}\}/g, jsonFormat);
+
+    // Inject punishment types placeholder
+    if (punishmentTypes && punishmentTypes.length > 0) {
+      const punishmentTypesJson = JSON.stringify(punishmentTypes.map(pt => ({
+        id: pt.id,
+        name: pt.name,
+        category: pt.category,
+        description: pt.aiDescription || `${pt.name} punishment in ${pt.category} category`
+      })), null, 2);
+      injectedPrompt = injectedPrompt.replace(/\{\{PUNISHMENT_TYPES\}\}/g, punishmentTypesJson);
+    } else {
+      injectedPrompt = injectedPrompt.replace(/\{\{PUNISHMENT_TYPES\}\}/g, 'No punishment types available');
+    }
+
+    return injectedPrompt;
   }
 
   /**
@@ -143,19 +191,9 @@ export class SystemPromptsService {
   }
 
   /**
-   * Get default prompts for each strictness level
+   * Get default prompts for each strictness level with placeholder support
    */
   private getDefaultPrompt(strictnessLevel: 'lenient' | 'standard' | 'strict'): string {
-    const baseJsonFormat = `
-{
-  "analysis": "Brief explanation of what rule violations (if any) were found in the chat",
-  "suggestedAction": {
-    "punishmentTypeId": <punishment_type_id_number>,
-    "severity": "low|regular|severe"
-  } OR null if no action needed,
-  "confidence": <number between 0 and 1>
-}`;
-
     const commonInstructions = `
 You are an AI moderator analyzing Minecraft server chat logs for rule violations. Analyze the provided chat transcript and determine if any moderation action is needed.
 
@@ -171,14 +209,17 @@ IMPORTANT RULES TO ENFORCE:
 
 RESPONSE FORMAT:
 You must respond with a valid JSON object in this exact format:
-${baseJsonFormat}
+{{JSON_FORMAT}}
 
 PUNISHMENT SEVERITY GUIDELINES:
 - "low": Minor infractions, first-time offenses, borderline cases
 - "regular": Clear rule violations, repeat minor offenses
 - "severe": Serious violations, multiple rule breaks, toxic behavior
 
-Choose the most appropriate punishment type from the provided list based on the violation category and severity.`;
+AVAILABLE PUNISHMENT TYPES:
+{{PUNISHMENT_TYPES}}
+
+Choose the most appropriate punishment type from the provided list based on the violation category and severity. Use the descriptions provided to understand when each punishment type is appropriate.`;
 
     const strictnessPrompts = {
       lenient: `${commonInstructions}

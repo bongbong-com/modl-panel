@@ -13,6 +13,7 @@ interface PunishmentType {
   id: number;
   name: string;
   category: string;
+  aiDescription?: string; // Description provided to AI for context when analyzing reports
   points: {
     low: number;
     regular: number;
@@ -77,15 +78,15 @@ export class AIModerationService {
         return null;
       }
 
-      // Get system prompt for strictness level
+      // Get system prompt for strictness level with punishment types injected
       const systemPrompt = await this.systemPromptsService.getPromptForStrictnessLevel(
-        aiSettings.strictnessLevel
+        aiSettings.strictnessLevel,
+        punishmentTypes
       );
 
       // Analyze with Gemini
       const geminiResponse = await this.geminiService.analyzeChatMessages(
         chatMessages,
-        punishmentTypes,
         systemPrompt,
         playerNameForAI
       );

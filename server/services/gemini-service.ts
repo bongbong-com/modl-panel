@@ -10,6 +10,7 @@ interface PunishmentType {
   id: number;
   name: string;
   category: string;
+  aiDescription?: string; // Description provided to AI for context when analyzing reports
 }
 
 interface GeminiAnalysisResponse {
@@ -46,7 +47,6 @@ export class GeminiService {
    */
   async analyzeChatMessages(
     chatMessages: ChatMessage[],
-    punishmentTypes: PunishmentType[],
     systemPrompt: string,
     reportedPlayer?: string
   ): Promise<GeminiAnalysisResponse> {
@@ -63,18 +63,8 @@ export class GeminiService {
       // Format chat messages into a readable transcript
       const chatTranscript = this.formatChatTranscript(chatMessages, reportedPlayer);
       
-      // Format punishment types for the AI
-      const punishmentTypesJson = JSON.stringify(punishmentTypes.map(pt => ({
-        id: pt.id,
-        name: pt.name,
-        category: pt.category
-      })), null, 2);
-
-      // Construct the full prompt
+      // Construct the full prompt (punishment types are now included in systemPrompt)
       const fullPrompt = `${systemPrompt}
-
-AVAILABLE PUNISHMENT TYPES:
-${punishmentTypesJson}
 
 CHAT TRANSCRIPT TO ANALYZE:
 ${chatTranscript}

@@ -75,6 +75,7 @@ interface PunishmentType {
   appealForm?: AppealFormSettings; // Punishment-specific appeal form configuration
   staffDescription?: string; // Description shown to staff when applying this punishment
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
+  aiDescription?: string; // Description provided to AI for context when analyzing reports
   canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   isAppealable?: boolean; // Whether this punishment type can be appealed
@@ -2710,6 +2711,20 @@ const Settings = () => {
                         />
                         <p className="text-xs text-muted-foreground">
                           This description will be shown to players in appeals, notifications, and other player-facing contexts.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="ai-description">AI Description</Label>
+                        <textarea
+                          id="ai-description"
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[80px]"
+                          placeholder="Description provided to AI for context when analyzing reports (optional)"
+                          value={selectedPunishment.aiDescription || ''}
+                          onChange={(e) => setSelectedPunishment(prev => prev ? { ...prev, aiDescription: e.target.value } : null)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This description will be provided to the AI moderation system to help it understand when this punishment type is appropriate.
                         </p>
                       </div>
                     </div>
