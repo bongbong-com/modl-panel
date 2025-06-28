@@ -12,7 +12,8 @@ interface PunishmentType {
   id: number;
   name: string;
   category: string;
-  aiDescription?: string;
+  aiDescription: string;
+  enabled: boolean;
 }
 
 const SystemPromptSchema = new Schema<ISystemPrompt>({

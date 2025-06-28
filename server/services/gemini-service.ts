@@ -10,7 +10,8 @@ interface PunishmentType {
   id: number;
   name: string;
   category: string;
-  aiDescription?: string; // Description provided to AI for context when analyzing reports
+  aiDescription: string; // Description provided to AI for context when analyzing reports
+  enabled: boolean;
 }
 
 interface GeminiAnalysisResponse {

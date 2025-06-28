@@ -13,13 +13,14 @@ interface PunishmentType {
   id: number;
   name: string;
   category: string;
-  aiDescription?: string; // Description provided to AI for context when analyzing reports
-  points: {
+  aiDescription: string; // Description provided to AI for context when analyzing reports
+  enabled: boolean;
+  points?: {
     low: number;
     regular: number;
     severe: number;
   };
-  duration: {
+  duration?: {
     low: { value: number; unit: string };
     regular: { value: number; unit: string };
     severe: { value: number; unit: string };
@@ -327,49 +328,39 @@ export class AIModerationService {
   }
 
   /**
-   * Get punishment types from database
+   * Get punishment types from AI moderation settings (not all punishment types)
    */
   private async getPunishmentTypes(): Promise<PunishmentType[]> {
     try {
       const SettingsModel = this.dbConnection.model('Settings');
       const settingsDoc = await SettingsModel.findOne({});
 
-      if (!settingsDoc || !settingsDoc.settings || !settingsDoc.settings.get('punishmentTypes')) {
-        console.error('[AI Moderation] Punishment types not found in settings document.');
+      if (!settingsDoc || !settingsDoc.settings || !settingsDoc.settings.get('aiModerationSettings')) {
+        console.error('[AI Moderation] AI moderation settings not found in settings document.');
         return [];
       }
 
-      let punishmentTypesData = settingsDoc.settings.get('punishmentTypes');
-
-      // It might be stored as a stringified JSON
-      if (typeof punishmentTypesData === 'string') {
-        try {
-          punishmentTypesData = JSON.parse(punishmentTypesData);
-        } catch (e) {
-          console.error('[AI Moderation] Failed to parse punishmentTypes from settings:', e);
-          return [];
-        }
-      }
-
-      if (!Array.isArray(punishmentTypesData)) {
-        console.error('[AI Moderation] Punishment types in settings is not an array.');
+      const aiModerationSettings = settingsDoc.settings.get('aiModerationSettings');
+      
+      if (!aiModerationSettings.aiPunishmentTypes || !Array.isArray(aiModerationSettings.aiPunishmentTypes)) {
+        console.error('[AI Moderation] AI punishment types not found or not an array in AI moderation settings.');
         return [];
       }
 
-      console.log(`[AI Moderation] Found ${punishmentTypesData.length} punishment types in settings.`);
+      console.log(`[AI Moderation] Found ${aiModerationSettings.aiPunishmentTypes.length} AI punishment types in settings.`);
 
-      // Map the data to the expected interface, filtering for active ones if the field exists.
-      return punishmentTypesData
-        .filter((pt: any) => pt.isActive !== false) // Assume active if property doesn't exist
+      // Filter for enabled punishment types and map to expected interface
+      return aiModerationSettings.aiPunishmentTypes
+        .filter((pt: any) => pt.enabled === true)
         .map((pt: any) => ({
           id: pt.id,
           name: pt.name,
           category: pt.category,
-          points: pt.points,
-          duration: pt.duration,
+          aiDescription: pt.aiDescription,
+          enabled: pt.enabled
         }));
     } catch (error) {
-      console.error('[AI Moderation] Error fetching punishment types from settings:', error);
+      console.error('[AI Moderation] Error fetching AI punishment types from settings:', error);
       return [];
     }
   }

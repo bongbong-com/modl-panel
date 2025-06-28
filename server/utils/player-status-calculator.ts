@@ -22,7 +22,6 @@ interface IPunishmentType {
   name: string;
   category: 'Social' | 'Gameplay' | 'Administrative';
   ordinal: number;
-  aiDescription?: string; // Description provided to AI for context when analyzing reports
   points?: {
     low: number;
     regular: number;
