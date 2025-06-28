@@ -403,6 +403,8 @@ interface AddPunishmentBody {
     notes?: string[];
     evidence?: string[];
     attachedTicketIds?: string[];
+    severity?: string;
+    status?: string;
     data?: Record<string, any>; // For Map conversion
 }
 router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response): Promise<void> => {
@@ -412,7 +414,9 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
       type_ordinal,
       notes, 
       evidence,
-      attachedTicketIds, 
+      attachedTicketIds,
+      severity,
+      status,
       data
     } = req.body;
 
@@ -428,21 +432,36 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
       const punishmentData = new Map<string, any>();
     
     // Initialize required fields with defaults
-    punishmentData.set('reason', '');
     punishmentData.set('duration', 0);
     punishmentData.set('blockedName', null);
     punishmentData.set('blockedSkin', null);
     punishmentData.set('linkedBanId', null);
-    punishmentData.set('linkedBanExpiry', new Date());
+    punishmentData.set('linkedBanExpiry', null); // Set to null by default, only set for linked bans
     punishmentData.set('chatLog', null);
     punishmentData.set('altBlocking', false);
     punishmentData.set('wipeAfterExpiry', false);
     
-    // Override with any provided data (reason and duration come from here now)
+    // Add severity and status to data map
+    if (severity) {
+        punishmentData.set('severity', severity);
+    }
+    if (status) {
+        punishmentData.set('status', status);
+    }
+    
+    // Override with any provided data (duration and other fields come from here now)
     if (data && typeof data === 'object') {
         for (const [key, value] of Object.entries(data)) {
-            punishmentData.set(key, value);
+            // Don't include reason in data - it should be the first note
+            if (key !== 'reason') {
+                punishmentData.set(key, value);
+            }
         }
+    }
+    
+    // Set linkedBanExpiry only for linked bans
+    if (data?.linkedBanId) {
+        punishmentData.set('linkedBanExpiry', new Date());
     }
 
     // Set expiry date if duration is provided in data

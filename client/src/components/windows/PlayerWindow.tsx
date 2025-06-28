@@ -256,14 +256,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       const data: { [key: string]: any } = {
         silent: playerInfo.silentPunishment || false,
       };
-        // For manual punishments, duration and reason go in data
+        // For manual punishments, only duration goes in data (reason becomes first note)
       if (['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory)) {
-        data.reason = playerInfo.reason?.trim() || '';
         data.duration = durationMs;
-      }
-        // For other punishments that need reason (like Kick), add it to data
-      if (['Kick'].includes(playerInfo.selectedPunishmentCategory) && playerInfo.reason?.trim()) {
-        data.reason = playerInfo.reason.trim();
       }
       
       // Add punishment-specific data
@@ -297,6 +292,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       
       // Prepare notes array - notes must be objects with text, issuerName, and date
       const notes: Array<{text: string; issuerName: string; date?: string}> = [];
+      
+      // For manual punishments that need a reason, make the reason the first note
+      const needsReasonAsFirstNote = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
+      if (needsReasonAsFirstNote && playerInfo.reason?.trim()) {
+        notes.push({
+          text: playerInfo.reason.trim(),
+          issuerName: user?.username || 'Admin'
+        });
+      }
+      
+      // Add staff notes as additional notes
       if (playerInfo.staffNotes?.trim()) {
         notes.push({
           text: playerInfo.staffNotes.trim(),
@@ -493,19 +499,47 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         // Add punishments to warnings with full details
         if (player.punishments) {
           player.punishments.forEach((punishment: any) => {
+            // Determine punishment type name from ordinal
+            const getPunishmentTypeName = (ordinal: number) => {
+              const typeMap: { [key: number]: string } = {
+                0: 'Kick', 1: 'Manual Mute', 2: 'Manual Ban', 3: 'Security Ban',
+                4: 'Linked Ban', 5: 'Blacklist', 6: 'Chat Abuse', 7: 'Anti Social',
+                8: 'Targeting', 9: 'Bad Content', 10: 'Bad Skin', 11: 'Bad Name',
+                12: 'Team Abuse', 13: 'Game Abuse', 14: 'Systems Abuse',
+                15: 'Account Abuse', 16: 'Game Trading', 17: 'Cheating'
+              };
+              return typeMap[ordinal] || `Punishment ${ordinal}`;
+            };
+            
+            const punishmentType = getPunishmentTypeName(punishment.type_ordinal);
+            const isManualPunishment = ['Kick', 'Manual Mute', 'Manual Ban'].includes(punishmentType);
+            
+            // For manual punishments, use first note as reason, otherwise use data reason or default
+            let displayReason = 'No reason provided';
+            if (isManualPunishment && punishment.notes && punishment.notes.length > 0) {
+              // For manual punishments, first note is the reason
+              displayReason = typeof punishment.notes[0] === 'string' 
+                ? punishment.notes[0] 
+                : punishment.notes[0].text;
+            } else if (punishment.data && punishment.data.get && punishment.data.get('reason')) {
+              displayReason = punishment.data.get('reason');
+            } else if (punishment.reason) {
+              displayReason = punishment.reason;
+            }
+            
             warnings.push({
-              type: punishment.type || 'Punishment',
-              reason: punishment.reason || 'No reason provided',
+              type: punishmentType,
+              reason: displayReason,
               date: new Date(punishment.date || punishment.issued).toLocaleDateString(),
               by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : ''),
               // Additional punishment details
               id: punishment.id || punishment._id,
-              severity: punishment.severity,
-              status: punishment.status,
+              severity: punishment.data?.get ? punishment.data.get('severity') : punishment.severity,
+              status: punishment.data?.get ? punishment.data.get('status') : punishment.status,
               evidence: punishment.evidence || [],
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
-              active: punishment.active,
+              active: punishment.data?.get ? punishment.data.get('active') !== false : punishment.active,
               expires: punishment.expires,
               data: punishment.data || {}
             });
@@ -931,17 +965,29 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Staff Notes:</p>
                             <ul className="text-xs space-y-1">
-                              {warning.notes.map((note, idx) => (
-                                <li key={idx} className="flex items-start">
-                                  <StickyNote className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" />
-                                  <div>
-                                    <span>{note.text}</span>
-                                    <span className="text-muted-foreground ml-1">
-                                      - {note.issuerName} on {new Date(note.date).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </li>
-                              ))}
+                              {warning.notes.map((note, idx) => {
+                                // For manual punishments, skip the first note as it's displayed as the reason
+                                const isManualPunishment = ['Kick', 'Manual Mute', 'Manual Ban'].includes(warning.type);
+                                if (isManualPunishment && idx === 0) {
+                                  return null; // Skip first note for manual punishments
+                                }
+                                
+                                const noteText = typeof note === 'string' ? note : note.text;
+                                const noteIssuer = typeof note === 'string' ? 'Unknown' : note.issuerName;
+                                const noteDate = typeof note === 'string' ? 'Unknown' : new Date(note.date).toLocaleDateString();
+                                
+                                return (
+                                  <li key={idx} className="flex items-start">
+                                    <StickyNote className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" />
+                                    <div>
+                                      <span>{noteText}</span>
+                                      <span className="text-muted-foreground ml-1">
+                                        - {noteIssuer} on {noteDate}
+                                      </span>
+                                    </div>
+                                  </li>
+                                );
+                              }).filter(Boolean)}
                             </ul>
                           </div>
                         )}
