@@ -115,10 +115,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [activeTab, setActiveTab] = useState('history');
   const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
   const [showBanSearchResults, setShowBanSearchResults] = useState(false);
-  const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
-    // Get current authenticated user
+  const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);    // Get current authenticated user
   const { user } = useAuth();
-  console.log('Current user from useAuth:', user);
   
   // Initialize the applyPunishment mutation hook
   const applyPunishment = useApplyPunishment();
@@ -163,25 +161,21 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
   };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
-    console.log('Apply punishment button clicked');
-    console.log('Current playerInfo:', playerInfo);
-    
     const punishmentType = getCurrentPunishmentType();
-    console.log('Current punishment type:', punishmentType);
     
     // Validate required fields
     if (!playerInfo.selectedPunishmentCategory) {
-      console.log('Validation failed: No punishment category selected');
       toast({
         title: "Missing information",
         description: "Please select a punishment category",
         variant: "destructive"
-      });      return;
+      });
+      return;
     }
-      // Only validate reason for administrative manual punishments that explicitly need it
+    
+    // Only validate reason for administrative manual punishments that explicitly need it
     const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
     if (needsReason && !playerInfo.reason?.trim()) {
-      console.log('Validation failed: No reason provided for punishment that requires one:', playerInfo.selectedPunishmentCategory);
       toast({
         title: "Missing information",
         description: "Please provide a reason for this punishment",
@@ -189,8 +183,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       });
       return;
     }
-    
-    console.log('Basic validation passed, checking punishment type requirements...');
     
     // For single-severity punishments, offense level is required
     // For multi-severity punishments, severity is required
@@ -312,10 +304,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         notes: notes,        // Evidence is always an array at top level
         evidence: playerInfo.evidenceList?.filter(e => e.trim()).map(e => e.trim()) || [],
         attachedTicketIds: attachedTicketIds,
-        data: data
-      };
-      
-      console.log('Applying punishment with data:', punishmentData);
+        data: data      };
       
       // Call the API
       await applyPunishment.mutateAsync({
@@ -425,11 +414,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       refetch();
     }
   }, [isOpen, refetch]);
-  
-  useEffect(() => {
+    useEffect(() => {
     if (player && isOpen) {
-      console.log('Player data received:', player);
-      
       // Check if we're dealing with MongoDB data or the API response format
       if (player.usernames) {
         // This is MongoDB raw data that needs formatting
@@ -540,19 +526,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       // Gameplay punishment types are loaded from server during provisioning
     ]
   });
-  
-  // Process settings data to extract punishment types by category
+    // Process settings data to extract punishment types by category
   useEffect(() => {
-    console.log('Settings data received in PlayerWindow:', settingsData);
-    
     if (settingsData?.settings?.punishmentTypes) {
       try {
         // Parse punishment types if they're stored as a string
         const typesData = typeof settingsData.settings.punishmentTypes === 'string' 
           ? JSON.parse(settingsData.settings.punishmentTypes) 
           : settingsData.settings.punishmentTypes;
-          
-        console.log('Parsed punishment types:', typesData);
           
         if (Array.isArray(typesData)) {
           // Group punishment types by category
@@ -561,8 +542,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
             Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
           };
-          
-          console.log('Punishment types categorized:', categorized);
           
           // Update the state with the loaded punishment types
           // Always update with the data from the server, even if some categories are empty
@@ -895,11 +874,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           issuerName: 'Admin', // Use actual admin name if available
                           date: new Date().toISOString()
                         };
-                        
-                        try {
-                          console.log(`Saving note for player ID: ${playerId}`);
-                          console.log('Note data:', noteObject);
-                          
+                          try {
                           // Send note to the server
                           const response = await fetch(`/api/panel/players/${playerId}/notes`, {
                             method: 'POST',
@@ -1616,17 +1591,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   )}
                                 </div>
                               </div>                            )}
-                            
-                            {/* Reason field for all non-administrative punishments */}
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Reason (shown to player)</label>
-                              <textarea 
-                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16"
-                                placeholder="Enter reason for punishment"
-                                value={playerInfo.reason || ''}
-                                onChange={(e) => setPlayerInfo(prev => ({...prev, reason: e.target.value}))}
-                              ></textarea>
-                            </div>
+  
                           </>
                         );
                       })()}
@@ -1649,8 +1614,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             + Add
                           </Button>
                         </div>
-                        <div className="space-y-2">
-                          {(playerInfo.evidenceList || []).map((evidence, index) => (
+                        <div className="space-y-2">                          {(playerInfo.evidenceList || []).map((evidence, index) => (
                             <div key={index} className="flex gap-2 items-center">
                               <input 
                                 type="text" 
@@ -1663,6 +1627,35 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   setPlayerInfo(prev => ({...prev, evidenceList: newEvidence}));
                                 }}
                               />
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="p-0 h-8 w-8"
+                                onClick={() => {
+                                  // Create hidden file input for upload
+                                  const input = document.createElement('input');
+                                  input.type = 'file';
+                                  input.accept = 'image/*,video/*,.txt,.pdf,.doc,.docx';
+                                  input.onchange = (e) => {
+                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                    if (file) {
+                                      // For now, just set the filename as evidence
+                                      // In a real implementation, you'd upload the file and get a URL
+                                      const newEvidence = [...(playerInfo.evidenceList || [])];
+                                      newEvidence[index] = file.name;
+                                      setPlayerInfo(prev => ({...prev, evidenceList: newEvidence}));
+                                      toast({
+                                        title: "File selected",
+                                        description: `${file.name} has been selected as evidence.`,
+                                      });
+                                    }
+                                  };
+                                  input.click();
+                                }}
+                                title="Upload file"
+                              >
+                                <Upload className="h-3 w-3" />
+                              </Button>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
@@ -1679,11 +1672,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               </Button>
                             </div>
                           ))}
-                          {(!playerInfo.evidenceList || playerInfo.evidenceList.length === 0) && (
-                            <div className="text-sm text-muted-foreground p-2 border border-dashed rounded">
-                              No evidence added yet. Click "+ Add" to add evidence.
-                            </div>
-                          )}
                         </div>
                       </div>
                       
