@@ -279,10 +279,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         }
       }
       
-      // Prepare notes array
-      const notes: string[] = [];
+      // Prepare notes array - notes must be objects with text, issuerName, and date
+      const notes: Array<{text: string; issuerName: string; date?: string}> = [];
       if (playerInfo.staffNotes?.trim()) {
-        notes.push(playerInfo.staffNotes.trim());
+        notes.push({
+          text: playerInfo.staffNotes.trim(),
+          issuerName: user?.username || 'Admin'
+        });
       }
       
       // Prepare attached ticket IDs
@@ -1753,7 +1756,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         </div>
                       </div>                      <div className="pt-2">
                         <Button 
-                          className="w-full"                          onClick={(e) => {
+                          className="w-full"                          onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handleApplyPunishment();
