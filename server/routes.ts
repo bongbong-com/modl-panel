@@ -128,6 +128,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json([]);
   });
 
+  panelRouter.get('/provisioning-status', async (req, res) => {
+    try {
+      if (!req.modlServer) {
+        return res.status(500).json({ error: 'Server configuration not found' });
+      }
+
+      res.json({
+        status: req.modlServer.provisioningStatus || 'unknown',
+        serverName: req.modlServer.customDomain,
+        emailVerified: req.modlServer.emailVerified
+      });
+    } catch (error) {
+      console.error('Error fetching provisioning status:', error);
+      res.status(500).json({ error: 'Failed to fetch provisioning status' });
+    }
+  });
+
   panelRouter.get('/stats', async (req, res) => {
     try {
       if (!req.serverDbConnection) {

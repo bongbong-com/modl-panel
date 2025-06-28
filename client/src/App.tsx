@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ProtectedRoute, AuthRoute } from "@/lib/protected-route";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useProvisioningStatusCheck } from "@/hooks/use-provisioning-status";
 import Home from "@/pages/home";
 import Lookup from "@/pages/lookup";
 import LookupPage from "@/pages/lookup-page";
@@ -147,6 +148,7 @@ function AppContent() {
   const [isWelcomeModalOpen, setWelcomeModalOpen] = useState(false);
 
   useDocumentTitle();
+  useProvisioningStatusCheck();
   
   useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
