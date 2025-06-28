@@ -251,7 +251,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       // Calculate duration in milliseconds based on punishment type configuration
       let durationMs = 0;
       
-      if (punishmentType?.durations && playerInfo.selectedSeverity && !playerInfo.isPermanent) {
+      if (needsDuration && !playerInfo.isPermanent && playerInfo.duration) {
+        // Manual punishments - use user-specified duration
+        durationMs = convertDurationToMilliseconds(playerInfo.duration);
+        console.log('Manual punishment duration:', durationMs, 'from', playerInfo.duration);
+      } else if (punishmentType?.durations && playerInfo.selectedSeverity && !playerInfo.isPermanent) {
         // Multi-severity punishment - use duration from punishment type config
         const severityKey = playerInfo.selectedSeverity === 'Lenient' ? 'low' : 
                            playerInfo.selectedSeverity === 'Regular' ? 'regular' : 'severe';
@@ -260,24 +264,39 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         
         if (duration) {
           durationMs = convertDurationToMilliseconds(duration);
+          console.log('Multi-severity duration:', durationMs, 'from', duration);
+        } else {
+          console.log('No duration found for', severityKey, offenseLevel, 'in', punishmentType.durations);
         }
       } else if (punishmentType?.singleSeverityDurations && playerInfo.selectedOffenseLevel && !playerInfo.isPermanent) {
         // Single-severity punishment - use duration from offense level
         const duration = punishmentType.singleSeverityDurations[playerInfo.selectedOffenseLevel];
         if (duration) {
           durationMs = convertDurationToMilliseconds(duration);
+          console.log('Single-severity duration:', durationMs, 'from', duration);
+        } else {
+          console.log('No duration found for', playerInfo.selectedOffenseLevel, 'in', punishmentType.singleSeverityDurations);
         }
-      } else if (needsDuration && !playerInfo.isPermanent && playerInfo.duration) {
-        // Manual punishments - use user-specified duration
-        durationMs = convertDurationToMilliseconds(playerInfo.duration);
+      } else {
+        console.log('No duration calculation path matched:', {
+          needsDuration,
+          isPermanent: playerInfo.isPermanent,
+          hasDuration: !!playerInfo.duration,
+          hasMultiDurations: !!punishmentType?.durations,
+          hasSingleDurations: !!punishmentType?.singleSeverityDurations,
+          selectedSeverity: playerInfo.selectedSeverity,
+          selectedOffenseLevel: playerInfo.selectedOffenseLevel,
+          punishmentType: punishmentType
+        });
       }
         // Prepare data map for additional punishment data
       const data: { [key: string]: any } = {
         silent: playerInfo.silentPunishment || false,
       };
-        // For manual punishments, only duration goes in data (reason becomes first note)
-      if (['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory)) {
+        // Set duration in data for all punishments that have a calculated duration
+      if (durationMs > 0) {
         data.duration = durationMs;
+        console.log('Setting duration in data:', durationMs);
       }
       
       // Add punishment-specific data
@@ -362,17 +381,23 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         status = 'first'; // Could be enhanced to track actual offense count
       }
       
+      // Prepare evidence array
+      const evidence = playerInfo.evidenceList?.filter(e => e.trim()).map(e => e.trim()) || [];
+      console.log('Evidence being sent:', evidence, 'from evidenceList:', playerInfo.evidenceList);
+      
       // Prepare punishment data in the format expected by the server
       const punishmentData: { [key: string]: any } = {
         issuerName: user?.username || 'Admin', // Use actual staff member name
         type_ordinal: typeOrdinal,
         notes: notes,
-        evidence: playerInfo.evidenceList?.filter(e => e.trim()).map(e => e.trim()) || [],
+        evidence: evidence,
         attachedTicketIds: attachedTicketIds,
         severity: severity,
         status: status,
         data: data
       };
+      
+      console.log('Full punishment data being sent:', punishmentData);
       
       // Call the API
       await applyPunishment.mutateAsync({
@@ -519,7 +544,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         
         // Add punishments to warnings with full details
         if (player.punishments) {
+          console.log('Processing punishments:', player.punishments);
           player.punishments.forEach((punishment: any) => {
+            console.log('Processing punishment:', punishment);
             // Determine punishment type name from ordinal
             const getPunishmentTypeName = (ordinal: number) => {
               const typeMap: { [key: number]: string } = {
@@ -600,7 +627,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               id: punishment.id || punishment._id,
               severity: punishment.data?.get ? punishment.data.get('severity') : punishment.severity,
               status: punishment.data?.get ? punishment.data.get('status') : punishment.status,
-              evidence: punishment.evidence || [],
+              evidence: (() => {
+                const evidenceArray = punishment.evidence || [];
+                console.log('Evidence for punishment', punishment.id, ':', evidenceArray);
+                return evidenceArray;
+              })(),
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
               active: punishment.data?.get ? punishment.data.get('active') !== false : punishment.active,
