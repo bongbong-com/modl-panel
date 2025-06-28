@@ -163,9 +163,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
   };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
-    // Visible debugging for remote access
-    alert('handleApplyPunishment called!');
-    
     console.log('Apply punishment button clicked');
     console.log('Current playerInfo:', playerInfo);
     
@@ -179,14 +176,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         title: "Missing information",
         description: "Please select a punishment category",
         variant: "destructive"
-      });
-      return;
+      });      return;
     }
-      if (!playerInfo.reason?.trim()) {
-      console.log('Validation failed: No reason provided, current reason:', playerInfo.reason);
+    
+    // Only validate reason for punishments that explicitly need it (Manual punishments and some administrative types)
+    const needsReason = ['Kick', 'Manual Mute', 'Manual Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory);
+    if (needsReason && !playerInfo.reason?.trim()) {
+      console.log('Validation failed: No reason provided for punishment that requires one:', playerInfo.selectedPunishmentCategory);
       toast({
         title: "Missing information",
-        description: "Please provide a reason for the punishment",
+        description: "Please provide a reason for this punishment",
         variant: "destructive"
       });
       return;
@@ -250,11 +249,15 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       const data: { [key: string]: any } = {
         silent: playerInfo.silentPunishment || false,
       };
-      
-      // For manual punishments, duration and reason go in data
+        // For manual punishments, duration and reason go in data
       if (['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory)) {
-        data.reason = playerInfo.reason.trim();
+        data.reason = playerInfo.reason?.trim() || '';
         data.duration = durationMs;
+      }
+      
+      // For other punishments that need reason (like Kick, Blacklist), add it to data
+      if (['Kick', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory) && playerInfo.reason?.trim()) {
+        data.reason = playerInfo.reason.trim();
       }
       
       // Add punishment-specific data
@@ -690,34 +693,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     if (options.length > 0) {
       preview += ` [${options.join(', ')}]`;
     }
-    
-    return preview;
-  };  // Test function for debugging (remove in production)
-  (window as any).testApplyPunishment = () => {
-    console.log('Testing apply punishment...');
-    alert('Setting test data for punishment...');
-    setPlayerInfo(prev => ({
-      ...prev,
-      selectedPunishmentCategory: 'Kick',
-      reason: 'Test reason for debugging',
-      status: 'Online'
-    }));
-    setTimeout(() => {
-      console.log('Calling handleApplyPunishment after setting test data');
-      alert('About to call handleApplyPunishment...');
-      handleApplyPunishment();
-    }, 100);
-  };
-
-  // Quick debugging function to check current state
-  (window as any).debugPlayerInfo = () => {
-    alert(`Current state:
-Category: ${playerInfo.selectedPunishmentCategory || 'NONE'}
-Reason: ${playerInfo.reason || 'EMPTY'}  
-Status: ${playerInfo.status}
-User: ${user?.username || 'NO USER'}`);
-    console.log('Full playerInfo:', playerInfo);
-    console.log('Current user:', user);
+      return preview;
   };
 
   return (
@@ -1635,8 +1611,7 @@ User: ${user?.username || 'NO USER'}`);
                                     Habitual
                                   </Button>
                                 </div>
-                              </div>
-                            )}
+                              </div>                            )}
                             
                             {/* Display punishment options */}
                             {(punishmentType?.canBeAltBlocking || punishmentType?.canBeStatWiping) && (
@@ -1670,8 +1645,18 @@ User: ${user?.username || 'NO USER'}`);
                                     </div>
                                   )}
                                 </div>
-                              </div>
-                            )}
+                              </div>                            )}
+                            
+                            {/* Reason field for all non-administrative punishments */}
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Reason (shown to player)</label>
+                              <textarea 
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16"
+                                placeholder="Enter reason for punishment"
+                                value={playerInfo.reason || ''}
+                                onChange={(e) => setPlayerInfo(prev => ({...prev, reason: e.target.value}))}
+                              ></textarea>
+                            </div>
                           </>
                         );
                       })()}
@@ -1777,25 +1762,9 @@ User: ${user?.username || 'NO USER'}`);
                       </div>                      <div className="pt-2">
                         <Button 
                           className="w-full"                          onClick={(e) => {
-                            console.log('Apply button clicked!');
-                            console.log('isApplyingPunishment:', isApplyingPunishment);
-                            console.log('Button disabled?', isApplyingPunishment);
-                            
-                            // Visible alert for remote debugging
-                            alert(`Button clicked! Category: ${playerInfo.selectedPunishmentCategory || 'NONE'}, Reason: ${playerInfo.reason || 'EMPTY'}, Status: ${playerInfo.status}`);
-                            
                             e.preventDefault();
                             e.stopPropagation();
-                            
-                            try {
-                              console.log('About to call handleApplyPunishment...');
-                              alert('About to call handleApplyPunishment...');
-                              handleApplyPunishment();
-                              console.log('handleApplyPunishment call completed');
-                            } catch (error) {
-                              console.error('Error calling handleApplyPunishment:', error);
-                              alert(`Error calling handleApplyPunishment: ${error}`);
-                            }
+                            handleApplyPunishment();
                           }}
                           disabled={isApplyingPunishment}
                         >
