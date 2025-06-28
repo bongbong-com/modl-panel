@@ -166,7 +166,7 @@ This endpoint handles player logins and automatically creates new player records
 # New player login (creates player record)
 curl -X POST "https://123.cobl.gg/api/minecraft/player/login" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: 2iTewXGvs6uIsfFxBByhrXTilcO2E9UDLc6yC7VzCw4" \
+  -H "X-API-Key: FhsxKUuaI2PdGN3mvHIEsVRJCcviNMiruFljfnkmZLk" \
   -d '{
     "minecraftUuid": "123e4567-e89b-12d3-a456-426614174000",
     "username": "NewPlayer123",

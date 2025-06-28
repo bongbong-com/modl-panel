@@ -497,4 +497,62 @@ export function setupMinecraftRoutes(app: Express) {
       });
     }
   });
+
+  /**
+   * Get player profile by username
+   * - Get player information by username (most recent player to use that username)
+   */
+  app.get('/api/minecraft/player-name', async (req: Request, res: Response) => {
+    const { username } = req.query;
+    const serverDbConnection = req.serverDbConnection!;
+    const Player = serverDbConnection.model<IPlayer>('Player');
+
+    if (!username || typeof username !== 'string') {
+      return res.status(400).json({ status: 400, message: 'username query parameter is required' });
+    }
+
+    try {
+      // Find all players who have used this username (case-insensitive)
+      const playersWithUsername = await Player.find({
+        'usernames.username': { $regex: new RegExp(`^${username}$`, 'i') }
+      }).lean<IPlayer[]>();
+
+      if (!playersWithUsername || playersWithUsername.length === 0) {
+        return res.status(404).json({ status: 404, message: 'No player found with that username' });
+      }
+
+      // Find the player who most recently logged in with this username
+      let mostRecentPlayer: IPlayer | null = null;
+      let mostRecentLogin: Date | null = null;
+
+      for (const player of playersWithUsername) {
+        // Get the most recent login time from player data
+        const lastConnect = player.data?.get('lastConnect');
+        const loginTime = lastConnect ? new Date(lastConnect) : new Date(0);
+
+        if (!mostRecentLogin || loginTime > mostRecentLogin) {
+          mostRecentLogin = loginTime;
+          mostRecentPlayer = player;
+        }
+      }
+
+      if (!mostRecentPlayer) {
+        return res.status(404).json({ status: 404, message: 'Player not found' });
+      }      const responsePlayer = {
+        ...mostRecentPlayer,
+        punishments: mostRecentPlayer.punishments ? mostRecentPlayer.punishments.map((p: IPunishment) => ({
+          ...p,
+          type: PunishmentType[p.type],
+        })) : [],
+      };
+
+      return res.status(200).json({ status: 200, player: responsePlayer });
+    } catch (error: any) {
+      console.error('Error getting player profile by username:', error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error'
+      });
+    }
+  });
 }
