@@ -15,7 +15,7 @@ const mkdir = promisify(fs.mkdir);
 interface IDurationDetail {
   value: number;
   unit: string;
-  type: string;
+  type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban';
 }
 
 interface IPunishmentDurations {
@@ -46,11 +46,14 @@ interface IPunishmentType {
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
   singleSeverityDurations?: {
-    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
+  permanentUntilSkinChange?: boolean; // Whether this punishment persists until player changes skin
+  permanentUntilUsernameChange?: boolean; // Whether this punishment persists until player changes username
+  isAppealable?: boolean; // Whether this punishment type can be appealed
 }
 
 interface IAppealFormField {
@@ -124,120 +127,87 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
     const defaultSettingsMap = new Map<string, any>();
 
     // Only include core Administrative punishment types (ordinals 0-5, not customizable)
-    const corePunishmentTypes: IPunishmentType[] = [
-      { 
+    const corePunishmentTypes: IPunishmentType[] = [      { 
         id: 0, 
         name: 'Kick', 
         category: 'Administrative', 
         isCustomizable: false, 
         ordinal: 0,
-        staffDescription: 'Immediately remove the player from the server. Use for minor infractions or when a player needs to be removed quickly.',
-        playerDescription: 'You have been kicked from the server.',
+        staffDescription: 'Kick a player.',
+        playerDescription: 'BOOT!',
         canBeAltBlocking: false,
         canBeStatWiping: false,
+        isAppealable: false,
         appealForm: {
-          fields: [
-            {
-              id: 'reason',
-              type: 'textarea',
-              label: 'Why do you believe you were wrongfully kicked?',
-              description: 'Explain the circumstances around your kick',
-              required: true,
-              order: 1
-            }
-          ]
+          fields: []
         }
-      },
-      { 
+      },      { 
         id: 1, 
         name: 'Manual Mute', 
         category: 'Administrative', 
         isCustomizable: false, 
         ordinal: 1,
-        staffDescription: 'Prevent the player from communicating in chat for a specified duration. Use for chat-related violations.',
-        playerDescription: 'You have been muted and cannot use chat.',
-        canBeAltBlocking: true,
+        staffDescription: 'Manually mute a player.',
+        playerDescription: 'You have been silenced.',
+        canBeAltBlocking: false,
         canBeStatWiping: false,
+        isAppealable: true,
         appealForm: {
           fields: [
             {
-              id: 'reason',
+              id: 'why',
               type: 'textarea',
-              label: 'Appeal Reason',
-              description: 'Why do you believe this mute should be reviewed?',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'chat_context',
-              type: 'textarea',
-              label: 'Chat Context',
-              description: 'Provide context about what you said or the situation',
-              required: false,
-              order: 2
             }
           ]
         }
-      },
-      { 
+      },      { 
         id: 2, 
         name: 'Manual Ban', 
         category: 'Administrative', 
         isCustomizable: false, 
         ordinal: 2,
-        staffDescription: 'Temporarily or permanently ban a player from the server. Use for serious violations or repeat offenders.',
-        playerDescription: 'You have been banned from the server.',
+        staffDescription: 'Manually ban a player.',
+        playerDescription: 'The ban hammer has spoken.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
+        isAppealable: true,
         appealForm: {
           fields: [
             {
-              id: 'reason',
+              id: 'why',
               type: 'textarea',
-              label: 'Appeal Reason',
-              description: 'Why do you believe this ban should be reviewed?',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'acknowledgment',
-              type: 'checkbox',
-              label: 'I understand the rules and will follow them',
-              description: 'Acknowledge that you understand server rules',
-              required: true,
-              order: 2
             }
           ]
         }
-      },
-      { 
+      },      { 
         id: 3, 
         name: 'Security Ban', 
         category: 'Administrative', 
         isCustomizable: false, 
         ordinal: 3,
-        staffDescription: 'Ban for security violations, suspicious activity, or compromised accounts. Usually permanent or long-term.',
-        playerDescription: 'You have been banned for security reasons.',
-        canBeAltBlocking: true,
-        canBeStatWiping: true,
+        staffDescription: 'Compromised or potentially compromised account.',
+        playerDescription: 'Suspicious activity has been detected on your account. Please secure your account and appeal this ban.',
+        canBeAltBlocking: false,
+        canBeStatWiping: false,
+        isAppealable: true,
         appealForm: {
           fields: [
             {
-              id: 'security_explanation',
-              type: 'textarea',
-              label: 'Security Concern Explanation',
-              description: 'Explain why you believe this security ban was issued in error',
+              id: 'security_concern',
+              type: 'checkbox',
+              label: 'I have secured my account',
+              description: 'Please confirm that you have changed your password and secured the email associated with your account',
               required: true,
               order: 1
             },
-            {
-              id: 'account_security',
-              type: 'textarea',
-              label: 'Account Security Measures',
-              description: 'What steps have you taken to secure your account?',
-              required: false,
-              order: 2
-            }
           ]
         }
       },
@@ -247,20 +217,13 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         category: 'Administrative', 
         isCustomizable: false, 
         ordinal: 4,
-        staffDescription: 'Ban applied due to association with another banned account. Use when detecting ban evasion or linked violations.',
-        playerDescription: 'You have been banned due to association with another banned account.',
-        canBeAltBlocking: true,
+        staffDescription: 'Usually automatically applied due to ban evasion.',
+        playerDescription: 'Evading bans through the use of alternate accounts or sharing your account is strictly prohibited. This ban was automatically issued through a high-confidence IP address linking system for ban #{linked-id}.',
+        canBeAltBlocking: false,
         canBeStatWiping: false,
+        isAppealable: true,
         appealForm: {
           fields: [
-            {
-              id: 'account_relationship',
-              type: 'textarea',
-              label: 'Account Relationship',
-              description: 'Explain your relationship to the linked account',
-              required: true,
-              order: 1
-            },
             {
               id: 'shared_connection',
               type: 'dropdown',
@@ -268,48 +231,31 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
               description: 'How is your account connected to the banned account?',
               required: true,
               options: ['Family member', 'Friend', 'Shared computer', 'Public network', 'Unknown/No connection'],
+              order: 1
+            },
+            {
+              id: 'why',
+              type: 'textarea',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
+              required: true,
               order: 2
             }
           ]
         }
-      },
-      { 
+      },      { 
         id: 5, 
         name: 'Blacklist', 
         category: 'Administrative', 
         isCustomizable: false, 
         ordinal: 5,
-        staffDescription: 'Permanent ban for the most severe violations. Use sparingly for extreme cases that warrant permanent removal.',
-        playerDescription: 'You have been permanently blacklisted from the server.',
+        staffDescription: 'Remove a player (unappealable).',
+        playerDescription: 'You are blacklisted from the server.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
+        isAppealable: false,
         appealForm: {
-          fields: [
-            {
-              id: 'exceptional_circumstances',
-              type: 'textarea',
-              label: 'Exceptional Circumstances',
-              description: 'Describe any exceptional circumstances that warrant review of this permanent ban',
-              required: true,
-              order: 1
-            },
-            {
-              id: 'time_since_ban',
-              type: 'text',
-              label: 'Time Since Ban',
-              description: 'How long has it been since you were banned?',
-              required: false,
-              order: 2
-            },
-            {
-              id: 'behavioral_change',
-              type: 'textarea',
-              label: 'Behavioral Changes',
-              description: 'What have you done to address the behavior that led to this ban?',
-              required: false,
-              order: 3
-            }
-          ]
+          fields: []
         }
       }
     ];
@@ -987,7 +933,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
           severe: { first: { value: 3, unit: 'days', type: 'mute' }, medium: { value: 7, unit: 'days', type: 'mute' }, habitual: { value: 14, unit: 'days', type: 'mute' } }
         },
         points: { low: 1, regular: 1, severe: 2 },
-        staffDescription: 'Inappropriate language, excessive caps, or disruptive chat behavior that violates community standards.',
+        staffDescription: 'Inappropriate language, excessive caps, or disruptive chat behavior.',
         playerDescription: 'Public chat channels are reserved for decent messages. Review acceptable public chat decorum here: https://www.server.com/rules#chat',
         canBeAltBlocking: false,
         canBeStatWiping: false,
@@ -997,7 +943,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
               id: 'why',
               type: 'textarea',
               label: 'Why should this punishment be amended?',
-              description: 'Provide context about what you said or the chat situation',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
             }
@@ -1016,27 +962,19 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
           severe: { first: { value: 30, unit: 'days', type: 'mute' }, medium: { value: 90, unit: 'days', type: 'mute' }, habitual: { value: 180, unit: 'days', type: 'mute' } }
         },
         points: { low: 2, regular: 3, severe: 4 },
-        staffDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment for other players.',
+        staffDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment.',
         playerDescription: 'Anti-social and disruptive behavior is strictly prohibited from public channels. If you would not want your mom to hear it, keep it yourself!',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         appealForm: {
           fields: [
             {
-              id: 'behavior_explanation',
+              id: 'why',
               type: 'textarea',
-              label: 'Behavior Explanation',
-              description: 'Explain the behavior that led to this punishment',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'improvement_plan',
-              type: 'textarea',
-              label: 'Improvement Plan',
-              description: 'How will you improve your behavior going forward?',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1054,26 +992,18 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         },
         points: { low: 4, regular: 6, severe: 10 },
         staffDescription: 'Persistent harassment, bullying, or targeting of specific players with malicious intent.',
-        playerDescription: 'You have been banned for targeting and harassing other players.',
+        playerDescription: 'This server has a zero tolerance policy on targeting individuals regardless of the basis or medium. This policy encompasses Harassment, Torment, Threats, and Cyber attacks.',
         canBeAltBlocking: true,
         canBeStatWiping: false,
         appealForm: {
           fields: [
             {
-              id: 'targeting_details',
+              id: 'why',
               type: 'textarea',
-              label: 'Incident Details',
-              description: 'Describe the situation and why you believe this was not targeting',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'victim_relationship',
-              type: 'text',
-              label: 'Relationship to Other Player',
-              description: 'What is your relationship to the player you allegedly targeted?',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1090,54 +1020,41 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
           severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } }
         },
         points: { low: 3, regular: 4, severe: 5 },
-        staffDescription: 'Inappropriate content including builds, signs, books, or other user-generated content that violates server rules.',
-        playerDescription: 'You have been banned for creating inappropriate content on the server.',
-        canBeAltBlocking: true,
-        canBeStatWiping: true,
-        appealForm: {
-          fields: [
-            {
-              id: 'content_description',
-              type: 'textarea',
-              label: 'Content Description',
-              description: 'Describe the content that led to this punishment',
-              required: true,
-              order: 1
-            },
-            {
-              id: 'content_intent',
-              type: 'textarea',
-              label: 'Content Intent',
-              description: 'What was the intended purpose of this content?',
-              required: false,
-              order: 2
-            }
-          ]
-        }
-      },
-      { 
-        id: 6, 
-        name: 'Bad Skin', 
-        category: 'Social', 
-        isCustomizable: true, 
-        ordinal: 10,
-        durations: {
-          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 10, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } }
-        },
-        points: { low: 1, regular: 2, severe: 3 },
-        staffDescription: 'Inappropriate Minecraft skin that violates community standards or contains offensive imagery.',
-        playerDescription: 'You have been banned for using an inappropriate skin. Please change your skin before returning.',
+        staffDescription: 'Inappropriate content including builds, signs, books, or other user-generated content.',
+        playerDescription: 'Creating obscene, insensitive, or hateful content in-game is strictly prohibited. This extends to builds, books, item-names, name-tags, and signs.',
         canBeAltBlocking: false,
         canBeStatWiping: false,
         appealForm: {
           fields: [
             {
+              id: 'why',
+              type: 'textarea',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
+              required: true,
+              order: 1
+            }
+          ]
+        }
+      },      { 
+        id: 6, 
+        name: 'Bad Skin', 
+        category: 'Social', 
+        isCustomizable: true, 
+        ordinal: 10,
+        customPoints: 2,
+        staffDescription: 'Inappropriate Minecraft skin that contains offensive imagery.',
+        playerDescription: 'Please help us maintain a safe environment for players of all ages and backgrounds by refraining from the use of obscene/insensitive skins. Change your skin at https://www.minecraft.net',
+        canBeAltBlocking: false,
+        canBeStatWiping: false,
+        permanentUntilSkinChange: true,
+        appealForm: {
+          fields: [
+            {
               id: 'skin_change_confirmation',
               type: 'checkbox',
-              label: 'I have changed my skin',
-              description: 'Confirm that you have changed to an appropriate skin',
+              label: 'I understand that this ban will be automatically lifted if I change my skin',
+              description: 'Only submit this appeal if you believe your skin is wrongfully banned.',
               required: true,
               order: 1
             },
@@ -1145,45 +1062,40 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
               id: 'skin_explanation',
               type: 'textarea',
               label: 'Skin Explanation',
-              description: 'Explain why you believe your skin was appropriate or describe the new skin you are using',
-              required: false,
+              description: 'Explain why you believe your skin is appropriate',
+              required: true,
               order: 2
             }
           ]
         }
-      },
-      { 
+      },      { 
         id: 7, 
         name: 'Bad Name', 
         category: 'Social', 
         isCustomizable: true, 
         ordinal: 11,
-        durations: {
-          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 10, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } }
-        },
-        points: { low: 1, regular: 2, severe: 3 },
-        staffDescription: 'Inappropriate Minecraft username that violates community standards or contains offensive content.',
-        playerDescription: 'You have been banned for using an inappropriate username. Please change your username before returning.',
+        customPoints: 2,
+        staffDescription: 'Inappropriate Minecraft username that contains offensive content.',
+        playerDescription: 'Please help us maintain a safe environment for players of all ages and backgrounds by refraining from the use of obscene/insensitive usernames. Change your username at https://www.minecraft.net',
         canBeAltBlocking: false,
         canBeStatWiping: false,
+        permanentUntilUsernameChange: true,
         appealForm: {
           fields: [
             {
               id: 'name_change_confirmation',
               type: 'checkbox',
-              label: 'I have changed my username',
-              description: 'Confirm that you have changed to an appropriate username',
+              label: 'I understand that this ban will be automatically lifted if I change my skin',
+              description: 'Only submit this appeal if you believe your skin is wrongfully banned.',
               required: true,
               order: 1
             },
             {
               id: 'name_explanation',
               type: 'textarea',
-              label: 'Username Explanation',
-              description: 'Explain why you believe your username was appropriate or describe your new username',
-              required: false,
+              label: 'Name Explanation',
+              description: 'Explain why you believe your name is appropriate',
+              required: true,
               order: 2
             }
           ]
@@ -1200,32 +1112,24 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 12,
         durations: {
-          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 2, unit: 'days', type: 'ban' }, medium: { value: 4, unit: 'days', type: 'ban' }, habitual: { value: 10, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 4, unit: 'days', type: 'ban' }, medium: { value: 10, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } }
+          low: { first: { value: 6, unit: 'hours', type: 'ban' }, medium: { value: 12, unit: 'hours', type: 'ban' }, habitual: { value: 3, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 12, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } }
         },
-        points: { low: 1, regular: 2, severe: 3 },
-        staffDescription: 'Intentionally harming teammates, griefing team structures, or disrupting team gameplay.',
-        playerDescription: 'You have been banned for abusing team mechanics or harming your teammates.',
+        points: { low: 2, regular: 2, severe: 3 },
+        staffDescription: 'Intentionally harming teammates, cross-teaming, or aiding cheaters.',
+        playerDescription: 'Please be considerate to fellow playres by not team-griefing, aiding cheaters, or cross-teaming.',
         canBeAltBlocking: true,
-        canBeStatWiping: false,
+        canBeStatWiping: true,
         appealForm: {
           fields: [
             {
-              id: 'team_situation',
+              id: 'why',
               type: 'textarea',
-              label: 'Team Situation',
-              description: 'Describe what happened with your team',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'intent_explanation',
-              type: 'textarea',
-              label: 'Intent Explanation',
-              description: 'Was this intentional or accidental?',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1237,32 +1141,24 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 13,
         durations: {
-          low: { first: { value: 24, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } }
+          low: { first: { value: 1, unit: 'days', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } }
         },
-        points: { low: 2, regular: 4, severe: 6 },
-        staffDescription: 'Exploiting game mechanics, spawn camping, or other forms of unfair gameplay that ruin the experience for others.',
-        playerDescription: 'You have been banned for abusing game mechanics or engaging in unfair gameplay.',
+        points: { low: 2, regular: 3, severe: 5 },
+        staffDescription: 'Violating game specific rules for fair play.',
+        playerDescription: 'Violating game specific rules for competitive fair-play. It is your responsibility to be aware of and abide by all network-wide and game-specific rules.',
         canBeAltBlocking: true,
-        canBeStatWiping: false,
+        canBeStatWiping: true,
         appealForm: {
           fields: [
             {
-              id: 'gameplay_details',
+              id: 'why',
               type: 'textarea',
-              label: 'Gameplay Details',
-              description: 'Describe the specific gameplay incident',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'rules_understanding',
-              type: 'checkbox',
-              label: 'I understand the gameplay rules',
-              description: 'Acknowledge that you understand fair gameplay rules',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1275,31 +1171,23 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         ordinal: 14,
         durations: {
           low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } }
+          regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 90, unit: 'days', type: 'ban' }, medium: { value: 180, unit: 'days', type: 'ban' }, habitual: { value: 365, unit: 'days', type: 'ban' } }
         },
-        points: { low: 3, regular: 5, severe: 7 },
-        staffDescription: 'Exploiting server systems, economy abuse, or manipulating server infrastructure for personal gain.',
-        playerDescription: 'You have been banned for abusing server systems or exploiting economic mechanics.',
+        points: { low: 2, regular: 3, severe: 5 },
+        staffDescription: 'Abusing server functions by opening redundant tickets, creating lag machines, etc.',
+        playerDescription: 'Using server systems in an unintended and harmful way is strictly prohibited. This encompasses lag machines, ticket spam, etc.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
           fields: [
             {
-              id: 'system_exploitation',
+              id: 'why',
               type: 'textarea',
-              label: 'System Exploitation Details',
-              description: 'Describe what system you allegedly exploited',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'economic_impact',
-              type: 'textarea',
-              label: 'Economic Impact',
-              description: 'Did this involve the server economy? How?',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1309,34 +1197,25 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         name: 'Account Abuse', 
         category: 'Gameplay', 
         isCustomizable: true, 
-        ordinal: 15,
-        durations: {
-          low: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 120, unit: 'days', type: 'ban' } }
+        ordinal: 15,        durations: {
+          low: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 0, unit: 'days', type: 'permanent ban' }, medium: { value: 0, unit: 'days', type: 'permanent ban' }, habitual: { value: 0, unit: 'days', type: 'permanent ban' } }
         },
-        points: { low: 4, regular: 6, severe: 8 },
-        staffDescription: 'Using multiple accounts for unfair advantage, account sharing, or circumventing punishments.',
-        playerDescription: 'You have been banned for account abuse or using multiple accounts improperly.',
+        points: { low: 4, regular: 6, severe: 10 },
+        staffDescription: 'Account sharing, alt-account boosting, selling/trading accounts.',
+        playerDescription: 'Misuse of accounts for the purposes of financial or levelling gain is prohibited. This encompasses account sharing, trading, selling and boosting through the use of alternate accounts.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
           fields: [
             {
-              id: 'account_usage',
+              id: 'why',
               type: 'textarea',
-              label: 'Account Usage',
-              description: 'Explain how you use your accounts and why this was flagged',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'family_sharing',
-              type: 'checkbox',
-              label: 'This account is shared with family members',
-              description: 'Check if multiple family members use this account',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1348,32 +1227,24 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 16,
         durations: {
-          low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } }
+          low: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 0, unit: 'days', type: 'permanent ban' }, medium: { value: 0, unit: 'days', type: 'permanent ban' }, habitual: { value: 0, unit: 'days', type: 'permanent ban' } }
         },
-        points: { low: 3, regular: 5, severe: 7 },
-        staffDescription: 'Inappropriate trading practices, scamming, or violating trading rules and guidelines.',
-        playerDescription: 'You have been banned for violating trading rules or engaging in unfair trading practices.',
+        points: { low: 4, regular: 6, severe: 10 },
+        staffDescription: 'Trading or selling in-game items, content, or services on unauthorized third-party platforms.',
+        playerDescription: 'Trading or selling in-game items, content, or services on unauthorized third-party platforms is strictly prohibited.',
         canBeAltBlocking: true,
-        canBeStatWiping: false,
+        canBeStatWiping: true,
         appealForm: {
           fields: [
             {
-              id: 'trading_details',
+              id: 'why',
               type: 'textarea',
-              label: 'Trading Details',
-              description: 'Describe the trading situation that led to this punishment',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'trading_agreement',
-              type: 'textarea',
-              label: 'Trading Agreement',
-              description: 'What was the agreed upon trade?',
-              required: false,
-              order: 2
             }
           ]
         }
@@ -1385,40 +1256,24 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         isCustomizable: true, 
         ordinal: 17,
         durations: {
-          low: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
-          regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
-          severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } }
+          low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+          regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+          severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 0, unit: 'days', type: 'permanent ban' } }
         },
-        points: { low: 4, regular: 7, severe: 10 },
-        staffDescription: 'Using hacks, mods, or other unauthorized software to gain an unfair advantage in gameplay.',
-        playerDescription: 'You have been banned for cheating or using unauthorized modifications.',
+        points: { low: 5, regular: 7, severe: 9 },
+        staffDescription: 'Using hacks, mods, exploits, or other software to gain an unfair advantage.',
+        playerDescription: 'Cheating through the use of client-side modifications or game exploits to gain an unfair advantage over other players is strictly prohibited.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
           fields: [
             {
-              id: 'cheat_denial',
+              id: 'why',
               type: 'textarea',
-              label: 'Cheating Explanation',
-              description: 'Explain why you believe you were not cheating',
+              label: 'Why should this punishment be amended?',
+              description: 'Please provide context and any relevant information to support your appeal',
               required: true,
               order: 1
-            },
-            {
-              id: 'software_list',
-              type: 'textarea',
-              label: 'Software Used',
-              description: 'List any mods, software, or tools you were using',
-              required: false,
-              order: 2
-            },
-            {
-              id: 'false_positive',
-              type: 'checkbox',
-              label: 'I believe this was a false positive',
-              description: 'Check if you think the anti-cheat made an error',
-              required: false,
-              order: 3
             }
           ]
         }

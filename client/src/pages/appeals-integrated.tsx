@@ -86,6 +86,7 @@ interface BanInfo {
   expiresIn?: string;
   type: string;
   playerUuid?: string;
+  isAppealable?: boolean; // Whether this punishment type can be appealed
 }
 
 // Interface for appeal messages
@@ -210,8 +211,7 @@ const AppealsPage = () => {
       }
 
       const punishment = await response.json();
-      
-      // Transform punishment data to BanInfo format
+        // Transform punishment data to BanInfo format
       const banInfo: BanInfo = {
         id: punishment.id,
         reason: punishment.reason,
@@ -221,6 +221,7 @@ const AppealsPage = () => {
         expiresIn: punishment.expires ? formatDate(punishment.expires) : undefined,
         type: punishment.type,
         playerUuid: punishment.playerUuid,
+        isAppealable: punishment.isAppealable !== false, // Default to true if not specified
       };
 
       setBanInfo(banInfo);
@@ -230,10 +231,9 @@ const AppealsPage = () => {
       if (existingAppeal) {
         setAppealInfo(existingAppeal);
         setShowAppealForm(false);
-      } else {
-        // Show appeal form if no existing appeal and punishment is active
+      } else {        // Show appeal form if no existing appeal and punishment is active and appealable
         const canAppeal = banInfo.status === 'Active' && 
-                          !['Kick', 'Blacklist'].includes(banInfo.type);
+                          banInfo.isAppealable !== false;
         setShowAppealForm(canAppeal);
         setAppealInfo(null);
       }
@@ -675,24 +675,19 @@ const AppealsPage = () => {
               <div className="mt-8 space-y-4">
                 <Separator />
                 <h3 className="text-lg font-semibold mt-6">Submit Appeal</h3>
-                
-                {/* Unavailable punishment type notice */}
-                {['Kick', 'Blacklist'].includes(banInfo.type) && (
+                  {/* Unavailable punishment type notice */}
+                {banInfo.isAppealable === false && (
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Appeal Not Available</AlertTitle>
                     <AlertDescription>
-                      {banInfo.type === 'Kick' ? 
-                        "Kicks are temporary actions and cannot be appealed. Please rejoin the server."
-                        : 
-                        "This type of punishment cannot be appealed. If you believe this is in error, please contact support directly."
-                      }
+                      This punishment type is not appealable. If you believe this is in error, please contact support directly.
                     </AlertDescription>
                   </Alert>
                 )}
                 
                 {/* Dynamic Appeal Form */}
-                {!['Kick', 'Blacklist'].includes(banInfo.type) && (
+                {banInfo.isAppealable !== false && (
                   <Form {...appealForm}>
                     <form onSubmit={appealForm.handleSubmit(onAppealSubmit)} className="space-y-4">
                       {/* Punishment ID Field (Read-only) */}
@@ -762,8 +757,7 @@ const AppealsPage = () => {
                         className="w-full mt-6" 
                         disabled={createAppealMutation.isPending}
                       >
-                        {createAppealMutation.isPending ? "Submitting..." : "Submit Appeal"}
-                      </Button>
+                        {createAppealMutation.isPending ? "Submitting..." : "Submit Appeal"}                      </Button>
                     </form>
                   </Form>
                 )}

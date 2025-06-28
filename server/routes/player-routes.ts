@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Connection, Document } from 'mongoose';
 import { createSystemLog } from './log-routes';
 import { IIPAddress, IUsername, INote, IPunishment, IPlayer } from 'modl-shared-web/types';
+import { calculatePlayerStatus, updatePunishmentDataStructure } from '../utils/player-status-calculator';
 
 interface IIPInfo {
   status?: string;
@@ -17,25 +18,27 @@ interface IIPInfo {
 
 const router = express.Router();
 
-router.use((req: Request, res: Response, next: NextFunction) => {
+router.use((req: Request, res: Response, next: NextFunction): void => {
   if (!req.serverDbConnection) {
     console.error('Player route accessed without serverDbConnection.');
-    return res.status(503).json({
+    res.status(503).json({
       status: 503,
       error: 'Service Unavailable: Database connection not established for this server.'
     });
+    return;
   }
   if (!req.serverName) {
     console.error('Player route accessed without serverName.');
-    return res.status(500).json({
+    res.status(500).json({
       status: 500,
       error: 'Internal Server Error: Server name not identified.'
     });
+    return;
   }
   next();
 });
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const players = await Player.find({});
@@ -44,7 +47,7 @@ router.get('/', async (req: Request, res: Response) => {
       username: player.usernames?.length > 0 
         ? player.usernames[player.usernames.length - 1].username 
         : 'Unknown',
-      status: player.punishments?.some(p => p.type === 'BAN' && p.active) ? 'Banned' : 'Active',
+      status: (player.punishments?.some((p: any) => p.type === 'BAN' && p.active)) ? 'Banned' : 'Active',
       lastOnline: player.data?.get('lastLogin') || null
     }));
     res.json(formattedPlayers);
@@ -54,14 +57,68 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
+router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const player = await Player.findOne({ minecraftUuid: req.params.uuid });
     if (!player) {
-      return res.status(404).json({ error: 'Player not found' });
+      res.status(404).json({ error: 'Player not found' });
+      return;
     }
-    res.json(player);
+
+    // Calculate player status
+    try {
+      const Settings = req.serverDbConnection!.model('Settings');
+      const settings = await Settings.findOne({});
+      
+      let punishmentTypes = [];
+      let thresholds = {
+        gameplay: { medium: 5, habitual: 10 },
+        social: { medium: 4, habitual: 8 }
+      };
+
+      if (settings?.settings) {
+        // Get punishment types
+        if (settings.settings.punishmentTypes) {
+          punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
+            ? JSON.parse(settings.settings.punishmentTypes) 
+            : settings.settings.punishmentTypes;
+        }
+
+        // Get status thresholds
+        if (settings.settings.statusThresholds) {
+          const settingsThresholds = typeof settings.settings.statusThresholds === 'string'
+            ? JSON.parse(settings.settings.statusThresholds)
+            : settings.settings.statusThresholds;
+          
+          if (settingsThresholds) {
+            thresholds = settingsThresholds;
+          }
+        }
+      }
+
+      // Calculate status using the player's punishments
+      const playerStatus = calculatePlayerStatus(
+        player.punishments || [],
+        punishmentTypes,
+        thresholds
+      );
+
+      // Add calculated status to player data
+      const enhancedPlayer = {
+        ...player.toObject(),
+        social: playerStatus.social,
+        gameplay: playerStatus.gameplay,
+        socialPoints: playerStatus.socialPoints,
+        gameplayPoints: playerStatus.gameplayPoints
+      };
+
+      res.json(enhancedPlayer);
+    } catch (statusError) {
+      console.error('Error calculating player status:', statusError);
+      // Return player without calculated status if calculation fails
+      res.json(player);
+    }
   } catch (error) {
     console.error('Error fetching player:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -74,7 +131,7 @@ interface PlayerLoginBody {
   ipAddress: string;
 }
 
-router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Response) => {
+router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   
   try {
@@ -98,7 +155,7 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
     let player = await Player.findOne({ minecraftUuid });
 
     if (player) {
-      const existingIp = player.ipList.find(ip => ip.ipAddress === ipAddress);
+      const existingIp = player.ipList.find((ip: any) => ip.ipAddress === ipAddress);
       if (existingIp) {
         existingIp.logins.push(new Date());
       } else {
@@ -113,7 +170,7 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
         });
       }
 
-      const existingUsername = player.usernames.find(u => u.username.toLowerCase() === username.toLowerCase());
+      const existingUsername = player.usernames.find((u: any) => u.username.toLowerCase() === username.toLowerCase());
       if (!existingUsername) {
         player.usernames.push({ username, date: new Date() });
       }
@@ -158,18 +215,18 @@ interface CreatePlayerBody {
     minecraftUuid: string;
     username: string;
 }
-router.post('/', async (req: Request<{}, {}, CreatePlayerBody>, res: Response) => {
+router.post('/', async (req: Request<{}, {}, CreatePlayerBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
-    const { minecraftUuid, username } = req.body;
-
-    if (!minecraftUuid || !username) {
-        return res.status(400).json({ error: 'Missing minecraftUuid or username' });
+    const { minecraftUuid, username } = req.body;    if (!minecraftUuid || !username) {
+        res.status(400).json({ error: 'Missing minecraftUuid or username' });
+        return;
     }
         
     const existingPlayer = await Player.findOne({ minecraftUuid });
     if (existingPlayer) {
-      return res.status(400).json({ error: 'Player already exists' });
+      res.status(400).json({ error: 'Player already exists' });
+      return;
     }
     
     const player = new Player({
@@ -196,7 +253,7 @@ router.post('/', async (req: Request<{}, {}, CreatePlayerBody>, res: Response) =
 interface AddUsernameBody {
     username: string;
 }
-router.post('/:uuid/usernames', async (req: Request<{ uuid: string }, {}, AddUsernameBody>, res: Response) => {
+router.post('/:uuid/usernames', async (req: Request<{ uuid: string }, {}, AddUsernameBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { username } = req.body;
@@ -207,7 +264,7 @@ router.post('/:uuid/usernames', async (req: Request<{ uuid: string }, {}, AddUse
       return res.status(404).json({ error: 'Player not found' });
     }
     
-    const existingUsername = player.usernames.find(u => u.username.toLowerCase() === username.toLowerCase());
+    const existingUsername = player.usernames.find((u: any) => u.username.toLowerCase() === username.toLowerCase());
     if (!existingUsername) {
         player.usernames.push({ username, date: new Date() });
         await player.save();
@@ -225,7 +282,7 @@ interface AddNoteBody {
     issuerName: string;
     issuerId?: string;
 }
-router.post('/:uuid/notes', async (req: Request<{ uuid: string }, {}, AddNoteBody>, res: Response) => {
+router.post('/:uuid/notes', async (req: Request<{ uuid: string }, {}, AddNoteBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { text, issuerName, issuerId } = req.body;
@@ -249,7 +306,7 @@ router.post('/:uuid/notes', async (req: Request<{ uuid: string }, {}, AddNoteBod
 interface AddIpBody {
     ipAddress: string;
 }
-router.post('/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, res: Response) => {
+router.post('/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { ipAddress } = req.body; 
@@ -271,7 +328,7 @@ router.post('/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, 
       return res.status(404).json({ error: 'Player not found' });
     }
     
-    const existingIp = player.ipList.find(ip => ip.ipAddress === ipAddress);
+    const existingIp = player.ipList.find((ip: any) => ip.ipAddress === ipAddress);
     if (existingIp) {
       existingIp.logins.push(new Date());
     } else {
@@ -304,7 +361,7 @@ interface AddPunishmentBody {
     reason?: string;
     duration?: number;
 }
-router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response) => {
+router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const {
@@ -327,15 +384,24 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
     }
     
     const id = uuidv4().substring(0, 8).toUpperCase();
+      const punishmentData = new Map<string, any>();
     
-    const punishmentData = new Map<string, any>();
-    if (reason) punishmentData.set('reason', reason);
-    if (duration !== undefined) {
-        punishmentData.set('duration', duration); 
-        if (duration > 0) {
-            punishmentData.set('expires', new Date(Date.now() + duration));
-        }
+    // Initialize required fields from new data structure
+    punishmentData.set('reason', reason || '');
+    punishmentData.set('duration', duration || 0);
+    punishmentData.set('blockedName', null);
+    punishmentData.set('blockedSkin', null);
+    punishmentData.set('linkedBanId', null);
+    punishmentData.set('linkedBanExpiry', new Date());
+    punishmentData.set('chatLog', null);
+    punishmentData.set('altBlocking', false);
+    punishmentData.set('wipeAfterExpiry', false);
+    
+    if (duration !== undefined && duration > 0) {
+        punishmentData.set('expires', new Date(Date.now() + duration));
     }
+    
+    // Override with any provided data
     if (data && typeof data === 'object') {
         for (const [key, value] of Object.entries(data)) {
             punishmentData.set(key, value);
@@ -370,7 +436,7 @@ interface AddPunishmentModificationBody {
     effectiveDuration?: number;
     reason?: string;
 }
-router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Request<{ uuid: string, punishmentId: string }, {}, AddPunishmentModificationBody>, res: Response) => {
+router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Request<{ uuid: string, punishmentId: string }, {}, AddPunishmentModificationBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { type, issuerName, effectiveDuration, reason } = req.body;
@@ -381,7 +447,7 @@ router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Reques
       return res.status(404).json({ error: 'Player not found' });
     }
     
-    const punishment = player.punishments.find(p => p.id === req.params.punishmentId);
+    const punishment = player.punishments.find((p: any) => p.id === req.params.punishmentId);
     if (!punishment) {
       return res.status(404).json({ error: 'Punishment not found' });
     }
@@ -403,7 +469,7 @@ router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Reques
   }
 });
 
-router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, res: Response) => {
+router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const player = await Player.findOne({ minecraftUuid: req.params.uuid });
@@ -411,7 +477,7 @@ router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, re
       return res.status(404).json({ error: 'Player not found' });
     }
     
-    const activePunishments = player.punishments.filter(punishment => {
+    const activePunishments = player.punishments.filter((punishment: any) => {
       if (punishment.data && punishment.data.get('active') === false) return false;
       if (!punishment.started) return false;
 
@@ -432,7 +498,7 @@ router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, re
 });
 
 // Get punishment by ID (searches across all players)
-router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: string }>, res: Response) => {
+router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: string }>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const punishmentId = req.params.punishmentId;
@@ -445,14 +511,14 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
     }
     
     // Find the specific punishment within the player's punishments
-    const punishment = player.punishments.find(p => p.id === punishmentId);
+    const punishment = player.punishments.find((p: any) => p.id === punishmentId);
     
     if (!punishment) {
       return res.status(404).json({ error: 'Punishment not found' });
     }
-    
-    // Get the punishment type name from settings if available
+      // Get the punishment type name from settings if available
     let punishmentTypeName = 'Unknown';
+    let punishmentTypeIsAppealable = true; // Default to appealable
     try {
       const Settings = req.serverDbConnection!.model('Settings');
       const settings = await Settings.findOne({});
@@ -464,16 +530,17 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
         const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
         if (punishmentType) {
           punishmentTypeName = punishmentType.name;
+          punishmentTypeIsAppealable = punishmentType.isAppealable !== false; // Default to true if not specified
         }
       }
     } catch (settingsError) {
       console.warn('Could not fetch punishment type name from settings:', settingsError);
     }
-    
-    // Transform punishment data for the frontend
+      // Transform punishment data for the frontend
     const transformedPunishment = {
       id: punishment.id,
       type: punishmentTypeName,
+      isAppealable: punishmentTypeIsAppealable,
       reason: punishment.data?.get('reason') || 'No reason provided',
       issued: punishment.issued,
       started: punishment.started,
@@ -481,7 +548,7 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
       playerUuid: player.minecraftUuid,
       playerUsername: player.usernames.length > 0 ? player.usernames[player.usernames.length - 1].username : 'Unknown',
       active: true, // Default to true
-      expires: null
+      expires: null as Date | null
     };
     
     // Check if punishment is active

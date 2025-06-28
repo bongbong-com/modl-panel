@@ -10,6 +10,7 @@ import { Separator } from 'modl-shared-web/components/ui/separator';
 import { Slider } from 'modl-shared-web/components/ui/slider';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
 import { useSettings } from '@/hooks/use-data';
@@ -50,19 +51,19 @@ interface PunishmentType {
   ordinal: number;
   durations?: {
     low: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
     };
     regular: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
     };
     severe: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
     };
   };
   points?: {
@@ -76,11 +77,12 @@ interface PunishmentType {
   playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
   canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
+  isAppealable?: boolean; // Whether this punishment type can be appealed
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
   singleSeverityDurations?: {
-    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
 }
@@ -2840,8 +2842,7 @@ const Settings = () => {
                                             <SelectItem value="weeks">W</SelectItem>
                                             <SelectItem value="months">M</SelectItem>
                                           </SelectContent>
-                                        </Select>
-                                        <Select
+                                        </Select>                                        <Select
                                           value={selectedPunishment.singleSeverityDurations?.[offenseType as keyof typeof selectedPunishment.singleSeverityDurations]?.type || 'mute'}
                                           onValueChange={(type: string) => {
                                             setSelectedPunishment(prev => prev ? {
@@ -2853,7 +2854,7 @@ const Settings = () => {
                                                 ...prev.singleSeverityDurations,
                                                 [offenseType]: {
                                                   ...(prev.singleSeverityDurations?.[offenseType as keyof typeof prev.singleSeverityDurations] || { value: 24, unit: 'hours', type: 'mute' }),
-                                                  type: type as 'mute' | 'ban'
+                                                  type: type as 'mute' | 'ban' | 'permanent mute' | 'permanent ban'
                                                 }
                                               }
                                             } : null);
@@ -2865,6 +2866,7 @@ const Settings = () => {
                                           <SelectContent>
                                             <SelectItem value="mute">Mute</SelectItem>
                                             <SelectItem value="ban">Ban</SelectItem>
+                                            <SelectItem value="permanent mute">Permanent Mute</SelectItem>                                            <SelectItem value="permanent ban">Permanent Ban</SelectItem>
                                           </SelectContent>
                                         </Select>
                                       </div>
@@ -2914,8 +2916,7 @@ const Settings = () => {
                                     {offenseType.charAt(0).toUpperCase() + offenseType.slice(1)} Offense
                                   </Label>
                                   
-                                  <div className="flex gap-1 mt-1">
-                                    <Input
+                                  <div className="flex gap-1 mt-1">                                    <Input
                                       type="number"
                                       min="0"
                                       value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.value || ''}
@@ -2935,10 +2936,10 @@ const Settings = () => {
                                           }
                                         } : null);
                                       }}
-                                      className="text-center text-xs h-8 w-16"
+                                      disabled={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.type?.includes('permanent')}
+                                      className={`text-center text-xs h-8 w-16 ${selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.type?.includes('permanent') ? 'opacity-50' : ''}`}
                                       placeholder="24"
-                                    />
-                                    <Select
+                                    />                                    <Select
                                       value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.unit || 'hours'}
                                       onValueChange={(unit) => {
                                         setSelectedPunishment(prev => prev && prev.durations ? {
@@ -2955,8 +2956,9 @@ const Settings = () => {
                                           }
                                         } : null);
                                       }}
+                                      disabled={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.type?.includes('permanent')}
                                     >
-                                      <SelectTrigger className="w-[60px] h-8 text-xs">
+                                      <SelectTrigger className={`w-[60px] h-8 text-xs ${selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.type?.includes('permanent') ? 'opacity-50' : ''}`}>
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -2965,8 +2967,7 @@ const Settings = () => {
                                         <SelectItem value="weeks">W</SelectItem>
                                         <SelectItem value="months">M</SelectItem>
                                       </SelectContent>
-                                    </Select>
-                                    <Select
+                                    </Select>                                    <Select
                                       value={selectedPunishment.durations?.low[offenseType as keyof typeof selectedPunishment.durations.low]?.type || 'mute'}
                                       onValueChange={(type) => {
                                         setSelectedPunishment(prev => prev && prev.durations ? {
@@ -2977,7 +2978,7 @@ const Settings = () => {
                                               ...prev.durations.low,
                                               [offenseType]: {
                                                 ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                                type: type as 'mute' | 'ban'
+                                                type: type as 'mute' | 'ban' | 'permanent mute' | 'permanent ban'
                                               }
                                             }
                                           }
@@ -2990,6 +2991,8 @@ const Settings = () => {
                                       <SelectContent>
                                         <SelectItem value="mute">Mute</SelectItem>
                                         <SelectItem value="ban">Ban</SelectItem>
+                                        <SelectItem value="permanent mute">Permanent Mute</SelectItem>
+                                        <SelectItem value="permanent ban">Permanent Ban</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -3059,8 +3062,7 @@ const Settings = () => {
                                         <SelectItem value="weeks">W</SelectItem>
                                         <SelectItem value="months">M</SelectItem>
                                       </SelectContent>
-                                    </Select>
-                                    <Select
+                                    </Select>                                    <Select
                                       value={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.type || 'mute'}
                                       onValueChange={(type) => {
                                         setSelectedPunishment(prev => prev && prev.durations ? {
@@ -3071,7 +3073,7 @@ const Settings = () => {
                                               ...prev.durations.regular,
                                               [offenseType]: {
                                                 ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                                type: type as 'mute' | 'ban'
+                                                type: type as 'mute' | 'ban' | 'permanent mute' | 'permanent ban'
                                               }
                                             }
                                           }
@@ -3079,11 +3081,12 @@ const Settings = () => {
                                       }}
                                     >
                                       <SelectTrigger className="w-[70px] h-8 text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
+                                        <SelectValue />                                      </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="mute">Mute</SelectItem>
                                         <SelectItem value="ban">Ban</SelectItem>
+                                        <SelectItem value="permanent mute">Permanent Mute</SelectItem>
+                                        <SelectItem value="permanent ban">Permanent Ban</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -3153,8 +3156,7 @@ const Settings = () => {
                                         <SelectItem value="weeks">W</SelectItem>
                                         <SelectItem value="months">M</SelectItem>
                                       </SelectContent>
-                                    </Select>
-                                    <Select
+                                    </Select>                                    <Select
                                       value={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.type || 'mute'}
                                       onValueChange={(type) => {
                                         setSelectedPunishment(prev => prev && prev.durations ? {
@@ -3165,7 +3167,7 @@ const Settings = () => {
                                               ...prev.durations.severe,
                                               [offenseType]: {
                                                 ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                                type: type as 'mute' | 'ban'
+                                                type: type as 'mute' | 'ban' | 'permanent mute' | 'permanent ban'
                                               }
                                             }
                                           }
@@ -3178,6 +3180,8 @@ const Settings = () => {
                                       <SelectContent>
                                         <SelectItem value="mute">Mute</SelectItem>
                                         <SelectItem value="ban">Ban</SelectItem>
+                                        <SelectItem value="permanent mute">Permanent Mute</SelectItem>
+                                        <SelectItem value="permanent ban">Permanent Ban</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
@@ -3263,11 +3267,30 @@ const Settings = () => {
                       )}
                     </>
                   )}
-                </TabsContent>
-
-                {/* Appeal Form Configuration Tab */}
+                </TabsContent>                {/* Appeal Form Configuration Tab */}
                 <TabsContent value="appeal-form" className="space-y-4 max-h-[60vh] overflow-y-auto">
                   <div className="space-y-4">
+                    {/* Is Appealable Checkbox */}
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg bg-card">
+                      <Checkbox
+                        id="isAppealable"
+                        checked={selectedPunishment.isAppealable ?? true}                        onCheckedChange={(checked: boolean) => {
+                          setSelectedPunishment(prev => prev ? {
+                            ...prev,
+                            isAppealable: checked === true
+                          } : null);
+                        }}
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="isAppealable" className="text-sm font-medium">
+                          Is appealable?
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Whether players can submit appeals for this punishment type. Unchecked punishments will show "This punishment is not appealable" message.
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <div>
                         <h4 className="text-base font-medium">Appeal Form Fields</h4>
@@ -3278,14 +3301,13 @@ const Settings = () => {
                       <Button
                         size="sm"
                         onClick={() => setIsAddAppealFieldDialogOpen(true)}
+                        disabled={selectedPunishment.isAppealable === false}
                       >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Field
                       </Button>
-                    </div>
-
-                    {/* Appeal Form Fields List */}
-                    <div className="space-y-2">
+                    </div>                    {/* Appeal Form Fields List */}
+                    <div className={`space-y-2 ${selectedPunishment.isAppealable === false ? 'opacity-50 pointer-events-none' : ''}`}>
                       {selectedPunishment.appealForm?.fields
                         ?.sort((a, b) => a.order - b.order)
                         .map((field) => (
@@ -3345,8 +3367,18 @@ const Settings = () => {
                       {(!selectedPunishment.appealForm?.fields || selectedPunishment.appealForm.fields.length === 0) && (
                         <div className="text-center py-8 text-muted-foreground">
                           <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">No custom appeal fields configured</p>
-                          <p className="text-xs mt-1">Players will use the default appeal form</p>
+                          <p className="text-sm">
+                            {selectedPunishment.isAppealable === false 
+                              ? 'Appeals are disabled for this punishment type'
+                              : 'No custom appeal fields configured'
+                            }
+                          </p>
+                          <p className="text-xs mt-1">
+                            {selectedPunishment.isAppealable === false 
+                              ? 'Players will see "This punishment is not appealable" message'
+                              : 'Players will use the default appeal form'
+                            }
+                          </p>
                         </div>
                       )}
                     </div>
