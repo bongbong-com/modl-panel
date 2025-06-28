@@ -248,46 +248,79 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     try {
       setIsApplyingPunishment(true);
       
+      // Determine severity and status based on punishment type first
+      let severity = null;
+      let status = null;
+      
+      if (punishmentType?.singleSeverityPunishment) {
+        // For single-severity punishments, severity is the single configured value
+        severity = 'single'; // or could be determined from punishment type config
+        status = playerInfo.selectedOffenseLevel || 'first';
+      } else if (playerInfo.selectedSeverity) {
+        // For multi-severity punishments, map UI severity to punishment system values
+        const severityMapping = {
+          'Lenient': 'low',
+          'Regular': 'regular', 
+          'Aggravated': 'severe'
+        };
+        severity = severityMapping[playerInfo.selectedSeverity] || 'regular';
+        
+        // Status is always the offense level, defaulting to 'first' for multi-severity
+        status = 'first'; // Could be enhanced to track actual offense count
+      }
+
       // Calculate duration in milliseconds based on punishment type configuration
       let durationMs = 0;
       
+      // For manual punishments, use user-specified duration
       if (needsDuration && !playerInfo.isPermanent && playerInfo.duration) {
-        // Manual punishments - use user-specified duration
         durationMs = convertDurationToMilliseconds(playerInfo.duration);
         console.log('Manual punishment duration:', durationMs, 'from', playerInfo.duration);
-      } else if (punishmentType?.durations && playerInfo.selectedSeverity && !playerInfo.isPermanent) {
-        // Multi-severity punishment - use duration from punishment type config
-        const severityKey = playerInfo.selectedSeverity === 'Lenient' ? 'low' : 
-                           playerInfo.selectedSeverity === 'Regular' ? 'regular' : 'severe';
-        const offenseLevel = 'first'; // Default to first offense for now
-        const duration = punishmentType.durations[severityKey]?.[offenseLevel];
-        
-        if (duration) {
-          durationMs = convertDurationToMilliseconds(duration);
-          console.log('Multi-severity duration:', durationMs, 'from', duration);
+      } 
+      // For all other punishments, use punishment type configuration
+      else if (!playerInfo.isPermanent) {
+        if (punishmentType?.singleSeverityPunishment && punishmentType?.singleSeverityDurations && playerInfo.selectedOffenseLevel) {
+          // Single-severity punishment - use duration from offense level
+          const duration = punishmentType.singleSeverityDurations[playerInfo.selectedOffenseLevel];
+          if (duration) {
+            durationMs = convertDurationToMilliseconds(duration);
+            console.log('Single-severity duration:', durationMs, 'from', duration, 'for offense level:', playerInfo.selectedOffenseLevel);
+          } else {
+            console.log('No duration found for offense level', playerInfo.selectedOffenseLevel, 'in', punishmentType.singleSeverityDurations);
+          }
+        } else if (punishmentType?.durations && playerInfo.selectedSeverity) {
+          // Multi-severity punishment - use duration from punishment type config based on severity and status
+          const severityKey = playerInfo.selectedSeverity === 'Lenient' ? 'low' : 
+                             playerInfo.selectedSeverity === 'Regular' ? 'regular' : 'severe';
+          
+          // Use the status (first/medium/habitual) to get the right duration
+          const statusKey = (status || 'first') as 'first' | 'medium' | 'habitual';
+          const duration = punishmentType.durations[severityKey]?.[statusKey];
+          
+          if (duration) {
+            durationMs = convertDurationToMilliseconds(duration);
+            console.log('Multi-severity duration:', durationMs, 'from', duration, 'for severity:', severityKey, 'status:', statusKey);
+          } else {
+            console.log('No duration found for severity:', severityKey, 'status:', statusKey, 'in', punishmentType.durations);
+            // Try with 'first' as fallback
+            const fallbackDuration = punishmentType.durations[severityKey]?.['first'];
+            if (fallbackDuration) {
+              durationMs = convertDurationToMilliseconds(fallbackDuration);
+              console.log('Using fallback first offense duration:', durationMs, 'from', fallbackDuration);
+            }
+          }
         } else {
-          console.log('No duration found for', severityKey, offenseLevel, 'in', punishmentType.durations);
+          console.log('No duration calculation available for punishment type:', {
+            punishmentCategory: playerInfo.selectedPunishmentCategory,
+            isPermanent: playerInfo.isPermanent,
+            hasMultiDurations: !!punishmentType?.durations,
+            hasSingleDurations: !!punishmentType?.singleSeverityDurations,
+            isSingleSeverity: punishmentType?.singleSeverityPunishment,
+            selectedSeverity: playerInfo.selectedSeverity,
+            selectedOffenseLevel: playerInfo.selectedOffenseLevel,
+            punishmentType: punishmentType
+          });
         }
-      } else if (punishmentType?.singleSeverityDurations && playerInfo.selectedOffenseLevel && !playerInfo.isPermanent) {
-        // Single-severity punishment - use duration from offense level
-        const duration = punishmentType.singleSeverityDurations[playerInfo.selectedOffenseLevel];
-        if (duration) {
-          durationMs = convertDurationToMilliseconds(duration);
-          console.log('Single-severity duration:', durationMs, 'from', duration);
-        } else {
-          console.log('No duration found for', playerInfo.selectedOffenseLevel, 'in', punishmentType.singleSeverityDurations);
-        }
-      } else {
-        console.log('No duration calculation path matched:', {
-          needsDuration,
-          isPermanent: playerInfo.isPermanent,
-          hasDuration: !!playerInfo.duration,
-          hasMultiDurations: !!punishmentType?.durations,
-          hasSingleDurations: !!punishmentType?.singleSeverityDurations,
-          selectedSeverity: playerInfo.selectedSeverity,
-          selectedOffenseLevel: playerInfo.selectedOffenseLevel,
-          punishmentType: punishmentType
-        });
       }
         // Prepare data map for additional punishment data
       const data: { [key: string]: any } = {
@@ -360,25 +393,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             }
           }
         });
-      }        // Determine severity and status based on punishment type
-      let severity = null;
-      let status = null;
-      
-      if (punishmentType?.singleSeverityPunishment) {
-        // For single-severity punishments, severity is the single configured value
-        severity = 'single'; // or could be determined from punishment type config
-        status = playerInfo.selectedOffenseLevel || 'first';
-      } else if (playerInfo.selectedSeverity) {
-        // For multi-severity punishments, map UI severity to punishment system values
-        const severityMapping = {
-          'Lenient': 'low',
-          'Regular': 'regular', 
-          'Aggravated': 'severe'
-        };
-        severity = severityMapping[playerInfo.selectedSeverity] || 'regular';
-        
-        // Status is always the offense level, defaulting to 'first' for multi-severity
-        status = 'first'; // Could be enhanced to track actual offense count
       }
       
       // Prepare evidence array
