@@ -255,7 +255,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       if (punishmentType?.singleSeverityPunishment) {
         // For single-severity punishments, severity is the single configured value
         severity = 'single'; // or could be determined from punishment type config
-        status = playerInfo.selectedOffenseLevel || 'first';
+        // Map offense level to status for storage
+        const offenseLevelMapping = {
+          'first': 'low',
+          'medium': 'medium', 
+          'habitual': 'habitual'
+        };
+        status = offenseLevelMapping[playerInfo.selectedOffenseLevel as keyof typeof offenseLevelMapping] || 'low';
       } else if (playerInfo.selectedSeverity) {
         // For multi-severity punishments, map UI severity to punishment system values
         const severityMapping = {
@@ -265,8 +271,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         };
         severity = severityMapping[playerInfo.selectedSeverity] || 'regular';
         
-        // Status is always the offense level, defaulting to 'first' for multi-severity
-        status = 'first'; // Could be enhanced to track actual offense count
+        // Status is always low for multi-severity (default offense level)
+        status = 'low'; // Could be enhanced to track actual offense count
       }
 
       // Calculate duration in milliseconds based on punishment type configuration
@@ -293,9 +299,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           const severityKey = playerInfo.selectedSeverity === 'Lenient' ? 'low' : 
                              playerInfo.selectedSeverity === 'Regular' ? 'regular' : 'severe';
           
-          // Use the status (first/medium/habitual) to get the right duration
-          const statusKey = (status || 'first') as 'first' | 'medium' | 'habitual';
-          const duration = punishmentType.durations[severityKey]?.[statusKey];
+          // Map stored status back to punishment type keys for duration lookup
+          const statusToDurationKey = {
+            'low': 'first',
+            'medium': 'medium', 
+            'habitual': 'habitual'
+          };
+          const statusKey = statusToDurationKey[status as keyof typeof statusToDurationKey] || 'first';
+          const duration = punishmentType.durations[severityKey]?.[statusKey as 'first' | 'medium' | 'habitual'];
           
           if (duration) {
             durationMs = convertDurationToMilliseconds(duration);
@@ -412,6 +423,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       };
       
       console.log('Full punishment data being sent:', punishmentData);
+      console.log('Evidence in punishment data:', punishmentData.evidence);
       
       // Call the API
       await applyPunishment.mutateAsync({
@@ -624,6 +636,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               const status = punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status);
               if (status) {
                 const statusLabels: { [key: string]: string } = { 
+                  low: 'Low',
                   first: 'Low', 
                   medium: 'Medium', 
                   habitual: 'Habitual' 
@@ -651,7 +664,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
               active: punishment.data?.active !== false || (punishment.data?.get ? punishment.data.get('active') !== false : punishment.active),
-              expires: punishment.expires,
+              expires: punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : punishment.expires),
               data: punishment.data || {},
               altBlocking: punishment.data?.altBlocking || (punishment.data?.get ? punishment.data.get('altBlocking') : false)
             });
