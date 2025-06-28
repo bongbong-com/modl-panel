@@ -572,17 +572,22 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         if (player.punishments) {
           console.log('Processing punishments:', player.punishments);
           player.punishments.forEach((punishment: any) => {
-            console.log('Processing punishment:', punishment);
-            // Determine punishment type name from ordinal
+            console.log('Processing punishment:', punishment);            // Determine punishment type name from ordinal using settings data
             const getPunishmentTypeName = (ordinal: number) => {
-              const typeMap: { [key: number]: string } = {
-                0: 'Kick', 1: 'Manual Mute', 2: 'Manual Ban', 3: 'Security Ban',
-                4: 'Linked Ban', 5: 'Blacklist', 6: 'Chat Abuse', 7: 'Anti Social',
-                8: 'Targeting', 9: 'Bad Content', 10: 'Bad Skin', 11: 'Bad Name',
-                12: 'Team Abuse', 13: 'Game Abuse', 14: 'Systems Abuse',
-                15: 'Account Abuse', 16: 'Game Trading', 17: 'Cheating'
-              };
-              return typeMap[ordinal] || `Punishment ${ordinal}`;
+              // First check all loaded punishment types from settings
+              const allTypes = [
+                ...punishmentTypesByCategory.Administrative,
+                ...punishmentTypesByCategory.Social,
+                ...punishmentTypesByCategory.Gameplay
+              ];
+              
+              const foundType = allTypes.find(type => type.ordinal === ordinal);
+              if (foundType) {
+                return foundType.name;
+              }
+              
+              // Fallback for unknown ordinals
+              return `Unknown Punishment ${ordinal}`;
             };
             
             const punishmentType = getPunishmentTypeName(punishment.type_ordinal);
@@ -595,8 +600,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               displayReason = typeof punishment.notes[0] === 'string' 
                 ? punishment.notes[0] 
                 : punishment.notes[0].text;
-            } else {
-              // Build descriptive reason from punishment details
+            } else {              // Build descriptive reason from punishment details - only include expiry info
               const parts = [];
                 // Add expiry/duration info - prioritize expires date over duration
               const expires = punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null);
@@ -642,24 +646,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 parts.push('Permanent');
               }
               
-              // Add severity info
-              const severity = punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity);
-              if (severity) {
-                parts.push(`${severity.charAt(0).toUpperCase() + severity.slice(1)} severity`);
-              }
-              
-              // Add status info 
-              const status = punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status);
-              if (status) {
-                const statusLabels: { [key: string]: string } = { 
-                  low: 'Low',
-                  first: 'Low', 
-                  medium: 'Medium', 
-                  habitual: 'Habitual' 
-                };
-                parts.push(statusLabels[status] || status);
-              }
-              
               displayReason = parts.join(' • ') || 'No additional details';
             }
             
@@ -667,7 +653,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               type: punishmentType,
               reason: displayReason,
               date: new Date(punishment.date || punishment.issued).toLocaleDateString(),
-              by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : ''),
+              by: punishment.issuerName,
               // Additional punishment details
               id: punishment.id || punishment._id,
               severity: punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity),
@@ -1018,28 +1004,26 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 const isExpanded = expandedPunishments.has(warning.id || `warning-${index}`);
                 const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);
                 
-                return (
-                  <div 
+                return (                  <div 
                     key={warning.id || `warning-${index}`} 
                     className={`${
-                      warning.active ? 'bg-destructive/10 border-l-4 border-destructive' : 
-                      warning.type.toLowerCase().includes('warning') ? 'bg-warning/10 border-l-4 border-warning' :
-                      'bg-muted/30 border-l-4 border-muted'
-                    } p-3 rounded-r-lg`}
+                      warning.active ? 'bg-white border-l-4 border-red-500' : 
+                      'bg-muted/30'
+                    } p-3 rounded-lg`}
                   >
                     <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className={
-                            warning.active ? "bg-destructive/10 text-destructive border-destructive/20" :
-                            warning.type.toLowerCase().includes('warning') ? "bg-warning/10 text-warning border-warning/20" :
-                            "bg-muted/10 text-muted-foreground border-muted/20"
-                          }>
+                      <div className="flex-1">                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="bg-white text-gray-900 border-gray-300">
                             {warning.type}
                           </Badge>
                           {warning.active && (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge className="text-xs bg-red-500 text-white border-red-600">
                               Active
+                            </Badge>
+                          )}
+                          {!warning.active && (
+                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
+                              Inactive
                             </Badge>
                           )}
                           {warning.altBlocking && (
@@ -1048,40 +1032,28 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             </Badge>
                           )}
                           {warning.severity && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className={`text-xs ${
+                              warning.severity.toLowerCase() === 'low' || warning.severity.toLowerCase() === 'lenient' ? 
+                                'bg-green-100 text-green-800 border-green-300' :
+                              warning.severity.toLowerCase() === 'regular' || warning.severity.toLowerCase() === 'medium' ?
+                                'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                            }`}>
                               {warning.severity}
                             </Badge>
                           )}
                           {warning.status && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className={`text-xs ${
+                              warning.status.toLowerCase() === 'low' || warning.status.toLowerCase() === 'first' ? 
+                                'bg-green-100 text-green-800 border-green-300' :
+                              warning.status.toLowerCase() === 'medium' ?
+                                'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                            }`}>
                               {warning.status}
                             </Badge>
-                          )}
-                        </div>
+                          )}                        </div>
                         <p className="text-sm mt-1">{warning.reason}</p>
-                        {warning.expires && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {(() => {
-                              const expiryDate = new Date(warning.expires);
-                              const now = new Date();
-                              const timeDiff = expiryDate.getTime() - now.getTime();
-                              
-                              const formatTime = (timeDiff: number) => {
-                                const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
-                                const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                                if (days > 0) return `${days}d ${hours}h`;
-                                if (hours > 0) return `${hours}h`;
-                                return Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000)) + 'm';
-                              };
-                              
-                              if (timeDiff > 0) {
-                                return `Expires in ${formatTime(timeDiff)} (${expiryDate.toLocaleDateString()})`;
-                              } else {
-                                return `Expired ${formatTime(timeDiff)} ago (${expiryDate.toLocaleDateString()})`;
-                              }
-                            })()}
-                          </p>
-                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{warning.date}</span>
