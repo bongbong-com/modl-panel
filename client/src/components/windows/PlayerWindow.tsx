@@ -248,9 +248,27 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     try {
       setIsApplyingPunishment(true);
       
-      // Calculate duration in milliseconds
+      // Calculate duration in milliseconds based on punishment type configuration
       let durationMs = 0;
-      if (needsDuration && !playerInfo.isPermanent && playerInfo.duration) {
+      
+      if (punishmentType?.durations && playerInfo.selectedSeverity && !playerInfo.isPermanent) {
+        // Multi-severity punishment - use duration from punishment type config
+        const severityKey = playerInfo.selectedSeverity === 'Lenient' ? 'low' : 
+                           playerInfo.selectedSeverity === 'Regular' ? 'regular' : 'severe';
+        const offenseLevel = 'first'; // Default to first offense for now
+        const duration = punishmentType.durations[severityKey]?.[offenseLevel];
+        
+        if (duration) {
+          durationMs = convertDurationToMilliseconds(duration);
+        }
+      } else if (punishmentType?.singleSeverityDurations && playerInfo.selectedOffenseLevel && !playerInfo.isPermanent) {
+        // Single-severity punishment - use duration from offense level
+        const duration = punishmentType.singleSeverityDurations[playerInfo.selectedOffenseLevel];
+        if (duration) {
+          durationMs = convertDurationToMilliseconds(duration);
+        }
+      } else if (needsDuration && !playerInfo.isPermanent && playerInfo.duration) {
+        // Manual punishments - use user-specified duration
         durationMs = convertDurationToMilliseconds(playerInfo.duration);
       }
         // Prepare data map for additional punishment data
@@ -328,24 +346,20 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       let status = null;
       
       if (punishmentType?.singleSeverityPunishment) {
-        // For single-severity punishments, use offense level
-        severity = playerInfo.selectedOffenseLevel || 'first';
-      } else if (playerInfo.selectedSeverity) {
-        // For multi-severity punishments, use severity
-        severity = playerInfo.selectedSeverity.toLowerCase(); // Convert to lowercase for consistency
-      }
-      
-      // Status is the offense level for this punishment
-      if (punishmentType?.singleSeverityPunishment) {
+        // For single-severity punishments, severity is the single configured value
+        severity = 'single'; // or could be determined from punishment type config
         status = playerInfo.selectedOffenseLevel || 'first';
       } else if (playerInfo.selectedSeverity) {
-        // Map severity to offense level
-        const severityToStatus = {
-          'Lenient': 'first',
-          'Regular': 'medium', 
-          'Aggravated': 'habitual'
+        // For multi-severity punishments, map UI severity to punishment system values
+        const severityMapping = {
+          'Lenient': 'low',
+          'Regular': 'regular', 
+          'Aggravated': 'severe'
         };
-        status = severityToStatus[playerInfo.selectedSeverity] || 'first';
+        severity = severityMapping[playerInfo.selectedSeverity] || 'regular';
+        
+        // Status is always the offense level, defaulting to 'first' for multi-severity
+        status = 'first'; // Could be enhanced to track actual offense count
       }
       
       // Prepare punishment data in the format expected by the server
@@ -566,7 +580,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               // Add status info 
               const status = punishment.data?.get ? punishment.data.get('status') : punishment.status;
               if (status) {
-                const statusLabels = { first: '1st offense', medium: '2nd offense', habitual: 'Habitual' };
+                const statusLabels: { [key: string]: string } = { 
+                  first: '1st offense', 
+                  medium: '2nd offense', 
+                  habitual: 'Habitual' 
+                };
                 parts.push(statusLabels[status] || status);
               }
               
@@ -582,7 +600,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               id: punishment.id || punishment._id,
               severity: punishment.data?.get ? punishment.data.get('severity') : punishment.severity,
               status: punishment.data?.get ? punishment.data.get('status') : punishment.status,
-              evidence: punishment.data?.get ? (punishment.data.get('evidence') || []) : (punishment.evidence || []),
+              evidence: punishment.evidence || [],
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
               active: punishment.data?.get ? punishment.data.get('active') !== false : punishment.active,

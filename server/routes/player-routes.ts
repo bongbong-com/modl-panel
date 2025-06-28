@@ -441,15 +441,12 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
     punishmentData.set('altBlocking', false);
     punishmentData.set('wipeAfterExpiry', false);
     
-    // Add severity, status, and evidence to data map
+    // Add severity and status to data map
     if (severity) {
         punishmentData.set('severity', severity);
     }
     if (status) {
         punishmentData.set('status', status);
-    }
-    if (evidence && evidence.length > 0) {
-        punishmentData.set('evidence', evidence);
     }
     
     // Override with any provided data (duration and other fields come from here now)
@@ -479,6 +476,7 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
       type_ordinal,
       modifications: [],
       notes: notes || [],
+      evidence: evidence || [],
       attachedTicketIds: attachedTicketIds || [],
       data: punishmentData
     };
