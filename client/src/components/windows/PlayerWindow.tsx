@@ -178,9 +178,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         variant: "destructive"
       });      return;
     }
-    
-    // Only validate reason for punishments that explicitly need it (Manual punishments and some administrative types)
-    const needsReason = ['Kick', 'Manual Mute', 'Manual Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory);
+      // Only validate reason for administrative manual punishments that explicitly need it
+    const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
     if (needsReason && !playerInfo.reason?.trim()) {
       console.log('Validation failed: No reason provided for punishment that requires one:', playerInfo.selectedPunishmentCategory);
       toast({
@@ -254,9 +253,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         data.reason = playerInfo.reason?.trim() || '';
         data.duration = durationMs;
       }
-      
-      // For other punishments that need reason (like Kick, Blacklist), add it to data
-      if (['Kick', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory) && playerInfo.reason?.trim()) {
+        // For other punishments that need reason (like Kick), add it to data
+      if (['Kick'].includes(playerInfo.selectedPunishmentCategory) && playerInfo.reason?.trim()) {
         data.reason = playerInfo.reason.trim();
       }
       
@@ -1514,20 +1512,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         </div>
                       </div>
                     </>
-                  )}
-
-                  {/* Blacklist */}
+                  )}                  {/* Blacklist */}
                   {playerInfo.selectedPunishmentCategory === 'Blacklist' && (
-                    <>                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Reason (shown to player)</label>
-                        <textarea 
-                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16"
-                          placeholder="Enter reason for blacklist"
-                          value={playerInfo.reason || ''}
-                          onChange={(e) => setPlayerInfo(prev => ({...prev, reason: e.target.value}))}
-                        ></textarea>
-                      </div>
-
+                    <>
                       <div className="space-y-2">
                         <div className="flex items-center">
                           <input 
@@ -1541,7 +1528,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         </div>
                       </div>
                     </>
-                  )}                  {/* Generic punishment types (all non-administrative) */}
+                  )}{/* Generic punishment types (all non-administrative) */}
                   {playerInfo.selectedPunishmentCategory && 
                    !['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Bad Skin', 'Bad Name', 'Linked Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory) && (
                     <>
