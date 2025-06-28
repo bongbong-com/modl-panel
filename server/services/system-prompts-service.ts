@@ -93,8 +93,7 @@ export class SystemPromptsService {
   "suggestedAction": {
     "punishmentTypeId": <punishment_type_id_number>,
     "severity": "low|regular|severe"
-  } OR null if no action needed,
-  "confidence": <number between 0 and 1>
+  } OR null if no action needed
 }`;
     injectedPrompt = injectedPrompt.replace(/\{\{JSON_FORMAT\}\}/g, jsonFormat);
 
@@ -196,16 +195,6 @@ export class SystemPromptsService {
   private getDefaultPrompt(strictnessLevel: 'lenient' | 'standard' | 'strict'): string {
     const commonInstructions = `
 You are an AI moderator analyzing Minecraft server chat logs for rule violations. Analyze the provided chat transcript and determine if any moderation action is needed.
-
-IMPORTANT RULES TO ENFORCE:
-- Harassment, bullying, or toxic behavior toward other players
-- Excessive profanity or inappropriate language
-- Spam or flooding chat
-- Advertising other servers
-- Cheating accusations or discussions
-- Threats or doxxing
-- Inappropriate content (sexual, violent, etc.)
-- Discrimination based on race, gender, religion, etc.
 
 RESPONSE FORMAT:
 You must respond with a valid JSON object in this exact format:
