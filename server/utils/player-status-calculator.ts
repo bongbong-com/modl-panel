@@ -13,7 +13,6 @@ interface IPunishment {
   type_ordinal: number;
   modifications: any[];
   notes: string[];
-  evidence: string[];
   attachedTicketIds: string[];
   data: Map<string, any>;
 }

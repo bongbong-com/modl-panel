@@ -58,6 +58,7 @@ interface PlayerInfo {
     active?: boolean;
     expires?: string;
     data?: any;
+    altBlocking?: boolean;
   }>;
   linkedAccounts: string[];
   notes: string[];
@@ -334,11 +335,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         severity = playerInfo.selectedSeverity.toLowerCase(); // Convert to lowercase for consistency
       }
       
-      // Determine status based on punishment category
-      if (punishmentType?.category === 'Social') {
-        status = 'social';
-      } else if (punishmentType?.category === 'Gameplay') {
-        status = 'gameplay';
+      // Status is the offense level for this punishment
+      if (punishmentType?.singleSeverityPunishment) {
+        status = playerInfo.selectedOffenseLevel || 'first';
+      } else if (playerInfo.selectedSeverity) {
+        // Map severity to offense level
+        const severityToStatus = {
+          'Lenient': 'first',
+          'Regular': 'medium', 
+          'Aggravated': 'habitual'
+        };
+        status = severityToStatus[playerInfo.selectedSeverity] || 'first';
       }
       
       // Prepare punishment data in the format expected by the server
@@ -514,17 +521,56 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             const punishmentType = getPunishmentTypeName(punishment.type_ordinal);
             const isManualPunishment = ['Kick', 'Manual Mute', 'Manual Ban'].includes(punishmentType);
             
-            // For manual punishments, use first note as reason, otherwise use data reason or default
-            let displayReason = 'No reason provided';
+            // For manual punishments, use first note as reason, otherwise build descriptive text
+            let displayReason = '';
             if (isManualPunishment && punishment.notes && punishment.notes.length > 0) {
               // For manual punishments, first note is the reason
               displayReason = typeof punishment.notes[0] === 'string' 
                 ? punishment.notes[0] 
                 : punishment.notes[0].text;
-            } else if (punishment.data && punishment.data.get && punishment.data.get('reason')) {
-              displayReason = punishment.data.get('reason');
-            } else if (punishment.reason) {
-              displayReason = punishment.reason;
+            } else {
+              // Build descriptive reason from punishment details
+              const parts = [];
+              
+              // Add duration info
+              const duration = punishment.data?.get ? punishment.data.get('duration') : punishment.duration;
+              const expires = punishment.data?.get ? punishment.data.get('expires') : punishment.expires;
+              if (duration && duration > 0) {
+                const days = Math.floor(duration / (24 * 60 * 60 * 1000));
+                const hours = Math.floor((duration % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                if (days > 0) {
+                  parts.push(`${days}d${hours > 0 ? ` ${hours}h` : ''}`);
+                } else if (hours > 0) {
+                  parts.push(`${hours}h`);
+                } else {
+                  const minutes = Math.floor((duration % (60 * 60 * 1000)) / (60 * 1000));
+                  parts.push(`${minutes}m`);
+                }
+              } else if (expires) {
+                const expiryDate = new Date(expires);
+                if (expiryDate > new Date()) {
+                  parts.push('Until ' + expiryDate.toLocaleDateString());
+                } else {
+                  parts.push('Expired');
+                }
+              } else {
+                parts.push('Permanent');
+              }
+              
+              // Add severity info
+              const severity = punishment.data?.get ? punishment.data.get('severity') : punishment.severity;
+              if (severity) {
+                parts.push(`${severity.charAt(0).toUpperCase() + severity.slice(1)} severity`);
+              }
+              
+              // Add status info 
+              const status = punishment.data?.get ? punishment.data.get('status') : punishment.status;
+              if (status) {
+                const statusLabels = { first: '1st offense', medium: '2nd offense', habitual: 'Habitual' };
+                parts.push(statusLabels[status] || status);
+              }
+              
+              displayReason = parts.join(' • ') || 'No additional details';
             }
             
             warnings.push({
@@ -536,12 +582,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               id: punishment.id || punishment._id,
               severity: punishment.data?.get ? punishment.data.get('severity') : punishment.severity,
               status: punishment.data?.get ? punishment.data.get('status') : punishment.status,
-              evidence: punishment.evidence || [],
+              evidence: punishment.data?.get ? (punishment.data.get('evidence') || []) : (punishment.evidence || []),
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
               active: punishment.data?.get ? punishment.data.get('active') !== false : punishment.active,
               expires: punishment.expires,
-              data: punishment.data || {}
+              data: punishment.data || {},
+              altBlocking: punishment.data?.get ? punishment.data.get('altBlocking') : false
             });
           });
         }
@@ -896,6 +943,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           }>
                             {warning.type}
                           </Badge>
+                          {warning.active && (
+                            <Badge variant="destructive" className="text-xs">
+                              Active
+                            </Badge>
+                          )}
+                          {warning.altBlocking && (
+                            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                              Alt-blocking
+                            </Badge>
+                          )}
                           {warning.severity && (
                             <Badge variant="outline" className="text-xs">
                               {warning.severity}
@@ -904,11 +961,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           {warning.status && (
                             <Badge variant="outline" className="text-xs">
                               {warning.status}
-                            </Badge>
-                          )}
-                          {warning.active && (
-                            <Badge variant="destructive" className="text-xs">
-                              Active
                             </Badge>
                           )}
                         </div>
