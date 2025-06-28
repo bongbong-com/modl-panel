@@ -116,9 +116,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
   const [showBanSearchResults, setShowBanSearchResults] = useState(false);
   const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
-  
-  // Get current authenticated user
+    // Get current authenticated user
   const { user } = useAuth();
+  console.log('Current user from useAuth:', user);
   
   // Initialize the applyPunishment mutation hook
   const applyPunishment = useApplyPunishment();
@@ -161,14 +161,20 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     };
     
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
-  };
-
-  // Handler for applying punishment
+  };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
+    // Visible debugging for remote access
+    alert('handleApplyPunishment called!');
+    
+    console.log('Apply punishment button clicked');
+    console.log('Current playerInfo:', playerInfo);
+    
     const punishmentType = getCurrentPunishmentType();
+    console.log('Current punishment type:', punishmentType);
     
     // Validate required fields
     if (!playerInfo.selectedPunishmentCategory) {
+      console.log('Validation failed: No punishment category selected');
       toast({
         title: "Missing information",
         description: "Please select a punishment category",
@@ -176,8 +182,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       });
       return;
     }
-    
-    if (!playerInfo.reason?.trim()) {
+      if (!playerInfo.reason?.trim()) {
+      console.log('Validation failed: No reason provided, current reason:', playerInfo.reason);
       toast({
         title: "Missing information",
         description: "Please provide a reason for the punishment",
@@ -185,6 +191,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       });
       return;
     }
+    
+    console.log('Basic validation passed, checking punishment type requirements...');
     
     // For single-severity punishments, offense level is required
     // For multi-severity punishments, severity is required
@@ -684,6 +692,32 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     }
     
     return preview;
+  };  // Test function for debugging (remove in production)
+  (window as any).testApplyPunishment = () => {
+    console.log('Testing apply punishment...');
+    alert('Setting test data for punishment...');
+    setPlayerInfo(prev => ({
+      ...prev,
+      selectedPunishmentCategory: 'Kick',
+      reason: 'Test reason for debugging',
+      status: 'Online'
+    }));
+    setTimeout(() => {
+      console.log('Calling handleApplyPunishment after setting test data');
+      alert('About to call handleApplyPunishment...');
+      handleApplyPunishment();
+    }, 100);
+  };
+
+  // Quick debugging function to check current state
+  (window as any).debugPlayerInfo = () => {
+    alert(`Current state:
+Category: ${playerInfo.selectedPunishmentCategory || 'NONE'}
+Reason: ${playerInfo.reason || 'EMPTY'}  
+Status: ${playerInfo.status}
+User: ${user?.username || 'NO USER'}`);
+    console.log('Full playerInfo:', playerInfo);
+    console.log('Current user:', user);
   };
 
   return (
@@ -1740,12 +1774,20 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           />
                           <label htmlFor="silent" className="text-sm">Silent (No Notification)</label>
                         </div>
-                      </div>
-                      
-                      <div className="pt-2">
+                      </div>                      <div className="pt-2">
                         <Button 
-                          className="w-full" 
-                          onClick={handleApplyPunishment}
+                          className="w-full"                          onClick={(e) => {
+                            console.log('Apply button clicked!');
+                            console.log('isApplyingPunishment:', isApplyingPunishment);
+                            console.log('Button disabled?', isApplyingPunishment);
+                            
+                            // Visible alert for remote debugging
+                            alert(`Button clicked! Category: ${playerInfo.selectedPunishmentCategory || 'NONE'}, Reason: ${playerInfo.reason || 'EMPTY'}, Status: ${playerInfo.status}`);
+                            
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleApplyPunishment();
+                          }}
                           disabled={isApplyingPunishment}
                         >
                           {isApplyingPunishment ? (
@@ -1759,6 +1801,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             </>
                           )}
                         </Button>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Debug - Category: {playerInfo.selectedPunishmentCategory || 'None'}, 
+                          Reason: {playerInfo.reason || 'Empty'}, 
+                          Status: {playerInfo.status}
+                        </div>
                       </div>
                     </>
                   )}
