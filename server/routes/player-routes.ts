@@ -2,8 +2,53 @@ import express, { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Connection, Document } from 'mongoose';
 import { createSystemLog } from './log-routes';
-import { IIPAddress, IUsername, INote, IPunishment, IPlayer } from 'modl-shared-web/types';
 import { calculatePlayerStatus, updatePunishmentDataStructure } from '../utils/player-status-calculator';
+
+// Local type definitions (temporary replacement for missing shared types)
+interface IIPAddress {
+  ipAddress: string;
+  country?: string;
+  region?: string;
+  asn?: string;
+  proxy?: boolean;
+  firstLogin: Date;
+  logins: Date[];
+}
+
+interface IUsername {
+  username: string;
+  date: Date;
+}
+
+interface INote {
+  id: string;
+  text: string;
+  issuerName: string;
+  date: Date;
+}
+
+interface IPunishment {
+  id: string;
+  issuerName: string;
+  issued: Date;
+  started?: Date;
+  type_ordinal: number;
+  modifications: any[];
+  notes: string[];
+  evidence: string[];
+  attachedTicketIds: string[];
+  data: Map<string, any>;
+}
+
+interface IPlayer {
+  _id?: any;
+  minecraftUuid: string;
+  usernames: IUsername[];
+  ipAddresses: IIPAddress[];
+  notes: INote[];
+  punishments: IPunishment[];
+  save(): Promise<IPlayer>;
+}
 
 interface IIPInfo {
   status?: string;
@@ -356,22 +401,19 @@ interface AddPunishmentBody {
     issuerName: string;
     type_ordinal: number;
     notes?: string[];
+    evidence?: string[];
     attachedTicketIds?: string[];
     data?: Record<string, any>; // For Map conversion
-    reason?: string;
-    duration?: number;
 }
 router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response): Promise<void> => {
-  const Player = req.serverDbConnection!.model<IPlayer>('Player');
-  try {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');  try {
     const {
       issuerName, 
       type_ordinal,
       notes, 
+      evidence,
       attachedTicketIds, 
-      data, 
-      reason, 
-      duration 
+      data
     } = req.body;
 
     if (!issuerName || type_ordinal === undefined) {
@@ -382,13 +424,12 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
     if (!player) {
       return res.status(404).json({ error: 'Player not found' });
     }
-    
-    const id = uuidv4().substring(0, 8).toUpperCase();
+      const id = uuidv4().substring(0, 8).toUpperCase();
       const punishmentData = new Map<string, any>();
     
-    // Initialize required fields from new data structure
-    punishmentData.set('reason', reason || '');
-    punishmentData.set('duration', duration || 0);
+    // Initialize required fields with defaults
+    punishmentData.set('reason', '');
+    punishmentData.set('duration', 0);
     punishmentData.set('blockedName', null);
     punishmentData.set('blockedSkin', null);
     punishmentData.set('linkedBanId', null);
@@ -397,18 +438,18 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
     punishmentData.set('altBlocking', false);
     punishmentData.set('wipeAfterExpiry', false);
     
-    if (duration !== undefined && duration > 0) {
-        punishmentData.set('expires', new Date(Date.now() + duration));
-    }
-    
-    // Override with any provided data
+    // Override with any provided data (reason and duration come from here now)
     if (data && typeof data === 'object') {
         for (const [key, value] of Object.entries(data)) {
             punishmentData.set(key, value);
         }
     }
 
-    const newPunishment: IPunishment = {
+    // Set expiry date if duration is provided in data
+    const durationValue = punishmentData.get('duration');
+    if (durationValue !== undefined && durationValue > 0) {
+        punishmentData.set('expires', new Date(Date.now() + durationValue));
+    }    const newPunishment: IPunishment = {
       id,
       issuerName,
       issued: new Date(),
@@ -416,6 +457,7 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
       type_ordinal,
       modifications: [],
       notes: notes || [],
+      evidence: evidence || [],
       attachedTicketIds: attachedTicketIds || [],
       data: punishmentData
     };

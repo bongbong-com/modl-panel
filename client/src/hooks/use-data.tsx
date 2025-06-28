@@ -389,16 +389,21 @@ export function useApplyPunishment() {
       });
       
       if (!res.ok) {
-        throw new Error('Failed to apply punishment');
+        const errorText = await res.text();
+        console.error('Punishment API error:', errorText);
+        throw new Error(`Failed to apply punishment: ${res.status} ${res.statusText}`);
       }
       
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       // Invalidate player data to refresh it
-      queryClient.invalidateQueries({ queryKey: ['/api/panel/players', data._id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players', variables.uuid] });
       // Invalidate the entire player list to refresh it
       queryClient.invalidateQueries({ queryKey: ['/api/panel/players'] });
+    },
+    onError: (error) => {
+      console.error('Error applying punishment:', error);
     }
   });
 }
