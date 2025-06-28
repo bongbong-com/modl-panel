@@ -599,29 +599,46 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               // Build descriptive reason from punishment details
               const parts = [];
               
-              // Add duration info - check both data map and direct property
-              const duration = punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : punishment.duration);
+              // Add expiry/duration info - prioritize expires date over duration
               const expires = punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : punishment.expires);
+              const duration = punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : punishment.duration);
               
-              console.log('Duration for punishment', punishment.id, ':', duration, 'from data:', punishment.data);
-              if (duration && duration > 0) {
-                const days = Math.floor(duration / (24 * 60 * 60 * 1000));
-                const hours = Math.floor((duration % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+              console.log('Expires for punishment', punishment.id, ':', expires);
+              console.log('Duration for punishment', punishment.id, ':', duration);
+              
+              // Helper function to format time difference
+              const formatTimeDifference = (timeDiff: number) => {
+                const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
+                const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                const minutes = Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000));
+                
                 if (days > 0) {
-                  parts.push(`${days}d${hours > 0 ? ` ${hours}h` : ''}`);
+                  return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
                 } else if (hours > 0) {
-                  parts.push(`${hours}h`);
+                  return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
                 } else {
-                  const minutes = Math.floor((duration % (60 * 60 * 1000)) / (60 * 1000));
-                  parts.push(`${minutes}m`);
+                  return `${minutes}m`;
                 }
-              } else if (expires) {
+              };
+              
+              if (expires) {
                 const expiryDate = new Date(expires);
-                if (expiryDate > new Date()) {
-                  parts.push('Until ' + expiryDate.toLocaleDateString());
+                const now = new Date();
+                const timeDiff = expiryDate.getTime() - now.getTime();
+                
+                if (timeDiff > 0) {
+                  // Future expiry - show countdown
+                  const timeLeft = formatTimeDifference(timeDiff);
+                  parts.push(`Expires in ${timeLeft} (${expiryDate.toLocaleDateString()})`);
                 } else {
-                  parts.push('Expired');
+                  // Past expiry - show how long ago
+                  const timeAgo = formatTimeDifference(timeDiff);
+                  parts.push(`Expired ${timeAgo} ago (${expiryDate.toLocaleDateString()})`);
                 }
+              } else if (duration && duration > 0) {
+                // Fallback to duration if no expires date
+                const formattedDuration = formatTimeDifference(duration);
+                parts.push(`Duration: ${formattedDuration}`);
               } else {
                 parts.push('Permanent');
               }
@@ -1045,7 +1062,25 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         <p className="text-sm mt-1">{warning.reason}</p>
                         {warning.expires && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            Expires: {new Date(warning.expires).toLocaleDateString()}
+                            {(() => {
+                              const expiryDate = new Date(warning.expires);
+                              const now = new Date();
+                              const timeDiff = expiryDate.getTime() - now.getTime();
+                              
+                              const formatTime = (timeDiff: number) => {
+                                const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
+                                const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                                if (days > 0) return `${days}d ${hours}h`;
+                                if (hours > 0) return `${hours}h`;
+                                return Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000)) + 'm';
+                              };
+                              
+                              if (timeDiff > 0) {
+                                return `Expires in ${formatTime(timeDiff)} (${expiryDate.toLocaleDateString()})`;
+                              } else {
+                                return `Expired ${formatTime(timeDiff)} ago (${expiryDate.toLocaleDateString()})`;
+                              }
+                            })()}
                           </p>
                         )}
                       </div>
