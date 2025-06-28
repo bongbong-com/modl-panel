@@ -598,10 +598,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             } else {
               // Build descriptive reason from punishment details
               const parts = [];
-              
-              // Add expiry/duration info - prioritize expires date over duration
-              const expires = punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : punishment.expires);
-              const duration = punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : punishment.duration);
+                // Add expiry/duration info - prioritize expires date over duration
+              const expires = punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null);
+              const duration = punishment.duration || punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : null);
               
               console.log('Expires for punishment', punishment.id, ':', expires);
               console.log('Duration for punishment', punishment.id, ':', duration);

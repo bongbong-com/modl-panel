@@ -147,22 +147,73 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         player.punishments || [],
         punishmentTypes,
         thresholds
-      );
-
-      // Add calculated status to player data
+      );      // Add calculated status to player data
       const enhancedPlayer = {
         ...player.toObject(),
         social: playerStatus.social,
         gameplay: playerStatus.gameplay,
         socialPoints: playerStatus.socialPoints,
-        gameplayPoints: playerStatus.gameplayPoints
+        gameplayPoints: playerStatus.gameplayPoints,
+        // Transform punishments to include properly extracted data from Maps
+        punishments: player.punishments.map((punishment: any) => {
+          const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
+          
+          // If data is a Map, convert it to a plain object
+          if (punishmentObj.data && punishmentObj.data instanceof Map) {
+            const dataObj: { [key: string]: any } = {};
+            for (const [key, value] of punishmentObj.data.entries()) {
+              dataObj[key] = value;
+            }
+            punishmentObj.data = dataObj;
+          }
+          
+          // Extract common fields that might be in the data Map
+          const expires = punishmentObj.data?.expires;
+          const duration = punishmentObj.data?.duration;
+          const active = punishmentObj.data?.active;
+          
+          return {
+            ...punishmentObj,
+            expires: expires,
+            duration: duration,
+            active: active !== false, // Default to true if not explicitly false
+          };
+        })
       };
 
-      res.json(enhancedPlayer);
-    } catch (statusError) {
+      res.json(enhancedPlayer);    } catch (statusError) {
       console.error('Error calculating player status:', statusError);
-      // Return player without calculated status if calculation fails
-      res.json(player);
+      // Return player without calculated status if calculation fails, but still process punishments
+      const playerObj = player.toObject();
+      const enhancedPlayer = {
+        ...playerObj,
+        // Transform punishments to include properly extracted data from Maps
+        punishments: player.punishments.map((punishment: any) => {
+          const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
+          
+          // If data is a Map, convert it to a plain object
+          if (punishmentObj.data && punishmentObj.data instanceof Map) {
+            const dataObj: { [key: string]: any } = {};
+            for (const [key, value] of punishmentObj.data.entries()) {
+              dataObj[key] = value;
+            }
+            punishmentObj.data = dataObj;
+          }
+          
+          // Extract common fields that might be in the data Map
+          const expires = punishmentObj.data?.expires;
+          const duration = punishmentObj.data?.duration;
+          const active = punishmentObj.data?.active;
+          
+          return {
+            ...punishmentObj,
+            expires: expires,
+            duration: duration,
+            active: active !== false, // Default to true if not explicitly false
+          };
+        })
+      };
+      res.json(enhancedPlayer);
     }
   } catch (error) {
     console.error('Error fetching player:', error);
@@ -197,14 +248,12 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
         console.error(`Error fetching IP info for ${ipAddress}:`, fetchError);
     }
 
-    let player = await Player.findOne({ minecraftUuid });
-
-    if (player) {
-      const existingIp = player.ipList.find((ip: any) => ip.ipAddress === ipAddress);
+    let player = await Player.findOne({ minecraftUuid });    if (player) {
+      const existingIp = player.ipAddresses.find((ip: any) => ip.ipAddress === ipAddress);
       if (existingIp) {
         existingIp.logins.push(new Date());
       } else {
-        player.ipList.push({
+        player.ipAddresses.push({
           ipAddress,
           country: ipInfo.countryCode,
           region: ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : ipInfo.regionName,
@@ -225,14 +274,12 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
       await player.save();
       await createSystemLog(req.serverDbConnection, req.serverName, `Player ${username} (${minecraftUuid}) logged in. IP: ${ipAddress}.`, 'info', 'player-api');
       return res.status(200).json(player);
-    }
-
-    player = new Player({
+    }    player = new Player({
       _id: uuidv4(),
       minecraftUuid,
       usernames: [{ username, date: new Date() }],
       notes: [],
-      ipList: [{
+      ipAddresses: [{
         ipAddress,
         country: ipInfo.countryCode,
         region: ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : ipInfo.regionName,
@@ -273,13 +320,12 @@ router.post('/', async (req: Request<{}, {}, CreatePlayerBody>, res: Response): 
       res.status(400).json({ error: 'Player already exists' });
       return;
     }
-    
-    const player = new Player({
+      const player = new Player({
       _id: uuidv4(),
       minecraftUuid,
       usernames: [{ username, date: new Date() }],
       notes: [],
-      ipList: [],
+      ipAddresses: [],
       punishments: [],
       pendingNotifications: [],
       data: new Map<string, any>([['firstJoin', new Date()]])
@@ -372,12 +418,11 @@ router.post('/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, 
     if (!player) {
       return res.status(404).json({ error: 'Player not found' });
     }
-    
-    const existingIp = player.ipList.find((ip: any) => ip.ipAddress === ipAddress);
+      const existingIp = player.ipAddresses.find((ip: any) => ip.ipAddress === ipAddress);
     if (existingIp) {
       existingIp.logins.push(new Date());
     } else {
-      player.ipList.push({
+      player.ipAddresses.push({
         ipAddress,
         country: ipInfo.countryCode,
         region: ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : ipInfo.regionName,
@@ -537,8 +582,7 @@ router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, re
     if (!player) {
       return res.status(404).json({ error: 'Player not found' });
     }
-    
-    const activePunishments = player.punishments.filter((punishment: any) => {
+      const activePunishments = player.punishments.filter((punishment: any) => {
       if (punishment.data && punishment.data.get('active') === false) return false;
       if (!punishment.started) return false;
 
@@ -549,6 +593,29 @@ router.get('/:uuid/activePunishments', async (req: Request<{ uuid: string }>, re
       const endTime = startTime + Number(duration);
       
       return endTime > Date.now();
+    }).map((punishment: any) => {
+      const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
+      
+      // If data is a Map, convert it to a plain object
+      if (punishmentObj.data && punishmentObj.data instanceof Map) {
+        const dataObj: { [key: string]: any } = {};
+        for (const [key, value] of punishmentObj.data.entries()) {
+          dataObj[key] = value;
+        }
+        punishmentObj.data = dataObj;
+      }
+      
+      // Extract common fields that might be in the data Map
+      const expires = punishmentObj.data?.expires;
+      const duration = punishmentObj.data?.duration;
+      const active = punishmentObj.data?.active;
+      
+      return {
+        ...punishmentObj,
+        expires: expires,
+        duration: duration,
+        active: active !== false, // Default to true if not explicitly false
+      };
     });
     
     res.json(activePunishments);
