@@ -1786,7 +1786,16 @@ User: ${user?.username || 'NO USER'}`);
                             
                             e.preventDefault();
                             e.stopPropagation();
-                            handleApplyPunishment();
+                            
+                            try {
+                              console.log('About to call handleApplyPunishment...');
+                              alert('About to call handleApplyPunishment...');
+                              handleApplyPunishment();
+                              console.log('handleApplyPunishment call completed');
+                            } catch (error) {
+                              console.error('Error calling handleApplyPunishment:', error);
+                              alert(`Error calling handleApplyPunishment: ${error}`);
+                            }
                           }}
                           disabled={isApplyingPunishment}
                         >
