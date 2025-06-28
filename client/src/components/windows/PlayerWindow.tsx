@@ -506,7 +506,29 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     const punishmentType = getCurrentPunishmentType();
     if (!punishmentType) return '';
     
-    let preview = punishmentType.name;
+    // Determine if this is a ban or mute action
+    const getBanOrMuteAction = (typeName: string, punishmentType: any) => {
+      // Check for explicit ban/mute in the name
+      if (typeName.toLowerCase().includes('mute')) return 'Mute';
+      if (typeName.toLowerCase().includes('ban') || typeName.toLowerCase().includes('blacklist')) return 'Ban';
+      
+      // Check if the punishment type has an action property
+      if (punishmentType.action) {
+        return punishmentType.action === 'ban' ? 'Ban' : 
+               punishmentType.action === 'mute' ? 'Mute' : null;
+      }
+      
+      // For other punishment types, check for duration-based actions
+      // If it has durations, it's likely a ban or mute (most gameplay punishments are bans)
+      if (punishmentType.durations || punishmentType.singleSeverityDurations) {
+        return 'Ban'; // Default assumption for most punishment types
+      }
+      
+      return null;
+    };
+    
+    const action = getBanOrMuteAction(punishmentType.name, punishmentType);
+    let preview = action ? `${action} - ${punishmentType.name}` : punishmentType.name;
     
     if (punishmentType.singleSeverityPunishment) {
       if (punishmentType.singleSeverityDurations) {
@@ -523,6 +545,15 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       const duration = punishmentType.durations[severityKey]?.first;
       if (duration) {
         preview += ` (${duration.value} ${duration.unit})`;
+      }
+    }
+    
+    // For administrative punishments with manual duration settings
+    if (['Manual Mute', 'Manual Ban'].includes(punishmentType.name) && playerInfo.duration) {
+      if (playerInfo.isPermanent) {
+        preview += ' (Permanent)';
+      } else if (playerInfo.duration.value) {
+        preview += ` (${playerInfo.duration.value} ${playerInfo.duration.unit})`;
       }
     }
     
