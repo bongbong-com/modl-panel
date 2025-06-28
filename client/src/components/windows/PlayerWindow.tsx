@@ -587,9 +587,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               // Build descriptive reason from punishment details
               const parts = [];
               
-              // Add duration info
-              const duration = punishment.data?.get ? punishment.data.get('duration') : punishment.duration;
-              const expires = punishment.data?.get ? punishment.data.get('expires') : punishment.expires;
+              // Add duration info - check both data map and direct property
+              const duration = punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : punishment.duration);
+              const expires = punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : punishment.expires);
+              
+              console.log('Duration for punishment', punishment.id, ':', duration, 'from data:', punishment.data);
               if (duration && duration > 0) {
                 const days = Math.floor(duration / (24 * 60 * 60 * 1000));
                 const hours = Math.floor((duration % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
@@ -613,17 +615,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               }
               
               // Add severity info
-              const severity = punishment.data?.get ? punishment.data.get('severity') : punishment.severity;
+              const severity = punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity);
               if (severity) {
                 parts.push(`${severity.charAt(0).toUpperCase() + severity.slice(1)} severity`);
               }
               
               // Add status info 
-              const status = punishment.data?.get ? punishment.data.get('status') : punishment.status;
+              const status = punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status);
               if (status) {
                 const statusLabels: { [key: string]: string } = { 
-                  first: '1st offense', 
-                  medium: '2nd offense', 
+                  first: 'Low', 
+                  medium: 'Medium', 
                   habitual: 'Habitual' 
                 };
                 parts.push(statusLabels[status] || status);
@@ -639,8 +641,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : ''),
               // Additional punishment details
               id: punishment.id || punishment._id,
-              severity: punishment.data?.get ? punishment.data.get('severity') : punishment.severity,
-              status: punishment.data?.get ? punishment.data.get('status') : punishment.status,
+              severity: punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity),
+              status: punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status),
               evidence: (() => {
                 const evidenceArray = punishment.evidence || [];
                 console.log('Evidence for punishment', punishment.id, ':', evidenceArray);
@@ -648,10 +650,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               })(),
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
-              active: punishment.data?.get ? punishment.data.get('active') !== false : punishment.active,
+              active: punishment.data?.active !== false || (punishment.data?.get ? punishment.data.get('active') !== false : punishment.active),
               expires: punishment.expires,
               data: punishment.data || {},
-              altBlocking: punishment.data?.get ? punishment.data.get('altBlocking') : false
+              altBlocking: punishment.data?.altBlocking || (punishment.data?.get ? punishment.data.get('altBlocking') : false)
             });
           });
         }
@@ -1073,6 +1075,18 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 </li>
                               ))}
                             </ul>
+                          </div>
+                        )}
+                        {/* Debug: Show if evidence exists but is empty */}
+                        {warning.evidence && warning.evidence.length === 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            Debug: Evidence array exists but is empty
+                          </div>
+                        )}
+                        {/* Debug: Show if no evidence at all */}
+                        {!warning.evidence && (
+                          <div className="text-xs text-muted-foreground">
+                            Debug: No evidence field found
                           </div>
                         )}
                         
