@@ -105,12 +105,25 @@ interface AIServicePunishmentType {
   category: string;
   aiDescription: string;
   enabled: boolean;
+  ordinal: number;
+}
+
+interface IAIPunishmentConfig {
+  enabled: boolean;
+  aiDescription: string;
 }
 
 interface IAIModerationSettings {
   enableAutomatedActions: boolean;
   strictnessLevel: 'lenient' | 'standard' | 'strict';
-  aiPunishmentTypes: AIServicePunishmentType[];
+  aiPunishmentConfigs: Record<number, IAIPunishmentConfig>;
+}
+
+interface AvailablePunishmentType {
+  id: number;
+  name: string;
+  category: string;
+  ordinal: number;
 }
 
 const Settings = () => {
@@ -196,18 +209,19 @@ const Settings = () => {
   ]);
   
 
-
   // For new tag input
   const [newBugTagState, setNewBugTagState] = useState('');
   const [newPlayerTagState, setNewPlayerTagState] = useState('');
   const [newAppealTagState, setNewAppealTagState] = useState('');
   
-  // AI Punishment Types management state
+  // Updated AI Punishment Types management state
+  const [aiPunishmentTypes, setAiPunishmentTypes] = useState<AIServicePunishmentType[]>([]);
+  const [availablePunishmentTypes, setAvailablePunishmentTypes] = useState<AvailablePunishmentType[]>([]);
+  const [selectedPunishmentTypeId, setSelectedPunishmentTypeId] = useState<number | null>(null);
   const [selectedAIPunishmentType, setSelectedAIPunishmentType] = useState<AIServicePunishmentType | null>(null);
   const [isAddAIPunishmentDialogOpen, setIsAddAIPunishmentDialogOpen] = useState(false);
-  const [newAIPunishmentName, setNewAIPunishmentName] = useState('');
-  const [newAIPunishmentCategory, setNewAIPunishmentCategory] = useState('Social');
   const [newAIPunishmentDescription, setNewAIPunishmentDescription] = useState('');
+
   // Security tab states
   const [has2FAState, setHas2FAState] = useState(false);
   const [hasPasskeyState, setHasPasskeyState] = useState(false);  const [showSetup2FAState, setShowSetup2FAState] = useState(false);
@@ -242,22 +256,7 @@ const Settings = () => {
   const [aiModerationSettings, setAiModerationSettings] = useState<IAIModerationSettings>({
     enableAutomatedActions: true,
     strictnessLevel: 'standard',
-    aiPunishmentTypes: [
-      {
-        id: 9,
-        name: 'Anti Social',
-        category: 'Social',
-        aiDescription: 'Use for hostile, toxic, or deliberately antisocial behavior that creates a negative environment for other players. Includes passive-aggressive behavior and creating drama.',
-        enabled: true
-      },
-      {
-        id: 8,
-        name: 'Chat Abuse',
-        category: 'Social',
-        aiDescription: 'Use for inappropriate language, excessive caps, spam, or disruptive chat behavior. Applies to profanity, caps lock abuse, and general chat disruption.',
-        enabled: true
-      }
-    ]
+    aiPunishmentConfigs: {}
   });
   const [isLoadingAiSettings, setIsLoadingAiSettings] = useState(false);
   const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
@@ -614,9 +613,132 @@ const Settings = () => {
     }
   };
 
-  // Load AI moderation settings on component mount
+  // Load AI punishment types (enabled ones)
+  const loadAiPunishmentTypes = async () => {
+    try {
+      const response = await fetch('/api/panel/settings/ai-punishment-types');
+      if (response.ok) {
+        const data = await response.json();
+        setAiPunishmentTypes(data.data);
+      } else {
+        console.error('Failed to load AI punishment types:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading AI punishment types:', error);
+    }
+  };
+
+  // Load available punishment types for selection
+  const loadAvailablePunishmentTypes = async () => {
+    try {
+      const response = await fetch('/api/panel/settings/available-punishment-types');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePunishmentTypes(data.data);
+      } else {
+        console.error('Failed to load available punishment types:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading available punishment types:', error);
+    }
+  };
+
+  // Add AI punishment type configuration
+  const addAiPunishmentType = async (punishmentTypeId: number, aiDescription: string) => {
+    try {
+      const response = await fetch('/api/panel/settings/ai-punishment-types', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ punishmentTypeId, aiDescription }),
+      });
+      
+      if (response.ok) {
+        loadAiPunishmentTypes();
+        loadAvailablePunishmentTypes();
+        toast({
+          title: "AI Punishment Type Added",
+          description: "The punishment type has been enabled for AI use.",
+        });
+      } else {
+        throw new Error('Failed to add AI punishment type');
+      }
+    } catch (error) {
+      console.error('Error adding AI punishment type:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add AI punishment type. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Update AI punishment type
+  const updateAiPunishmentType = async (id: number, updates: { enabled?: boolean; aiDescription?: string }) => {
+    try {
+      const response = await fetch(`/api/panel/settings/ai-punishment-types/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+      
+      if (response.ok) {
+        loadAiPunishmentTypes();
+        if (updates.enabled === false) {
+          loadAvailablePunishmentTypes();
+        }
+        toast({
+          title: "AI Punishment Type Updated",
+          description: "The punishment type configuration has been updated.",
+        });
+      } else {
+        throw new Error('Failed to update AI punishment type');
+      }
+    } catch (error) {
+      console.error('Error updating AI punishment type:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update AI punishment type. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Remove AI punishment type configuration
+  const removeAiPunishmentType = async (id: number) => {
+    try {
+      const response = await fetch(`/api/panel/settings/ai-punishment-types/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        loadAiPunishmentTypes();
+        loadAvailablePunishmentTypes();
+        toast({
+          title: "AI Punishment Type Removed",
+          description: "The punishment type has been disabled for AI use.",
+        });
+      } else {
+        throw new Error('Failed to remove AI punishment type');
+      }
+    } catch (error) {
+      console.error('Error removing AI punishment type:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove AI punishment type. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load AI moderation settings and AI punishment types on component mount
   useEffect(() => {
     loadAiModerationSettings();
+    loadAiPunishmentTypes();
+    loadAvailablePunishmentTypes();
   }, []);
 
   // Auto-save AI moderation settings when they change
@@ -2616,24 +2738,20 @@ const Settings = () => {
                     <div className="space-y-4">
                       {/* Current AI Punishment Types */}
                       <div className="space-y-3">
-                        {aiModerationSettings.aiPunishmentTypes.map((punishmentType) => (
+                        {aiPunishmentTypes.map((punishmentType) => (
                           <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
                             <div className="flex-1 space-y-2">
                               <div className="flex items-center gap-3">
                                 <Switch
                                   checked={punishmentType.enabled}
                                   onCheckedChange={(checked) => {
-                                    setAiModerationSettings(prev => ({
-                                      ...prev,
-                                      aiPunishmentTypes: prev.aiPunishmentTypes.map(pt =>
-                                        pt.id === punishmentType.id ? { ...pt, enabled: checked } : pt
-                                      )
-                                    }));
+                                    updateAiPunishmentType(punishmentType.id, { enabled: checked });
                                   }}
                                 />
                                 <div>
                                   <h5 className="font-medium">{punishmentType.name}</h5>
                                   <p className="text-xs text-muted-foreground">{punishmentType.category}</p>
+                                  <p className="text-xs text-muted-foreground">Ordinal: {punishmentType.ordinal}</p>
                                 </div>
                               </div>
                               <p className="text-sm text-muted-foreground ml-10">
@@ -2652,10 +2770,7 @@ const Settings = () => {
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => {
-                                  setAiModerationSettings(prev => ({
-                                    ...prev,
-                                    aiPunishmentTypes: prev.aiPunishmentTypes.filter(pt => pt.id !== punishmentType.id)
-                                  }));
+                                  removeAiPunishmentType(punishmentType.id);
                                 }}
                               >
                                 Remove
@@ -2664,7 +2779,7 @@ const Settings = () => {
                           </div>
                         ))}
 
-                        {aiModerationSettings.aiPunishmentTypes.length === 0 && (
+                        {aiPunishmentTypes.length === 0 && (
                           <div className="text-center py-8 text-muted-foreground">
                             <p className="text-sm">No AI punishment types configured.</p>
                             <p className="text-xs">Add punishment types for the AI to reference when analyzing reports.</p>
@@ -2672,15 +2787,61 @@ const Settings = () => {
                         )}
                       </div>
 
-                      {/* Add New AI Punishment Type Button */}
-                      <Button
-                        onClick={() => setIsAddAIPunishmentDialogOpen(true)}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add AI Punishment Type
-                      </Button>
+                      {/* Add AI Punishment Type Dropdown */}
+                      {availablePunishmentTypes.length > 0 && (
+                        <div className="space-y-3">
+                          <h5 className="text-sm font-medium">Add Punishment Type for AI</h5>
+                          <div className="flex gap-2">
+                            <Select
+                              value={selectedPunishmentTypeId?.toString() || ""}
+                              onValueChange={(value) => setSelectedPunishmentTypeId(value ? parseInt(value) : null)}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select a punishment type to enable for AI..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availablePunishmentTypes.map((type) => (
+                                  <SelectItem key={type.id} value={type.id.toString()}>
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>{type.name}</span>
+                                      <div className="flex items-center gap-2 ml-4">
+                                        <Badge variant="outline" className="text-xs">
+                                          {type.category}
+                                        </Badge>
+                                        <Badge variant="secondary" className="text-xs">
+                                          #{type.ordinal}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              onClick={() => {
+                                if (selectedPunishmentTypeId) {
+                                  setIsAddAIPunishmentDialogOpen(true);
+                                }
+                              }}
+                              disabled={!selectedPunishmentTypeId}
+                              variant="default"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Enable for AI
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Select an existing punishment type to enable it for AI moderation with a custom description.
+                          </p>
+                        </div>
+                      )}
+
+                      {availablePunishmentTypes.length === 0 && (
+                        <div className="text-center py-4 text-muted-foreground">
+                          <p className="text-sm">All customizable punishment types are already enabled for AI.</p>
+                          <p className="text-xs">Create new punishment types in the Punishment Types section to add more.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3691,45 +3852,41 @@ const Settings = () => {
         )}
 
         {/* Add AI Punishment Type Dialog */}
-        {isAddAIPunishmentDialogOpen && (
+        {isAddAIPunishmentDialogOpen && selectedPunishmentTypeId && (
           <Dialog open={isAddAIPunishmentDialogOpen} onOpenChange={setIsAddAIPunishmentDialogOpen}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Add AI Punishment Type</DialogTitle>
+                <DialogTitle>Enable AI Punishment Type</DialogTitle>
                 <DialogDescription>
-                  Add a new punishment type that the AI can reference when analyzing reports.
+                  {(() => {
+                    const selectedType = availablePunishmentTypes.find(t => t.id === selectedPunishmentTypeId);
+                    return selectedType ? `Configure AI description for "${selectedType.name}" punishment type.` : 'Configure AI description for the selected punishment type.';
+                  })()}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
-                {/* Punishment Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="ai-punishment-name">Punishment Name</Label>
-                  <Input
-                    id="ai-punishment-name"
-                    placeholder="e.g., Chat Abuse, Griefing, etc."
-                    value={newAIPunishmentName}
-                    onChange={(e) => setNewAIPunishmentName(e.target.value)}
-                  />
-                </div>
-
-                {/* Category */}
-                <div className="space-y-2">
-                  <Label htmlFor="ai-punishment-category">Category</Label>
-                  <Select
-                    value={newAIPunishmentCategory}
-                    onValueChange={(value) => setNewAIPunishmentCategory(value)}
-                  >
-                    <SelectTrigger id="ai-punishment-category">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Social">Social</SelectItem>
-                      <SelectItem value="Gameplay">Gameplay</SelectItem>
-                      <SelectItem value="Administrative">Administrative</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Show selected punishment type details */}
+                {(() => {
+                  const selectedType = availablePunishmentTypes.find(t => t.id === selectedPunishmentTypeId);
+                  return selectedType ? (
+                    <div className="bg-muted/30 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="font-medium">{selectedType.name}</h5>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {selectedType.category}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              Ordinal: {selectedType.ordinal}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
 
                 {/* AI Description */}
                 <div className="space-y-2">
@@ -3752,44 +3909,24 @@ const Settings = () => {
                   variant="outline"
                   onClick={() => {
                     setIsAddAIPunishmentDialogOpen(false);
-                    setNewAIPunishmentName('');
-                    setNewAIPunishmentCategory('Social');
                     setNewAIPunishmentDescription('');
+                    setSelectedPunishmentTypeId(null);
                   }}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={() => {
-                    if (newAIPunishmentName.trim() && newAIPunishmentDescription.trim()) {
-                      const newId = Math.max(0, ...aiModerationSettings.aiPunishmentTypes.map(pt => pt.id)) + 1;
-                      const newPunishmentType: AIServicePunishmentType = {
-                        id: newId,
-                        name: newAIPunishmentName.trim(),
-                        category: newAIPunishmentCategory,
-                        aiDescription: newAIPunishmentDescription.trim(),
-                        enabled: true
-                      };
-                      
-                      setAiModerationSettings(prev => ({
-                        ...prev,
-                        aiPunishmentTypes: [...prev.aiPunishmentTypes, newPunishmentType]
-                      }));
-                      
+                    if (selectedPunishmentTypeId && newAIPunishmentDescription.trim()) {
+                      addAiPunishmentType(selectedPunishmentTypeId, newAIPunishmentDescription.trim());
                       setIsAddAIPunishmentDialogOpen(false);
-                      setNewAIPunishmentName('');
-                      setNewAIPunishmentCategory('Social');
                       setNewAIPunishmentDescription('');
-                      
-                      toast({
-                        title: "AI Punishment Type Added",
-                        description: `"${newPunishmentType.name}" has been added to the AI punishment types.`
-                      });
+                      setSelectedPunishmentTypeId(null);
                     }
                   }}
-                  disabled={!newAIPunishmentName.trim() || !newAIPunishmentDescription.trim()}
+                  disabled={!newAIPunishmentDescription.trim()}
                 >
-                  Add Punishment Type
+                  Enable for AI
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -3801,39 +3938,31 @@ const Settings = () => {
           <Dialog open={Boolean(selectedAIPunishmentType)} onOpenChange={() => setSelectedAIPunishmentType(null)}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>Edit AI Punishment Type</DialogTitle>
+                <DialogTitle>Edit AI Punishment Configuration</DialogTitle>
                 <DialogDescription>
-                  Update the details for "{selectedAIPunishmentType.name}".
+                  Update the AI description for "{selectedAIPunishmentType.name}".
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
-                {/* Punishment Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-ai-punishment-name">Punishment Name</Label>
-                  <Input
-                    id="edit-ai-punishment-name"
-                    value={selectedAIPunishmentType.name}
-                    onChange={(e) => setSelectedAIPunishmentType(prev => prev ? { ...prev, name: e.target.value } : null)}
-                  />
-                </div>
-
-                {/* Category */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit-ai-punishment-category">Category</Label>
-                  <Select
-                    value={selectedAIPunishmentType.category}
-                    onValueChange={(value) => setSelectedAIPunishmentType(prev => prev ? { ...prev, category: value } : null)}
-                  >
-                    <SelectTrigger id="edit-ai-punishment-category">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Social">Social</SelectItem>
-                      <SelectItem value="Gameplay">Gameplay</SelectItem>
-                      <SelectItem value="Administrative">Administrative</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Show punishment type details (read-only) */}
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="font-medium">{selectedAIPunishmentType.name}</h5>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {selectedAIPunishmentType.category}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          Ordinal: {selectedAIPunishmentType.ordinal}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Punishment type details are inherited from the main punishment configuration and cannot be edited here.
+                  </p>
                 </div>
 
                 {/* AI Description */}
@@ -3860,23 +3989,14 @@ const Settings = () => {
                 </Button>
                 <Button
                   onClick={() => {
-                    if (selectedAIPunishmentType) {
-                      setAiModerationSettings(prev => ({
-                        ...prev,
-                        aiPunishmentTypes: prev.aiPunishmentTypes.map(pt =>
-                          pt.id === selectedAIPunishmentType.id ? selectedAIPunishmentType : pt
-                        )
-                      }));
-                      
-                      toast({
-                        title: "AI Punishment Type Updated",
-                        description: `"${selectedAIPunishmentType.name}" has been updated.`
+                    if (selectedAIPunishmentType && selectedAIPunishmentType.aiDescription.trim()) {
+                      updateAiPunishmentType(selectedAIPunishmentType.id, { 
+                        aiDescription: selectedAIPunishmentType.aiDescription.trim() 
                       });
-                      
                       setSelectedAIPunishmentType(null);
                     }
                   }}
-                  disabled={!selectedAIPunishmentType?.name.trim() || !selectedAIPunishmentType?.aiDescription.trim()}
+                  disabled={!selectedAIPunishmentType?.aiDescription.trim()}
                 >
                   Save Changes
                 </Button>
