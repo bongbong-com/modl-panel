@@ -645,30 +645,43 @@ const Settings = () => {
 
   // Add AI punishment type configuration
   const addAiPunishmentType = async (punishmentTypeId: number, aiDescription: string) => {
+    console.log('addAiPunishmentType called with:', { punishmentTypeId, aiDescription });
+    
     try {
+      const requestBody = { punishmentTypeId, aiDescription };
+      console.log('Making request to /api/panel/settings/ai-punishment-types with body:', requestBody);
+      
       const response = await fetch('/api/panel/settings/ai-punishment-types', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ punishmentTypeId, aiDescription }),
+        body: JSON.stringify(requestBody),
       });
       
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
+      
       if (response.ok) {
-        loadAiPunishmentTypes();
-        loadAvailablePunishmentTypes();
+        console.log('Request successful, reloading data...');
+        await loadAiPunishmentTypes();
+        await loadAvailablePunishmentTypes();
         toast({
           title: "AI Punishment Type Added",
           description: "The punishment type has been enabled for AI use.",
         });
       } else {
-        throw new Error('Failed to add AI punishment type');
+        console.error('Request failed with status:', response.status, 'Error:', responseData.error);
+        throw new Error(responseData.error || 'Failed to add AI punishment type');
       }
     } catch (error) {
       console.error('Error adding AI punishment type:', error);
       toast({
         title: "Error",
-        description: "Failed to add AI punishment type. Please try again.",
+        description: `Failed to add AI punishment type: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     }
