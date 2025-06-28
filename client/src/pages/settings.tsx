@@ -616,15 +616,31 @@ const Settings = () => {
   // Load AI punishment types (enabled ones)
   const loadAiPunishmentTypes = async () => {
     try {
+      console.log('[AI Debug] loadAiPunishmentTypes: Starting fetch...');
       const response = await fetch('/api/panel/settings/ai-punishment-types');
+      console.log('[AI Debug] loadAiPunishmentTypes: Response status:', response.status);
+      console.log('[AI Debug] loadAiPunishmentTypes: Response ok:', response.ok);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('[AI Debug] loadAiPunishmentTypes: Response data:', data);
+        console.log('[AI Debug] loadAiPunishmentTypes: data.data length:', data.data?.length);
+        console.log('[AI Debug] loadAiPunishmentTypes: Current aiPunishmentTypes state before update:', aiPunishmentTypes);
+        
         setAiPunishmentTypes(data.data);
+        console.log('[AI Debug] loadAiPunishmentTypes: setAiPunishmentTypes called with:', data.data);
+        
+        // Check state immediately after (though it may not have updated due to async nature)
+        setTimeout(() => {
+          console.log('[AI Debug] loadAiPunishmentTypes: AI punishment types state after 100ms:', aiPunishmentTypes);
+        }, 100);
       } else {
         console.error('Failed to load AI punishment types:', response.status);
+        setAiPunishmentTypes([]);
       }
     } catch (error) {
       console.error('Error loading AI punishment types:', error);
+      setAiPunishmentTypes([]);
     }
   };
 
@@ -2751,48 +2767,60 @@ const Settings = () => {
                     <div className="space-y-4">
                       {/* Current AI Punishment Types */}
                       <div className="space-y-3">
-                        {aiPunishmentTypes.map((punishmentType) => (
-                          <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
-                            <div className="flex-1 space-y-2">
-                              <div className="flex items-center gap-3">
-                                <Switch
-                                  checked={punishmentType.enabled}
-                                  onCheckedChange={(checked) => {
-                                    updateAiPunishmentType(punishmentType.id, { enabled: checked });
-                                  }}
-                                />
-                                <div>
-                                  <h5 className="font-medium">{punishmentType.name}</h5>
-                                  <p className="text-xs text-muted-foreground">{punishmentType.category}</p>
-                                  <p className="text-xs text-muted-foreground">Ordinal: {punishmentType.ordinal}</p>
+                        {(() => {
+                          console.log('[AI Debug] Render: About to render AI punishment types list');
+                          console.log('[AI Debug] Render: aiPunishmentTypes for map:', aiPunishmentTypes);
+                          return aiPunishmentTypes.map((punishmentType) => {
+                            console.log('[AI Debug] Render: Rendering punishment type:', punishmentType);
+                            return (
+                              <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    <Switch
+                                      checked={punishmentType.enabled}
+                                      onCheckedChange={(checked) => {
+                                        updateAiPunishmentType(punishmentType.id, { enabled: checked });
+                                      }}
+                                    />
+                                    <div>
+                                      <h5 className="font-medium">{punishmentType.name}</h5>
+                                      <p className="text-xs text-muted-foreground">{punishmentType.category}</p>
+                                      <p className="text-xs text-muted-foreground">Ordinal: {punishmentType.ordinal}</p>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground ml-10">
+                                    {punishmentType.aiDescription}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2 ml-4">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSelectedAIPunishmentType(punishmentType)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => {
+                                      removeAiPunishmentType(punishmentType.id);
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
                                 </div>
                               </div>
-                              <p className="text-sm text-muted-foreground ml-10">
-                                {punishmentType.aiDescription}
-                              </p>
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSelectedAIPunishmentType(punishmentType)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                  removeAiPunishmentType(punishmentType.id);
-                                }}
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                            );
+                          });
+                        })()}
 
-                        {aiPunishmentTypes.length === 0 && (
+                        {(() => {
+                          console.log('[AI Debug] Render: aiPunishmentTypes length check:', aiPunishmentTypes.length);
+                          console.log('[AI Debug] Render: aiPunishmentTypes state:', aiPunishmentTypes);
+                          console.log('[AI Debug] Render: showing no AI punishment types message:', aiPunishmentTypes.length === 0);
+                          return aiPunishmentTypes.length === 0;
+                        })() && (
                           <div className="text-center py-8 text-muted-foreground">
                             <p className="text-sm">No AI punishment types configured.</p>
                             <p className="text-xs">Add punishment types for the AI to reference when analyzing reports.</p>
