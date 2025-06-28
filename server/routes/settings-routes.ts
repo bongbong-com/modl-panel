@@ -711,7 +711,10 @@ router.delete('/minecraft-api-key', async (req: Request, res: Response) => {
 // Get AI punishment types (combines existing punishment types with AI configs)
 router.get('/ai-punishment-types', async (req: Request, res: Response) => {
   try {
+    console.log('[AI Punishment Types GET] Starting request...');
+    
     if (!req.serverDbConnection) {
+      console.log('[AI Punishment Types GET] No database connection');
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
@@ -719,6 +722,7 @@ router.get('/ai-punishment-types', async (req: Request, res: Response) => {
     const settingsDoc = await SettingsModel.findOne({});
 
     if (!settingsDoc) {
+      console.log('[AI Punishment Types GET] Settings document not found');
       return res.status(404).json({ error: 'Settings not found' });
     }
 
@@ -727,13 +731,23 @@ router.get('/ai-punishment-types', async (req: Request, res: Response) => {
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
     };
+    console.log('[AI Punishment Types GET] AI Settings:', JSON.stringify(aiSettings, null, 2));
 
     const allPunishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    console.log('[AI Punishment Types GET] All punishment types count:', allPunishmentTypes.length);
+    console.log('[AI Punishment Types GET] Punishment types with ID 8:', allPunishmentTypes.filter((pt: any) => pt.id === 8));
+    
     const aiPunishmentConfigs = aiSettings.aiPunishmentConfigs || {};
+    console.log('[AI Punishment Types GET] AI punishment configs:', JSON.stringify(aiPunishmentConfigs, null, 2));
 
     // Combine punishment types with AI configurations
     const aiEnabledTypes = allPunishmentTypes
-      .filter((pt: IPunishmentType) => aiPunishmentConfigs[pt.id] && aiPunishmentConfigs[pt.id].enabled)
+      .filter((pt: IPunishmentType) => {
+        const hasConfig = aiPunishmentConfigs[pt.id];
+        const isEnabled = hasConfig && aiPunishmentConfigs[pt.id].enabled;
+        console.log(`[AI Punishment Types GET] Checking PT ${pt.id} (${pt.name}): hasConfig=${!!hasConfig}, isEnabled=${isEnabled}`);
+        return hasConfig && isEnabled;
+      })
       .map((pt: IPunishmentType) => ({
         id: pt.id,
         ordinal: pt.ordinal,
@@ -742,6 +756,9 @@ router.get('/ai-punishment-types', async (req: Request, res: Response) => {
         aiDescription: aiPunishmentConfigs[pt.id].aiDescription,
         enabled: true
       }));
+
+    console.log('[AI Punishment Types GET] Final enabled types:', aiEnabledTypes.length);
+    console.log('[AI Punishment Types GET] Enabled types data:', JSON.stringify(aiEnabledTypes, null, 2));
 
     res.json({ success: true, data: aiEnabledTypes });
   } catch (error) {
@@ -753,13 +770,18 @@ router.get('/ai-punishment-types', async (req: Request, res: Response) => {
 // Add/Enable AI punishment type
 router.post('/ai-punishment-types', async (req: Request, res: Response) => {
   try {
+    console.log('[AI Punishment Types POST] Starting request with body:', req.body);
+    
     if (!req.serverDbConnection) {
+      console.log('[AI Punishment Types POST] No database connection');
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
     const { punishmentTypeId, aiDescription = '' } = req.body;
+    console.log('[AI Punishment Types POST] Parsed punishmentTypeId:', punishmentTypeId, 'aiDescription:', aiDescription);
 
     if (!punishmentTypeId) {
+      console.log('[AI Punishment Types POST] Missing punishmentTypeId');
       return res.status(400).json({ error: 'punishmentTypeId is required' });
     }
 
@@ -767,17 +789,23 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
     const settingsDoc = await SettingsModel.findOne({});
 
     if (!settingsDoc) {
+      console.log('[AI Punishment Types POST] Settings document not found');
       return res.status(404).json({ error: 'Settings not found' });
     }
 
     const allPunishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    console.log('[AI Punishment Types POST] Found punishment types:', allPunishmentTypes.length);
+    
     const punishmentType = allPunishmentTypes.find((pt: IPunishmentType) => pt.id === punishmentTypeId);
+    console.log('[AI Punishment Types POST] Found punishment type:', punishmentType ? `${punishmentType.name} (customizable: ${punishmentType.isCustomizable})` : 'null');
 
     if (!punishmentType) {
+      console.log('[AI Punishment Types POST] Punishment type not found');
       return res.status(404).json({ error: 'Punishment type not found. It may have been deleted. Please refresh and try again.' });
     }
 
     if (!punishmentType.isCustomizable) {
+      console.log('[AI Punishment Types POST] Punishment type not customizable');
       return res.status(400).json({ error: 'Only customizable punishment types can be enabled for AI moderation' });
     }
 
@@ -786,9 +814,11 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
     };
+    console.log('[AI Punishment Types POST] Current AI settings before update:', JSON.stringify(aiSettings, null, 2));
 
     // Check if already enabled
     if (aiSettings.aiPunishmentConfigs?.[punishmentTypeId]?.enabled) {
+      console.log('[AI Punishment Types POST] Already enabled');
       return res.status(409).json({ error: 'Punishment type is already enabled for AI moderation' });
     }
 
@@ -798,9 +828,18 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
       enabled: true,
       aiDescription: aiDescription
     };
+    console.log('[AI Punishment Types POST] Updated AI settings:', JSON.stringify(aiSettings, null, 2));
 
     settingsDoc.settings.set('aiModerationSettings', aiSettings);
-    await settingsDoc.save();
+    console.log('[AI Punishment Types POST] Settings set on document, saving...');
+    
+    const saveResult = await settingsDoc.save();
+    console.log('[AI Punishment Types POST] Save result:', saveResult ? 'success' : 'failed');
+
+    // Verify the save by re-reading the document
+    const verificationDoc = await SettingsModel.findOne({});
+    const verificationSettings = verificationDoc?.settings.get('aiModerationSettings');
+    console.log('[AI Punishment Types POST] Verification - settings after save:', JSON.stringify(verificationSettings?.aiPunishmentConfigs, null, 2));
 
     const responseData = {
       id: punishmentType.id,
@@ -811,6 +850,7 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
       enabled: true
     };
 
+    console.log('[AI Punishment Types POST] Responding with:', responseData);
     res.json({ success: true, message: 'AI punishment type enabled successfully', data: responseData });
   } catch (error) {
     console.error('Error enabling AI punishment type:', error);
