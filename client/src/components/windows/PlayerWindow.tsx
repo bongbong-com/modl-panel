@@ -677,7 +677,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           : 'Unknown';
         
         const firstJoined = player.usernames && player.usernames.length > 0 
-          ? new Date(player.usernames[0].date).toLocaleDateString() 
+          ? formatDateWithTime(player.usernames[0].date) 
           : 'Unknown';
         
         // Get previous usernames
@@ -698,7 +698,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         const warnings = player.notes ? player.notes.map((note: any) => ({
           type: 'Warning',
           reason: note.text,
-          date: new Date(note.date).toLocaleDateString(),
+          date: formatDateWithTime(note.date),
           by: note.issuerName
         })) : [];
         
@@ -741,7 +741,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             warnings.push({
               type: punishmentType,
               reason: displayReason,
-              date: new Date(punishment.date || punishment.issued).toLocaleDateString(),
+              date: formatDateWithTime(punishment.date || punishment.issued),
               by: punishment.issuerName,
               // Additional punishment details
               id: punishment.id || punishment._id,
@@ -763,8 +763,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           });
         }
           // Extract notes
-        const notes = player.notes 
-          ? player.notes.map((note: any) => `${note.text} (Added by ${note.issuerName} on ${new Date(note.date).toLocaleDateString()})`) 
+        const notes = player.notes          ? player.notes.map((note: any) => `${note.text} (Added by ${note.issuerName} on ${formatDateWithTime(note.date)})`) 
           : [];
         
         // Extract linked accounts
@@ -1007,7 +1006,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       modifications: sortedModifications
     };
   };
-
   // Helper function to format duration from milliseconds
   const formatDuration = (durationMs: number) => {
     if (durationMs === 0) return 'Permanent';
@@ -1023,6 +1021,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     } else {
       return `${minutes}m`;
     }
+  };
+
+  // Helper function to format date with time (MM/DD/YYYY HH:MM)
+  const formatDateWithTime = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    const hours = dateObj.getHours().toString().padStart(2, '0');
+    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+    return `${month}/${day}/${year} ${hours}:${minutes}`;
   };
   
   return (
@@ -1213,18 +1222,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
                                 } else {
                                   return `${minutes}m`;
-                                }
-                              };
-
-                              // Helper function to format date with time (mm/dd/yyyy HH:mm)
-                              const formatDateWithTime = (date: Date) => {
-                                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                                const day = date.getDate().toString().padStart(2, '0');
-                                const year = date.getFullYear();
-                                const hours = date.getHours().toString().padStart(2, '0');
-                                const minutes = date.getMinutes().toString().padStart(2, '0');
-                                return `${month}/${day}/${year} ${hours}:${minutes}`;
-                              };
+                                }                              };
 
                               // Check if punishment is inactive/pardoned
                               const pardonModification = effectiveState.modifications.find((mod: any) => 
@@ -1395,7 +1393,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
                               <span className="ml-2 opacity-60 line-through">
                                 (Originally: {effectiveState.originalExpiry 
-                                  ? `expires ${new Date(effectiveState.originalExpiry).toLocaleDateString()}`
+                                  ? `expires ${formatDateWithTime(effectiveState.originalExpiry)}`
                                   : effectiveState.originalDuration 
                                   ? `${formatDuration(effectiveState.originalDuration)}`
                                   : 'permanent'
@@ -1436,7 +1434,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 
                                 const noteText = typeof note === 'string' ? note : note.text;
                                 const noteIssuer = typeof note === 'string' ? 'Unknown' : note.issuerName;
-                                const noteDate = typeof note === 'string' ? 'Unknown' : new Date(note.date).toLocaleDateString();
+                                const noteDate = typeof note === 'string' ? 'Unknown' : formatDateWithTime(note.date);
                                 
                                 return (
                                   <li key={idx} className="bg-muted/20 p-2 rounded text-xs">
@@ -1474,7 +1472,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                       {mod.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                     </Badge>
                                     <span className="text-muted-foreground text-xs">
-                                      {new Date(mod.issued).toLocaleDateString()}
+                                      {formatDateWithTime(mod.issued)}
                                     </span>
                                   </div>
                                   {mod.reason && (
@@ -1811,7 +1809,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         if (!playerInfo.newNote?.trim()) return;
                         
                         const currentDate = new Date();
-                        const formattedDate = `${currentDate.toLocaleDateString()} at ${currentDate.toLocaleTimeString()}`;
+                        const formattedDate = formatDateWithTime(currentDate);
                         const newNoteWithMetadata = `${playerInfo.newNote} (Added by Admin on ${formattedDate})`;
                         
                         // Create the note in the format expected by the API
@@ -1893,7 +1891,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           Category: {ticket.category}
                         </p>
                         <p className="text-sm text-muted-foreground mb-1">
-                          Created: {new Date(ticket.created).toLocaleDateString()}
+                          Created: {formatDateWithTime(ticket.created)}
                         </p>
                         {ticket.creatorName && (
                           <p className="text-sm text-muted-foreground">
