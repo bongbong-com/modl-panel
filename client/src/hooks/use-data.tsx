@@ -1,5 +1,6 @@
 import { useQuery, useMutation, QueryClient } from '@tanstack/react-query';
 import { queryClient } from '../lib/queryClient';
+import { useAuth } from './use-auth';
 
 // Player-related hooks
 export function usePlayers() {
@@ -464,5 +465,109 @@ export function usePlayerTickets(uuid: string) {
     staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true
+  });
+}
+
+export function useModifyPunishment() {
+  const { user } = useAuth();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      uuid, 
+      punishmentId, 
+      modificationType, 
+      reason, 
+      newDuration 
+    }: { 
+      uuid: string, 
+      punishmentId: string, 
+      modificationType: string, 
+      reason: string, 
+      newDuration?: { value: number; unit: string } 
+    }) => {
+      const body: any = {
+        type: modificationType,
+        issuerName: user?.username || 'Unknown User',
+        reason: reason
+      };
+
+      // Convert duration to milliseconds for MANUAL_DURATION_CHANGE
+      if (modificationType === 'MANUAL_DURATION_CHANGE' && newDuration) {
+        const multipliers = {
+          'hours': 60 * 60 * 1000,
+          'days': 24 * 60 * 60 * 1000,
+          'weeks': 7 * 24 * 60 * 60 * 1000,
+          'months': 30 * 24 * 60 * 60 * 1000
+        };
+        
+        const durationMs = newDuration.value * (multipliers[newDuration.unit as keyof typeof multipliers] || 0);
+        body.effectiveDuration = durationMs;
+      }
+
+      const res = await fetch(`/api/panel/players/${uuid}/punishments/${punishmentId}/modifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Modify punishment API error:', errorText);
+        throw new Error(`Failed to modify punishment: ${res.status} ${res.statusText}`);
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate player data to refresh it
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players', variables.uuid] });
+    },
+    onError: (error) => {
+      console.error('Error modifying punishment:', error);
+    }
+  });
+}
+
+export function useAddPunishmentNote() {
+  const { user } = useAuth();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      uuid, 
+      punishmentId, 
+      noteText 
+    }: { 
+      uuid: string, 
+      punishmentId: string, 
+      noteText: string 
+    }) => {
+      const res = await fetch(`/api/panel/players/${uuid}/punishments/${punishmentId}/notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: noteText,
+          issuerName: user?.username || 'Unknown User'
+        })
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Add punishment note API error:', errorText);
+        throw new Error(`Failed to add punishment note: ${res.status} ${res.statusText}`);
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate player data to refresh it
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players', variables.uuid] });
+    },
+    onError: (error) => {
+      console.error('Error adding punishment note:', error);
+    }
   });
 }

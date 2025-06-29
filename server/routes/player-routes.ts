@@ -702,4 +702,43 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
   }
 });
 
+interface AddPunishmentNoteBody {
+  text: string;
+  issuerName: string;
+}
+
+router.post('/:uuid/punishments/:punishmentId/notes', async (req: Request<{ uuid: string, punishmentId: string }, {}, AddPunishmentNoteBody>, res: Response): Promise<void> => {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');
+  try {
+    const { text, issuerName } = req.body;
+    if (!text || !issuerName) {
+      res.status(400).json({ error: 'Text and issuerName are required for notes' });
+      return;
+    }
+    
+    const player = await Player.findOne({ minecraftUuid: req.params.uuid });
+    if (!player) {
+      res.status(404).json({ error: 'Player not found' });
+      return;
+    }
+    
+    const punishment = player.punishments.find((p: any) => p.id === req.params.punishmentId);
+    if (!punishment) {
+      res.status(404).json({ error: 'Punishment not found' });
+      return;
+    }
+    
+    // Add note to punishment as a formatted string
+    const noteText = `${text} (Added by ${issuerName} on ${new Date().toLocaleDateString()})`;
+    punishment.notes.push(noteText);
+    
+    await player.save();
+    await createSystemLog(req.serverDbConnection, req.serverName, `Note added to punishment ${req.params.punishmentId} for player ${req.params.uuid} by ${issuerName}.`, 'moderation', 'player-api');
+    res.json(player);
+  } catch (error) {
+    console.error('Error adding punishment note:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

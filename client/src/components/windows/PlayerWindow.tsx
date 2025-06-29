@@ -8,7 +8,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets, useModifyPunishment, useAddPunishmentNote } from '@/hooks/use-data';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -147,9 +147,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
   const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());    // Get current authenticated user
   const { user } = useAuth();
-  
-  // Initialize the applyPunishment mutation hook
+    // Initialize the applyPunishment mutation hook
   const applyPunishment = useApplyPunishment();
+  const modifyPunishment = useModifyPunishment();
+  const addPunishmentNote = useAddPunishmentNote();
   // Mapping of punishment type names to their ordinals
   const getPunishmentOrdinal = (punishmentName: string): number => {
     const punishmentMap: { [key: string]: number } = {
@@ -1153,9 +1154,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             </Badge>
                           )}                        </div>
                         <p className="text-sm mt-1">{warning.reason}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
+                      </div>                      <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{warning.date}</span>
+                        {warning.id && (
+                          <span className="text-xs text-muted-foreground">ID: {warning.id}</span>
+                        )}
                         {isPunishment && (
                           <Button
                             variant="ghost"
@@ -1315,26 +1318,25 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 disabled={!playerInfo.newPunishmentNote?.trim()}
                                 onClick={async () => {
                                   if (!playerInfo.newPunishmentNote?.trim()) return;
-                                  
-                                  try {
-                                    // TODO: Implement API call to add note to punishment
-                                    console.log('Adding note to punishment:', warning.id, playerInfo.newPunishmentNote);
-                                    
-                                    // For now, simulate success and refresh data
-                                    toast({
-                                      title: "Note added",
-                                      description: "Note has been added to the punishment"
+                                    try {
+                                    await addPunishmentNote.mutateAsync({
+                                      uuid: playerId,
+                                      punishmentId: warning.id,
+                                      noteText: playerInfo.newPunishmentNote
                                     });
                                     
-                                    // Reset form and refetch data
+                                    toast({
+                                      title: "Note added",
+                                      description: "Note has been added to the punishment successfully"
+                                    });
+                                    
+                                    // Reset form
                                     setPlayerInfo(prev => ({
                                       ...prev,
                                       isAddingPunishmentNote: false,
                                       punishmentNoteTarget: null,
                                       newPunishmentNote: ''
                                     }));
-                                    
-                                    refetch();
                                   } catch (error) {
                                     console.error('Error adding note to punishment:', error);
                                     toast({
@@ -1454,22 +1456,20 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   if (!playerInfo.modifyPunishmentReason?.trim() || !playerInfo.selectedModificationType) return;
                                   if (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && playerInfo.newDuration?.value === undefined) return;
                                   
-                                  try {
-                                    // TODO: Implement API call to modify punishment
-                                    console.log('Modifying punishment:', {
-                                      id: warning.id,
-                                      action: playerInfo.selectedModificationType,
-                                      reason: playerInfo.modifyPunishmentReason,
+                                  try {                                    await modifyPunishment.mutateAsync({
+                                      uuid: playerId,
+                                      punishmentId: warning.id,
+                                      modificationType: playerInfo.selectedModificationType!,
+                                      reason: playerInfo.modifyPunishmentReason!,
                                       newDuration: playerInfo.newDuration
                                     });
                                     
-                                    // For now, simulate success and refresh data
                                     toast({
                                       title: 'Punishment Modified',
                                       description: `Punishment has been modified successfully`
                                     });
                                     
-                                    // Reset form and refetch data
+                                    // Reset form
                                     setPlayerInfo(prev => ({
                                       ...prev,
                                       isModifyingPunishment: false,
@@ -1479,8 +1479,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                       selectedModificationType: null,
                                       newDuration: undefined
                                     }));
-                                    
-                                    refetch();
                                   } catch (error) {
                                     console.error('Error modifying punishment:', error);
                                     toast({
