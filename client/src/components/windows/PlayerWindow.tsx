@@ -908,6 +908,39 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return 'punishment';
   };
 
+  // Helper function to determine if a punishment is currently active based on expiry logic
+  const isPunishmentCurrentlyActive = (warning: any, effectiveState: any) => {
+    // Check if punishment is pardoned/revoked
+    const pardonModification = effectiveState.modifications.find((mod: any) => 
+      mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
+    );
+    
+    if (pardonModification) {
+      return false; // Pardoned punishments are always inactive
+    }
+    
+    // Check if punishment has modifications with effective expiry
+    if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
+      const expiryDate = new Date(effectiveState.effectiveExpiry);
+      if (!isNaN(expiryDate.getTime())) {
+        const now = new Date();
+        return expiryDate.getTime() > now.getTime(); // Active if expiry is in the future
+      }
+    }
+    
+    // Check original expiry for unmodified punishments
+    if (warning.expires) {
+      const expiryDate = new Date(warning.expires);
+      if (!isNaN(expiryDate.getTime())) {
+        const now = new Date();
+        return expiryDate.getTime() > now.getTime(); // Active if expiry is in the future
+      }
+    }
+    
+    // For punishments without expiry (permanent), check effective active state
+    return effectiveState.effectiveActive;
+  };
+
   // Helper function to format punishment preview
   const getPunishmentPreview = () => {
     const punishmentType = getCurrentPunishmentType();
@@ -1191,7 +1224,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 return (                  <div 
                     key={warning.id || `warning-${index}`} 
                     className={`${
-                      effectiveState.effectiveActive ? 'bg-muted/30 border-l-4 border-red-500' : 
+                      isPunishmentCurrentlyActive(warning, effectiveState) ? 'bg-muted/30 border-l-4 border-red-500' : 
                       'bg-muted/30'
                     } p-3 rounded-lg`}
                   >
@@ -1200,8 +1233,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
                             {warning.type}
                           </Badge>
-                          {/* Show only Active or Inactive badge based on punishment status */}
-                          {effectiveState.effectiveActive ? (
+                          {/* Show only Active or Inactive badge based on actual punishment expiry status */}
+                          {isPunishmentCurrentlyActive(warning, effectiveState) ? (
                             <Badge className="text-xs bg-red-500 text-white border-red-600">
                               Active
                             </Badge>
@@ -1418,13 +1451,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             const durationText = originalDuration === 0 ? 'permanent' : formatDuration(originalDuration);
                             return (
                               <span className="ml-2 opacity-60">
-                                (original {durationText} {originalAction})
+                                ({durationText} {originalAction})
                               </span>
                             );
                           } else if (originalAction && originalAction !== 'punishment') {
                             return (
                               <span className="ml-2 opacity-60">
-                                (original {originalAction})
+                                ({originalAction})
                               </span>
                             );
                           }
