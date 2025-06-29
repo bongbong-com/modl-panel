@@ -984,18 +984,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             console.warn('Invalid modification date calculated, using current date as fallback:', modDate);
             modDate = new Date();
           }
-          
-          if (mod.effectiveDuration === 0) {
+            if (mod.effectiveDuration === 0) {
             effectiveExpiry = null; // Permanent
-          } else {
-            effectiveExpiry = new Date(modDate.getTime() + mod.effectiveDuration);
-            console.log('Calculated effective expiry from modification time:', {
-              modificationDate: modDate,
-              modificationDateTime: modDate.getTime(),
-              effectiveDuration: mod.effectiveDuration,
-              calculatedExpiry: effectiveExpiry,
-              isValidDate: !isNaN(effectiveExpiry.getTime())
-            });
+            effectiveActive = true; // Permanent punishments are always active
+          } else {            effectiveExpiry = new Date(modDate.getTime() + mod.effectiveDuration);
+            // Update active status based on whether the new expiry is in the future
+            const now = new Date();
+            effectiveActive = effectiveExpiry.getTime() > now.getTime();
           }
         }
       }
@@ -1266,7 +1261,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     </div>
                                   );
                                 }                              } else if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
-                                /* Show modified/effective expiry */
+                                /* Show modified/effective expiry - this takes priority over duration display */
                                 const expiryDate = new Date(effectiveState.effectiveExpiry);
                                 
                                 // Check if the date is valid
@@ -1285,8 +1280,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     </div>
                                   );
                                 }
-                                
-                                const now = new Date();
+                                  const now = new Date();
                                 const timeDiff = expiryDate.getTime() - now.getTime();
                                 
                                 if (timeDiff > 0) {
@@ -1304,8 +1298,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     </div>
                                   );
                                 }
-                              } else if (effectiveState.hasModifications && effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null) {
-                                /* Show modified duration */
+                              } else if (effectiveState.hasModifications && effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null && !effectiveState.effectiveExpiry) {
+                                /* Show modified duration only when we don't have an effective expiry */
                                 return (
                                   <div className="text-muted-foreground">
                                     {effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`}
