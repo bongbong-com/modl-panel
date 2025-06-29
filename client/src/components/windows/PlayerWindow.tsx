@@ -229,7 +229,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     }
     
     if (!punishmentType?.singleSeverityPunishment && !playerInfo.selectedSeverity && 
-        !['Kick', 'Security Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory)) {
+        !['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory)) {
       toast({
         title: "Missing information",
         description: "Please select a severity level",
