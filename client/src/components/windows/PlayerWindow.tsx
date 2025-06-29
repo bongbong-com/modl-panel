@@ -194,6 +194,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
   };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
+    // Test toast to verify it's working
+    toast({
+      title: "DEBUG: Function called",
+      description: `Attempting to apply ${playerInfo.selectedPunishmentCategory}`,
+      variant: "default"
+    });
+
     const punishmentType = getCurrentPunishmentType();
     
     // Validate required fields
