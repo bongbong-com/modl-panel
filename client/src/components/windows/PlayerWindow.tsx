@@ -1223,26 +1223,58 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         <div className="text-sm mt-1 space-y-1">
                           <p>{warning.reason}</p>
                           
-                          {/* Show expiry/duration information - prioritize effective/modified expiry */}
+                          {/* Show expiry/duration information - handle pardoned punishments specially */}
                           <div className="text-xs">
-                            {effectiveState.hasModifications ? (
-                              /* Show modified/effective expiry prominently */
-                              <div className="font-medium text-blue-700">
-                                {effectiveState.effectiveExpiry 
-                                  ? `Expires ${new Date(effectiveState.effectiveExpiry).toLocaleDateString()}`
-                                  : effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null
-                                  ? (effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`)
-                                  : 'Permanent'
+                            {(() => {
+                              // Check if punishment is pardoned
+                              const pardonModification = effectiveState.modifications.find((mod: any) => 
+                                mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
+                              );
+                              
+                              if (pardonModification) {
+                                // Calculate time since pardoned
+                                const pardonDate = new Date(pardonModification.issued);
+                                const now = new Date();
+                                const timeDiff = now.getTime() - pardonDate.getTime();
+                                
+                                const days = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
+                                const hours = Math.floor((timeDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                                
+                                let timeAgo = '';
+                                if (days > 0) {
+                                  timeAgo = `${days} day${days > 1 ? 's' : ''}`;
+                                } else if (hours > 0) {
+                                  timeAgo = `${hours} hour${hours > 1 ? 's' : ''}`;
+                                } else {
+                                  timeAgo = 'less than an hour';
                                 }
-                              </div>
-                            ) : (
-                              /* Show original expiry for unmodified punishments */
-                              warning.expires && (
-                                <div className="text-muted-foreground">
-                                  Expires {new Date(warning.expires).toLocaleDateString()}
-                                </div>
-                              )
-                            )}
+                                
+                                return (
+                                  <div className="text-muted-foreground">
+                                    Punishment expired {timeAgo} ago
+                                  </div>
+                                );
+                              } else if (effectiveState.hasModifications) {
+                                /* Show modified/effective expiry prominently for non-pardoned modifications */
+                                return (
+                                  <div className="font-medium text-blue-700">
+                                    {effectiveState.effectiveExpiry 
+                                      ? `Expires ${new Date(effectiveState.effectiveExpiry).toLocaleDateString()}`
+                                      : effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null
+                                      ? (effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`)
+                                      : 'Permanent'
+                                    }
+                                  </div>
+                                );
+                              } else {
+                                /* Show original expiry for unmodified punishments */
+                                return warning.expires && (
+                                  <div className="text-muted-foreground">
+                                    Expires {new Date(warning.expires).toLocaleDateString()}
+                                  </div>
+                                );
+                              }
+                            })()}
                           </div>
                         </div>
                       </div>                      <div className="flex items-center gap-2">
@@ -1274,19 +1306,34 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-muted-foreground">
                         By: {warning.by}
-                        {/* Show original expiry inline with issuer when there's a modification */}
-                        {effectiveState.hasModifications && 
-                         (effectiveState.originalExpiry !== effectiveState.effectiveExpiry || 
-                          effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
-                          <span className="ml-2 opacity-60 line-through">
-                            (Originally: {effectiveState.originalExpiry 
-                              ? `expires ${new Date(effectiveState.originalExpiry).toLocaleDateString()}`
-                              : effectiveState.originalDuration 
-                              ? `${formatDuration(effectiveState.originalDuration)}`
-                              : 'permanent'
-                            })
-                          </span>
-                        )}
+                        {/* Show original duration for pardoned punishments, otherwise show original expiry when there's a modification */}
+                        {effectiveState.hasModifications && (() => {
+                          const pardonModification = effectiveState.modifications.find((mod: any) => 
+                            mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
+                          );
+                          
+                          if (pardonModification) {
+                            // Show original duration for pardoned punishments
+                            return effectiveState.originalDuration ? (
+                              <span className="ml-2 opacity-60">
+                                ({formatDuration(effectiveState.originalDuration)})
+                              </span>
+                            ) : null;
+                          } else {
+                            // Show original expiry for other modifications (if different from effective)
+                            return (effectiveState.originalExpiry !== effectiveState.effectiveExpiry || 
+                              effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
+                              <span className="ml-2 opacity-60 line-through">
+                                (Originally: {effectiveState.originalExpiry 
+                                  ? `expires ${new Date(effectiveState.originalExpiry).toLocaleDateString()}`
+                                  : effectiveState.originalDuration 
+                                  ? `${formatDuration(effectiveState.originalDuration)}`
+                                  : 'permanent'
+                                })
+                              </span>
+                            );
+                          }
+                        })()}
                       </p>
                     </div>
                       {/* Expanded details */}
