@@ -960,17 +960,41 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     
     for (const mod of sortedModifications) {
       if (mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT') {
-        effectiveActive = false;
-      } else if (mod.type === 'MANUAL_DURATION_CHANGE' || mod.type === 'APPEAL_DURATION_CHANGE') {
+        effectiveActive = false;      } else if (mod.type === 'MANUAL_DURATION_CHANGE' || mod.type === 'APPEAL_DURATION_CHANGE') {
         if (mod.effectiveDuration !== undefined) {
           effectiveDuration = mod.effectiveDuration;
           
           // Recalculate expiry based on start time and new duration
           const startTime = punishment.started || punishment.issued;
-          if (mod.effectiveDuration === 0) {
+          
+          // Convert startTime to Date object if it's a string
+          let startDate;
+          if (startTime instanceof Date) {
+            startDate = startTime;
+          } else if (typeof startTime === 'string') {
+            startDate = new Date(startTime);
+          } else {
+            // Fallback to current date if startTime is invalid
+            console.warn('Invalid start time for punishment, using current date as fallback:', startTime);
+            startDate = new Date();
+          }
+          
+          // Validate the startDate
+          if (isNaN(startDate.getTime())) {
+            console.warn('Invalid start date calculated, using current date as fallback:', startDate);
+            startDate = new Date();
+          }
+            if (mod.effectiveDuration === 0) {
             effectiveExpiry = null; // Permanent
           } else {
-            effectiveExpiry = new Date(new Date(startTime).getTime() + mod.effectiveDuration);
+            effectiveExpiry = new Date(startDate.getTime() + mod.effectiveDuration);
+            console.log('Calculated effective expiry:', {
+              startDate,
+              startDateTime: startDate.getTime(),
+              effectiveDuration: mod.effectiveDuration,
+              calculatedExpiry: effectiveExpiry,
+              isValidDate: !isNaN(effectiveExpiry.getTime())
+            });
           }
         }
       }
@@ -1246,9 +1270,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 
                                 // Check if the date is valid
                                 if (isNaN(expiryDate.getTime())) {
+                                  console.error('Invalid effective expiry date for punishment:', {
+                                    punishmentId: warning.id,
+                                    effectiveExpiry: effectiveState.effectiveExpiry,
+                                    effectiveExpiryType: typeof effectiveState.effectiveExpiry,
+                                    modifications: effectiveState.modifications,
+                                    originalExpiry: effectiveState.originalExpiry,
+                                    originalExpired: effectiveState.originalExpiry ? new Date(effectiveState.originalExpiry) : null
+                                  });
                                   return (
                                     <div className="text-muted-foreground">
-                                      Invalid expiry date
+                                      Invalid expiry date (modified)
                                     </div>
                                   );
                                 }
@@ -1283,9 +1315,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 
                                 // Check if the date is valid
                                 if (isNaN(expiryDate.getTime())) {
+                                  console.error('Invalid original expiry date for punishment:', {
+                                    punishmentId: warning.id,
+                                    expires: warning.expires,
+                                    expiresType: typeof warning.expires
+                                  });
                                   return (
                                     <div className="text-muted-foreground">
-                                      Invalid expiry date
+                                      Invalid expiry date (original)
                                     </div>
                                   );
                                 }
