@@ -1223,35 +1223,27 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         <div className="text-sm mt-1 space-y-1">
                           <p>{warning.reason}</p>
                           
-                          {/* Show expiry/duration information */}
-                          {effectiveState.hasModifications && (
-                            <div className="space-y-1">
-                              {/* Original expiry/duration (if different from effective) */}
-                              {(effectiveState.originalExpiry !== effectiveState.effectiveExpiry || 
-                                effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="line-through opacity-75">
-                                    Original: {effectiveState.originalExpiry 
-                                      ? `Expires ${new Date(effectiveState.originalExpiry).toLocaleDateString()}`
-                                      : effectiveState.originalDuration 
-                                      ? `Duration: ${formatDuration(effectiveState.originalDuration)}`
-                                      : 'Permanent'
-                                    }
-                                  </span>
-                                </div>
-                              )}
-                              
-                              {/* Effective expiry/duration */}
-                              <div className="text-xs font-medium text-blue-700">
-                                Modified: {effectiveState.effectiveExpiry 
+                          {/* Show expiry/duration information - prioritize effective/modified expiry */}
+                          <div className="text-xs">
+                            {effectiveState.hasModifications ? (
+                              /* Show modified/effective expiry prominently */
+                              <div className="font-medium text-blue-700">
+                                {effectiveState.effectiveExpiry 
                                   ? `Expires ${new Date(effectiveState.effectiveExpiry).toLocaleDateString()}`
                                   : effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null
                                   ? (effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`)
                                   : 'Permanent'
                                 }
                               </div>
-                            </div>
-                          )}
+                            ) : (
+                              /* Show original expiry for unmodified punishments */
+                              warning.expires && (
+                                <div className="text-muted-foreground">
+                                  Expires {new Date(warning.expires).toLocaleDateString()}
+                                </div>
+                              )
+                            )}
+                          </div>
                         </div>
                       </div>                      <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{warning.date}</span>
@@ -1279,7 +1271,24 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-muted-foreground">
+                        By: {warning.by}
+                        {/* Show original expiry inline with issuer when there's a modification */}
+                        {effectiveState.hasModifications && 
+                         (effectiveState.originalExpiry !== effectiveState.effectiveExpiry || 
+                          effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
+                          <span className="ml-2 opacity-60 line-through">
+                            (Originally: {effectiveState.originalExpiry 
+                              ? `expires ${new Date(effectiveState.originalExpiry).toLocaleDateString()}`
+                              : effectiveState.originalDuration 
+                              ? `${formatDuration(effectiveState.originalDuration)}`
+                              : 'permanent'
+                            })
+                          </span>
+                        )}
+                      </p>
+                    </div>
                       {/* Expanded details */}
                     {isPunishment && isExpanded && (
                       <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
