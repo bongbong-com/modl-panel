@@ -115,9 +115,9 @@ interface PunishmentType {
   };
   customPoints?: number; // For permanent punishments that don't use severity-based points
   staffDescription?: string; // Description shown to staff when applying this punishment
-  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
-  canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
+  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)  canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
+  isAppealable?: boolean; // Whether this punishment type can be appealed
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
   singleSeverityDurations?: {
     first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
@@ -519,12 +519,79 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       setShowBanSearchResults(results.length > 0);
     }, 300);
   };
-  
-  // Use React Query hook to fetch player data with refetch capability
+    // Use React Query hook to fetch player data with refetch capability
   const { data: player, isLoading, error, refetch } = usePlayer(playerId);
   
   // Fetch player tickets
   const { data: playerTickets, isLoading: isLoadingTickets } = usePlayerTickets(playerId);
+  
+  // Calculate player status based on punishments and settings
+  const calculatePlayerStatus = (punishments: any[], punishmentTypes: PunishmentType[], statusThresholds: any) => {
+    let socialPoints = 0;
+    let gameplayPoints = 0;
+
+    // Calculate points from active punishments
+    for (const punishment of punishments) {
+      // Check if punishment is active
+      const isActive = punishment.active || punishment.data?.active !== false;
+      if (!isActive) continue;
+
+      // Find punishment type
+      const punishmentType = punishmentTypes.find(pt => pt.ordinal === punishment.type_ordinal);
+      if (!punishmentType) continue;
+
+      // Get points based on severity or single severity
+      let points = 0;
+      const severity = punishment.severity || punishment.data?.severity;
+      
+      if (punishmentType.customPoints !== undefined) {
+        // Custom points for permanent punishments (like Bad Skin, Bad Name)
+        points = punishmentType.customPoints;
+      } else if (punishmentType.singleSeverityPoints !== undefined) {
+        // Single severity punishment
+        points = punishmentType.singleSeverityPoints;
+      } else if (punishmentType.points && severity) {
+        // Multi-severity punishment
+        const severityLower = severity.toLowerCase();
+        if (severityLower === 'low' || severityLower === 'lenient') {
+          points = punishmentType.points.low;
+        } else if (severityLower === 'regular' || severityLower === 'medium') {
+          points = punishmentType.points.regular;
+        } else if (severityLower === 'severe' || severityLower === 'aggravated' || severityLower === 'high') {
+          points = punishmentType.points.severe;
+        }
+      }
+
+      // Add points to appropriate category
+      if (punishmentType.category === 'Social') {
+        socialPoints += points;
+      } else if (punishmentType.category === 'Gameplay') {
+        gameplayPoints += points;
+      }
+      // Administrative punishments don't contribute to status points
+    }
+
+    // Determine status based on thresholds
+    const getStatusLevel = (points: number, thresholds: { medium: number; habitual: number }) => {
+      if (points >= thresholds.habitual) {
+        return 'Habitual';
+      } else if (points >= thresholds.medium) {
+        return 'Medium';
+      } else {
+        return 'Low';
+      }
+    };
+
+    const socialStatus = getStatusLevel(socialPoints, statusThresholds?.social || { medium: 4, habitual: 8 });
+    const gameplayStatus = getStatusLevel(gameplayPoints, statusThresholds?.gameplay || { medium: 5, habitual: 10 });
+
+    return {
+      social: socialStatus,
+      gameplay: gameplayStatus,
+      socialPoints,
+      gameplayPoints
+    };
+  };
   
   // Refetch player data whenever the window is opened
   useEffect(() => {
@@ -672,8 +739,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             });
           });
         }
-        
-        // Extract notes
+          // Extract notes
         const notes = player.notes 
           ? player.notes.map((note: any) => `${note.text} (Added by ${note.issuerName} on ${new Date(note.date).toLocaleDateString()})`) 
           : [];
@@ -683,7 +749,30 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         if (player.discord) linkedAccounts.push(`${player.discord} (Discord)`);
         if (player.email) linkedAccounts.push(`${player.email} (Email)`);
         
-        setPlayerInfo(prev => ({
+        // Calculate player status using punishment points and thresholds
+        const allPunishmentTypes = [
+          ...punishmentTypesByCategory.Administrative,
+          ...punishmentTypesByCategory.Social,
+          ...punishmentTypesByCategory.Gameplay
+        ];
+        
+        // Get status thresholds from settings
+        let statusThresholds = { social: { medium: 4, habitual: 8 }, gameplay: { medium: 5, habitual: 10 } };
+        if (settingsData?.settings?.statusThresholds) {
+          try {
+            const thresholdsData = typeof settingsData.settings.statusThresholds === 'string' 
+              ? JSON.parse(settingsData.settings.statusThresholds) 
+              : settingsData.settings.statusThresholds;
+            if (thresholdsData) {
+              statusThresholds = thresholdsData;
+            }
+          } catch (error) {
+            console.error("Error parsing status thresholds:", error);
+          }
+        }
+        
+        const calculatedStatus = calculatePlayerStatus(player.punishments || [], allPunishmentTypes, statusThresholds);
+          setPlayerInfo(prev => ({
           ...prev,
           username: currentUsername,
           status: status === 'Active' ? 'Online' : status,
@@ -693,8 +782,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           lastOnline: 'Recent', // This data isn't available in our current schema
           lastServer: player.lastServer || 'Unknown',
           playtime: player.playtime ? `${player.playtime} hours` : 'Not tracked',
-          social: player.social || 'Medium',
-          gameplay: player.gameplay || 'Medium',
+          social: calculatedStatus.social,
+          gameplay: calculatedStatus.gameplay,
           punished: status !== 'Active',
           previousNames: previousNames,
           warnings: warnings,
@@ -711,7 +800,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         }));
       }
     }
-  }, [player, isOpen]);
+  }, [player, isOpen, punishmentTypesByCategory, settingsData]);
 
   // Fetch punishment types from settings
   const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
