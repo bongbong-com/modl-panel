@@ -74,7 +74,7 @@ interface PlayerInfo {
   selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
   newDuration?: {
     value: number;
-    unit: 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
+    unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
   };
   // Punishment creation fields
   selectedPunishmentCategory?: string;
@@ -82,7 +82,7 @@ interface PlayerInfo {
   selectedOffenseLevel?: 'first' | 'medium' | 'habitual'; // For single-severity punishments
   duration?: {
     value: number;
-    unit: 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
+    unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
   };
   isPermanent?: boolean;  reason?: string;
   evidence?: string;
@@ -1773,10 +1773,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                         newDuration: {
                                           ...prev.newDuration,
                                           value: prev.newDuration?.value || 1,
-                                          unit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
+                                          unit: e.target.value as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                         }
                                       }))}
                                     >
+                                      <option value="seconds">Seconds</option>
                                       <option value="minutes">Minutes</option>
                                       <option value="hours">Hours</option>
                                       <option value="days">Days</option>
@@ -2364,10 +2365,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 ...prev, 
                                 duration: {
                                   value: prev.duration?.value || 1,
-                                  unit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
+                                  unit: e.target.value as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                 }
                               }))}
                             >
+                              <option value="seconds">Seconds</option>
                               <option value="minutes">Minutes</option>
                               <option value="hours">Hours</option>
                               <option value="days">Days</option>
@@ -2440,10 +2442,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 ...prev, 
                                 duration: {
                                   value: prev.duration?.value || 1,
-                                  unit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
+                                  unit: e.target.value as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                 }
                               }))}
                             >
+                              <option value="seconds">Seconds</option>
                               <option value="minutes">Minutes</option>
                               <option value="hours">Hours</option>
                               <option value="days">Days</option>
