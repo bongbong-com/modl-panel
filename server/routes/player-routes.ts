@@ -27,6 +27,13 @@ interface INote {
   date: Date;
 }
 
+interface IPunishmentNote {
+  _id?: any;
+  text: string;
+  issuerName: string;
+  date: Date;
+}
+
 interface IPunishment {
   id: string;
   issuerName: string;
@@ -34,7 +41,7 @@ interface IPunishment {
   started?: Date;
   type_ordinal: number;
   modifications: any[];
-  notes: string[];
+  notes: IPunishmentNote[];
   evidence: string[];
   attachedTicketIds: string[];
   data: Map<string, any>;
@@ -728,9 +735,14 @@ router.post('/:uuid/punishments/:punishmentId/notes', async (req: Request<{ uuid
       return;
     }
     
-    // Add note to punishment as a formatted string
-    const noteText = `${text} (Added by ${issuerName} on ${new Date().toLocaleDateString()})`;
-    punishment.notes.push(noteText);
+    // Add note to punishment as an object with the required schema fields
+    const newNote = {
+      text: text,
+      issuerName: issuerName,
+      date: new Date()
+    };
+    
+    punishment.notes.push(newNote);
     
     await player.save();
     await createSystemLog(req.serverDbConnection, req.serverName, `Note added to punishment ${req.params.punishmentId} for player ${req.params.uuid} by ${issuerName}.`, 'moderation', 'player-api');
