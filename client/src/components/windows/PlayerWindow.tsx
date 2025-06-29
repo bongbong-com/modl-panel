@@ -1002,11 +1002,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             <div className="space-y-2">
               {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => {
                 const isExpanded = expandedPunishments.has(warning.id || `warning-${index}`);
-                const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);
-                  return (                  <div 
+                const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);                return (                  <div 
                     key={warning.id || `warning-${index}`} 
                     className={`${
-                      warning.active ? 'bg-red-50/50 border-l-4 border-red-500' : 
+                      warning.active ? 'bg-muted/30 border-l-4 border-red-500' : 
                       'bg-muted/30'
                     } p-3 rounded-lg`}
                   >
