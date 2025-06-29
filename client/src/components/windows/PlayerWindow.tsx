@@ -874,6 +874,40 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return allTypes.find(type => type.name === playerInfo.selectedPunishmentCategory);
   };
 
+  // Helper function to find punishment type for a given warning
+  const findPunishmentTypeForWarning = (warning: any) => {
+    if (!warning.type) return null;
+    
+    // Search in all categories
+    const allTypes = [
+      ...punishmentTypesByCategory.Administrative,
+      ...punishmentTypesByCategory.Social,
+      ...punishmentTypesByCategory.Gameplay
+    ];
+    
+    return allTypes.find(type => type.name === warning.type);
+  };
+
+  // Helper function to get original punishment action (ban/mute/kick) for display
+  const getOriginalPunishmentAction = (warning: any, punishmentType: any) => {
+    // Check for explicit action types first
+    if (warning.type?.toLowerCase().includes('kick')) return 'kick';
+    if (warning.type?.toLowerCase().includes('mute')) return 'mute';
+    if (warning.type?.toLowerCase().includes('ban') || warning.type?.toLowerCase().includes('blacklist')) return 'ban';
+    
+    // Check if the punishment type has an action property
+    if (punishmentType?.action) {
+      return punishmentType.action;
+    }
+    
+    // For other punishment types with durations, default to ban
+    if (punishmentType?.durations || punishmentType?.singleSeverityDurations) {
+      return 'ban';
+    }
+    
+    return 'punishment';
+  };
+
   // Helper function to format punishment preview
   const getPunishmentPreview = () => {
     const punishmentType = getCurrentPunishmentType();
@@ -1166,14 +1200,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
                             {warning.type}
                           </Badge>
-                          {effectiveState.effectiveActive && (
+                          {/* Show only Active or Inactive badge based on punishment status */}
+                          {effectiveState.effectiveActive ? (
                             <Badge className="text-xs bg-red-500 text-white border-red-600">
                               Active
                             </Badge>
-                          )}
-                          {!effectiveState.effectiveActive && (
+                          ) : (
                             <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
-                              {effectiveState.hasModifications ? 'Pardoned' : 'Inactive'}
+                              Inactive
                             </Badge>
                           )}
                           {warning.altBlocking && (
@@ -1373,33 +1407,29 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-muted-foreground">
                         By: {warning.by}
-                        {/* Show original duration for pardoned punishments, otherwise show original expiry when there's a modification */}
-                        {effectiveState.hasModifications && (() => {
-                          const pardonModification = effectiveState.modifications.find((mod: any) => 
-                            mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
-                          );
+                        {(() => {
+                          // Get the original punishment type and action
+                          const punishmentType = findPunishmentTypeForWarning(warning);
+                          const originalAction = getOriginalPunishmentAction(warning, punishmentType);
+                          const originalDuration = effectiveState.originalDuration;
                           
-                          if (pardonModification) {
-                            // Show original duration for pardoned punishments
-                            return effectiveState.originalDuration ? (
+                          // Always show the original duration and action type
+                          if (originalDuration !== undefined && originalDuration !== null) {
+                            const durationText = originalDuration === 0 ? 'permanent' : formatDuration(originalDuration);
+                            return (
                               <span className="ml-2 opacity-60">
-                                ({formatDuration(effectiveState.originalDuration)})
+                                (original {durationText} {originalAction})
                               </span>
-                            ) : null;
-                          } else {
-                            // Show original expiry for other modifications (if different from effective)
-                            return (effectiveState.originalExpiry !== effectiveState.effectiveExpiry || 
-                              effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
-                              <span className="ml-2 opacity-60 line-through">
-                                (Originally: {effectiveState.originalExpiry 
-                                  ? `expires ${formatDateWithTime(effectiveState.originalExpiry)}`
-                                  : effectiveState.originalDuration 
-                                  ? `${formatDuration(effectiveState.originalDuration)}`
-                                  : 'permanent'
-                                })
+                            );
+                          } else if (originalAction && originalAction !== 'punishment') {
+                            return (
+                              <span className="ml-2 opacity-60">
+                                (original {originalAction})
                               </span>
                             );
                           }
+                          
+                          return null;
                         })()}
                       </p>
                     </div>
