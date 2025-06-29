@@ -71,7 +71,7 @@ interface PlayerInfo {
   isModifyingPunishment?: boolean;
   modifyPunishmentTarget?: string | null;  modifyPunishmentAction?: 'modify' | null;
   modifyPunishmentReason?: string;
-  selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'APPEAL_ACCEPT' | 'APPEAL_DURATION_CHANGE' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
+  selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
   newDuration?: {
     value: number;
     unit: 'hours' | 'days' | 'weeks' | 'months';
@@ -1240,10 +1240,19 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                       expired {timeAgo} ago ({formatDateWithTime(expiryDate)})
                                     </div>
                                   );
-                                }
-                              } else if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
+                                }                              } else if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
                                 /* Show modified/effective expiry */
                                 const expiryDate = new Date(effectiveState.effectiveExpiry);
+                                
+                                // Check if the date is valid
+                                if (isNaN(expiryDate.getTime())) {
+                                  return (
+                                    <div className="text-muted-foreground">
+                                      Invalid expiry date
+                                    </div>
+                                  );
+                                }
+                                
                                 const now = new Date();
                                 const timeDiff = expiryDate.getTime() - now.getTime();
                                 
@@ -1255,7 +1264,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     </div>
                                   );
                                 } else {
-                                  const timeAgo = formatTimeDifference(timeDiff);
+                                  const timeAgo = formatTimeDifference(-timeDiff);
                                   return (
                                     <div className="text-muted-foreground">
                                       expired {timeAgo} ago ({formatDateWithTime(expiryDate)})
@@ -1268,10 +1277,19 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   <div className="font-medium text-blue-700">
                                     {effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`}
                                   </div>
-                                );
-                              } else if (warning.expires) {
+                                );                              } else if (warning.expires) {
                                 /* Show original expiry for unmodified punishments */
                                 const expiryDate = new Date(warning.expires);
+                                
+                                // Check if the date is valid
+                                if (isNaN(expiryDate.getTime())) {
+                                  return (
+                                    <div className="text-muted-foreground">
+                                      Invalid expiry date
+                                    </div>
+                                  );
+                                }
+                                
                                 const now = new Date();
                                 const timeDiff = expiryDate.getTime() - now.getTime();
                                 
@@ -1283,7 +1301,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     </div>
                                   );
                                 } else {
-                                  const timeAgo = formatTimeDifference(timeDiff);
+                                  const timeAgo = formatTimeDifference(-timeDiff);
                                   return (
                                     <div className="text-muted-foreground">
                                       expired {timeAgo} ago ({formatDateWithTime(expiryDate)})
@@ -1571,17 +1589,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 >                                  <option value="">Select modification type...</option>
                                   <option value="MANUAL_DURATION_CHANGE">Change Duration</option>
                                   <option value="MANUAL_PARDON">Pardon</option>
-                                  <option value="APPEAL_ACCEPT">Accept Appeal</option>
-                                  <option value="APPEAL_DURATION_CHANGE">Appeal Duration Change</option>
                                   <option value="SET_ALT_BLOCKING_TRUE">Enable Alt Blocking</option>
                                   <option value="SET_WIPING_TRUE">Enable Wiping</option>
                                   <option value="SET_ALT_BLOCKING_FALSE">Disable Alt Blocking</option>
                                   <option value="SET_WIPING_FALSE">Disable Wiping</option>
                                 </select>
                               </div>
-                              
-                              {(playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' || 
-                                playerInfo.selectedModificationType === 'APPEAL_DURATION_CHANGE') && (
+                                {playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && (
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
                                     <label className="text-xs text-muted-foreground">New Duration</label>
@@ -1654,12 +1668,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               <Button
                                 size="sm"                                disabled={!playerInfo.modifyPunishmentReason?.trim() || 
                                          !playerInfo.selectedModificationType ||
-                                         ((playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' || 
-                                           playerInfo.selectedModificationType === 'APPEAL_DURATION_CHANGE') && 
+                                         (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && 
                                           playerInfo.newDuration?.value === undefined)}
                                 onClick={async () => {                                  if (!playerInfo.modifyPunishmentReason?.trim() || !playerInfo.selectedModificationType) return;
-                                  if ((playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' || 
-                                       playerInfo.selectedModificationType === 'APPEAL_DURATION_CHANGE') && 
+                                  if (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && 
                                       playerInfo.newDuration?.value === undefined) return;
                                   
                                   try {                                    await modifyPunishment.mutateAsync({
