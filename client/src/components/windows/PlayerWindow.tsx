@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2,
@@ -145,8 +145,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
   const [showBanSearchResults, setShowBanSearchResults] = useState(false);
   const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
-  const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());
-  const applyButtonRef = useRef<HTMLButtonElement>(null);    // Get current authenticated user
+  const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());    // Get current authenticated user
   const { user } = useAuth();
     // Initialize the applyPunishment mutation hook
   const applyPunishment = useApplyPunishment();
@@ -195,12 +194,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
   };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
-    console.log('=== APPLY PUNISHMENT CLICKED ===');
-    console.log('Selected punishment category:', playerInfo.selectedPunishmentCategory);
-    console.log('Current player info state:', playerInfo);
-    
     const punishmentType = getCurrentPunishmentType();
-    console.log('Current punishment type:', punishmentType);
     
     // Validate required fields
     if (!playerInfo.selectedPunishmentCategory) {
@@ -214,9 +208,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
 
     // Only validate reason for administrative manual punishments that explicitly need it
     const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
-    console.log('needsReason:', needsReason, 'reason value:', playerInfo.reason, 'trimmed reason:', playerInfo.reason?.trim());
     if (needsReason && !playerInfo.reason?.trim()) {
-      console.log('FAILING: reason validation - no reason provided for manual punishment');
       toast({
         title: "Missing information",
         description: "Please provide a reason for this punishment",
@@ -248,10 +240,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     
     // Validate duration for punishments that need it
     const needsDuration = ['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
-    console.log('needsDuration:', needsDuration, 'isPermanent:', playerInfo.isPermanent, 'duration:', playerInfo.duration);
+    const isManualPunishment = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory);
                           
     if (needsDuration && !playerInfo.isPermanent && (!playerInfo.duration?.value || playerInfo.duration.value <= 0 || !playerInfo.duration?.unit)) {
-      console.log('FAILING: duration validation - no valid duration or permanent setting');
       toast({
         title: "Invalid duration",
         description: "Please specify a valid duration (greater than 0) or select 'Permanent'",
@@ -304,21 +295,26 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       // Calculate duration in milliseconds based on punishment type configuration
       let durationMs = 0;
       
-      // For manual punishments, use user-specified duration
+      // For manual punishments that need duration, use user-specified duration
       if (needsDuration && !playerInfo.isPermanent && playerInfo.duration) {
         durationMs = convertDurationToMilliseconds(playerInfo.duration);
-        console.log('Manual punishment duration:', durationMs, 'from', playerInfo.duration);
       } 
-      // For all other punishments, use punishment type configuration
+      // For Linked Ban, it inherits duration from the linked ban (permanent by default)
+      else if (playerInfo.selectedPunishmentCategory === 'Linked Ban') {
+        durationMs = 0; // Permanent by default, unless linked ban has expiry
+      }
+      // For other manual punishments that don't need duration (Kick, Security Ban, Blacklist), skip duration calculation
+      else if (isManualPunishment) {
+        // These punishments don't need duration calculations
+        durationMs = 0;
+      }
+      // For all other non-manual punishments, use punishment type configuration
       else if (!playerInfo.isPermanent) {
         if (punishmentType?.singleSeverityPunishment && punishmentType?.singleSeverityDurations && playerInfo.selectedOffenseLevel) {
           // Single-severity punishment - use duration from offense level
           const duration = punishmentType.singleSeverityDurations[playerInfo.selectedOffenseLevel];
           if (duration) {
             durationMs = convertDurationToMilliseconds(duration);
-            console.log('Single-severity duration:', durationMs, 'from', duration, 'for offense level:', playerInfo.selectedOffenseLevel);
-          } else {
-            console.log('No duration found for offense level', playerInfo.selectedOffenseLevel, 'in', punishmentType.singleSeverityDurations);
           }
         } else if (punishmentType?.durations && playerInfo.selectedSeverity) {
           // Multi-severity punishment - use duration from punishment type config based on severity and status
@@ -336,27 +332,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           
           if (duration) {
             durationMs = convertDurationToMilliseconds(duration);
-            console.log('Multi-severity duration:', durationMs, 'from', duration, 'for severity:', severityKey, 'status:', statusKey);
           } else {
-            console.log('No duration found for severity:', severityKey, 'status:', statusKey, 'in', punishmentType.durations);
             // Try with 'first' as fallback
             const fallbackDuration = punishmentType.durations[severityKey]?.['first'];
             if (fallbackDuration) {
               durationMs = convertDurationToMilliseconds(fallbackDuration);
-              console.log('Using fallback first offense duration:', durationMs, 'from', fallbackDuration);
             }
           }
-        } else {
-          console.log('No duration calculation available for punishment type:', {
-            punishmentCategory: playerInfo.selectedPunishmentCategory,
-            isPermanent: playerInfo.isPermanent,
-            hasMultiDurations: !!punishmentType?.durations,
-            hasSingleDurations: !!punishmentType?.singleSeverityDurations,
-            isSingleSeverity: punishmentType?.singleSeverityPunishment,
-            selectedSeverity: playerInfo.selectedSeverity,
-            selectedOffenseLevel: playerInfo.selectedOffenseLevel,
-            punishmentType: punishmentType
-          });
         }
       }
         // Prepare data map for additional punishment data
@@ -366,7 +348,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         // Set duration in data for all punishments that have a calculated duration
       if (durationMs > 0) {
         data.duration = durationMs;
-        console.log('Setting duration in data:', durationMs);
       }
       
       // Add punishment-specific data
@@ -434,8 +415,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       
       // Prepare evidence array
       const evidence = playerInfo.evidenceList?.filter(e => e.trim()).map(e => e.trim()) || [];
-      console.log('Evidence being sent:', evidence, 'from evidenceList:', playerInfo.evidenceList);
-      
       // Prepare punishment data in the format expected by the server
       const punishmentData: { [key: string]: any } = {
         issuerName: user?.username || 'Admin', // Use actual staff member name
@@ -447,8 +426,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         status: status,
         data: data
       };
-      
-      console.log('Full punishment data being sent:', punishmentData);
       
       // Call the API
       await applyPunishment.mutateAsync({
@@ -749,7 +726,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             };
             
             const punishmentType = getPunishmentTypeName(punishment.type_ordinal);
-            const isManualPunishment = ['Kick', 'Manual Mute', 'Manual Ban'].includes(punishmentType);
             
             // Use staff notes as the main reason text
             let displayReason = '';
@@ -2855,81 +2831,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <label htmlFor="silent" className="text-sm">Silent (No Notification)</label>
                         </div>
                       </div>                      <div className="pt-2">
-                        {/* Debug test button */}
                         <Button 
-                          type="button"
-                          className="w-full mb-2"
-                          onClick={() => {
-                            console.log('=== TEST BUTTON CLICKED ===');
-                            alert('Test button works!');
-                          }}
-                        >
-                          TEST BUTTON (Debug)
-                        </Button>
-                        
-                        {/* Debug info */}
-                        {console.log('RENDERING APPLY BUTTON:', {
-                          selectedCategory: playerInfo.selectedPunishmentCategory,
-                          isApplying: isApplyingPunishment,
-                          renderTime: new Date().toISOString()
-                        })}
-                        
-                        <Button 
-                          ref={applyButtonRef}
                           type="button"
                           className="w-full"
-                          onMouseDown={() => {
-                            console.log('APPLY BUTTON: onMouseDown triggered');
-                            console.log('Button element:', applyButtonRef.current);
-                            console.log('Button disabled:', applyButtonRef.current?.disabled);
-                            console.log('Button style:', applyButtonRef.current?.style.cssText);
-                          }}
-                          onMouseUp={() => console.log('APPLY BUTTON: onMouseUp triggered')}
-                          onPointerDown={() => console.log('APPLY BUTTON: onPointerDown triggered')}
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                            console.log('=== BUTTON CLICKED ===');
-                            console.log('Event object:', e);
-                            console.log('isApplyingPunishment:', isApplyingPunishment);
-                            console.log('playerInfo.selectedPunishmentCategory:', playerInfo.selectedPunishmentCategory);
-                            console.log('playerInfo.reason:', playerInfo.reason);
-                            console.log('playerInfo.duration:', playerInfo.duration);
-                            console.log('playerInfo.isPermanent:', playerInfo.isPermanent);
-                            console.log('Button disabled state:', isApplyingPunishment);
-                            console.log('About to call handleApplyPunishment');
-                            
-                            // TEST: Try a simplified version first to bypass validation
-                            if (e.shiftKey) {
-                              console.log('SHIFT+CLICK: Bypassing validation for testing');
-                              try {
-                                const simpleData = {
-                                  issuerName: user?.username || 'Admin',
-                                  type_ordinal: 1, // Manual Mute
-                                  notes: [{text: 'Test punishment', issuerName: user?.username || 'Admin'}],
-                                  evidence: [],
-                                  attachedTicketIds: [],
-                                  severity: 'low',
-                                  status: 'low',
-                                  data: { duration: 60000, silent: false } // 1 minute
-                                };
-                                console.log('Attempting API call with simple data:', simpleData);
-                                applyPunishment.mutate({
-                                  uuid: playerId,
-                                  punishmentData: simpleData
-                                });
-                              } catch (error) {
-                                console.error('Simple API call failed:', error);
-                              }
-                              return;
-                            }
-                            
-                            try {
-                              handleApplyPunishment();
-                            } catch (error) {
-                              console.error('Error calling handleApplyPunishment:', error);
-                            }
-                          }}
+                          onClick={handleApplyPunishment}
                           disabled={isApplyingPunishment}
-                          style={{backgroundColor: 'red', border: '2px solid yellow'}} // Debug styling
                         >
                           {isApplyingPunishment ? (
                             <>
