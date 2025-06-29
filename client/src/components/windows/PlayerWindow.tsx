@@ -1003,17 +1003,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => {
                 const isExpanded = expandedPunishments.has(warning.id || `warning-${index}`);
                 const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);
-                
-                return (                  <div 
+                  return (                  <div 
                     key={warning.id || `warning-${index}`} 
                     className={`${
-                      warning.active ? 'bg-white border-l-4 border-red-500' : 
+                      warning.active ? 'bg-red-50/50 border-l-4 border-red-500' : 
                       'bg-muted/30'
                     } p-3 rounded-lg`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="bg-white text-gray-900 border-gray-300">
+                          <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
                             {warning.type}
                           </Badge>
                           {warning.active && (
