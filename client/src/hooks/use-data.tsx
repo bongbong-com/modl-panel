@@ -494,6 +494,8 @@ export function useModifyPunishment() {
       // Convert duration to milliseconds for MANUAL_DURATION_CHANGE
       if (modificationType === 'MANUAL_DURATION_CHANGE' && newDuration) {
         const multipliers = {
+          'seconds': 1000,
+          'minutes': 60 * 1000,
           'hours': 60 * 60 * 1000,
           'days': 24 * 60 * 60 * 1000,
           'weeks': 7 * 24 * 60 * 60 * 1000,
