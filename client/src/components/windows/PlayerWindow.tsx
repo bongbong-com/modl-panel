@@ -696,13 +696,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           ? 'Restricted' 
           : 'Active';
         
-        // Format warnings from notes
-        const warnings = player.notes ? player.notes.map((note: any) => ({
-          type: 'Warning',
-          reason: note.text,
-          date: formatDateWithTime(note.date),
-          by: note.issuerName
-        })) : [];
+        // Initialize warnings array - do NOT include staff notes as warnings
+        const warnings: any[] = [];
         
         // Add punishments to warnings with full details
         if (player.punishments) {
@@ -823,7 +818,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         }
         
         const calculatedStatus = calculatePlayerStatus(player.punishments || [], allPunishmentTypes, statusThresholds);
-          setPlayerInfo(prev => ({
+        
+        setPlayerInfo(prev => ({
           ...prev,
           username: currentUsername,
           status: status === 'Active' ? 'Online' : status,

@@ -11,6 +11,7 @@ interface IIPAddress {
   region?: string;
   asn?: string;
   proxy?: boolean;
+  hosting?: boolean;
   firstLogin: Date;
   logins: Date[];
 }
@@ -154,13 +155,41 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         player.punishments || [],
         punishmentTypes,
         thresholds
-      );      // Add calculated status to player data
+      );      // Calculate latest IP data
+      let latestIPData = null;
+      if (player.ipAddresses && player.ipAddresses.length > 0) {
+        // Find the IP with the most recent login
+        const sortedIPs = player.ipAddresses.sort((a, b) => {
+          const aLatest = a.logins && a.logins.length > 0 ? 
+            Math.max(...a.logins.map(login => new Date(login).getTime())) : 
+            new Date(a.firstLogin).getTime();
+          const bLatest = b.logins && b.logins.length > 0 ? 
+            Math.max(...b.logins.map(login => new Date(login).getTime())) : 
+            new Date(b.firstLogin).getTime();
+          return bLatest - aLatest;
+        });
+        
+        const latestIP = sortedIPs[0];
+        if (latestIP) {
+          latestIPData = {
+            country: latestIP.country,
+            region: latestIP.region,
+            ipAddress: latestIP.ipAddress,
+            proxy: latestIP.proxy || false,
+            hosting: latestIP.hosting || false,
+            asn: latestIP.asn
+          };
+        }
+      }
+
+      // Add calculated status to player data
       const enhancedPlayer = {
         ...player.toObject(),
         social: playerStatus.social,
         gameplay: playerStatus.gameplay,
         socialPoints: playerStatus.socialPoints,
         gameplayPoints: playerStatus.gameplayPoints,
+        latestIPData: latestIPData,
         // Transform punishments to include properly extracted data from Maps
         punishments: player.punishments.map((punishment: any) => {
           const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
@@ -190,10 +219,39 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
 
       res.json(enhancedPlayer);    } catch (statusError) {
       console.error('Error calculating player status:', statusError);
+      
+      // Calculate latest IP data (same as above)
+      let latestIPData = null;
+      if (player.ipAddresses && player.ipAddresses.length > 0) {
+        // Find the IP with the most recent login
+        const sortedIPs = player.ipAddresses.sort((a, b) => {
+          const aLatest = a.logins && a.logins.length > 0 ? 
+            Math.max(...a.logins.map(login => new Date(login).getTime())) : 
+            new Date(a.firstLogin).getTime();
+          const bLatest = b.logins && b.logins.length > 0 ? 
+            Math.max(...b.logins.map(login => new Date(login).getTime())) : 
+            new Date(b.firstLogin).getTime();
+          return bLatest - aLatest;
+        });
+        
+        const latestIP = sortedIPs[0];
+        if (latestIP) {
+          latestIPData = {
+            country: latestIP.country,
+            region: latestIP.region,
+            ipAddress: latestIP.ipAddress,
+            proxy: latestIP.proxy || false,
+            hosting: latestIP.hosting || false,
+            asn: latestIP.asn
+          };
+        }
+      }
+      
       // Return player without calculated status if calculation fails, but still process punishments
       const playerObj = player.toObject();
       const enhancedPlayer = {
         ...playerObj,
+        latestIPData: latestIPData,
         // Transform punishments to include properly extracted data from Maps
         punishments: player.punishments.map((punishment: any) => {
           const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
@@ -265,7 +323,8 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
           country: ipInfo.countryCode,
           region: ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : ipInfo.regionName,
           asn: ipInfo.as,
-          proxy: ipInfo.proxy || ipInfo.hosting,
+          proxy: ipInfo.proxy || false,
+          hosting: ipInfo.hosting || false,
           firstLogin: new Date(),
           logins: [new Date()]
         });
@@ -291,7 +350,8 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
         country: ipInfo.countryCode,
         region: ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : ipInfo.regionName,
         asn: ipInfo.as,
-        proxy: ipInfo.proxy || ipInfo.hosting,
+        proxy: ipInfo.proxy || false,
+        hosting: ipInfo.hosting || false,
         firstLogin: new Date(),
         logins: [new Date()]
       }],
