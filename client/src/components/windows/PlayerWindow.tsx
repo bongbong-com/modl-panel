@@ -194,7 +194,12 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
   };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
+    console.log('=== APPLY PUNISHMENT CLICKED ===');
+    console.log('Selected punishment category:', playerInfo.selectedPunishmentCategory);
+    console.log('Current player info state:', playerInfo);
+    
     const punishmentType = getCurrentPunishmentType();
+    console.log('Current punishment type:', punishmentType);
     
     // Validate required fields
     if (!playerInfo.selectedPunishmentCategory) {
@@ -208,7 +213,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
 
     // Only validate reason for administrative manual punishments that explicitly need it
     const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
+    console.log('needsReason:', needsReason, 'reason value:', playerInfo.reason, 'trimmed reason:', playerInfo.reason?.trim());
     if (needsReason && !playerInfo.reason?.trim()) {
+      console.log('FAILING: reason validation - no reason provided for manual punishment');
       toast({
         title: "Missing information",
         description: "Please provide a reason for this punishment",
@@ -240,8 +247,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     
     // Validate duration for punishments that need it
     const needsDuration = ['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
+    console.log('needsDuration:', needsDuration, 'isPermanent:', playerInfo.isPermanent, 'duration:', playerInfo.duration);
                           
     if (needsDuration && !playerInfo.isPermanent && (!playerInfo.duration?.value || playerInfo.duration.value <= 0 || !playerInfo.duration?.unit)) {
+      console.log('FAILING: duration validation - no valid duration or permanent setting');
       toast({
         title: "Invalid duration",
         description: "Please specify a valid duration (greater than 0) or select 'Permanent'",
@@ -2845,10 +2854,61 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <label htmlFor="silent" className="text-sm">Silent (No Notification)</label>
                         </div>
                       </div>                      <div className="pt-2">
+                        {/* Debug test button */}
                         <Button 
                           type="button"
-                          className="w-full"                          onClick={() => {
-                            handleApplyPunishment();
+                          className="w-full mb-2"
+                          onClick={() => {
+                            console.log('=== TEST BUTTON CLICKED ===');
+                            alert('Test button works!');
+                          }}
+                        >
+                          TEST BUTTON (Debug)
+                        </Button>
+                        
+                        <Button 
+                          type="button"
+                          className="w-full"                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            console.log('=== BUTTON CLICKED ===');
+                            console.log('Event object:', e);
+                            console.log('isApplyingPunishment:', isApplyingPunishment);
+                            console.log('playerInfo.selectedPunishmentCategory:', playerInfo.selectedPunishmentCategory);
+                            console.log('playerInfo.reason:', playerInfo.reason);
+                            console.log('playerInfo.duration:', playerInfo.duration);
+                            console.log('playerInfo.isPermanent:', playerInfo.isPermanent);
+                            console.log('Button disabled state:', isApplyingPunishment);
+                            console.log('About to call handleApplyPunishment');
+                            
+                            // TEST: Try a simplified version first to bypass validation
+                            if (e.shiftKey) {
+                              console.log('SHIFT+CLICK: Bypassing validation for testing');
+                              try {
+                                const simpleData = {
+                                  issuerName: user?.username || 'Admin',
+                                  type_ordinal: 1, // Manual Mute
+                                  notes: [{text: 'Test punishment', issuerName: user?.username || 'Admin'}],
+                                  evidence: [],
+                                  attachedTicketIds: [],
+                                  severity: 'low',
+                                  status: 'low',
+                                  data: { duration: 60000, silent: false } // 1 minute
+                                };
+                                console.log('Attempting API call with simple data:', simpleData);
+                                applyPunishment.mutate({
+                                  uuid: playerId,
+                                  punishmentData: simpleData
+                                });
+                              } catch (error) {
+                                console.error('Simple API call failed:', error);
+                              }
+                              return;
+                            }
+                            
+                            try {
+                              handleApplyPunishment();
+                            } catch (error) {
+                              console.error('Error calling handleApplyPunishment:', error);
+                            }
                           }}
                           disabled={isApplyingPunishment}
                         >
