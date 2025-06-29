@@ -14,7 +14,7 @@ const mkdir = promisify(fs.mkdir);
 
 interface IDurationDetail {
   value: number;
-  unit: string;
+  unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
   type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban';
 }
 
@@ -46,9 +46,9 @@ interface IPunishmentType {
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
   singleSeverityDurations?: {
-    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
   permanentUntilSkinChange?: boolean; // Whether this punishment persists until player changes skin

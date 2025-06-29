@@ -51,19 +51,19 @@ interface PunishmentType {
   ordinal: number;
   durations?: {
     low: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
     };
     regular: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
     };
     severe: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
     };
   };
   points?: {
@@ -80,9 +80,9 @@ interface PunishmentType {
   isAppealable?: boolean; // Whether this punishment type can be appealed
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
   singleSeverityDurations?: {
-    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
-    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
+    habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
 }
@@ -1228,7 +1228,7 @@ const Settings = () => {
       const newOrdinal = Math.max(...punishmentTypes.map(pt => pt.ordinal)) + 1;
 
       // Default durations and points based on category
-      const defaultUnit = 'hours' as 'hours' | 'days' | 'weeks' | 'months';
+      const defaultUnit = 'minutes' as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
 
       // Helper function to create duration objects
       const createDuration = (value: number) => ({ value, unit: defaultUnit, type: 'mute' as const });
@@ -3143,7 +3143,7 @@ const Settings = () => {
                                                 ...prev.singleSeverityDurations,
                                                 [offenseType]: {
                                                   ...(prev.singleSeverityDurations?.[offenseType as keyof typeof prev.singleSeverityDurations] || { value: 24, unit: 'hours', type: 'mute' }),
-                                                  unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                                  unit: unit as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                                 }
                                               }
                                             } : null);
@@ -3153,6 +3153,8 @@ const Settings = () => {
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
+                                            <SelectItem value="seconds">S</SelectItem>
+                                            <SelectItem value="minutes">Min</SelectItem>
                                             <SelectItem value="hours">H</SelectItem>
                                             <SelectItem value="days">D</SelectItem>
                                             <SelectItem value="weeks">W</SelectItem>
@@ -3266,7 +3268,7 @@ const Settings = () => {
                                               ...prev.durations.low,
                                               [offenseType]: {
                                                 ...prev.durations.low[offenseType as keyof typeof prev.durations.low],
-                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                                unit: unit as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                               }
                                             }
                                           }
@@ -3278,6 +3280,8 @@ const Settings = () => {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
+                                        <SelectItem value="seconds">S</SelectItem>
+                                        <SelectItem value="minutes">Min</SelectItem>
                                         <SelectItem value="hours">H</SelectItem>
                                         <SelectItem value="days">D</SelectItem>
                                         <SelectItem value="weeks">W</SelectItem>
@@ -3362,7 +3366,7 @@ const Settings = () => {
                                               ...prev.durations.regular,
                                               [offenseType]: {
                                                 ...prev.durations.regular[offenseType as keyof typeof prev.durations.regular],
-                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                                unit: unit as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                               }
                                             }
                                           }
@@ -3373,6 +3377,8 @@ const Settings = () => {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
+                                        <SelectItem value="seconds">S</SelectItem>
+                                        <SelectItem value="minutes">Min</SelectItem>
                                         <SelectItem value="hours">H</SelectItem>
                                         <SelectItem value="days">D</SelectItem>
                                         <SelectItem value="weeks">W</SelectItem>
@@ -3456,7 +3462,7 @@ const Settings = () => {
                                               ...prev.durations.severe,
                                               [offenseType]: {
                                                 ...prev.durations.severe[offenseType as keyof typeof prev.durations.severe],
-                                                unit: unit as 'hours' | 'days' | 'weeks' | 'months'
+                                                unit: unit as 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                               }
                                             }
                                           }
@@ -3467,6 +3473,8 @@ const Settings = () => {
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
+                                        <SelectItem value="seconds">S</SelectItem>
+                                        <SelectItem value="minutes">Min</SelectItem>
                                         <SelectItem value="hours">H</SelectItem>
                                         <SelectItem value="days">D</SelectItem>
                                         <SelectItem value="weeks">W</SelectItem>

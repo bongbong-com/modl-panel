@@ -74,7 +74,7 @@ interface PlayerInfo {
   selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
   newDuration?: {
     value: number;
-    unit: 'hours' | 'days' | 'weeks' | 'months';
+    unit: 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
   };
   // Punishment creation fields
   selectedPunishmentCategory?: string;
@@ -82,7 +82,7 @@ interface PlayerInfo {
   selectedOffenseLevel?: 'first' | 'medium' | 'habitual'; // For single-severity punishments
   duration?: {
     value: number;
-    unit: 'hours' | 'days' | 'weeks' | 'months';
+    unit: 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
   };
   isPermanent?: boolean;  reason?: string;
   evidence?: string;
@@ -106,19 +106,19 @@ interface PunishmentType {
   ordinal: number;
   durations?: {
     low: { 
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
     };
     regular: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
     };
     severe: {
-      first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
-      habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'hours' | 'days' | 'weeks' | 'months'; };
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
     };
   };
   points?: {
@@ -133,9 +133,9 @@ interface PunishmentType {
   isAppealable?: boolean; // Whether this punishment type can be appealed
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
   singleSeverityDurations?: {
-    first: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-    medium: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
-    habitual: { value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
 }
@@ -183,6 +183,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   // Convert duration to milliseconds
   const convertDurationToMilliseconds = (duration: { value: number; unit: string }): number => {
     const multipliers = {
+      'seconds': 1000,
+      'minutes': 60 * 1000,
       'hours': 60 * 60 * 1000,
       'days': 24 * 60 * 60 * 1000,
       'weeks': 7 * 24 * 60 * 60 * 1000,
@@ -766,10 +768,37 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         const notes = player.notes          ? player.notes.map((note: any) => `${note.text} (Added by ${note.issuerName} on ${formatDateWithTime(note.date)})`) 
           : [];
         
-        // Extract linked accounts
+        // Extract linked accounts - accounts sharing IPs (non-proxy/hosting unless within 6 hours)
         const linkedAccounts: string[] = [];
+        
+        // Add traditional linked accounts (Discord, Email, etc.)
         if (player.discord) linkedAccounts.push(`${player.discord} (Discord)`);
         if (player.email) linkedAccounts.push(`${player.email} (Email)`);
+        
+        // Add IP-based connections
+        if (player.ipConnections && Array.isArray(player.ipConnections)) {
+          player.ipConnections.forEach((connection: any) => {
+            const timeDiff = connection.timeDifference ? connection.timeDifference : 0;
+            const isWithin6Hours = timeDiff <= 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+            
+            // Include non-proxy/hosting IPs, or proxy/hosting IPs within 6 hours
+            if (!connection.isProxy && !connection.isHosting) {
+              linkedAccounts.push(`${connection.username} (shared IP: ${connection.ip})`);
+            } else if ((connection.isProxy || connection.isHosting) && isWithin6Hours) {
+              const connectionType = connection.isProxy ? 'proxy' : 'hosting';
+              linkedAccounts.push(`${connection.username} (shared ${connectionType} IP: ${connection.ip})`);
+            }
+          });
+        }
+        
+        // If no specific IP connections data, fall back to generic linked accounts
+        if (player.linkedAccounts && Array.isArray(player.linkedAccounts)) {
+          player.linkedAccounts.forEach((account: string) => {
+            if (!linkedAccounts.includes(account)) {
+              linkedAccounts.push(account);
+            }
+          });
+        }
         
         // Calculate player status using punishment points and thresholds
         const allPunishmentTypes = [
@@ -798,8 +827,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           ...prev,
           username: currentUsername,
           status: status === 'Active' ? 'Online' : status,
-          region: player.region || 'Unknown',
-          country: player.country || 'Unknown',
+          region: player.latestIPData?.region || player.region || 'Unknown',
+          country: player.latestIPData?.country || player.country || 'Unknown',
           firstJoined: firstJoined,
           lastOnline: 'Recent', // This data isn't available in our current schema
           lastServer: player.lastServer || 'Unknown',
@@ -1079,13 +1108,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     const days = Math.floor(durationMs / (24 * 60 * 60 * 1000));
     const hours = Math.floor((durationMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
     const minutes = Math.floor((durationMs % (60 * 60 * 1000)) / (60 * 1000));
+    const seconds = Math.floor((durationMs % (60 * 1000)) / 1000);
     
     if (days > 0) {
       return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
     } else if (hours > 0) {
       return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
+    } else if (minutes > 0) {
+      return `${minutes}m${seconds > 0 && minutes < 60 ? ` ${seconds}s` : ''}`;
     } else {
-      return `${minutes}m`;
+      return `${seconds}s`;
     }
   };
 
@@ -1157,10 +1189,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   <div>
                     <span className="text-muted-foreground">Region:</span>
                     <span className="ml-1">{playerInfo.region}</span>
+                    {playerInfo.region && playerInfo.region !== 'Unknown' && (
+                      <span className="text-xs text-muted-foreground ml-1">(from latest IP)</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-muted-foreground">Country:</span>
                     <span className="ml-1">{playerInfo.country}</span>
+                    {playerInfo.country && playerInfo.country !== 'Unknown' && (
+                      <span className="text-xs text-muted-foreground ml-1">(from latest IP)</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-muted-foreground">First Join:</span>
@@ -1192,7 +1230,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             </TabsTrigger>
             <TabsTrigger value="linked" className="text-xs py-2">
               <Link2 className="h-3.5 w-3.5 mr-1.5" />
-              Linked
+              Connected
             </TabsTrigger>
             <TabsTrigger value="notes" className="text-xs py-2">
               <StickyNote className="h-3.5 w-3.5 mr-1.5" />
@@ -1702,7 +1740,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                         newDuration: {
                                           ...prev.newDuration,
                                           value: parseInt(e.target.value) || 0,
-                                          unit: prev.newDuration?.unit || 'hours'
+                                          unit: prev.newDuration?.unit || 'minutes'
                                         }
                                       }))}
                                     />
@@ -1711,16 +1749,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     <label className="text-xs text-muted-foreground">Unit</label>
                                     <select
                                       className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
-                                      value={playerInfo.newDuration?.unit || 'hours'}
+                                      value={playerInfo.newDuration?.unit || 'minutes'}
                                       onChange={(e) => setPlayerInfo(prev => ({
                                         ...prev,
                                         newDuration: {
                                           ...prev.newDuration,
                                           value: prev.newDuration?.value || 1,
-                                          unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                          unit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                         }
                                       }))}
                                     >
+                                      <option value="minutes">Minutes</option>
                                       <option value="hours">Hours</option>
                                       <option value="days">Days</option>
                                       <option value="weeks">Weeks</option>
@@ -1819,7 +1858,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           </TabsContent>
           
           <TabsContent value="linked" className="space-y-2 mx-1 mt-3">
-            <h4 className="font-medium">Linked Accounts</h4>
+            <h4 className="font-medium">Connected Accounts</h4>
+            <p className="text-xs text-muted-foreground mb-3">
+              Accounts sharing IPs (excluding proxy/hosting IPs unless within 6 hours of each other)
+            </p>
             <div className="bg-muted/30 p-3 rounded-lg">
               <ul className="space-y-2">
                 {playerInfo.linkedAccounts.map((account, idx) => (
@@ -1834,6 +1876,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           
           <TabsContent value="notes" className="space-y-2 mx-1 mt-3">
             <h4 className="font-medium">Staff Notes</h4>
+            <p className="text-xs text-muted-foreground mb-3">
+              Staff notes are administrative comments and are not warnings or punishments.
+            </p>
             <div className="bg-muted/30 p-3 rounded-lg">
               <ul className="space-y-2">
                 {playerInfo.notes.map((note, idx) => (
@@ -2300,10 +2345,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 ...prev, 
                                 duration: {
                                   value: prev.duration?.value || 1,
-                                  unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                  unit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                 }
                               }))}
                             >
+                              <option value="minutes">Minutes</option>
                               <option value="hours">Hours</option>
                               <option value="days">Days</option>
                               <option value="weeks">Weeks</option>
@@ -2375,10 +2421,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 ...prev, 
                                 duration: {
                                   value: prev.duration?.value || 1,
-                                  unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                  unit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
                                 }
                               }))}
                             >
+                              <option value="minutes">Minutes</option>
                               <option value="hours">Hours</option>
                               <option value="days">Days</option>
                               <option value="weeks">Weeks</option>
