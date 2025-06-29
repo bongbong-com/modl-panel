@@ -964,33 +964,34 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         if (mod.effectiveDuration !== undefined) {
           effectiveDuration = mod.effectiveDuration;
           
-          // Recalculate expiry based on start time and new duration
-          const startTime = punishment.started || punishment.issued;
+          // For duration modifications, calculate expiry from the modification's issued time
+          const modificationTime = mod.issued;
           
-          // Convert startTime to Date object if it's a string
-          let startDate;
-          if (startTime instanceof Date) {
-            startDate = startTime;
-          } else if (typeof startTime === 'string') {
-            startDate = new Date(startTime);
+          // Convert modificationTime to Date object if it's a string
+          let modDate;
+          if (modificationTime instanceof Date) {
+            modDate = modificationTime;
+          } else if (typeof modificationTime === 'string') {
+            modDate = new Date(modificationTime);
           } else {
-            // Fallback to current date if startTime is invalid
-            console.warn('Invalid start time for punishment, using current date as fallback:', startTime);
-            startDate = new Date();
+            // Fallback to current date if modificationTime is invalid
+            console.warn('Invalid modification time, using current date as fallback:', modificationTime);
+            modDate = new Date();
           }
           
-          // Validate the startDate
-          if (isNaN(startDate.getTime())) {
-            console.warn('Invalid start date calculated, using current date as fallback:', startDate);
-            startDate = new Date();
+          // Validate the modDate
+          if (isNaN(modDate.getTime())) {
+            console.warn('Invalid modification date calculated, using current date as fallback:', modDate);
+            modDate = new Date();
           }
-            if (mod.effectiveDuration === 0) {
+          
+          if (mod.effectiveDuration === 0) {
             effectiveExpiry = null; // Permanent
           } else {
-            effectiveExpiry = new Date(startDate.getTime() + mod.effectiveDuration);
-            console.log('Calculated effective expiry:', {
-              startDate,
-              startDateTime: startDate.getTime(),
+            effectiveExpiry = new Date(modDate.getTime() + mod.effectiveDuration);
+            console.log('Calculated effective expiry from modification time:', {
+              modificationDate: modDate,
+              modificationDateTime: modDate.getTime(),
               effectiveDuration: mod.effectiveDuration,
               calculatedExpiry: effectiveExpiry,
               isValidDate: !isNaN(effectiveExpiry.getTime())
@@ -1291,7 +1292,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 if (timeDiff > 0) {
                                   const timeLeft = formatTimeDifference(timeDiff);
                                   return (
-                                    <div className="font-medium text-blue-700">
+                                    <div className="text-muted-foreground">
                                       expires in {timeLeft} ({formatDateWithTime(expiryDate)})
                                     </div>
                                   );
@@ -1306,10 +1307,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               } else if (effectiveState.hasModifications && effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null) {
                                 /* Show modified duration */
                                 return (
-                                  <div className="font-medium text-blue-700">
+                                  <div className="text-muted-foreground">
                                     {effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`}
                                   </div>
-                                );                              } else if (warning.expires) {
+                                );} else if (warning.expires) {
                                 /* Show original expiry for unmodified punishments */
                                 const expiryDate = new Date(warning.expires);
                                 
