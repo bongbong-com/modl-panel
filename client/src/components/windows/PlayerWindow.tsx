@@ -734,53 +734,69 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               displayReason = typeof punishment.notes[0] === 'string' 
                 ? punishment.notes[0] 
                 : punishment.notes[0].text;
-            } else {              // Build descriptive reason from punishment details - only include expiry info
-              const parts = [];
-                // Add expiry/duration info - prioritize expires date over duration
-              const expires = punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null);
-              const duration = punishment.duration || punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : null);
-              
-              console.log('Expires for punishment', punishment.id, ':', expires);
-              console.log('Duration for punishment', punishment.id, ':', duration);
-              
-              // Helper function to format time difference
-              const formatTimeDifference = (timeDiff: number) => {
-                const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
-                const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                const minutes = Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000));
-                
-                if (days > 0) {
-                  return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
-                } else if (hours > 0) {
-                  return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
-                } else {
-                  return `${minutes}m`;
-                }
-              };
-              
-              if (expires) {
-                const expiryDate = new Date(expires);
-                const now = new Date();
-                const timeDiff = expiryDate.getTime() - now.getTime();
-                
-                if (timeDiff > 0) {
-                  // Future expiry - show countdown
-                  const timeLeft = formatTimeDifference(timeDiff);
-                  parts.push(`Expires in ${timeLeft} (${expiryDate.toLocaleDateString()})`);
-                } else {
-                  // Past expiry - show how long ago
-                  const timeAgo = formatTimeDifference(timeDiff);
-                  parts.push(`Expired ${timeAgo} ago (${expiryDate.toLocaleDateString()})`);
-                }
-              } else if (duration && duration > 0) {
-                // Fallback to duration if no expires date
-                const formattedDuration = formatTimeDifference(duration);
-                parts.push(`Duration: ${formattedDuration}`);
+            } else {
+              // Check if this punishment is inactive/pardoned
+              const modifications = punishment.modifications || [];
+              const isThisPunishmentPardoned = modifications.some((mod: any) => 
+                mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
+              );
+              const isInactive = punishment.data?.active === false || 
+                                 (punishment.data?.get && punishment.data.get('active') === false) || 
+                                 punishment.active === false;
+
+              if (isThisPunishmentPardoned || isInactive) {
+                // For inactive/pardoned punishments, don't include expiry info in reason
+                // The "Punishment expired X ago" will be shown separately
+                displayReason = 'No additional details';
               } else {
-                parts.push('Permanent');
+                // Build descriptive reason from punishment details - only include expiry info
+                const parts = [];
+                // Add expiry/duration info - prioritize expires date over duration
+                const expires = punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null);
+                const duration = punishment.duration || punishment.data?.duration || (punishment.data?.get ? punishment.data.get('duration') : null);
+                
+                console.log('Expires for punishment', punishment.id, ':', expires);
+                console.log('Duration for punishment', punishment.id, ':', duration);
+                
+                // Helper function to format time difference
+                const formatTimeDifference = (timeDiff: number) => {
+                  const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
+                  const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                  const minutes = Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000));
+                  
+                  if (days > 0) {
+                    return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+                  } else if (hours > 0) {
+                    return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
+                  } else {
+                    return `${minutes}m`;
+                  }
+                };
+                
+                if (expires) {
+                  const expiryDate = new Date(expires);
+                  const now = new Date();
+                  const timeDiff = expiryDate.getTime() - now.getTime();
+                  
+                  if (timeDiff > 0) {
+                    // Future expiry - show countdown
+                    const timeLeft = formatTimeDifference(timeDiff);
+                    parts.push(`Expires in ${timeLeft} (${expiryDate.toLocaleDateString()})`);
+                  } else {
+                    // Past expiry - show how long ago
+                    const timeAgo = formatTimeDifference(timeDiff);
+                    parts.push(`Expired ${timeAgo} ago (${expiryDate.toLocaleDateString()})`);
+                  }
+                } else if (duration && duration > 0) {
+                  // Fallback to duration if no expires date
+                  const formattedDuration = formatTimeDifference(duration);
+                  parts.push(`Duration: ${formattedDuration}`);
+                } else {
+                  parts.push('Permanent');
+                }
+                
+                displayReason = parts.join(' • ') || 'No additional details';
               }
-              
-              displayReason = parts.join(' • ') || 'No additional details';
             }
             
             warnings.push({
@@ -1223,13 +1239,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         <div className="text-sm mt-1 space-y-1">
                           <p>{warning.reason}</p>
                           
-                          {/* Show expiry/duration information - handle pardoned punishments specially */}
+                          {/* Show expiry/duration information - handle inactive/pardoned punishments specially */}
                           <div className="text-xs">
                             {(() => {
-                              // Check if punishment is pardoned
+                              // Check if punishment is inactive/pardoned
                               const pardonModification = effectiveState.modifications.find((mod: any) => 
                                 mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
                               );
+                              
+                              // Check if punishment is inactive (either pardoned or naturally expired/inactive)
+                              const isInactive = !effectiveState.effectiveActive;
                               
                               if (pardonModification) {
                                 // Calculate time since pardoned
@@ -1254,6 +1273,31 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     Punishment expired {timeAgo} ago
                                   </div>
                                 );
+                              } else if (isInactive && warning.expires) {
+                                // For other inactive punishments, calculate time since natural expiry
+                                const expiryDate = new Date(warning.expires);
+                                const now = new Date();
+                                const timeDiff = now.getTime() - expiryDate.getTime();
+                                
+                                if (timeDiff > 0) {
+                                  const days = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
+                                  const hours = Math.floor((timeDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                                  
+                                  let timeAgo = '';
+                                  if (days > 0) {
+                                    timeAgo = `${days} day${days > 1 ? 's' : ''}`;
+                                  } else if (hours > 0) {
+                                    timeAgo = `${hours} hour${hours > 1 ? 's' : ''}`;
+                                  } else {
+                                    timeAgo = 'less than an hour';
+                                  }
+                                  
+                                  return (
+                                    <div className="text-muted-foreground">
+                                      Punishment expired {timeAgo} ago
+                                    </div>
+                                  );
+                                }
                               } else if (effectiveState.hasModifications) {
                                 /* Show modified/effective expiry prominently for non-pardoned modifications */
                                 return (
@@ -1274,6 +1318,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   </div>
                                 );
                               }
+                              
+                              // Default case - should not reach here but ensures all paths return
+                              return null;
                             })()}
                           </div>
                         </div>
