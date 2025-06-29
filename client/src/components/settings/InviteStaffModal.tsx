@@ -50,7 +50,7 @@ const InviteStaffModal: React.FC<InviteStaffModalProps> = ({ isOpen, onClose, on
 
   const onSubmit = async (values: InviteFormValues) => {
     try {
-      const response = await fetch('/api/staff/invite', {
+      const response = await fetch('/api/panel/staff/invite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -49,7 +49,7 @@ const StaffManagementPanel = () => {
     if (!selectedStaffMember) return;
 
     try {
-      const response = await fetch(`/api/staff/${selectedStaffMember._id}`, {
+      const response = await fetch(`/api/panel/staff/${selectedStaffMember._id}`, {
         method: 'DELETE',
       });
 
@@ -68,7 +68,7 @@ const StaffManagementPanel = () => {
 
   const handleResendInvitation = async (staffId: string) => {
     try {
-      const response = await fetch(`/api/staff/invitations/${staffId}/resend`, {
+      const response = await fetch(`/api/panel/staff/invitations/${staffId}/resend`, {
         method: 'POST',
       });
       if (!response.ok) {

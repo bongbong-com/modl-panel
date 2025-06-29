@@ -564,14 +564,42 @@ router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Reques
     if (!punishment) {
       return res.status(404).json({ error: 'Punishment not found' });
     }
-    
-    punishment.modifications.push({
+      punishment.modifications.push({
       type,
       issuerName,
       issued: new Date(),
       effectiveDuration,
       reason 
     });
+    
+    // Apply the modification to the punishment's current state
+    if (type === 'MANUAL_PARDON' || type === 'APPEAL_ACCEPT') {
+      // Mark punishment as inactive
+      punishment.data.set('active', false);
+    } else if (type === 'MANUAL_DURATION_CHANGE' || type === 'APPEAL_DURATION_CHANGE') {
+      // Update the duration and recalculate expiry
+      if (effectiveDuration !== undefined) {
+        punishment.data.set('duration', effectiveDuration);
+        
+        // Recalculate expiry based on start time and new duration
+        const startTime = punishment.started || punishment.issued;
+        if (effectiveDuration === 0) {
+          // Permanent punishment
+          punishment.data.delete('expires');
+        } else {
+          const newExpiry = new Date(startTime.getTime() + effectiveDuration);
+          punishment.data.set('expires', newExpiry);
+        }
+      }
+    } else if (type === 'SET_ALT_BLOCKING_TRUE') {
+      punishment.data.set('altBlocking', true);
+    } else if (type === 'SET_ALT_BLOCKING_FALSE') {
+      punishment.data.set('altBlocking', false);
+    } else if (type === 'SET_WIPING_TRUE') {
+      punishment.data.set('wiping', true);
+    } else if (type === 'SET_WIPING_FALSE') {
+      punishment.data.set('wiping', false);
+    }
     
     await player.save();
     await createSystemLog(req.serverDbConnection, req.serverName, `Modification of type '${type}' added to punishment ${req.params.punishmentId} for player ${req.params.uuid} by ${issuerName}.`, 'moderation', 'player-api');

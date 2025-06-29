@@ -595,12 +595,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   // Calculate player status based on punishments and settings
   const calculatePlayerStatus = (punishments: any[], punishmentTypes: PunishmentType[], statusThresholds: any) => {
     let socialPoints = 0;
-    let gameplayPoints = 0;
-
-    // Calculate points from active punishments
+    let gameplayPoints = 0;    // Calculate points from active punishments
     for (const punishment of punishments) {
-      // Check if punishment is active
-      const isActive = punishment.active || punishment.data?.active !== false;
+      // Check if punishment is effectively active (considering modifications)
+      const effectiveState = getEffectivePunishmentState(punishment);
+      const isActive = effectiveState.effectiveActive;
       if (!isActive) continue;
 
       // Find punishment type
@@ -801,6 +800,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               notes: punishment.notes || [],
               attachedTicketIds: punishment.attachedTicketIds || [],
               active: punishment.data?.active !== false || (punishment.data?.get ? punishment.data.get('active') !== false : punishment.active),
+              modifications: punishment.modifications || [],
               expires: punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null),
               data: punishment.data || {},
               altBlocking: punishment.data?.altBlocking || (punishment.data?.get ? punishment.data.get('altBlocking') : false)
@@ -987,6 +987,69 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       return preview;
   };
 
+  // Helper function to calculate effective punishment status and expiry based on modifications
+  const getEffectivePunishmentState = (punishment: any) => {
+    const modifications = punishment.modifications || [];
+    const originalExpiry = punishment.expires || punishment.data?.expires;
+    const originalDuration = punishment.duration || punishment.data?.duration;
+    const originalActive = punishment.active !== undefined ? punishment.active : (punishment.data?.active !== false);
+    
+    let effectiveActive = originalActive;
+    let effectiveExpiry = originalExpiry;
+    let effectiveDuration = originalDuration;
+    
+    // Apply modifications in chronological order
+    const sortedModifications = modifications.sort((a: any, b: any) => 
+      new Date(a.issued).getTime() - new Date(b.issued).getTime()
+    );
+    
+    for (const mod of sortedModifications) {
+      if (mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT') {
+        effectiveActive = false;
+      } else if (mod.type === 'MANUAL_DURATION_CHANGE' || mod.type === 'APPEAL_DURATION_CHANGE') {
+        if (mod.effectiveDuration !== undefined) {
+          effectiveDuration = mod.effectiveDuration;
+          
+          // Recalculate expiry based on start time and new duration
+          const startTime = punishment.started || punishment.issued;
+          if (mod.effectiveDuration === 0) {
+            effectiveExpiry = null; // Permanent
+          } else {
+            effectiveExpiry = new Date(new Date(startTime).getTime() + mod.effectiveDuration);
+          }
+        }
+      }
+    }
+    
+    return {
+      originalActive,
+      originalExpiry,
+      originalDuration,
+      effectiveActive,
+      effectiveExpiry,
+      effectiveDuration,
+      hasModifications: modifications.length > 0,
+      modifications: sortedModifications
+    };
+  };
+
+  // Helper function to format duration from milliseconds
+  const formatDuration = (durationMs: number) => {
+    if (durationMs === 0) return 'Permanent';
+    
+    const days = Math.floor(durationMs / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((durationMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    const minutes = Math.floor((durationMs % (60 * 60 * 1000)) / (60 * 1000));
+    
+    if (days > 0) {
+      return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+    } else if (hours > 0) {
+      return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
+  
   return (
     <ResizableWindow
       id={`player-${playerId}`}
@@ -1101,13 +1164,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           
           <TabsContent value="history" className="space-y-2 mx-1 mt-3">
             <h4 className="font-medium">Player History</h4>
-            <div className="space-y-2">
-              {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => {
+            <div className="space-y-2">              {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => {
                 const isExpanded = expandedPunishments.has(warning.id || `warning-${index}`);
-                const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);                return (                  <div 
+                const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);
+                
+                // Calculate effective status and expiry based on modifications
+                const effectiveState = getEffectivePunishmentState(warning);
+                
+                return (                  <div 
                     key={warning.id || `warning-${index}`} 
                     className={`${
-                      warning.active ? 'bg-muted/30 border-l-4 border-red-500' : 
+                      effectiveState.effectiveActive ? 'bg-muted/30 border-l-4 border-red-500' : 
                       'bg-muted/30'
                     } p-3 rounded-lg`}
                   >
@@ -1116,14 +1183,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
                             {warning.type}
                           </Badge>
-                          {warning.active && (
+                          {effectiveState.effectiveActive && (
                             <Badge className="text-xs bg-red-500 text-white border-red-600">
                               Active
                             </Badge>
                           )}
-                          {!warning.active && (
+                          {!effectiveState.effectiveActive && (
                             <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
-                              Inactive
+                              {effectiveState.hasModifications ? 'Pardoned' : 'Inactive'}
                             </Badge>
                           )}
                           {warning.altBlocking && (
@@ -1153,7 +1220,39 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               {warning.status}
                             </Badge>
                           )}                        </div>
-                        <p className="text-sm mt-1">{warning.reason}</p>
+                        <div className="text-sm mt-1 space-y-1">
+                          <p>{warning.reason}</p>
+                          
+                          {/* Show expiry/duration information */}
+                          {effectiveState.hasModifications && (
+                            <div className="space-y-1">
+                              {/* Original expiry/duration (if different from effective) */}
+                              {(effectiveState.originalExpiry !== effectiveState.effectiveExpiry || 
+                                effectiveState.originalDuration !== effectiveState.effectiveDuration) && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="line-through opacity-75">
+                                    Original: {effectiveState.originalExpiry 
+                                      ? `Expires ${new Date(effectiveState.originalExpiry).toLocaleDateString()}`
+                                      : effectiveState.originalDuration 
+                                      ? `Duration: ${formatDuration(effectiveState.originalDuration)}`
+                                      : 'Permanent'
+                                    }
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Effective expiry/duration */}
+                              <div className="text-xs font-medium text-blue-700">
+                                Modified: {effectiveState.effectiveExpiry 
+                                  ? `Expires ${new Date(effectiveState.effectiveExpiry).toLocaleDateString()}`
+                                  : effectiveState.effectiveDuration !== undefined && effectiveState.effectiveDuration !== null
+                                  ? (effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`)
+                                  : 'Permanent'
+                                }
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>                      <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{warning.date}</span>
                         {warning.id && (
@@ -1236,6 +1335,37 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 </Badge>
                               ))}
                             </div>
+                          </div>                        )}
+                        
+                        {/* Modification History */}
+                        {effectiveState.hasModifications && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Modification History:</p>
+                            <div className="space-y-1">
+                              {effectiveState.modifications.map((mod: any, idx: number) => (
+                                <div key={idx} className="bg-blue-50 p-2 rounded text-xs border-l-2 border-blue-200">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                                      {mod.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                    </Badge>
+                                    <span className="text-muted-foreground text-xs">
+                                      {new Date(mod.issued).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {mod.reason && (
+                                    <p className="mb-1">{mod.reason}</p>
+                                  )}
+                                  {mod.effectiveDuration !== undefined && (
+                                    <p className="text-muted-foreground">
+                                      New duration: {mod.effectiveDuration === 0 ? 'Permanent' : formatDuration(mod.effectiveDuration)}
+                                    </p>
+                                  )}
+                                  <p className="text-muted-foreground text-xs">
+                                    By: {mod.issuerName}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                         
@@ -1250,10 +1380,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               ))}
                             </div>
                           </div>
-                        )}
-
-                        {/* Action buttons */}
-                        <div className="flex gap-2 pt-2 border-t border-border/30">
+                        )}                        {/* Action buttons - only show for punishments with IDs */}
+                        {warning.id && (
+                          <div className="flex gap-2 pt-2 border-t border-border/30">
                           <Button
                             variant="outline"
                             size="sm"
@@ -1286,12 +1415,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             }}
                           >
                             <Settings className="h-3 w-3 mr-1" />
-                            Modify
-                          </Button>
+                            Modify                          </Button>
                         </div>
-
-                        {/* Add Note Form */}
-                        {playerInfo.isAddingPunishmentNote && playerInfo.punishmentNoteTarget === (warning.id || `warning-${index}`) && (
+                        )}                        {/* Add Note Form */}
+                        {warning.id && playerInfo.isAddingPunishmentNote && playerInfo.punishmentNoteTarget === (warning.id || `warning-${index}`) && (
                           <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
                             <p className="text-xs font-medium mb-2">Add Note to Punishment</p>
                             <textarea
@@ -1318,17 +1445,18 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 disabled={!playerInfo.newPunishmentNote?.trim()}
                                 onClick={async () => {
                                   if (!playerInfo.newPunishmentNote?.trim()) return;
-                                    try {
-                                    await addPunishmentNote.mutateAsync({
+                                    try {                                    await addPunishmentNote.mutateAsync({
                                       uuid: playerId,
-                                      punishmentId: warning.id,
+                                      punishmentId: warning.id!,
                                       noteText: playerInfo.newPunishmentNote
                                     });
-                                    
-                                    toast({
+                                      toast({
                                       title: "Note added",
                                       description: "Note has been added to the punishment successfully"
                                     });
+                                    
+                                    // Refetch player data to update the UI
+                                    refetch();
                                     
                                     // Reset form
                                     setPlayerInfo(prev => ({
@@ -1350,9 +1478,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 Add Note
                               </Button>
                             </div>
-                          </div>
-                        )}                        {/* Modify Punishment Form */}
-                        {playerInfo.isModifyingPunishment && playerInfo.modifyPunishmentTarget === (warning.id || `warning-${index}`) && (
+                          </div>                        )}                        {/* Modify Punishment Form */}
+                        {warning.id && playerInfo.isModifyingPunishment && playerInfo.modifyPunishmentTarget === (warning.id || `warning-${index}`) && (
                           <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
                             <p className="text-xs font-medium mb-2">Modify Punishment</p>
                             
@@ -1366,10 +1493,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     ...prev,
                                     selectedModificationType: e.target.value as any
                                   }))}
-                                >
-                                  <option value="">Select modification type...</option>
+                                >                                  <option value="">Select modification type...</option>
                                   <option value="MANUAL_DURATION_CHANGE">Change Duration</option>
                                   <option value="MANUAL_PARDON">Pardon</option>
+                                  <option value="APPEAL_ACCEPT">Accept Appeal</option>
+                                  <option value="APPEAL_DURATION_CHANGE">Appeal Duration Change</option>
                                   <option value="SET_ALT_BLOCKING_TRUE">Enable Alt Blocking</option>
                                   <option value="SET_WIPING_TRUE">Enable Wiping</option>
                                   <option value="SET_ALT_BLOCKING_FALSE">Disable Alt Blocking</option>
@@ -1377,7 +1505,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 </select>
                               </div>
                               
-                              {playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && (
+                              {(playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' || 
+                                playerInfo.selectedModificationType === 'APPEAL_DURATION_CHANGE') && (
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
                                     <label className="text-xs text-muted-foreground">New Duration</label>
@@ -1448,26 +1577,30 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 Cancel
                               </Button>
                               <Button
-                                size="sm"
-                                disabled={!playerInfo.modifyPunishmentReason?.trim() || 
+                                size="sm"                                disabled={!playerInfo.modifyPunishmentReason?.trim() || 
                                          !playerInfo.selectedModificationType ||
-                                         (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && playerInfo.newDuration?.value === undefined)}
-                                onClick={async () => {
-                                  if (!playerInfo.modifyPunishmentReason?.trim() || !playerInfo.selectedModificationType) return;
-                                  if (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && playerInfo.newDuration?.value === undefined) return;
+                                         ((playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' || 
+                                           playerInfo.selectedModificationType === 'APPEAL_DURATION_CHANGE') && 
+                                          playerInfo.newDuration?.value === undefined)}
+                                onClick={async () => {                                  if (!playerInfo.modifyPunishmentReason?.trim() || !playerInfo.selectedModificationType) return;
+                                  if ((playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' || 
+                                       playerInfo.selectedModificationType === 'APPEAL_DURATION_CHANGE') && 
+                                      playerInfo.newDuration?.value === undefined) return;
                                   
                                   try {                                    await modifyPunishment.mutateAsync({
                                       uuid: playerId,
-                                      punishmentId: warning.id,
+                                      punishmentId: warning.id!,
                                       modificationType: playerInfo.selectedModificationType!,
                                       reason: playerInfo.modifyPunishmentReason!,
                                       newDuration: playerInfo.newDuration
                                     });
-                                    
-                                    toast({
+                                      toast({
                                       title: 'Punishment Modified',
                                       description: `Punishment has been modified successfully`
                                     });
+                                    
+                                    // Refetch player data to update the UI
+                                    refetch();
                                     
                                     // Reset form
                                     setPlayerInfo(prev => ({
