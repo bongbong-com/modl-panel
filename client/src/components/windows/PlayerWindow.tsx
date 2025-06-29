@@ -71,7 +71,7 @@ interface PlayerInfo {
   isModifyingPunishment?: boolean;
   modifyPunishmentTarget?: string | null;  modifyPunishmentAction?: 'modify' | null;
   modifyPunishmentReason?: string;
-  selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
+  selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'APPEAL_ACCEPT' | 'APPEAL_DURATION_CHANGE' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
   newDuration?: {
     value: number;
     unit: 'hours' | 'days' | 'weeks' | 'months';
@@ -1340,12 +1340,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         {/* Modification History */}
                         {effectiveState.hasModifications && (
                           <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Modification History:</p>
-                            <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Modification History:</p>                            <div className="space-y-1">
                               {effectiveState.modifications.map((mod: any, idx: number) => (
-                                <div key={idx} className="bg-blue-50 p-2 rounded text-xs border-l-2 border-blue-200">
+                                <div key={idx} className="bg-muted/20 p-2 rounded text-xs border-l-2 border-blue-500">
                                   <div className="flex justify-between items-start mb-1">
-                                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-700 border-blue-500/30">
                                       {mod.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                     </Badge>
                                     <span className="text-muted-foreground text-xs">
