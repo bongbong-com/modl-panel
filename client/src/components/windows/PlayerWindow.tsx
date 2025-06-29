@@ -524,7 +524,60 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   
   // Fetch player tickets
   const { data: playerTickets, isLoading: isLoadingTickets } = usePlayerTickets(playerId);
+    // Fetch punishment types from settings
+  const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
   
+  // Parse punishment types from settings - must be declared before useEffect that uses it
+  const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
+    Administrative: PunishmentType[], 
+    Social: PunishmentType[], 
+    Gameplay: PunishmentType[]
+  }>({
+    Administrative: [
+      // Administrative punishment types (ordinals 0-5, not customizable) - minimal fallback
+      { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
+      { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
+      { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
+      { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
+      { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
+      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }    ],
+    Social: [
+      // Social punishment types are loaded from server during provisioning
+    ],
+    Gameplay: [
+      // Gameplay punishment types are loaded from server during provisioning
+    ]
+  });
+
+  // Process settings data to extract punishment types by category
+  useEffect(() => {
+    if (settingsData?.settings?.punishmentTypes) {
+      try {
+        // Parse punishment types if they're stored as a string
+        const typesData = typeof settingsData.settings.punishmentTypes === 'string' 
+          ? JSON.parse(settingsData.settings.punishmentTypes) 
+          : settingsData.settings.punishmentTypes;
+          
+        if (Array.isArray(typesData)) {
+          // Group punishment types by category
+          const categorized = {
+            Administrative: typesData.filter(pt => pt.category === 'Administrative').sort((a, b) => a.ordinal - b.ordinal),
+            Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
+            Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
+          };
+          
+          // Update the state with the loaded punishment types
+          // Always update with the data from the server, even if some categories are empty
+          setPunishmentTypesByCategory(categorized);
+        }
+      } catch (error) {
+        console.error("Error parsing punishment types:", error);
+      }
+    } else {
+      console.warn("No punishment types found in settings, using default values");
+    }
+  }, [settingsData]);
+
   // Calculate player status based on punishments and settings
   const calculatePlayerStatus = (punishments: any[], punishmentTypes: PunishmentType[], statusThresholds: any) => {
     let socialPoints = 0;
@@ -600,7 +653,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       refetch();
     }
   }, [isOpen, refetch]);
-    useEffect(() => {
+
+  useEffect(() => {
     if (player && isOpen) {
       // Check if we're dealing with MongoDB data or the API response format
       if (player.usernames) {
@@ -799,62 +853,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           status: player.status === 'Active' ? 'Online' : player.status
         }));
       }
-    }
-  }, [player, isOpen, punishmentTypesByCategory, settingsData]);
-
-  // Fetch punishment types from settings
-  const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
-  
-  // Parse punishment types from settings
-  const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
-    Administrative: PunishmentType[], 
-    Social: PunishmentType[], 
-    Gameplay: PunishmentType[]
-  }>({
-    Administrative: [
-      // Administrative punishment types (ordinals 0-5, not customizable) - minimal fallback
-      { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
-      { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
-      { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
-      { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
-      { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
-      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
-    ],
-    Social: [
-      // Social punishment types are loaded from server during provisioning
-    ],
-    Gameplay: [
-      // Gameplay punishment types are loaded from server during provisioning
-    ]
-  });
-    // Process settings data to extract punishment types by category
-  useEffect(() => {
-    if (settingsData?.settings?.punishmentTypes) {
-      try {
-        // Parse punishment types if they're stored as a string
-        const typesData = typeof settingsData.settings.punishmentTypes === 'string' 
-          ? JSON.parse(settingsData.settings.punishmentTypes) 
-          : settingsData.settings.punishmentTypes;
-          
-        if (Array.isArray(typesData)) {
-          // Group punishment types by category
-          const categorized = {
-            Administrative: typesData.filter(pt => pt.category === 'Administrative').sort((a, b) => a.ordinal - b.ordinal),
-            Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
-            Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
-          };
-          
-          // Update the state with the loaded punishment types
-          // Always update with the data from the server, even if some categories are empty
-          setPunishmentTypesByCategory(categorized);
-        }
-      } catch (error) {
-        console.error("Error parsing punishment types:", error);
-      }
-    } else {
-      console.warn("No punishment types found in settings, using default values");
-    }
-  }, [settingsData]);
+    }  }, [player, isOpen, punishmentTypesByCategory, settingsData]);
   
   // Show loading state
   if (isLoading) {
