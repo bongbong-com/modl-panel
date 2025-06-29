@@ -575,19 +575,18 @@ router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Reques
     // Apply the modification to the punishment's current state
     if (type === 'MANUAL_PARDON' || type === 'APPEAL_ACCEPT') {
       // Mark punishment as inactive
-      punishment.data.set('active', false);
-    } else if (type === 'MANUAL_DURATION_CHANGE' || type === 'APPEAL_DURATION_CHANGE') {
+      punishment.data.set('active', false);    } else if (type === 'MANUAL_DURATION_CHANGE' || type === 'APPEAL_DURATION_CHANGE') {
       // Update the duration and recalculate expiry
       if (effectiveDuration !== undefined) {
         punishment.data.set('duration', effectiveDuration);
         
-        // Recalculate expiry based on start time and new duration
-        const startTime = punishment.started || punishment.issued;
+        // For duration modifications, calculate expiry from the modification time (not original punishment time)
+        const modificationTime = new Date(); // Use current time as modification time
         if (effectiveDuration === 0) {
           // Permanent punishment
           punishment.data.delete('expires');
         } else {
-          const newExpiry = new Date(startTime.getTime() + effectiveDuration);
+          const newExpiry = new Date(modificationTime.getTime() + effectiveDuration);
           punishment.data.set('expires', newExpiry);
         }
       }

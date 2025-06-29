@@ -985,8 +985,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           }
             if (mod.effectiveDuration === 0) {
             effectiveExpiry = null; // Permanent
-            effectiveActive = true; // Permanent punishments are always active
-          } else {            effectiveExpiry = new Date(modDate.getTime() + mod.effectiveDuration);
+            effectiveActive = true; // Permanent punishments are always active          } else {            effectiveExpiry = new Date(modDate.getTime() + mod.effectiveDuration);
             // Update active status based on whether the new expiry is in the future
             const now = new Date();
             effectiveActive = effectiveExpiry.getTime() > now.getTime();
