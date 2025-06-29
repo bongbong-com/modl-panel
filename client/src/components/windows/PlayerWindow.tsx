@@ -205,7 +205,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       });
       return;
     }
-    
+
     // Only validate reason for administrative manual punishments that explicitly need it
     const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
     if (needsReason && !playerInfo.reason?.trim()) {
@@ -574,22 +574,40 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           : settingsData.settings.punishmentTypes;
           
         if (Array.isArray(typesData)) {
+          // Always ensure administrative punishment types are available
+          const defaultAdminTypes: PunishmentType[] = [
+            { id: 0, name: 'Kick', category: 'Administrative' as const, isCustomizable: false, ordinal: 0 },
+            { id: 1, name: 'Manual Mute', category: 'Administrative' as const, isCustomizable: false, ordinal: 1 },
+            { id: 2, name: 'Manual Ban', category: 'Administrative' as const, isCustomizable: false, ordinal: 2 },
+            { id: 3, name: 'Security Ban', category: 'Administrative' as const, isCustomizable: false, ordinal: 3 },
+            { id: 4, name: 'Linked Ban', category: 'Administrative' as const, isCustomizable: false, ordinal: 4 },
+            { id: 5, name: 'Blacklist', category: 'Administrative' as const, isCustomizable: false, ordinal: 5 }
+          ];
+          
           // Group punishment types by category
+          const adminFromSettings = typesData.filter(pt => pt.category === 'Administrative');
+          
+          // Merge default admin types with any additional admin types from settings
+          // Default types take precedence (to ensure they're always available)
+          const mergedAdminTypes = [...defaultAdminTypes];
+          adminFromSettings.forEach(settingsType => {
+            if (!mergedAdminTypes.find(defaultType => defaultType.name === settingsType.name)) {
+              mergedAdminTypes.push(settingsType);
+            }
+          });
+          
           const categorized = {
-            Administrative: typesData.filter(pt => pt.category === 'Administrative').sort((a, b) => a.ordinal - b.ordinal),
+            Administrative: mergedAdminTypes.sort((a, b) => a.ordinal - b.ordinal),
             Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
             Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
           };
           
           // Update the state with the loaded punishment types
-          // Always update with the data from the server, even if some categories are empty
           setPunishmentTypesByCategory(categorized);
         }
       } catch (error) {
         console.error("Error parsing punishment types:", error);
       }
-    } else {
-      console.warn("No punishment types found in settings, using default values");
     }
   }, [settingsData]);
 
