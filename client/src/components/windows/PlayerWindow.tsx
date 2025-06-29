@@ -241,10 +241,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     // Validate duration for punishments that need it
     const needsDuration = ['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
                           
-    if (needsDuration && !playerInfo.isPermanent && (!playerInfo.duration?.value || !playerInfo.duration?.unit)) {
+    if (needsDuration && !playerInfo.isPermanent && (!playerInfo.duration?.value || playerInfo.duration.value <= 0 || !playerInfo.duration?.unit)) {
       toast({
         title: "Invalid duration",
-        description: "Please specify a valid duration or select 'Permanent'",
+        description: "Please specify a valid duration (greater than 0) or select 'Permanent'",
         variant: "destructive"
       });
       return;
@@ -439,7 +439,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       };
       
       console.log('Full punishment data being sent:', punishmentData);
-      console.log('Evidence in punishment data:', punishmentData.evidence);
       
       // Call the API
       await applyPunishment.mutateAsync({
@@ -1045,9 +1044,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     let effectiveDuration = originalDuration;
     
     // Apply modifications in chronological order
-    const sortedModifications = modifications.sort((a: any, b: any) => 
-      new Date(a.issued).getTime() - new Date(b.issued).getTime()
-    );
+    const sortedModifications = modifications.sort((a: any, b: any) => {
+      const dateA = a.issued ? new Date(a.issued) : new Date(0);
+      const dateB = b.issued ? new Date(b.issued) : new Date(0);
+      return dateA.getTime() - dateB.getTime();
+    });
     
     for (const mod of sortedModifications) {
       if (mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT') {
@@ -1118,8 +1119,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   };
 
   // Helper function to format date with time (MM/DD/YYYY HH:MM)
-  const formatDateWithTime = (date: Date | string) => {
+  const formatDateWithTime = (date: Date | string | null | undefined) => {
+    if (!date) return 'Unknown';
+    
     const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if the date is valid
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid Date';
+    }
+    
     const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
     const day = dateObj.getDate().toString().padStart(2, '0');
     const year = dateObj.getFullYear();
@@ -1334,31 +1343,44 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               
                               if (pardonModification) {
                                 // Calculate time since pardoned
-                                const pardonDate = new Date(pardonModification.issued);
-                                const now = new Date();
-                                const timeDiff = now.getTime() - pardonDate.getTime();
-                                const timeAgo = formatTimeDifference(timeDiff);
-                                
+                                if (pardonModification.issued) {
+                                  const pardonDate = new Date(pardonModification.issued);
+                                  if (!isNaN(pardonDate.getTime())) {
+                                    const now = new Date();
+                                    const timeDiff = now.getTime() - pardonDate.getTime();
+                                    const timeAgo = formatTimeDifference(timeDiff);
+                                    
+                                    return (
+                                      <div className="text-muted-foreground">
+                                        expired {timeAgo} ago ({formatDateWithTime(pardonDate)})
+                                      </div>
+                                    );
+                                  }
+                                }
                                 return (
                                   <div className="text-muted-foreground">
-                                    expired {timeAgo} ago ({formatDateWithTime(pardonDate)})
+                                    expired (pardoned)
                                   </div>
                                 );
                               } else if (isInactive && warning.expires) {
                                 // For other inactive punishments, calculate time since natural expiry
                                 const expiryDate = new Date(warning.expires);
-                                const now = new Date();
-                                const timeDiff = now.getTime() - expiryDate.getTime();
                                 
-                                if (timeDiff > 0) {
-                                  const timeAgo = formatTimeDifference(timeDiff);
+                                if (!isNaN(expiryDate.getTime())) {
+                                  const now = new Date();
+                                  const timeDiff = now.getTime() - expiryDate.getTime();
                                   
-                                  return (
-                                    <div className="text-muted-foreground">
-                                      expired {timeAgo} ago ({formatDateWithTime(expiryDate)})
-                                    </div>
-                                  );
-                                }                              } else if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
+                                  if (timeDiff > 0) {
+                                    const timeAgo = formatTimeDifference(timeDiff);
+                                  
+                                    return (
+                                      <div className="text-muted-foreground">
+                                        expired {timeAgo} ago ({formatDateWithTime(expiryDate)})
+                                      </div>
+                                    );
+                                  }
+                                }
+                              } else if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
                                 /* Show modified/effective expiry - this takes priority over duration display */
                                 const expiryDate = new Date(effectiveState.effectiveExpiry);
                                 
@@ -1913,12 +1935,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         
                         const currentDate = new Date();
                         const formattedDate = formatDateWithTime(currentDate);
-                        const newNoteWithMetadata = `${playerInfo.newNote} (Added by Admin on ${formattedDate})`;
+                        const actualUsername = user?.username || 'Admin';
+                        const newNoteWithMetadata = `${playerInfo.newNote} (Added by ${actualUsername} on ${formattedDate})`;
                         
                         // Create the note in the format expected by the API
                         const noteObject = {
                           text: playerInfo.newNote.trim(),
-                          issuerName: 'Admin', // Use actual admin name if available
+                          issuerName: actualUsername,
                           date: new Date().toISOString()
                         };
                           try {
@@ -2328,7 +2351,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               onChange={(e) => setPlayerInfo(prev => ({
                                 ...prev, 
                                 duration: {
-                                  value: parseInt(e.target.value) || 0,
+                                  value: parseInt(e.target.value) || 1,
                                   unit: prev.duration?.unit || 'hours'
                                 }
                               }))}
@@ -2404,7 +2427,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               onChange={(e) => setPlayerInfo(prev => ({
                                 ...prev, 
                                 duration: {
-                                  value: parseInt(e.target.value) || 0,
+                                  value: parseInt(e.target.value) || 1,
                                   unit: prev.duration?.unit || 'hours'
                                 }
                               }))}
@@ -2802,9 +2825,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         </div>
                       </div>                      <div className="pt-2">
                         <Button 
-                          className="w-full"                          onClick={(e: React.MouseEvent) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                          type="button"
+                          className="w-full"                          onClick={() => {
                             handleApplyPunishment();
                           }}
                           disabled={isApplyingPunishment}
