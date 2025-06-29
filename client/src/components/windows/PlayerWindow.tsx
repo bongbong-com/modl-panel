@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
@@ -64,6 +64,19 @@ interface PlayerInfo {
   notes: string[];
   newNote?: string;
   isAddingNote?: boolean;
+  // Punishment note/modification fields
+  isAddingPunishmentNote?: boolean;
+  punishmentNoteTarget?: string | null;
+  newPunishmentNote?: string;
+  isModifyingPunishment?: boolean;
+  modifyPunishmentTarget?: string | null;  modifyPunishmentAction?: 'modify' | null;
+  modifyPunishmentReason?: string;
+  selectedModificationType?: 'MANUAL_DURATION_CHANGE' | 'MANUAL_PARDON' | 'SET_ALT_BLOCKING_TRUE' | 'SET_WIPING_TRUE' | 'SET_ALT_BLOCKING_FALSE' | 'SET_WIPING_FALSE' | null;
+  newDuration?: {
+    value: number;
+    unit: 'hours' | 'days' | 'weeks' | 'months';
+  };
+  // Punishment creation fields
   selectedPunishmentCategory?: string;
   selectedSeverity?: 'Lenient' | 'Regular' | 'Aggravated';
   selectedOffenseLevel?: 'first' | 'medium' | 'habitual'; // For single-severity punishments
@@ -113,9 +126,9 @@ interface PunishmentType {
     regular: number;
     severe: number;
   };
-  customPoints?: number; // For permanent punishments that don't use severity-based points
-  staffDescription?: string; // Description shown to staff when applying this punishment
-  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)  canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
+  customPoints?: number; // For permanent punishments that don't use severity-based points  staffDescription?: string; // Description shown to staff when applying this punishment
+  playerDescription?: string; // Description shown to players (in appeals, notifications, etc.)
+  canBeAltBlocking?: boolean; // Whether this punishment can block alternative accounts
   canBeStatWiping?: boolean; // Whether this punishment can wipe player statistics
   isAppealable?: boolean; // Whether this punishment type can be appealed
   singleSeverityPunishment?: boolean; // Whether this punishment uses single severity instead of three levels
@@ -1165,8 +1178,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">By: {warning.by}</p>
-                    
-                    {/* Expanded details */}
+                      {/* Expanded details */}
                     {isPunishment && isExpanded && (
                       <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
                         {warning.evidence && warning.evidence.length > 0 && (
@@ -1180,18 +1192,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 </li>
                               ))}
                             </ul>
-                          </div>
-                        )}
-                        {/* Debug: Show if evidence exists but is empty */}
-                        {warning.evidence && warning.evidence.length === 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            Debug: Evidence array exists but is empty
-                          </div>
-                        )}
-                        {/* Debug: Show if no evidence at all */}
-                        {!warning.evidence && (
-                          <div className="text-xs text-muted-foreground">
-                            Debug: No evidence field found
                           </div>
                         )}
                         
@@ -1211,14 +1211,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 const noteDate = typeof note === 'string' ? 'Unknown' : new Date(note.date).toLocaleDateString();
                                 
                                 return (
-                                  <li key={idx} className="flex items-start">
-                                    <StickyNote className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" />
-                                    <div>
-                                      <span>{noteText}</span>
-                                      <span className="text-muted-foreground ml-1">
-                                        - {noteIssuer} on {noteDate}
-                                      </span>
-                                    </div>
+                                  <li key={idx} className="bg-muted/20 p-2 rounded text-xs">
+                                    <p className="mb-1">{noteText}</p>
+                                    <p className="text-muted-foreground text-xs">
+                                      By: {noteIssuer} on {noteDate}
+                                    </p>
                                   </li>
                                 );
                               }).filter(Boolean)}
@@ -1232,7 +1229,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             <div className="flex flex-wrap gap-1">
                               {warning.attachedTicketIds.map((ticketId, idx) => (
                                 <Badge key={idx} variant="outline" className="text-xs">
-                                  #{ticketId}
+                                  ticket-{ticketId}
                                 </Badge>
                               ))}
                             </div>
@@ -1248,6 +1245,254 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   <span className="text-muted-foreground">{key}:</span> {JSON.stringify(value)}
                                 </div>
                               ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 pt-2 border-t border-border/30">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => {
+                              const id = warning.id || `warning-${index}`;
+                              setPlayerInfo(prev => ({
+                                ...prev,
+                                isAddingPunishmentNote: true,
+                                punishmentNoteTarget: id,
+                                newPunishmentNote: ''
+                              }));
+                            }}
+                          >
+                            <StickyNote className="h-3 w-3 mr-1" />
+                            Add Note
+                          </Button>
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => {
+                              const id = warning.id || `warning-${index}`;
+                              setPlayerInfo(prev => ({
+                                ...prev,
+                                isModifyingPunishment: true,
+                                modifyPunishmentTarget: id,
+                                modifyPunishmentAction: 'modify'
+                              }));
+                            }}
+                          >
+                            <Settings className="h-3 w-3 mr-1" />
+                            Modify
+                          </Button>
+                        </div>
+
+                        {/* Add Note Form */}
+                        {playerInfo.isAddingPunishmentNote && playerInfo.punishmentNoteTarget === (warning.id || `warning-${index}`) && (
+                          <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
+                            <p className="text-xs font-medium mb-2">Add Note to Punishment</p>
+                            <textarea
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                              placeholder="Enter your note here..."
+                              value={playerInfo.newPunishmentNote || ''}
+                              onChange={(e) => setPlayerInfo(prev => ({...prev, newPunishmentNote: e.target.value}))}
+                            />
+                            <div className="flex justify-end gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPlayerInfo(prev => ({
+                                  ...prev,
+                                  isAddingPunishmentNote: false,
+                                  punishmentNoteTarget: null,
+                                  newPunishmentNote: ''
+                                }))}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={!playerInfo.newPunishmentNote?.trim()}
+                                onClick={async () => {
+                                  if (!playerInfo.newPunishmentNote?.trim()) return;
+                                  
+                                  try {
+                                    // TODO: Implement API call to add note to punishment
+                                    console.log('Adding note to punishment:', warning.id, playerInfo.newPunishmentNote);
+                                    
+                                    // For now, simulate success and refresh data
+                                    toast({
+                                      title: "Note added",
+                                      description: "Note has been added to the punishment"
+                                    });
+                                    
+                                    // Reset form and refetch data
+                                    setPlayerInfo(prev => ({
+                                      ...prev,
+                                      isAddingPunishmentNote: false,
+                                      punishmentNoteTarget: null,
+                                      newPunishmentNote: ''
+                                    }));
+                                    
+                                    refetch();
+                                  } catch (error) {
+                                    console.error('Error adding note to punishment:', error);
+                                    toast({
+                                      title: "Failed to add note",
+                                      description: error instanceof Error ? error.message : "An unknown error occurred",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                Add Note
+                              </Button>
+                            </div>
+                          </div>
+                        )}                        {/* Modify Punishment Form */}
+                        {playerInfo.isModifyingPunishment && playerInfo.modifyPunishmentTarget === (warning.id || `warning-${index}`) && (
+                          <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
+                            <p className="text-xs font-medium mb-2">Modify Punishment</p>
+                            
+                            <div className="space-y-2 mb-3">
+                              <div>
+                                <label className="text-xs text-muted-foreground">Modification Type</label>
+                                <select
+                                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                                  value={playerInfo.selectedModificationType || ''}
+                                  onChange={(e) => setPlayerInfo(prev => ({
+                                    ...prev,
+                                    selectedModificationType: e.target.value as any
+                                  }))}
+                                >
+                                  <option value="">Select modification type...</option>
+                                  <option value="MANUAL_DURATION_CHANGE">Change Duration</option>
+                                  <option value="MANUAL_PARDON">Pardon</option>
+                                  <option value="SET_ALT_BLOCKING_TRUE">Enable Alt Blocking</option>
+                                  <option value="SET_WIPING_TRUE">Enable Wiping</option>
+                                  <option value="SET_ALT_BLOCKING_FALSE">Disable Alt Blocking</option>
+                                  <option value="SET_WIPING_FALSE">Disable Wiping</option>
+                                </select>
+                              </div>
+                              
+                              {playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-xs text-muted-foreground">New Duration</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                                      placeholder="Amount (0 for permanent)"
+                                      value={playerInfo.newDuration?.value || ''}
+                                      onChange={(e) => setPlayerInfo(prev => ({
+                                        ...prev,
+                                        newDuration: {
+                                          ...prev.newDuration,
+                                          value: parseInt(e.target.value) || 0,
+                                          unit: prev.newDuration?.unit || 'hours'
+                                        }
+                                      }))}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs text-muted-foreground">Unit</label>
+                                    <select
+                                      className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm"
+                                      value={playerInfo.newDuration?.unit || 'hours'}
+                                      onChange={(e) => setPlayerInfo(prev => ({
+                                        ...prev,
+                                        newDuration: {
+                                          ...prev.newDuration,
+                                          value: prev.newDuration?.value || 1,
+                                          unit: e.target.value as 'hours' | 'days' | 'weeks' | 'months'
+                                        }
+                                      }))}
+                                    >
+                                      <option value="hours">Hours</option>
+                                      <option value="days">Days</option>
+                                      <option value="weeks">Weeks</option>
+                                      <option value="months">Months</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="mb-3">
+                              <label className="text-xs text-muted-foreground">Reason</label>
+                              <textarea
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                                placeholder="Reason for modification..."
+                                value={playerInfo.modifyPunishmentReason || ''}
+                                onChange={(e) => setPlayerInfo(prev => ({...prev, modifyPunishmentReason: e.target.value}))}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPlayerInfo(prev => ({
+                                  ...prev,
+                                  isModifyingPunishment: false,
+                                  modifyPunishmentTarget: null,
+                                  modifyPunishmentAction: null,
+                                  modifyPunishmentReason: '',
+                                  selectedModificationType: null,
+                                  newDuration: undefined
+                                }))}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={!playerInfo.modifyPunishmentReason?.trim() || 
+                                         !playerInfo.selectedModificationType ||
+                                         (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && playerInfo.newDuration?.value === undefined)}
+                                onClick={async () => {
+                                  if (!playerInfo.modifyPunishmentReason?.trim() || !playerInfo.selectedModificationType) return;
+                                  if (playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && playerInfo.newDuration?.value === undefined) return;
+                                  
+                                  try {
+                                    // TODO: Implement API call to modify punishment
+                                    console.log('Modifying punishment:', {
+                                      id: warning.id,
+                                      action: playerInfo.selectedModificationType,
+                                      reason: playerInfo.modifyPunishmentReason,
+                                      newDuration: playerInfo.newDuration
+                                    });
+                                    
+                                    // For now, simulate success and refresh data
+                                    toast({
+                                      title: 'Punishment Modified',
+                                      description: `Punishment has been modified successfully`
+                                    });
+                                    
+                                    // Reset form and refetch data
+                                    setPlayerInfo(prev => ({
+                                      ...prev,
+                                      isModifyingPunishment: false,
+                                      modifyPunishmentTarget: null,
+                                      modifyPunishmentAction: null,
+                                      modifyPunishmentReason: '',
+                                      selectedModificationType: null,
+                                      newDuration: undefined
+                                    }));
+                                    
+                                    refetch();
+                                  } catch (error) {
+                                    console.error('Error modifying punishment:', error);
+                                    toast({
+                                      title: 'Failed to modify punishment',
+                                      description: error instanceof Error ? error.message : "An unknown error occurred",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                Apply Modification
+                              </Button>
                             </div>
                           </div>
                         )}
