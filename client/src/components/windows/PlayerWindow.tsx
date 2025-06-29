@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2,
@@ -145,7 +145,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
   const [showBanSearchResults, setShowBanSearchResults] = useState(false);
   const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
-  const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());    // Get current authenticated user
+  const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());
+  const applyButtonRef = useRef<HTMLButtonElement>(null);    // Get current authenticated user
   const { user } = useAuth();
     // Initialize the applyPunishment mutation hook
   const applyPunishment = useApplyPunishment();
@@ -2866,9 +2867,26 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           TEST BUTTON (Debug)
                         </Button>
                         
+                        {/* Debug info */}
+                        {console.log('RENDERING APPLY BUTTON:', {
+                          selectedCategory: playerInfo.selectedPunishmentCategory,
+                          isApplying: isApplyingPunishment,
+                          renderTime: new Date().toISOString()
+                        })}
+                        
                         <Button 
+                          ref={applyButtonRef}
                           type="button"
-                          className="w-full"                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                          className="w-full"
+                          onMouseDown={() => {
+                            console.log('APPLY BUTTON: onMouseDown triggered');
+                            console.log('Button element:', applyButtonRef.current);
+                            console.log('Button disabled:', applyButtonRef.current?.disabled);
+                            console.log('Button style:', applyButtonRef.current?.style.cssText);
+                          }}
+                          onMouseUp={() => console.log('APPLY BUTTON: onMouseUp triggered')}
+                          onPointerDown={() => console.log('APPLY BUTTON: onPointerDown triggered')}
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             console.log('=== BUTTON CLICKED ===');
                             console.log('Event object:', e);
                             console.log('isApplyingPunishment:', isApplyingPunishment);
@@ -2911,6 +2929,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             }
                           }}
                           disabled={isApplyingPunishment}
+                          style={{backgroundColor: 'red', border: '2px solid yellow'}} // Debug styling
                         >
                           {isApplyingPunishment ? (
                             <>
