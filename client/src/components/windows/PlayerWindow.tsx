@@ -57,6 +57,7 @@ interface PlayerInfo {
     attachedTicketIds?: string[];
     active?: boolean;
     expires?: string;
+    started?: string | Date;
     data?: any;
     altBlocking?: boolean;
   }>;
@@ -1324,12 +1325,36 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               {warning.status}
                             </Badge>
                           )}
-                          {/* Show "Not Started" badge for unstarted punishments */}
-                          {isPunishment && !warning.data?.started && (
-                            <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
-                              Punishment not yet started
-                            </Badge>
-                          )}
+                          {/* Show punishment status: Active, Inactive, or Unstarted */}
+                          {isPunishment && (() => {
+                            // Check if punishment is unstarted (started field is null/undefined)
+                            if (!warning.started) {
+                              return (
+                                <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+                                  Unstarted
+                                </Badge>
+                              );
+                            }
+                            
+                            // Check if punishment is inactive (based on effective state)
+                            const effectiveState = getEffectivePunishmentState(warning);
+                            const isInactive = !effectiveState.effectiveActive;
+                            
+                            if (isInactive) {
+                              return (
+                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 border-gray-300">
+                                  Inactive
+                                </Badge>
+                              );
+                            }
+                            
+                            // Punishment is active
+                            return (
+                              <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
+                                Active
+                              </Badge>
+                            );
+                          })()}
                         </div>
                         <div className="text-sm mt-1 space-y-1">
                           <p>{warning.reason}</p>
@@ -1338,7 +1363,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           <div className="text-xs">
                             {(() => {
                               // Don't show expiry countdown for unstarted punishments
-                              if (isPunishment && !warning.data?.started) {
+                              if (isPunishment && !warning.started) {
                                 return (
                                   <div className="text-muted-foreground">
                                     Waiting for server execution
