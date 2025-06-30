@@ -555,4 +555,278 @@ export function setupMinecraftRoutes(app: Express) {
       });
     }
   });
+
+  /**
+   * Sync endpoint for Minecraft server polling
+   * - Get pending punishments that need to be executed
+   * - Update online player status
+   * - Return new punishments since last sync
+   * Called every 5 seconds by Minecraft server
+   */
+  app.post('/api/minecraft/sync', async (req: Request, res: Response) => {
+    const { onlinePlayers, lastSyncTimestamp, serverStatus } = req.body;
+    const serverDbConnection = req.serverDbConnection!;
+    const serverName = req.serverName!;
+    const Player = serverDbConnection.model<IPlayer>('Player');
+
+    try {
+      const now = new Date();
+      const lastSync = lastSyncTimestamp ? new Date(lastSyncTimestamp) : new Date(now.getTime() - 24 * 60 * 60 * 1000); // Default to 24 hours ago if no timestamp
+
+      // 1. Update online status for all players
+      if (onlinePlayers && Array.isArray(onlinePlayers)) {
+        // Set all players to offline first
+        await Player.updateMany(
+          {},
+          { $set: { 'data.isOnline': false, 'data.lastSeen': now } }
+        );
+
+        // Set online players to online
+        const onlineUuids = onlinePlayers.map((p: any) => p.uuid || p.minecraftUuid);
+        if (onlineUuids.length > 0) {
+          await Player.updateMany(
+            { minecraftUuid: { $in: onlineUuids } },
+            { $set: { 'data.isOnline': true, 'data.lastSeen': now } }
+          );
+        }
+      }
+
+      // 2. Find new punishments that need to be executed
+      const pendingPunishments = await Player.aggregate([
+        {
+          $match: {
+            'punishments.issued': { $gte: lastSync },
+            'punishments.started': { $exists: false }
+          }
+        },
+        {
+          $unwind: '$punishments'
+        },
+        {
+          $match: {
+            'punishments.issued': { $gte: lastSync },
+            'punishments.started': { $exists: false }
+          }
+        },
+        {
+          $lookup: {
+            from: 'players',
+            localField: 'minecraftUuid',
+            foreignField: 'minecraftUuid',
+            as: 'playerData'
+          }
+        },
+        {
+          $project: {
+            minecraftUuid: 1,
+            username: { $arrayElemAt: ['$usernames.username', -1] },
+            punishment: {
+              id: '$punishments.id',
+              type: '$punishments.type_ordinal',
+              issuerName: '$punishments.issuerName',
+              issued: '$punishments.issued',
+              reason: '$punishments.notes.0.text',
+              duration: '$punishments.data.duration',
+              expires: '$punishments.data.expires',
+              severity: '$punishments.data.severity',
+              status: '$punishments.data.status',
+              silent: '$punishments.data.silent',
+              altBlocking: '$punishments.data.altBlocking',
+              linkedBanId: '$punishments.data.linkedBanId'
+            }
+          }
+        }
+      ]);
+
+      // 3. Find recently started punishments that need to be applied
+      const recentlyStartedPunishments = await Player.aggregate([
+        {
+          $match: {
+            'punishments.started': { $gte: lastSync }
+          }
+        },
+        {
+          $unwind: '$punishments'
+        },
+        {
+          $match: {
+            'punishments.started': { $gte: lastSync }
+          }
+        },
+        {
+          $project: {
+            minecraftUuid: 1,
+            username: { $arrayElemAt: ['$usernames.username', -1] },
+            punishment: {
+              id: '$punishments.id',
+              type: '$punishments.type_ordinal',
+              issuerName: '$punishments.issuerName',
+              issued: '$punishments.issued',
+              started: '$punishments.started',
+              reason: '$punishments.notes.0.text',
+              duration: '$punishments.data.duration',
+              expires: '$punishments.data.expires',
+              severity: '$punishments.data.severity',
+              status: '$punishments.data.status',
+              silent: '$punishments.data.silent',
+              altBlocking: '$punishments.data.altBlocking',
+              linkedBanId: '$punishments.data.linkedBanId'
+            }
+          }
+        }
+      ]);
+
+      // 4. Find recently modified punishments (pardons, duration changes, etc.)
+      const recentlyModifiedPunishments = await Player.aggregate([
+        {
+          $match: {
+            'punishments.modifications.issued': { $gte: lastSync }
+          }
+        },
+        {
+          $unwind: '$punishments'
+        },
+        {
+          $match: {
+            'punishments.modifications.issued': { $gte: lastSync }
+          }
+        },
+        {
+          $project: {
+            minecraftUuid: 1,
+            username: { $arrayElemAt: ['$usernames.username', -1] },
+            punishment: {
+              id: '$punishments.id',
+              type: '$punishments.type_ordinal',
+              modifications: {
+                $filter: {
+                  input: '$punishments.modifications',
+                  cond: { $gte: ['$$this.issued', lastSync] }
+                }
+              }
+            }
+          }
+        }
+      ]);
+
+      // 5. Get server statistics
+      const stats = {
+        totalPlayers: await Player.countDocuments({}),
+        onlinePlayers: onlinePlayers ? onlinePlayers.length : 0,
+        activeBans: await Player.countDocuments({
+          'punishments.type_ordinal': { $in: [2, 3, 4, 5] }, // Manual Ban, Security Ban, Linked Ban, Blacklist
+          'punishments.started': { $exists: true },
+          $or: [
+            { 'punishments.data.expires': { $exists: false } },
+            { 'punishments.data.expires': { $gt: now } }
+          ],
+          'punishments.data.active': { $ne: false }
+        }),
+        activeMutes: await Player.countDocuments({
+          'punishments.type_ordinal': 1, // Manual Mute
+          'punishments.started': { $exists: true },
+          $or: [
+            { 'punishments.data.expires': { $exists: false } },
+            { 'punishments.data.expires': { $gt: now } }
+          ],
+          'punishments.data.active': { $ne: false }
+        })
+      };
+
+      // Log sync activity
+      await createSystemLog(
+        serverDbConnection, 
+        serverName, 
+        `Server sync completed. Online: ${stats.onlinePlayers}, Pending punishments: ${pendingPunishments.length}, Recent modifications: ${recentlyModifiedPunishments.length}`, 
+        'info', 
+        'minecraft-sync'
+      );
+
+      return res.status(200).json({
+        status: 200,
+        timestamp: now.toISOString(),
+        data: {
+          pendingPunishments,
+          recentlyStartedPunishments,
+          recentlyModifiedPunishments,
+          stats,
+          serverStatus: {
+            lastSync: now.toISOString(),
+            onlinePlayerCount: stats.onlinePlayers
+          }
+        }
+      });
+    } catch (error: any) {
+      console.error('Error in Minecraft sync:', error);
+      await createSystemLog(serverDbConnection, serverName, `Error during Minecraft sync: ${error.message || error}`, 'error', 'minecraft-sync');
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error during sync'
+      });
+    }
+  });
+
+  /**
+   * Acknowledge punishment execution
+   * - Mark punishment as started and executed on the server
+   * - Update punishment status after server has applied it
+   */
+  app.post('/api/minecraft/punishment/acknowledge', async (req: Request, res: Response) => {
+    const { punishmentId, playerUuid, executedAt, success, errorMessage } = req.body;
+    const serverDbConnection = req.serverDbConnection!;
+    const serverName = req.serverName!;
+    const Player = serverDbConnection.model<IPlayer>('Player');
+
+    try {
+      const player = await Player.findOne({ minecraftUuid: playerUuid });
+      if (!player) {
+        return res.status(404).json({ status: 404, message: 'Player not found' });
+      }
+
+      const punishment = player.punishments.find(p => p.id === punishmentId);
+      if (!punishment) {
+        return res.status(404).json({ status: 404, message: 'Punishment not found' });
+      }
+
+      // Mark punishment as started if successful
+      if (success) {
+        punishment.started = new Date(executedAt || Date.now());
+        
+        // Add execution confirmation to punishment data
+        if (!punishment.data) {
+          punishment.data = new Map();
+        }
+        punishment.data.set('executedOnServer', true);
+        punishment.data.set('executedAt', new Date(executedAt || Date.now()));
+      } else {
+        // Log execution failure
+        if (!punishment.data) {
+          punishment.data = new Map();
+        }
+        punishment.data.set('executionFailed', true);
+        punishment.data.set('executionError', errorMessage || 'Unknown error');
+        punishment.data.set('executionAttemptedAt', new Date(executedAt || Date.now()));
+      }
+
+      await player.save();
+
+      const logMessage = success 
+        ? `Punishment ${punishmentId} executed successfully on server for ${player.usernames[0]?.username} (${playerUuid})`
+        : `Punishment ${punishmentId} execution failed for ${player.usernames[0]?.username} (${playerUuid}): ${errorMessage}`;
+      
+      await createSystemLog(serverDbConnection, serverName, logMessage, success ? 'info' : 'error', 'minecraft-sync');
+
+      return res.status(200).json({
+        status: 200,
+        message: success ? 'Punishment execution acknowledged' : 'Punishment execution failure recorded'
+      });
+    } catch (error: any) {
+      console.error('Error acknowledging punishment execution:', error);
+      await createSystemLog(serverDbConnection, serverName, `Error acknowledging punishment ${punishmentId}: ${error.message || error}`, 'error', 'minecraft-sync');
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error'
+      });
+    }
+  });
 }
