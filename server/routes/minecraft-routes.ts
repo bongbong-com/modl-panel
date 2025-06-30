@@ -102,23 +102,7 @@ export function setupMinecraftRoutes(app: Express) {
           player.usernames.push({ username, date: new Date() });
         }
 
-        // Handle unstartedPunishments like in handleBansRestrictions method in Java
-        // First create a sorted tree map of punishments by date
-        const unstartedPunishments = player.punishments
-          .filter((p: IPunishment) => !p.started && isPunishmentActive(p))
-          .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
-
-        let startedAny = false;
-        for (const punishment of unstartedPunishments) {
-          // Simplified: just start them. Add more complex logic if needed.
-          punishment.started = new Date();
-          startedAny = true;
-          await createSystemLog(serverDbConnection, serverName, `Auto-started punishment ID ${punishment.id} for ${player.usernames[0].username} (${player.minecraftUuid}) on login.`, 'moderation', 'system-login');
-        }
-
-        if (startedAny) {
-          await createSystemLog(serverDbConnection, serverName, `Started ${unstartedPunishments.length} pending punishments for ${player.usernames[0].username} (${player.minecraftUuid}) on login.`, 'info', 'system-login');
-        }
+        // Don't auto-start punishments on login - they should only be started when server acknowledges
 
         // Handle restrictions (blockedName, blockedSkin) if present
         // This implementation is simplified since we don't have the same restriction concepts
@@ -172,7 +156,7 @@ export function setupMinecraftRoutes(app: Express) {
                   id: newBanId,
                   issuerName: 'System', // Or a specific admin/system user
                   issued: new Date(),
-                  started: new Date(), // Evasion bans start immediately
+                  started: undefined, // Even evasion bans need server acknowledgement
                   type: PunishmentType.Ban,
                   modifications: [],
                   notes: [{ text: banReason, date: new Date(), issuerName: 'System' } as INote],
@@ -192,26 +176,30 @@ export function setupMinecraftRoutes(app: Express) {
         await player.save();
         await createSystemLog(serverDbConnection, serverName, `New player ${username} (${minecraftUuid}) registered`, 'info', 'system-login');
       }
-      // Handle mutes separately (similar to handleMute method in Java)
-      // Find all mutes for sorting
+      // Implement punishment stacking system:
+      // 1. Get all started (active) punishments
+      // 2. Get oldest unstarted ban
+      // 3. Get oldest unstarted mute
+      // This allows server to handle punishment queue properly
+      
+      const startedPunishments = player.punishments
+        .filter((p: IPunishment) => p.started && isPunishmentActive(p))
+        .sort((a: IPunishment, b: IPunishment) => new Date(a.started!).getTime() - new Date(b.started!).getTime());
+
+      const unstartedBans = player.punishments
+        .filter((p: IPunishment) => p.type === PunishmentType.Ban && !p.started && isPunishmentActive(p))
+        .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
+
       const unstartedMutes = player.punishments
         .filter((p: IPunishment) => p.type === PunishmentType.Mute && !p.started && isPunishmentActive(p))
         .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
-      const activeMutes = player.punishments
-        .filter((p: IPunishment) => p.type === PunishmentType.Mute && p.started && isPunishmentActive(p))
-        .sort((a: IPunishment, b: IPunishment) => new Date(a.started!).getTime() - new Date(b.started!).getTime());
-
-      // Start the oldest unstarted mute if there are no active mutes
-      if (activeMutes.length === 0 && unstartedMutes.length > 0) {
-        const muteToStart = unstartedMutes[0];
-        muteToStart.started = new Date();
-        await player.save();
-        await createSystemLog(serverDbConnection, serverName, `Auto-started mute ID ${muteToStart.id} for ${player.usernames[0].username} (${player.minecraftUuid}) on login.`, 'moderation', 'system-login');
-      }
-
-      // Get all active punishments (both bans and mutes)
-      const activePunishments = player.punishments.filter((p: IPunishment) => isPunishmentActive(p));
+      // Build punishment queue: started punishments + oldest unstarted ban + oldest unstarted mute
+      const activePunishments = [
+        ...startedPunishments,
+        ...(unstartedBans.length > 0 ? [unstartedBans[0]] : []),
+        ...(unstartedMutes.length > 0 ? [unstartedMutes[0]] : [])
+      ];
 
       // Convert enum to string for JSON response
       const formattedPunishments = activePunishments.map(p => ({
@@ -351,14 +339,15 @@ export function setupMinecraftRoutes(app: Express) {
       const newPunishmentData = new Map<string, any>([
         ['reason', reason],
         ...(duration ? [['duration', duration] as [string, any]] : []),
-        ...(duration && duration > 0 ? [['expires', new Date(Date.now() + duration)] as [string, any]] : []),
+        // Don't set expires until punishment is started by server
         ...(data ? Object.entries(data) : [])
       ]);
       const newPunishment: IPunishment = {
         id: punishmentId,
         issuerName,
         issued: new Date(),
-        started: (punishmentType === PunishmentType.Ban || punishmentType === PunishmentType.Mute) ? new Date() : undefined, // Bans/Mutes start immediately, others might not
+        // Don't set started until server acknowledges execution
+        started: undefined,
         type: punishmentType,
         modifications: [],
         notes: notes ? notes.map((note: any) => ({ text: note.text, date: new Date(), issuerName: note.issuerName || issuerName } as INote)) : [],
@@ -443,7 +432,7 @@ export function setupMinecraftRoutes(app: Express) {
       }
       const responsePlayer = {
         ...player,
-        punishments: player.punishments ? player.punishments.map(p => ({
+        punishments: player.punishments ? player.punishments.map((p: IPunishment) => ({
           ...p,
           type: PunishmentType[p.type],
         })) : [],
@@ -485,8 +474,8 @@ export function setupMinecraftRoutes(app: Express) {
       const formattedLinkedAccounts = linkedPlayers.map((acc: IPlayer) => ({
         minecraftUuid: acc.minecraftUuid,
         username: acc.usernames && acc.usernames.length > 0 ? acc.usernames[0].username : 'N/A',
-        activeBans: acc.punishments ? acc.punishments.filter(p => p.type === PunishmentType.Ban && isPunishmentActive(p)).length : 0,
-        activeMutes: acc.punishments ? acc.punishments.filter(p => p.type === PunishmentType.Mute && isPunishmentActive(p)).length : 0,
+        activeBans: acc.punishments ? acc.punishments.filter((p: IPunishment) => p.type === PunishmentType.Ban && isPunishmentActive(p)).length : 0,
+        activeMutes: acc.punishments ? acc.punishments.filter((p: IPunishment) => p.type === PunishmentType.Mute && isPunishmentActive(p)).length : 0,
       }));
       return res.status(200).json({ status: 200, linkedAccounts: formattedLinkedAccounts });
     } catch (error: any) {
@@ -564,7 +553,7 @@ export function setupMinecraftRoutes(app: Express) {
    * Called every 5 seconds by Minecraft server
    */
   app.post('/api/minecraft/sync', async (req: Request, res: Response) => {
-    const { onlinePlayers, lastSyncTimestamp, serverStatus } = req.body;
+    const { onlinePlayers, lastSyncTimestamp } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
     const Player = serverDbConnection.model<IPlayer>('Player');
@@ -788,16 +777,23 @@ export function setupMinecraftRoutes(app: Express) {
         return res.status(404).json({ status: 404, message: 'Punishment not found' });
       }
 
-      // Mark punishment as started if successful
+      // Mark punishment as started if successful and set expiry from start time
       if (success) {
-        punishment.started = new Date(executedAt || Date.now());
+        const startTime = new Date(executedAt || Date.now());
+        punishment.started = startTime;
+        
+        // Set expiry time based on when punishment actually started
+        const duration = punishment.data?.get('duration');
+        if (duration && duration > 0) {
+          punishment.data.set('expires', new Date(startTime.getTime() + duration));
+        }
         
         // Add execution confirmation to punishment data
         if (!punishment.data) {
           punishment.data = new Map();
         }
         punishment.data.set('executedOnServer', true);
-        punishment.data.set('executedAt', new Date(executedAt || Date.now()));
+        punishment.data.set('executedAt', startTime);
       } else {
         // Log execution failure
         if (!punishment.data) {

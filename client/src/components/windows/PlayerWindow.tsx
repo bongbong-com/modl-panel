@@ -1323,13 +1323,28 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             }`}>
                               {warning.status}
                             </Badge>
-                          )}                        </div>
+                          )}
+                          {/* Show "Not Started" badge for unstarted punishments */}
+                          {isPunishment && !warning.data?.started && (
+                            <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+                              Punishment not yet started
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-sm mt-1 space-y-1">
                           <p>{warning.reason}</p>
                           
                           {/* Show expiry/duration information with full date and time format */}
                           <div className="text-xs">
                             {(() => {
+                              // Don't show expiry countdown for unstarted punishments
+                              if (isPunishment && !warning.data?.started) {
+                                return (
+                                  <div className="text-muted-foreground">
+                                    Waiting for server execution
+                                  </div>
+                                );
+                              }
                               // Helper function to format time difference
                               const formatTimeDifference = (timeDiff: number) => {
                                 const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));

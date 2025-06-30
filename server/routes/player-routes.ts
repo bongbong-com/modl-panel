@@ -576,15 +576,15 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
         punishmentData.set('linkedBanExpiry', new Date());
     }
 
-    // Set expiry date if duration is provided in data
-    const durationValue = punishmentData.get('duration');
-    if (durationValue !== undefined && durationValue > 0) {
-        punishmentData.set('expires', new Date(Date.now() + durationValue));
-    }    const newPunishment: IPunishment = {
+    // Don't set expiry date until punishment is started by server
+    // Duration will be used to calculate expiry when punishment is acknowledged as started
+    
+    const newPunishment: IPunishment = {
       id,
       issuerName,
       issued: new Date(),
-      started: (type_ordinal === 1 || type_ordinal === 2) ? new Date() : undefined,
+      // Don't set started until server acknowledges execution
+      started: undefined,
       type_ordinal,
       modifications: [],
       notes: notes || [],

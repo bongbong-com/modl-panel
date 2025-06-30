@@ -10,6 +10,8 @@ The sync system works by:
 3. **Receiving punishment updates** and applying them on the server
 4. **Acknowledging punishment execution** back to the panel
 
+**Important**: Punishments are not considered "started" until your server acknowledges their execution. This prevents expiry countdowns from beginning before the punishment is actually applied, and implements a stacking system where only the oldest unstarted ban and mute are sent to avoid overwhelming the server.
+
 ## API Endpoints
 
 ### 1. Sync Endpoint (Called every 5 seconds)
@@ -201,7 +203,8 @@ public class ModlSyncService {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 boolean success = executePunishment(playerUuid, username, type, reason, punishment, silent);
                 
-                // Acknowledge execution
+                // CRITICAL: Acknowledge execution back to panel
+                // This starts the punishment timer and marks it as active
                 acknowledgePunishmentExecution(punishmentId, playerUuid, success, null);
             });
             
