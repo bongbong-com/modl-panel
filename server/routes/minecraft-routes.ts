@@ -11,34 +11,72 @@ enum PunishmentType {
 }
 
 /**
+ * Utility function to get the effective punishment state considering modifications
+ */
+function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive: boolean; effectiveExpiry: Date | null; hasModifications: boolean } {
+  const modifications = punishment.modifications || [];
+  const originalExpiry = punishment.data?.get('expires') ? new Date(punishment.data.get('expires')) : null;
+  const originalActive = punishment.data?.has('active') ? punishment.data.get('active') !== false : true;
+  
+  let effectiveActive = originalActive;
+  let effectiveExpiry = originalExpiry;
+  
+  // Apply modifications in chronological order
+  const sortedModifications = modifications.sort((a: IModification, b: IModification) => {
+    const dateA = a.issued ? new Date(a.issued) : new Date(0);
+    const dateB = b.issued ? new Date(b.issued) : new Date(0);
+    return dateA.getTime() - dateB.getTime();
+  });
+  
+  for (const mod of sortedModifications) {
+    const modDate = mod.issued ? new Date(mod.issued) : new Date();
+    
+    if (mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT') {
+      effectiveActive = false;
+    } else if (mod.type === 'MANUAL_DURATION_CHANGE') {
+      // Recalculate expiry based on modification
+      const effectiveDuration = mod.data?.get('effectiveDuration');
+      if (effectiveDuration === 0 || effectiveDuration === -1) {
+        effectiveExpiry = null; // Permanent
+        effectiveActive = true;
+      } else if (effectiveDuration && effectiveDuration > 0) {
+        effectiveExpiry = new Date(modDate.getTime() + effectiveDuration);
+        effectiveActive = effectiveExpiry.getTime() > new Date().getTime();
+      }
+    }
+  }
+  
+  return { effectiveActive, effectiveExpiry, hasModifications: modifications.length > 0 };
+}
+
+/**
  * Utility function to check if a punishment is currently active
  */
 function isPunishmentActive(punishment: IPunishment): boolean {
   if (!punishment.type) return false;
 
-  if (punishment.data && punishment.data.has('active') && !punishment.data.get('active')) {
+  // Get effective state considering modifications
+  const { effectiveActive, effectiveExpiry } = getEffectivePunishmentState(punishment);
+  
+  // If explicitly marked as inactive by modifications
+  if (!effectiveActive) {
     return false;
   }
-  if (punishment.data && punishment.data.has('expires')) {
-    const expiry = punishment.data.get('expires');
-    if (expiry && new Date(expiry) < new Date()) {
-      return false;
-    }
+  
+  // Check if expired
+  if (effectiveExpiry && effectiveExpiry < new Date()) {
+    return false;
   }
-  if (punishment.type === PunishmentType.Ban) {
-    if (!punishment.started) {
-      return false;
-    }
+  
+  // For punishments that need to be started (bans/mutes), check if they've been started
+  if ((punishment.type === PunishmentType.Ban || punishment.type === PunishmentType.Mute) && !punishment.started) {
+    return false;
   }
-  if (punishment.type === PunishmentType.Mute) {
-    if (!punishment.started) {
-      return false;
-    }
-  }
+  
   return true;
 }
 
-export function setupMinecraftRoutes(app: Express) {
+export function setupMinecraftRoutes(app: Express): void {
   // Apply API key verification middleware to all Minecraft routes
   app.use('/api/minecraft', verifyMinecraftApiKey);
 
@@ -772,7 +810,7 @@ export function setupMinecraftRoutes(app: Express) {
         return res.status(404).json({ status: 404, message: 'Player not found' });
       }
 
-      const punishment = player.punishments.find(p => p.id === punishmentId);
+      const punishment = player.punishments.find((p: IPunishment) => p.id === punishmentId);
       if (!punishment) {
         return res.status(404).json({ status: 404, message: 'Punishment not found' });
       }
