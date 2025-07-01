@@ -1246,7 +1246,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               History
             </TabsTrigger>
             <TabsTrigger value="linked" className="text-xs py-2">
-              <Link2 className="h-3.5 w-3.5 mr-1.5" />
+              <Link2 className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
               Connected
             </TabsTrigger>
             <TabsTrigger value="notes" className="text-xs py-2">
