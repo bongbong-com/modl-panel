@@ -7,7 +7,7 @@ import { Label } from 'modl-shared-web/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from 'modl-shared-web/components/ui/alert';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Separator } from 'modl-shared-web/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
 interface DomainStatus {

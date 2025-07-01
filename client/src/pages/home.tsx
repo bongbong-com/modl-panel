@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'm
 import { Separator } from 'modl-shared-web/components/ui/separator';
 import { useTheme } from 'next-themes';
 import { useRecentActivity, useStats, ClientActivity } from '@/hooks/use-data';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 
 type Activity = ClientActivity;

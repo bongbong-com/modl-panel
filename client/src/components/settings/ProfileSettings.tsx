@@ -3,7 +3,7 @@ import { Save } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Label } from 'modl-shared-web/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 
 const ProfileSettings = () => {

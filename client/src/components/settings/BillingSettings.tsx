@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from 'modl-shared-web/components/ui/card';
 import { Button } from 'modl-shared-web/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import { useBillingStatus } from '@/hooks/use-data';
 import { useQueryClient } from '@tanstack/react-query';

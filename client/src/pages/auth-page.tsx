@@ -32,7 +32,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "modl-shared-web/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "modl-shared-web/hooks/use-toast";
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Separator } from 'modl-shared-web/components/ui/separator';
 

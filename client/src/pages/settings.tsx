@@ -11,7 +11,7 @@ import { Slider } from 'modl-shared-web/components/ui/slider';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
 import { useSettings } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer'
