@@ -15,6 +15,7 @@ const BillingSettings = () => {
   const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -100,9 +101,15 @@ const BillingSettings = () => {
   };
 
   const handleRefreshBillingStatus = async () => {
-    setIsLoading(true);
+    setIsSpinning(true);
+    
     try {
-      await queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
+      // Ensure minimum spin duration of 800ms
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] }),
+        new Promise(resolve => setTimeout(resolve, 800))
+      ]);
+      
       toast({
         title: 'Billing Status Refreshed',
         description: 'Your billing information has been updated.',
@@ -116,7 +123,7 @@ const BillingSettings = () => {
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      setIsSpinning(false);
     }
   };
 
@@ -205,12 +212,11 @@ const BillingSettings = () => {
           </div>
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
             onClick={handleRefreshBillingStatus}
-            disabled={isLoading || isBillingLoading}
+            disabled={isSpinning || isBillingLoading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 ${isSpinning ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </CardHeader>

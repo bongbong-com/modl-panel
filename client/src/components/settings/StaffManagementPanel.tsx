@@ -22,17 +22,44 @@ interface StaffMember {
 }
 
 const StaffManagementPanel = () => {
-  const { data: staff, isLoading, error } = useStaff();
+  const { data: staff, isLoading, error, refetch: refetchStaff, isRefetching } = useStaff();
   const { user: currentUser } = useAuth();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isRemoveAlertOpen, setIsRemoveAlertOpen] = useState(false);
   const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
   const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
+  const [isSpinning, setIsSpinning] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const handleInviteSent = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
+  };
+
+  const handleRefreshStaff = async () => {
+    setIsSpinning(true);
+    
+    try {
+      // Ensure minimum spin duration of 800ms
+      await Promise.all([
+        refetchStaff(),
+        new Promise(resolve => setTimeout(resolve, 800))
+      ]);
+      
+      toast({
+        title: "Staff List Refreshed",
+        description: "Staff member information has been updated.",
+      });
+    } catch (error) {
+      console.error('Error refreshing staff:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh staff list. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSpinning(false);
+    }
   };
 
   const openConfirmationDialog = (member: StaffMember) => {
@@ -97,8 +124,13 @@ const StaffManagementPanel = () => {
           <div className="flex justify-between items-center">
             <CardTitle>Staff Management</CardTitle>
             <div className="flex space-x-2">
-              <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] })}>
-                <RefreshCw className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleRefreshStaff}
+                disabled={isSpinning}
+              >
+                <RefreshCw className={`h-4 w-4 ${isSpinning ? 'animate-spin' : ''}`} />
               </Button>
               <Button onClick={() => setIsInviteModalOpen(true)}>Invite</Button>
             </div>
