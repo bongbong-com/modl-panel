@@ -83,11 +83,18 @@ const StatCard = ({ title, value, change, changeText, color }: {
 
 const Home = () => {
   const [activityFilter, setActivityFilter] = useState("all");
+  const [isSpinning, setIsSpinning] = useState(false);
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   
   // Fetch recent activity from the database
-  const { data: recentActivityData, isLoading: isLoadingActivity, error: activityError } = useRecentActivity(20, 7);
+  const { 
+    data: recentActivityData, 
+    isLoading: isLoadingActivity, 
+    error: activityError,
+    refetch: refetchActivity,
+    isRefetching: isRefetchingActivity
+  } = useRecentActivity(20, 7);
   
   // Fetch stats data from the database
   const { data: statsData, isLoading: isLoadingStats } = useStats();
@@ -101,6 +108,32 @@ const Home = () => {
     return true;
   });
 
+  const handleRefreshActivity = async () => {
+    setIsSpinning(true);
+    
+    try {
+      // Ensure minimum spin duration of 800ms
+      await Promise.all([
+        refetchActivity(),
+        new Promise(resolve => setTimeout(resolve, 800))
+      ]);
+      
+      toast({
+        title: "Activity Refreshed",
+        description: "Recent activity has been updated.",
+      });
+    } catch (error) {
+      console.error('Error refreshing activity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh activity. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSpinning(false);
+    }
+  };
+
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-6">
@@ -109,8 +142,14 @@ const Home = () => {
           <Button variant="ghost" size="icon" className="text-muted-foreground">
             <Bell className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <RefreshCw className="h-5 w-5" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-muted-foreground"
+            onClick={handleRefreshActivity}
+            disabled={isSpinning}
+          >
+            <RefreshCw className={`h-5 w-5 ${isSpinning ? 'animate-spin' : ''}`} />
           </Button>
           {/* Theme Toggle */}
           <Button 
