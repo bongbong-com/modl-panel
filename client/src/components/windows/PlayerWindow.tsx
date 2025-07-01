@@ -1936,7 +1936,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               <ul className="space-y-2">
                 {playerInfo.linkedAccounts.map((account, idx) => (
                   <li key={idx} className="text-sm flex items-center">
-                    <Link2 className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                    <Link2 className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
                     {account}
                   </li>
                 ))}
