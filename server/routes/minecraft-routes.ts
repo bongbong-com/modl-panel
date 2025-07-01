@@ -50,9 +50,9 @@ function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive
 }
 
 /**
- * Utility function to check if a punishment is currently active
+ * Utility function to check if a punishment is valid for execution (ignores started status)
  */
-function isPunishmentActive(punishment: IPunishment): boolean {
+function isPunishmentValid(punishment: IPunishment): boolean {
   if (!punishment.type) return false;
 
   // Get effective state considering modifications
@@ -65,6 +65,17 @@ function isPunishmentActive(punishment: IPunishment): boolean {
   
   // Check if expired
   if (effectiveExpiry && effectiveExpiry < new Date()) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Utility function to check if a punishment is currently active (started and valid)
+ */
+function isPunishmentActive(punishment: IPunishment): boolean {
+  if (!isPunishmentValid(punishment)) {
     return false;
   }
   
@@ -225,11 +236,11 @@ export function setupMinecraftRoutes(app: Express): void {
         .sort((a: IPunishment, b: IPunishment) => new Date(a.started!).getTime() - new Date(b.started!).getTime());
 
       const unstartedBans = player.punishments
-        .filter((p: IPunishment) => p.type === PunishmentType.Ban && !p.started && isPunishmentActive(p))
+        .filter((p: IPunishment) => p.type === PunishmentType.Ban && !p.started && isPunishmentValid(p))
         .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
       const unstartedMutes = player.punishments
-        .filter((p: IPunishment) => p.type === PunishmentType.Mute && !p.started && isPunishmentActive(p))
+        .filter((p: IPunishment) => p.type === PunishmentType.Mute && !p.started && isPunishmentValid(p))
         .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
       // Build punishment queue: started punishments + oldest unstarted ban + oldest unstarted mute
