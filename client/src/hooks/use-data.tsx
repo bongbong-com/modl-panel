@@ -1,4 +1,4 @@
-import { useQuery, useMutation, QueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { queryClient } from '../lib/queryClient';
 import { useAuth } from './use-auth';
 
@@ -374,6 +374,32 @@ export function useBillingStatus() {
       return res.json();
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+export function useCancelSubscription() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/panel/billing/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to cancel subscription');
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      // Invalidate billing status to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
+    },
   });
 }
 
