@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -23,6 +23,7 @@ import { Input } from 'modl-shared-web/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const inviteSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -40,6 +41,8 @@ interface InviteStaffModalProps {
 const InviteStaffModal: React.FC<InviteStaffModalProps> = ({ isOpen, onClose, onInviteSent }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(inviteSchema),
     defaultValues: {
@@ -48,7 +51,15 @@ const InviteStaffModal: React.FC<InviteStaffModalProps> = ({ isOpen, onClose, on
     },
   });
 
+  const handleClose = () => {
+    if (!isLoading) {
+      form.reset();
+      onClose();
+    }
+  };
+
   const onSubmit = async (values: InviteFormValues) => {
+    setIsLoading(true);
     try {
       const response = await fetch('/api/panel/staff/invite', {
         method: 'POST',
@@ -59,27 +70,37 @@ const InviteStaffModal: React.FC<InviteStaffModalProps> = ({ isOpen, onClose, on
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Failed to send invitation.' }));
         throw new Error(errorData.message || 'Failed to send invitation.');
       }
 
+      const result = await response.json().catch(() => ({}));
+      
       toast({
         title: 'Success',
-        description: 'Invitation sent successfully.',
+        description: result.message || 'Invitation sent successfully.',
       });
+      
+      // Reset form
+      form.reset();
+      
+      // Trigger refresh and close modal
       onInviteSent();
       onClose();
     } catch (error: any) {
+      console.error('Invitation error:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to send invitation.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite New Staff Member</DialogTitle>
@@ -125,10 +146,19 @@ const InviteStaffModal: React.FC<InviteStaffModalProps> = ({ isOpen, onClose, on
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="ghost" onClick={onClose}>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button type="submit">Send Invitation</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Invitation'
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

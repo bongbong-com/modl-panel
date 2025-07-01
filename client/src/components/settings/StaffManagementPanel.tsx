@@ -32,7 +32,7 @@ const StaffManagementPanel = () => {
   const { toast } = useToast();
 
   const handleInviteSent = () => {
-    queryClient.invalidateQueries({ queryKey: ['staff'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
   };
 
   const openConfirmationDialog = (member: StaffMember) => {
@@ -57,7 +57,7 @@ const StaffManagementPanel = () => {
         throw new Error('Failed to remove staff member');
       }
 
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
     } catch (error) {
       console.error(error);
     } finally {
@@ -79,7 +79,7 @@ const StaffManagementPanel = () => {
         title: 'Success',
         description: 'Invitation resent successfully.',
       });
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
     } catch (error) {
       console.error(error);
       toast({
@@ -97,7 +97,7 @@ const StaffManagementPanel = () => {
           <div className="flex justify-between items-center">
             <CardTitle>Staff Management</CardTitle>
             <div className="flex space-x-2">
-              <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['staff'] })}>
+              <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] })}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button onClick={() => setIsInviteModalOpen(true)}>Invite</Button>

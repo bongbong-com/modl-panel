@@ -64,13 +64,10 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, staf
   }, [currentUser, staffMember]);
 
   const handleRoleChange = async () => {
-    if (!staffMember || !selectedRole || selectedRole === staffMember.role) {
-      onClose();
-      return;
-    }
+    if (!staffMember || !selectedRole) return;
 
     try {
-      const response = await fetch(`/api/staff/${staffMember._id}/role`, { // Assuming a new endpoint or modification to existing
+      const response = await fetch(`/api/panel/staff/${staffMember._id}/role`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -85,15 +82,16 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, staf
 
       toast({
         title: 'Success',
-        description: `Role for ${staffMember.email} changed to ${selectedRole}.`,
+        description: 'Role changed successfully.',
       });
-      queryClient.invalidateQueries({ queryKey: ['staff'] });
+
+      // Refresh the staff list
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
       onClose();
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: (error as Error).message,
+        description: error.message,
         variant: 'destructive',
       });
     }
