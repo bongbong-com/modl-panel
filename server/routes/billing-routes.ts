@@ -127,9 +127,6 @@ router.get('/status', isAuthenticated, async (req, res) => {
 
             if (periodEndDate) {
               updateData.current_period_end = periodEndDate;
-            } else if (subscription.status === 'canceled') {
-              // For canceled subscriptions, set current_period_end to null
-              updateData.current_period_end = null;
             }
 
             await Server.findOneAndUpdate(
@@ -139,8 +136,11 @@ router.get('/status', isAuthenticated, async (req, res) => {
             currentStatus = subscription.status;
             if (periodEndDate) {
               currentPeriodEnd = periodEndDate;
-            } else if (subscription.status === 'canceled') {
-              currentPeriodEnd = undefined;
+            }
+            
+            // Special logging for cancelled subscriptions
+            if (subscription.status === 'canceled') {
+              console.log(`[BILLING STATUS] CANCELLATION DETECTED: Server ${server.customDomain} has cancelled subscription. Access ends: ${periodEndDate ? periodEndDate.toISOString() : 'No end date'}`);
             }
           }
         } catch (stripeError) {
@@ -183,6 +183,60 @@ router.post('/debug-status/:customDomain', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching debug status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Test endpoint to manually trigger subscription status update
+router.post('/debug-sync/:customDomain', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe not configured' });
+  }
+
+  try {
+    const { customDomain } = req.params;
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    const server = await Server.findOne({ customDomain });
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+
+    if (!server.stripe_subscription_id) {
+      return res.status(400).json({ error: 'No subscription ID found' });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id) as any;
+    
+    let periodEndDate = null;
+    if (subscription.current_period_end) {
+      periodEndDate = new Date(subscription.current_period_end * 1000);
+    }
+
+    const updateData: any = {
+      subscription_status: subscription.status,
+    };
+
+    if (periodEndDate) {
+      updateData.current_period_end = periodEndDate;
+    }
+
+    await Server.findOneAndUpdate(
+      { _id: server._id },
+      updateData
+    );
+
+    console.log(`[DEBUG SYNC] Updated ${customDomain}: status=${subscription.status}, period_end=${periodEndDate}`);
+
+    res.json({
+      message: 'Sync completed',
+      stripe_status: subscription.status,
+      stripe_period_end: periodEndDate,
+      updated: updateData
+    });
+  } catch (error) {
+    console.error('Error syncing subscription status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -299,12 +353,12 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
 
           const updateData: any = {
             subscription_status: subscription.status,
-          };          // Only update current_period_end if we have a valid date
+          };
+
+          // Always update current_period_end if we have a valid date, even for canceled subscriptions
+          // This is important for canceled subscriptions so users know when access ends
           if (periodEndDate) {
             updateData.current_period_end = periodEndDate;
-          } else if (subscription.status === 'canceled') {
-            // For canceled subscriptions, set current_period_end to null
-            updateData.current_period_end = null;
           }
 
           await Server.findOneAndUpdate(
@@ -312,7 +366,12 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             updateData
           );
 
-          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription status: ${subscription.status}`);
+          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription status: ${subscription.status}, period_end: ${periodEndDate}`);
+          
+          // Special logging for cancelled subscriptions
+          if (subscription.status === 'canceled') {
+            console.log(`[WEBHOOK] CANCELLATION DETECTED: Server ${server.customDomain} subscription cancelled. Access ends: ${periodEndDate ? periodEndDate.toISOString() : 'No end date'}`);
+          }
         } else {
           console.warn(`[WEBHOOK] No server found for subscription: ${subscription.id}`);
         }
