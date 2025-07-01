@@ -39,7 +39,14 @@ const tenantSchemas: Record<string, mongoose.Schema<any>> = {
 function registerTenantModels(connection: Connection): void {
   for (const modelName in tenantSchemas) {
     if (Object.prototype.hasOwnProperty.call(tenantSchemas, modelName) && tenantSchemas[modelName]) {
-      connection.model(modelName, tenantSchemas[modelName]);
+      // Check if model is already registered to prevent overwrite error
+      try {
+        connection.model(modelName);
+        // Model already exists, skip registration
+      } catch (error) {
+        // Model doesn't exist, register it
+        connection.model(modelName, tenantSchemas[modelName]);
+      }
     } else {
       console.warn(`Schema for model '${modelName}' not found or not provided, skipping registration for DB: '${connection.name}'.`);
     }
@@ -98,6 +105,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
     connectionKeyInMap = serverName;
   }
 
+  // Check if we already have a valid connection
   if (serverConnections.has(connectionKeyInMap)) {
     const existingConn = serverConnections.get(connectionKeyInMap)!;
     if (existingConn.readyState === 1) {
@@ -118,25 +126,17 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   }
   serverDbUri = panelDbUriTemplate.replace('<dbName>', actualDbNameForConnection);
 
-  if (serverConnections.has(connectionKeyInMap)) {
-    const existingConnection = serverConnections.get(connectionKeyInMap)!;
-    if (existingConnection.readyState === 1) {
-      return existingConnection;
-    }
-    try {
-      await existingConnection.close();
-    } catch (closeError) {
-      console.error(`Error closing stale connection for ${connectionKeyInMap}:`, closeError);
-    }
-    serverConnections.delete(connectionKeyInMap);
-  }
-
   try {
     const newConnection = mongoose.createConnection(serverDbUri);
+    
+    // Wait for connection to open before registering models
+    await newConnection.asPromise();
+    
+    // Register models after connection is established
     registerTenantModels(newConnection);
-    await newConnection.openUri(serverDbUri);
 
     serverConnections.set(connectionKeyInMap, newConnection);
+    console.log(`Connected to server database: ${actualDbNameForConnection}`);
     return newConnection;
   } catch (error) {
     console.error(`[connectionManager] Error connecting to database (Target DB: ${actualDbNameForConnection}, URI: ${serverDbUri}, Connection Key: ${connectionKeyInMap}):`, error);

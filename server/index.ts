@@ -80,6 +80,42 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   
   const server = await registerRoutes(app);
 
+  // Auto-seed database for local development
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      console.log('🌱 Checking if local development database needs seeding...');
+      
+      const { connectToServerDb } = await import('./db/connectionManager');
+      const { seedEnhancedDatabase } = await import('./db/enhanced-seed-data');
+      
+      // Connect to the development database (testlocal -> modl_test)
+      const devDbConnection = await connectToServerDb('testlocal');
+      
+      // Check if database needs seeding by counting players
+      const Player = devDbConnection.models.Player;
+      if (Player) {
+        const playerCount = await Player.countDocuments();
+        
+        if (playerCount === 0) {
+          console.log('📦 Development database is empty. Starting automatic seeding...');
+          await seedEnhancedDatabase(devDbConnection);
+          console.log('✅ Development database seeded successfully with enhanced mock data!');
+          console.log('   - 20 players with realistic data');
+          console.log('   - 15 tickets with replies and notes');
+          console.log('   - Default punishment types and settings');
+          console.log('   - System logs and audit trails');
+        } else {
+          console.log(`✅ Development database already contains ${playerCount} players - skipping seeding`);
+        }
+      } else {
+        console.log('⚠️  Player model not found - database may not be properly initialized');
+      }
+    } catch (error) {
+      console.warn('⚠️  Failed to auto-seed development database:', error);
+      console.warn('   This is not critical - you can manually seed if needed');
+    }
+  }
+
   // Start the domain status updater for monitoring custom domains
   try {
     const { connectToGlobalModlDb } = await import('./db/connectionManager');

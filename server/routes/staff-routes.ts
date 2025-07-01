@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware';
-import { InvitationSchema, IPasskey, IStaff, IModlServer } from 'modl-shared-web';
+import { IPasskey, IStaff, IModlServer, Invitation } from 'modl-shared-web';
 import nodemailer from 'nodemailer';
 import { getModlServersModel } from '../db/connectionManager';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
@@ -40,7 +40,7 @@ router.get('/invitations/accept', strictRateLimit, async (req: Request, res: Res
   }
 
   try {
-    const InvitationModel = req.serverDbConnection!.model('Invitation', InvitationSchema);
+    const InvitationModel = req.serverDbConnection!.model('Invitation');
     const invitation = await InvitationModel.findOne({ token: token as string });
 
     if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < new Date()) {
@@ -134,7 +134,7 @@ router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async
       return res.status(409).json({ message: 'Email is already associated with an existing user.' });
     }
 
-    const InvitationModel = req.serverDbConnection!.model('Invitation', InvitationSchema);
+    const InvitationModel = req.serverDbConnection!.model('Invitation');
     const existingInvitation = await InvitationModel.findOne({ email, status: 'pending' });
     if (existingInvitation) {
       return res.status(409).json({ message: 'An invitation for this email is already pending.' });

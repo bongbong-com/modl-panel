@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Player, Staff, Ticket, Log, Settings } from '../models/mongodb-schemas';
+import { PlayerSchema, StaffSchema, TicketSchema, LogSchema, SettingsSchema } from 'modl-shared-web/schemas/TenantSchemas';
 import { createDefaultSettings, addDefaultPunishmentTypes } from '../routes/settings-routes';
 import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,8 +46,19 @@ function generateUuid(): string {
 }
 
 // Seed the database with initial data including 20 players and 15 tickets
-export async function seedEnhancedDatabase(dbConnection?: Connection) {
+export async function seedEnhancedDatabase(dbConnection: Connection) {
   console.log('Seeding database with enhanced mock data...');
+  
+  if (!dbConnection) {
+    throw new Error('Database connection is required for seeding');
+  }
+
+  // Get or create models using the provided connection
+  const Player = dbConnection.models.Player || dbConnection.model('Player', PlayerSchema);
+  const Staff = dbConnection.models.Staff || dbConnection.model('Staff', StaffSchema);
+  const Ticket = dbConnection.models.Ticket || dbConnection.model('Ticket', TicketSchema);
+  const Log = dbConnection.models.Log || dbConnection.model('Log', LogSchema);
+  const Settings = dbConnection.models.Settings || dbConnection.model('Settings', SettingsSchema);
   
   try {
     // Clear existing data
@@ -72,11 +83,13 @@ export async function seedEnhancedDatabase(dbConnection?: Connection) {
     const asns = ['AS12345', 'AS67890', 'AS54321', 'AS09876', 'AS13579'];
     
     // Initialize default settings including punishment types
-    if (dbConnection) {
-      await createDefaultSettings(dbConnection);
-      await addDefaultPunishmentTypes(dbConnection);
-      console.log('Initialized default settings with punishment types');
-    }
+    await createDefaultSettings(dbConnection);
+    await addDefaultPunishmentTypes(dbConnection);
+    console.log('Initialized default settings with punishment types');
+    
+    // Get punishment types for realistic punishment generation
+    const settingsDoc = await Settings.findOne({});
+    const punishmentTypes: Array<{ ordinal: number; name: string; [key: string]: any }> = settingsDoc?.settings?.get('punishmentTypes') || [];
     
     const punishmentReasons = [
       'Using inappropriate language in chat',
@@ -278,7 +291,7 @@ export async function seedEnhancedDatabase(dbConnection?: Connection) {
         const isActive = Math.random() < 0.5;
         
         // Select a random punishment type using ordinals
-        const randomPunishmentType = randomItem(punishmentTypes);
+        const randomPunishmentType = punishmentTypes.length > 0 ? randomItem(punishmentTypes) : { ordinal: 1 };
         
         const punishmentData = new Map<string, string | boolean | number>();
         punishmentData.set('severity', randomItem(['Low', 'Medium', 'High']));

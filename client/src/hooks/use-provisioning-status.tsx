@@ -41,7 +41,7 @@ export function useProvisioningStatusCheck() {
         const data: ProvisioningStatusResponse = await response.json();
 
         // If the server is not completed, redirect to provisioning page
-        if (data.status !== 'completed') {
+        if (data.status !== 'completed' && process.env.ENVIRONMENT !== 'development') {
           const serverName = data.serverName;
           
           // Redirect to provisioning page with server name
