@@ -225,36 +225,63 @@ export function setupMinecraftRoutes(app: Express): void {
         await player.save();
         await createSystemLog(serverDbConnection, serverName, `New player ${username} (${minecraftUuid}) registered`, 'info', 'system-login');
       }
-      // Implement punishment stacking system:
-      // 1. Get all started (active) punishments
-      // 2. Get oldest unstarted ban
-      // 3. Get oldest unstarted mute
-      // This allows server to handle punishment queue properly
-      
-      const startedPunishments = player.punishments
-        .filter((p: IPunishment) => p.started && isPunishmentActive(p))
-        .sort((a: IPunishment, b: IPunishment) => new Date(a.started!).getTime() - new Date(b.started!).getTime());
+      // Use the same active punishment logic as player-routes to ensure consistency
+      // Only return punishments that are:
+      // 1. Not explicitly marked as inactive (active !== false)
+      // 2. Have been started by the server 
+      // 3. Not expired based on duration calculation
+      // 4. Consider modifications (pardons, duration changes, etc.)
+      const activePunishments = player.punishments.filter((punishment: IPunishment) => {
+        // Get effective state considering modifications (pardons, duration changes, etc.)
+        const effectiveState = getEffectivePunishmentState(punishment);
+        
+        // If punishment has been pardoned or otherwise made inactive by modifications
+        if (!effectiveState.effectiveActive) return false;
+        
+        // Check if punishment has been started (required for bans/mutes to be active)
+        if (!punishment.started) return false;
 
-      const unstartedBans = player.punishments
-        .filter((p: IPunishment) => p.type === PunishmentType.Ban && !p.started && isPunishmentValid(p))
-        .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
+        // Check duration-based expiry using effective expiry if available
+        if (effectiveState.effectiveExpiry) {
+          return effectiveState.effectiveExpiry.getTime() > new Date().getTime();
+        }
+        
+        // Fallback to original duration logic for punishments without modifications
+        const duration = punishment.data ? punishment.data.get('duration') : undefined;
+        if (duration === -1 || duration === undefined) return true; // Permanent punishment
+        
+        const startTime = new Date(punishment.started).getTime();
+        const endTime = startTime + Number(duration);
+        
+        return endTime > Date.now(); // Active if not expired
+      });
 
-      const unstartedMutes = player.punishments
-        .filter((p: IPunishment) => p.type === PunishmentType.Mute && !p.started && isPunishmentValid(p))
-        .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
-
-      // Build punishment queue: started punishments + oldest unstarted ban + oldest unstarted mute
-      const activePunishments = [
-        ...startedPunishments,
-        ...(unstartedBans.length > 0 ? [unstartedBans[0]] : []),
-        ...(unstartedMutes.length > 0 ? [unstartedMutes[0]] : [])
-      ];
-
-      // Convert enum to string for JSON response
-      const formattedPunishments = activePunishments.map(p => ({
-        ...p,
-        type: PunishmentType[p.type],
-      }));
+      // Convert enum to string for JSON response and format punishment data like player-routes
+      const formattedPunishments = activePunishments.map((p: IPunishment) => {
+        const punishmentObj = p.toObject ? (p as any).toObject() : p;
+        
+        // If data is a Map, convert it to a plain object
+        if (punishmentObj.data && punishmentObj.data instanceof Map) {
+          const dataObj: { [key: string]: any } = {};
+          for (const [key, value] of punishmentObj.data.entries()) {
+            dataObj[key] = value;
+          }
+          punishmentObj.data = dataObj;
+        }
+        
+        // Extract common fields that might be in the data Map
+        const expires = punishmentObj.data?.expires;
+        const duration = punishmentObj.data?.duration;
+        const active = punishmentObj.data?.active;
+        
+        return {
+          ...punishmentObj,
+          type: PunishmentType[p.type],
+          expires: expires,
+          duration: duration,
+          active: active !== false, // Default to true if not explicitly false
+        };
+      });
 
       return res.status(200).json({
         status: 200,
