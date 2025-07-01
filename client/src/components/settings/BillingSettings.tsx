@@ -19,7 +19,11 @@ import {
   Brain,
   Calendar,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  CreditCard,
+  Settings,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import { Alert, AlertDescription } from 'modl-shared-web/components/ui/alert';
 
@@ -38,12 +42,9 @@ interface Plan {
   price: number;
   period: string;
   description: string;
-  badge?: string;
-  badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline';
   features: PlanFeature[];
   buttonText: string;
   buttonVariant: 'default' | 'outline';
-  popular?: boolean;
 }
 
 const plans: Plan[] = [
@@ -56,11 +57,11 @@ const plans: Plan[] = [
     features: [
       { text: 'Up to 50 players', included: true, icon: <Users className="h-4 w-4" /> },
       { text: 'Basic ticket system', included: true, icon: <Shield className="h-4 w-4" /> },
-      { text: '1GB storage', included: true, icon: <HardDrive className="h-4 w-4" /> },
+      { text: 'Up to 5 staff members', included: true, icon: <Users className="h-4 w-4" /> },
+      { text: '100k API requests per month', included: true, icon: <Zap className="h-4 w-4" /> },
       { text: 'Community support', included: true, icon: <Headphones className="h-4 w-4" /> },
-      { text: 'AI moderation', included: false, icon: <Brain className="h-4 w-4" /> },
-      { text: 'Priority support', included: false, icon: <Zap className="h-4 w-4" /> },
-      { text: 'Custom domain', included: false, icon: <Crown className="h-4 w-4" /> }
+      { text: 'CDN storage', included: false, icon: <HardDrive className="h-4 w-4" /> },
+      { text: 'AI moderation', included: false, icon: <Brain className="h-4 w-4" /> }
     ],
     buttonText: 'Current Plan',
     buttonVariant: 'outline'
@@ -68,23 +69,20 @@ const plans: Plan[] = [
   {
     id: 'premium',
     name: 'Premium',
-    price: 19.99,
+    price: 20,
     period: 'per month',
     description: 'For growing communities that need advanced features',
-    badge: 'Most Popular',
-    badgeVariant: 'default',
     features: [
       { text: 'Unlimited players', included: true, icon: <Users className="h-4 w-4" /> },
       { text: 'Advanced ticket system', included: true, icon: <Shield className="h-4 w-4" /> },
-      { text: '10GB storage', included: true, icon: <HardDrive className="h-4 w-4" /> },
-      { text: 'Priority support', included: true, icon: <Headphones className="h-4 w-4" /> },
+      { text: 'Unlimited staff members', included: true, icon: <Users className="h-4 w-4" /> },
+      { text: '500k API requests per month', included: true, icon: <Zap className="h-4 w-4" /> },
+      { text: 'CDN storage', included: true, icon: <HardDrive className="h-4 w-4" /> },
       { text: 'AI moderation', included: true, icon: <Brain className="h-4 w-4" /> },
-      { text: 'Custom domain', included: true, icon: <Crown className="h-4 w-4" /> },
-      { text: 'Advanced analytics', included: true, icon: <Zap className="h-4 w-4" /> }
+      { text: 'Priority support', included: true, icon: <Crown className="h-4 w-4" /> }
     ],
     buttonText: 'Upgrade Now',
-    buttonVariant: 'default',
-    popular: true
+    buttonVariant: 'default'
   }
 ];
 
@@ -214,8 +212,8 @@ const BillingSettings = () => {
     return 'free';
   };
 
-  const isCurrentPlan = (planId: string) => {
-    return getCurrentPlan() === planId;
+  const isPremiumUser = () => {
+    return getCurrentPlan() === 'premium';
   };
 
   const getSubscriptionAlert = () => {
@@ -256,52 +254,32 @@ const BillingSettings = () => {
     return null;
   };
 
-  const getNextBillingInfo = () => {
-    if (isBillingLoading || !billingStatus) return null;
-
-    const { subscription_status, current_period_end } = billingStatus;
-
-    if (!['active', 'trialing'].includes(subscription_status) || !current_period_end) {
-      return null;
+  const getSubscriptionStatusBadge = () => {
+    if (!billingStatus) return null;
+    
+    const { subscription_status } = billingStatus;
+    
+    switch (subscription_status) {
+      case 'active':
+        return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+      case 'trialing':
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"><Clock className="h-3 w-3 mr-1" />Trial</Badge>;
+      case 'canceled':
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"><AlertTriangle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+      case 'past_due':
+        return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Past Due</Badge>;
+      default:
+        return <Badge variant="outline">{subscription_status}</Badge>;
     }
-
-    const renewalDate = new Date(current_period_end);
-    const isTrialing = subscription_status === 'trialing';
-
-    return (
-      <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              {isTrialing ? <Calendar className="h-5 w-5 text-blue-600" /> : <DollarSign className="h-5 w-5 text-blue-600" />}
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-900 dark:text-blue-100">
-                {isTrialing ? 'Trial Ends' : 'Next Billing'}
-              </h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {isTrialing ? 'Your trial ends on' : '$19.99 will be charged on'}{' '}
-                <strong>{renewalDate.toLocaleDateString()}</strong>
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
   };
 
   const PlanCard: React.FC<{ plan: Plan }> = ({ plan }) => {
-    const isCurrent = isCurrentPlan(plan.id);
+    const isCurrent = getCurrentPlan() === plan.id;
     const canUpgrade = plan.id === 'premium' && getCurrentPlan() === 'free';
     
     return (
-      <Card className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''} ${isCurrent ? 'ring-2 ring-primary' : ''}`}>
-        {plan.badge && (
-          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-            <Badge variant={plan.badgeVariant}>{plan.badge}</Badge>
-          </div>
-        )}
-        {isCurrent && (
+      <Card className={`relative ${isCurrent && plan.id === 'premium' ? 'ring-2 ring-primary' : ''}`}>
+        {isCurrent && plan.id === 'premium' && (
           <div className="absolute -top-3 right-4">
             <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
               <Check className="h-3 w-3 mr-1" />
@@ -342,13 +320,8 @@ const BillingSettings = () => {
           
           <div className="pt-4">
             {isCurrent ? (
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={handleCreatePortalSession}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Loading...' : 'Manage Billing'}
+              <Button variant="outline" className="w-full" disabled>
+                {plan.buttonText}
               </Button>
             ) : canUpgrade ? (
               <Button 
@@ -367,6 +340,133 @@ const BillingSettings = () => {
           </div>
         </CardContent>
       </Card>
+    );
+  };
+
+  const PremiumBillingView = () => {
+    const { subscription_status, current_period_end } = billingStatus || {};
+    
+    return (
+      <div className="space-y-6">
+        {/* Current Subscription Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-yellow-600" />
+                  Premium Subscription
+                </CardTitle>
+                <CardDescription>You're currently on the Premium plan</CardDescription>
+              </div>
+              {getSubscriptionStatusBadge()}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground mb-2">Plan Details</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Plan:</span>
+                      <span className="font-medium">Premium</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Price:</span>
+                      <span className="font-medium">$20/month</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Status:</span>
+                      <span className="font-medium capitalize">{subscription_status}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground mb-2">Billing Information</h4>
+                  <div className="space-y-2">
+                    {current_period_end && (
+                      <div className="flex justify-between">
+                        <span>{subscription_status === 'trialing' ? 'Trial ends:' : subscription_status === 'canceled' ? 'Access ends:' : 'Next billing:'}</span>
+                        <span className="font-medium">{new Date(current_period_end).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {subscription_status === 'active' && (
+                      <div className="flex justify-between">
+                        <span>Next charge:</span>
+                        <span className="font-medium">$20</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <Button 
+                onClick={handleCreatePortalSession}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <CreditCard className="h-4 w-4" />
+                {isLoading ? 'Loading...' : 'Manage Billing'}
+              </Button>
+              
+              {subscription_status === 'canceled' && (
+                <Button 
+                  variant="outline"
+                  onClick={handleCreateCheckoutSession}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Processing...' : 'Resubscribe'}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Features Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Premium Features</CardTitle>
+            <CardDescription>Everything included in your Premium subscription</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {plans.find(p => p.id === 'premium')?.features.map((feature, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  {feature.icon && (
+                    <div className="text-foreground">
+                      {feature.icon}
+                    </div>
+                  )}
+                  <span className="text-sm">{feature.text}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  const FreePlanView = () => {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="text-center mb-8">
+          <h3 className="text-2xl font-semibold mb-2">Choose Your Plan</h3>
+          <p className="text-muted-foreground">Select the plan that best fits your community's needs</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
+          {plans.map((plan) => (
+            <PlanCard key={plan.id} plan={plan} />
+          ))}
+        </div>
+      </div>
     );
   };
 
@@ -409,18 +509,8 @@ const BillingSettings = () => {
       {/* Subscription Alert */}
       {getSubscriptionAlert()}
 
-      {/* Next Billing Info */}
-      {getNextBillingInfo()}
-
-      {/* Plan Comparison */}
-      <div>
-        <h3 className="text-xl font-semibold mb-6">Choose Your Plan</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-          {plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} />
-          ))}
-        </div>
-      </div>
+      {/* Conditional rendering based on plan */}
+      {isPremiumUser() ? <PremiumBillingView /> : <FreePlanView />}
     </div>
   );
 };
