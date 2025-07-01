@@ -10,7 +10,7 @@ import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
 import { MoreHorizontal, Plus, PlusIcon, RefreshCw } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from 'modl-shared-web/components/ui/dropdown-menu';
 import InviteStaffModal from './InviteStaffModal';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from 'modl-shared-web/components/ui/alert-dialog';
 
 interface StaffMember {

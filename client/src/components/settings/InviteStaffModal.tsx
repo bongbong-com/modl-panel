@@ -22,7 +22,7 @@ import {
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
 const inviteSchema = z.object({
