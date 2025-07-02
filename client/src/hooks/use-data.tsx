@@ -321,7 +321,9 @@ export function useStats() {
         throw new Error('Failed to fetch stats');
       }
       return res.json();
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes - stats can be considered fresh for 5 minutes
+    refetchOnWindowFocus: true, // Refetch when user focuses window
   });
 }
 

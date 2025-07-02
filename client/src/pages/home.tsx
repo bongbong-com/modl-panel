@@ -58,24 +58,35 @@ const ActivityItem = ({ activity }: { activity: Activity }) => {
   );
 };
 
-const StatCard = ({ title, value, change, changeText, color }: { 
+const StatCard = ({ title, value, change, changeText, color, isLoading }: { 
   title: string, 
   value: number, 
   change: number,
   changeText: string,
-  color: "primary" | "warning" | "info"
+  color: "primary" | "warning" | "info",
+  isLoading?: boolean
 }) => (
   <Card>
     <CardContent className="p-5">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-medium">{title}</h3>
-        <span className={`text-${color} text-lg`}>{value}</span>
+        {isLoading ? (
+          <div className="h-6 w-12 bg-muted animate-pulse rounded"></div>
+        ) : (
+          <span className={`text-${color} text-lg font-bold`}>{value.toLocaleString()}</span>
+        )}
       </div>
       <div className="flex items-center text-sm text-muted-foreground">
-        <span className={`text-${change >= 0 ? 'success' : 'destructive'} mr-1 flex items-center`}>
-          {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />} {Math.abs(change)}%
-        </span>
-        <span>{changeText}</span>
+        {isLoading ? (
+          <div className="h-4 w-24 bg-muted animate-pulse rounded"></div>
+        ) : (
+          <>
+            <span className={`text-${change >= 0 ? 'success' : 'destructive'} mr-1 flex items-center font-medium`}>
+              {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />} {Math.abs(change)}%
+            </span>
+            <span>{changeText}</span>
+          </>
+        )}
       </div>
     </CardContent>
   </Card>
@@ -97,7 +108,7 @@ const Home = () => {
   } = useRecentActivity(20, 7);
   
   // Fetch stats data from the database
-  const { data: statsData, isLoading: isLoadingStats } = useStats();
+  const { data: statsData, isLoading: isLoadingStats, refetch: refetchStats, isRefetching: isRefetchingStats, error: statsError } = useStats();
   
   // Filter activities by type
   const filteredActivities = (recentActivityData || []).filter(activity => {
@@ -108,25 +119,26 @@ const Home = () => {
     return true;
   });
 
-  const handleRefreshActivity = async () => {
+  const handleRefreshData = async () => {
     setIsSpinning(true);
     
     try {
-      // Ensure minimum spin duration of 800ms
+      // Ensure minimum spin duration of 800ms and refresh both stats and activity
       await Promise.all([
         refetchActivity(),
+        refetchStats(),
         new Promise(resolve => setTimeout(resolve, 800))
       ]);
       
       toast({
-        title: "Activity Refreshed",
-        description: "Recent activity has been updated.",
+        title: "Dashboard Refreshed",
+        description: "Stats and recent activity have been updated.",
       });
     } catch (error) {
-      console.error('Error refreshing activity:', error);
+      console.error('Error refreshing dashboard:', error);
       toast({
         title: "Error",
-        description: "Failed to refresh activity. Please try again.",
+        description: "Failed to refresh dashboard. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -146,10 +158,10 @@ const Home = () => {
             variant="ghost" 
             size="icon" 
             className="text-muted-foreground"
-            onClick={handleRefreshActivity}
-            disabled={isSpinning}
+            onClick={handleRefreshData}
+            disabled={isSpinning || isRefetchingStats || isRefetchingActivity}
           >
-            <RefreshCw className={`h-5 w-5 ${isSpinning ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-5 w-5 ${(isSpinning || isRefetchingStats || isRefetchingActivity) ? 'animate-spin' : ''}`} />
           </Button>
           {/* Theme Toggle */}
           <Button 
@@ -165,24 +177,27 @@ const Home = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <StatCard 
           title="Online Players" 
-          value={isLoadingStats ? 0 : (statsData?.counts?.onlinePlayers || 153)} 
-          change={0} 
+          value={statsData?.counts?.onlinePlayers || 0} 
+          change={statsData?.changes?.onlinePlayers || 0} 
           changeText="from last hour" 
           color="primary" 
+          isLoading={isLoadingStats}
         />
         <StatCard 
           title="Unique Logins" 
-          value={isLoadingStats ? 0 : (statsData?.counts?.uniqueLogins || 89)} 
-          change={0} 
+          value={statsData?.counts?.uniqueLogins || 0} 
+          change={statsData?.changes?.uniqueLogins || 0} 
           changeText="from yesterday" 
           color="info" 
+          isLoading={isLoadingStats}
         />
         <StatCard 
           title="Open Tickets" 
-          value={isLoadingStats ? 0 : (statsData?.counts?.openTickets || 28)} 
-          change={0} 
+          value={statsData?.counts?.openTickets || 0} 
+          change={statsData?.changes?.openTickets || 0} 
           changeText="from yesterday" 
           color="warning" 
+          isLoading={isLoadingStats}
         />
       </div>
       
