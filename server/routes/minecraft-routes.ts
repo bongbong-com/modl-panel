@@ -256,30 +256,17 @@ export function setupMinecraftRoutes(app: Express): void {
         return endTime > Date.now(); // Active if not expired
       });
 
-      // Convert enum to string for JSON response and format punishment data like player-routes
+      // Convert to simplified active punishment format
       const formattedPunishments = activePunishments.map((p: IPunishment) => {
-        const punishmentObj = p.toObject ? (p as any).toObject() : p;
-        
-        // If data is a Map, convert it to a plain object
-        if (punishmentObj.data && punishmentObj.data instanceof Map) {
-          const dataObj: { [key: string]: any } = {};
-          for (const [key, value] of punishmentObj.data.entries()) {
-            dataObj[key] = value;
-          }
-          punishmentObj.data = dataObj;
-        }
-        
-        // Extract common fields that might be in the data Map
-        const expires = punishmentObj.data?.expires;
-        const duration = punishmentObj.data?.duration;
-        const active = punishmentObj.data?.active;
+        const effectiveState = getEffectivePunishmentState(p);
+        const reason = p.notes && p.notes.length > 0 ? p.notes[0].text : 'No reason provided';
         
         return {
-          ...punishmentObj,
-          type: PunishmentType[p.type],
-          expires: expires,
-          duration: duration,
-          active: active !== false, // Default to true if not explicitly false
+          type: PunishmentType[p.type], // "BAN" or "MUTE"
+          started: p.started ? true : false,
+          expiration: effectiveState.effectiveExpiry,
+          description: reason,
+          id: p.id
         };
       });
 
@@ -656,90 +643,91 @@ export function setupMinecraftRoutes(app: Express): void {
         }
       }
 
-      // 2. Find new punishments that need to be executed
-      const pendingPunishments = await Player.aggregate([
-        {
-          $match: {
-            'punishments.issued': { $gte: lastSync },
-            'punishments.started': { $exists: false }
-          }
-        },
-        {
-          $unwind: '$punishments'
-        },
-        {
-          $match: {
-            'punishments.issued': { $gte: lastSync },
-            'punishments.started': { $exists: false }
-          }
-        },
-        {
-          $lookup: {
-            from: 'players',
-            localField: 'minecraftUuid',
-            foreignField: 'minecraftUuid',
-            as: 'playerData'
-          }
-        },
-        {
-          $project: {
-            minecraftUuid: 1,
-            username: { $arrayElemAt: ['$usernames.username', -1] },
+      // 2. Find new punishments that need to be executed (implement punishment stacking)
+      const allPlayersWithUnstartedPunishments = await Player.find({
+        'punishments.started': { $exists: false }
+      }).lean();
+
+      const pendingPunishments: any[] = [];
+
+      for (const player of allPlayersWithUnstartedPunishments) {
+        // Get all valid unstarted punishments for this player
+        const validUnstartedPunishments = player.punishments
+          .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
+          .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
+
+        // Implement stacking: only send oldest unstarted ban and oldest unstarted mute
+        const oldestUnstartedBan = validUnstartedPunishments.find((p: IPunishment) => p.type === PunishmentType.Ban);
+        const oldestUnstartedMute = validUnstartedPunishments.find((p: IPunishment) => p.type === PunishmentType.Mute);
+
+        // Add the oldest unstarted ban if exists
+        if (oldestUnstartedBan) {
+          const effectiveState = getEffectivePunishmentState(oldestUnstartedBan);
+          const reason = oldestUnstartedBan.notes && oldestUnstartedBan.notes.length > 0 ? 
+            oldestUnstartedBan.notes[0].text : 'No reason provided';
+
+          pendingPunishments.push({
+            minecraftUuid: player.minecraftUuid,
+            username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              id: '$punishments.id',
-              type: '$punishments.type_ordinal',
-              issuerName: '$punishments.issuerName',
-              issued: '$punishments.issued',
-              reason: '$punishments.notes.0.text',
-              duration: '$punishments.data.duration',
-              expires: '$punishments.data.expires',
-              severity: '$punishments.data.severity',
-              status: '$punishments.data.status',
-              silent: '$punishments.data.silent',
-              altBlocking: '$punishments.data.altBlocking',
-              linkedBanId: '$punishments.data.linkedBanId'
+              type: PunishmentType[oldestUnstartedBan.type], // "BAN" or "MUTE"
+              started: false,
+              expiration: effectiveState.effectiveExpiry,
+              description: reason,
+              id: oldestUnstartedBan.id
             }
-          }
+          });
         }
-      ]);
+
+        // Add the oldest unstarted mute if exists
+        if (oldestUnstartedMute) {
+          const effectiveState = getEffectivePunishmentState(oldestUnstartedMute);
+          const reason = oldestUnstartedMute.notes && oldestUnstartedMute.notes.length > 0 ? 
+            oldestUnstartedMute.notes[0].text : 'No reason provided';
+
+          pendingPunishments.push({
+            minecraftUuid: player.minecraftUuid,
+            username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
+            punishment: {
+              type: PunishmentType[oldestUnstartedMute.type], // "BAN" or "MUTE"
+              started: false,
+              expiration: effectiveState.effectiveExpiry,
+              description: reason,
+              id: oldestUnstartedMute.id
+            }
+          });
+        }
+      }
 
       // 3. Find recently started punishments that need to be applied
-      const recentlyStartedPunishments = await Player.aggregate([
-        {
-          $match: {
-            'punishments.started': { $gte: lastSync }
-          }
-        },
-        {
-          $unwind: '$punishments'
-        },
-        {
-          $match: {
-            'punishments.started': { $gte: lastSync }
-          }
-        },
-        {
-          $project: {
-            minecraftUuid: 1,
-            username: { $arrayElemAt: ['$usernames.username', -1] },
+      const recentlyStartedPlayers = await Player.find({
+        'punishments.started': { $gte: lastSync }
+      }).lean();
+
+      const recentlyStartedPunishments: any[] = [];
+
+      for (const player of recentlyStartedPlayers) {
+        const recentlyStarted = player.punishments
+          .filter((p: IPunishment) => p.started && new Date(p.started) >= lastSync);
+
+        for (const punishment of recentlyStarted) {
+          const effectiveState = getEffectivePunishmentState(punishment);
+          const reason = punishment.notes && punishment.notes.length > 0 ? 
+            punishment.notes[0].text : 'No reason provided';
+
+          recentlyStartedPunishments.push({
+            minecraftUuid: player.minecraftUuid,
+            username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              id: '$punishments.id',
-              type: '$punishments.type_ordinal',
-              issuerName: '$punishments.issuerName',
-              issued: '$punishments.issued',
-              started: '$punishments.started',
-              reason: '$punishments.notes.0.text',
-              duration: '$punishments.data.duration',
-              expires: '$punishments.data.expires',
-              severity: '$punishments.data.severity',
-              status: '$punishments.data.status',
-              silent: '$punishments.data.silent',
-              altBlocking: '$punishments.data.altBlocking',
-              linkedBanId: '$punishments.data.linkedBanId'
+              type: PunishmentType[punishment.type], // "BAN" or "MUTE"
+              started: true,
+              expiration: effectiveState.effectiveExpiry,
+              description: reason,
+              id: punishment.id
             }
-          }
+          });
         }
-      ]);
+      }
 
       // 4. Find recently modified punishments (pardons, duration changes, etc.)
       const recentlyModifiedPunishments = await Player.aggregate([
