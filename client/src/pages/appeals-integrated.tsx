@@ -203,10 +203,22 @@ const AppealsPage = () => {
     setIsLoadingPunishment(true);
 
     try {
-      // Fetch punishment information from API
-      const response = await fetch(`/api/panel/players/punishment/${normalizedBanId}`);
+      // Fetch punishment information from public API (changed from panel API to public API for unauth access)
+      const response = await fetch(`/api/public/punishment/${normalizedBanId}/appeal-info`);
       
       if (!response.ok) {
+        if (response.status === 400) {
+          // Check if it's an unstarted punishment error
+          const errorData = await response.json();
+          if (errorData.error?.includes('not been started yet')) {
+            toast({
+              title: "Cannot Appeal Unstarted Punishment",
+              description: "This punishment has not been started yet and cannot be appealed at this time.",
+              variant: "destructive"
+            });
+            return;
+          }
+        }
         throw new Error('Punishment not found');
       }
 
@@ -214,14 +226,14 @@ const AppealsPage = () => {
         // Transform punishment data to BanInfo format
       const banInfo: BanInfo = {
         id: punishment.id,
-        reason: punishment.reason,
+        reason: 'Punishment details are not available publicly', // Reason is no longer provided by public API
         date: formatDate(punishment.issued),
-        staffMember: punishment.issuerName,
+        staffMember: 'Staff', // Public API doesn't expose staff member names
         status: punishment.active ? 'Active' : 'Expired',
-        expiresIn: punishment.expires ? formatDate(punishment.expires) : undefined,
+        expiresIn: punishment.expires ? formatDate(punishment.expires) : 'Permanent', // Use the expires field from API
         type: punishment.type,
-        playerUuid: punishment.playerUuid,
-        isAppealable: punishment.isAppealable !== false, // Default to true if not specified
+        playerUuid: punishment.playerUsername, // Use username instead of UUID for public API
+        isAppealable: punishment.appealable, // Use the appealable field from public API
       };
 
       setBanInfo(banInfo);

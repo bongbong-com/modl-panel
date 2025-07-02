@@ -1,15 +1,101 @@
 import express, { Request, Response } from 'express';
-import { IPlayer } from 'modl-shared-web';
 
 const router = express.Router();
 
+// Local type definitions (matching other route files)
+interface IPunishment {
+  id: string;
+  issuerName: string;
+  issued: Date;
+  started?: Date;
+  type_ordinal: number;
+  modifications: IModification[];
+  notes: string[];
+  evidence: string[];
+  attachedTicketIds: string[];
+  data: Map<string, any>;
+}
+
+interface IModification {
+  type: string;
+  issued?: Date;
+  data?: Map<string, any>;
+}
+
+interface IPlayer {
+  minecraftUuid: string;
+  usernames: Array<{ username: string }>;
+  punishments: IPunishment[];
+}
+
+/**
+ * Utility function to safely get data from punishment.data (handles both Map and plain object)
+ */
+function getPunishmentData(punishment: IPunishment, key: string): any {
+  if (!punishment.data) return undefined;
+  
+  // Handle Map objects
+  if (typeof punishment.data.get === 'function') {
+    return punishment.data.get(key);
+  }
+  
+  // Handle plain objects
+  if (typeof punishment.data === 'object') {
+    return (punishment.data as any)[key];
+  }
+  
+  return undefined;
+}
+
+/**
+ * Utility function to get the effective punishment state considering modifications
+ */
+function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive: boolean; effectiveExpiry: Date | null; hasModifications: boolean } {
+  const modifications = punishment.modifications || [];
+  const expiresData = getPunishmentData(punishment, 'expires');
+  const originalExpiry = expiresData ? new Date(expiresData) : null;
+  const activeData = getPunishmentData(punishment, 'active');
+  const originalActive = activeData !== undefined ? activeData !== false : true;
+  
+  let effectiveActive = originalActive;
+  let effectiveExpiry = originalExpiry;
+  
+  // Apply modifications in chronological order
+  const sortedModifications = modifications.sort((a: IModification, b: IModification) => {
+    const dateA = a.issued ? new Date(a.issued) : new Date(0);
+    const dateB = b.issued ? new Date(b.issued) : new Date(0);
+    return dateA.getTime() - dateB.getTime();
+  });
+  
+  for (const mod of sortedModifications) {
+    const modDate = mod.issued ? new Date(mod.issued) : new Date();
+    
+    if (mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT') {
+      effectiveActive = false;
+    } else if (mod.type === 'MANUAL_DURATION_CHANGE') {
+      // Recalculate expiry based on modification  
+      const effectiveDuration = mod.data ? getPunishmentData({ data: mod.data } as IPunishment, 'effectiveDuration') : undefined;
+      if (effectiveDuration === 0 || effectiveDuration === -1) {
+        effectiveExpiry = null; // Permanent
+        effectiveActive = true;
+      } else if (effectiveDuration && effectiveDuration > 0) {
+        effectiveExpiry = new Date(modDate.getTime() + effectiveDuration);
+        effectiveActive = effectiveExpiry.getTime() > new Date().getTime();
+      }
+    }
+  }
+  
+  return { effectiveActive, effectiveExpiry, hasModifications: modifications.length > 0 };
+}
+
 // Get public punishment information for appeals (excludes staff-only data)
-router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punishmentId: string }>, res: Response): Promise<void> => {
+router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punishmentId: string }>, res: Response) => {
   try {
     const punishmentId = req.params.punishmentId;
     
     if (!req.serverDbConnection) {
-      return res.status(500).json({ error: 'Database connection not available' });
+      res.status(500).json({ error: 'Database connection not available' });
+      return;
     }
     
     const Player = req.serverDbConnection.model<IPlayer>('Player');
@@ -18,14 +104,22 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
     const player = await Player.findOne({ 'punishments.id': punishmentId });
     
     if (!player) {
-      return res.status(404).json({ error: 'Punishment not found' });
+      res.status(404).json({ error: 'Punishment not found' });
+      return;
     }
     
     // Find the specific punishment within the player's punishments
     const punishment = player.punishments.find((p: any) => p.id === punishmentId);
     
     if (!punishment) {
-      return res.status(404).json({ error: 'Punishment not found' });
+      res.status(404).json({ error: 'Punishment not found' });
+      return;
+    }
+
+    // Check if punishment has been started - error if not started
+    if (!punishment.started) {
+      res.status(400).json({ error: 'Punishment has not been started yet and cannot be appealed' });
+      return;
     }
     
     // Get the punishment type name and appealability from settings
@@ -50,22 +144,10 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
       console.warn('Could not fetch punishment type settings:', settingsError);
     }
     
-    // Check if punishment is currently active
-    let isActive = true;
-    
-    // Check if punishment has been pardoned
-    if (punishment.data && punishment.data.get('active') === false) {
-      isActive = false;
-    }
-    
-    // Check if punishment has expired
-    const duration = punishment.data?.get('duration');
-    if (duration && duration > 0 && punishment.started) {
-      const expiryDate = new Date(punishment.started.getTime() + duration);
-      if (expiryDate < new Date()) {
-        isActive = false;
-      }
-    }
+    // Use the same comprehensive logic as minecraft-routes to determine active status and expiry
+    const effectiveState = getEffectivePunishmentState(punishment);
+    const isActive = effectiveState.effectiveActive;
+    const expiresDate = effectiveState.effectiveExpiry;
     
     // Check if there's already an existing appeal for this punishment
     let existingAppeal = null;
@@ -92,9 +174,10 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
     const publicPunishmentData = {
       id: punishment.id,
       type: punishmentTypeName,
-      reason: punishment.data?.get('reason') || 'No reason provided',
+      // DO NOT INCLUDE REASON - this is sensitive staff data
       issued: punishment.issued,
       started: punishment.started,
+      expires: expiresDate, // Include expiration date
       active: isActive,
       appealable: punishmentTypeIsAppealable,
       existingAppeal: existingAppeal,
