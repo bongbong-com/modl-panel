@@ -134,11 +134,19 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
           ? JSON.parse(settings.settings.punishmentTypes) 
           : settings.settings.punishmentTypes;
         
+        console.log(`[Public Punishment API] Looking for punishment type with ordinal ${punishment.type_ordinal}`);
+        console.log(`[Public Punishment API] Available punishment types:`, punishmentTypes.map((pt: any) => ({ ordinal: pt.ordinal, name: pt.name })));
+        
         const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
         if (punishmentType) {
           punishmentTypeName = punishmentType.name;
           punishmentTypeIsAppealable = punishmentType.isAppealable !== false;
+          console.log(`[Public Punishment API] Found punishment type: ${punishmentTypeName} (ordinal: ${punishment.type_ordinal})`);
+        } else {
+          console.warn(`[Public Punishment API] No punishment type found for ordinal ${punishment.type_ordinal}`);
         }
+      } else {
+        console.warn('[Public Punishment API] No punishment types found in settings');
       }
     } catch (settingsError) {
       console.warn('Could not fetch punishment type settings:', settingsError);

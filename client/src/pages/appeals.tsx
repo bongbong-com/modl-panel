@@ -484,10 +484,6 @@ const AppealsPage = () => {
                     <Badge variant="outline">{banInfo.type}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Reason:</span>
-                    <span className="text-sm text-right max-w-[200px] break-words">{banInfo.reason}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Date:</span>
                     <span className="text-sm">{banInfo.date}</span>
                   </div>
