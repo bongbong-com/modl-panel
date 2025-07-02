@@ -232,6 +232,8 @@ router.get('/usage', isAuthenticated, async (req, res) => {
       return res.status(404).send('Server not found in database.');
     }
 
+    console.log(`[USAGE] Fetching usage data for ${freshServer.customDomain}, usage_billing_enabled: ${freshServer.usage_billing_enabled}`);
+
     // Get current billing period start and end dates
     const currentPeriodStart = freshServer.current_period_start || new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Default to 30 days ago
     const currentPeriodEnd = freshServer.current_period_end || new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)); // Default to 30 days from now
@@ -299,6 +301,8 @@ router.post('/usage-billing-settings', isAuthenticated, async (req, res) => {
     return res.status(400).send('Server context not found in request.');
   }
 
+  console.log(`[USAGE BILLING] Updating usage billing for ${server.customDomain}: enabled=${enabled}`);
+
   try {
     const globalDb = await connectToGlobalModlDb();
     const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
@@ -308,13 +312,24 @@ router.post('/usage-billing-settings', isAuthenticated, async (req, res) => {
     }
 
     // Update the server's usage billing setting
-    await Server.findOneAndUpdate(
+    const updateResult = await Server.findOneAndUpdate(
       { _id: server._id },
       { 
-        usage_billing_enabled: enabled,
-        usage_billing_updated_at: new Date()
+        $set: {
+          usage_billing_enabled: enabled,
+          usage_billing_updated_at: new Date()
+        }
+      },
+      { 
+        new: true, // Return the updated document
+        upsert: false // Don't create if not found
       }
     );
+
+    console.log(`[USAGE BILLING] Database update result for ${server.customDomain}:`, {
+      updated: !!updateResult,
+      usage_billing_enabled: updateResult?.usage_billing_enabled
+    });
 
     // If enabling usage billing, we could set up Stripe metering here
     // For now, we'll just track the setting in our database
@@ -419,6 +434,130 @@ router.post('/debug-sync/:customDomain', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Endpoint to check for and update expired cancelled subscriptions
+router.post('/debug-check-expired', async (req, res) => {
+  try {
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    // Find all servers with cancelled subscriptions that have a period end date
+    const cancelledServers = await Server.find({
+      subscription_status: 'canceled',
+      current_period_end: { $exists: true, $ne: null }
+    });
+
+    const now = new Date();
+    const expiredServers: any[] = [];
+    
+    for (const server of cancelledServers) {
+      const endDate = new Date(server.current_period_end);
+      if (endDate <= now) {
+        // This subscription has expired, update it to free
+        await Server.findOneAndUpdate(
+          { _id: server._id },
+          { 
+            subscription_status: 'inactive',
+            plan: 'free',
+            current_period_end: null
+          }
+        );
+        
+        expiredServers.push({
+          customDomain: server.customDomain,
+          endDate: endDate.toISOString()
+        });
+        
+        console.log(`[EXPIRED CHECK] Updated ${server.customDomain} - expired on ${endDate.toISOString()}`);
+      }
+    }
+
+    res.json({
+      message: 'Expired subscription check completed',
+      total_cancelled: cancelledServers.length,
+      expired_count: expiredServers.length,
+      expired_servers: expiredServers
+    });
+  } catch (error) {
+    console.error('Error checking for expired subscriptions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Debug endpoint for usage billing settings
+router.get('/debug-usage/:customDomain', async (req, res) => {
+  try {
+    const { customDomain } = req.params;
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    const server = await Server.findOne({ customDomain });
+    if (!server) {
+      return res.status(404).json({ error: 'Server not found' });
+    }
+
+    res.json({
+      customDomain: server.customDomain,
+      usage_billing_enabled: server.usage_billing_enabled,
+      usage_billing_updated_at: server.usage_billing_updated_at,
+      cdn_usage_current_period: server.cdn_usage_current_period,
+      ai_requests_current_period: server.ai_requests_current_period,
+      subscription_status: server.subscription_status,
+      plan: server.plan,
+      raw_usage_billing_field: server.get('usage_billing_enabled') // Direct field access
+    });
+  } catch (error) {
+    console.error('Error fetching usage debug info:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Function to check for and update expired cancelled subscriptions
+async function checkExpiredSubscriptions() {
+  try {
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    // Find all servers with cancelled subscriptions that have a period end date
+    const cancelledServers = await Server.find({
+      subscription_status: 'canceled',
+      current_period_end: { $exists: true, $ne: null }
+    });
+
+    const now = new Date();
+    let expiredCount = 0;
+    
+    for (const server of cancelledServers) {
+      const endDate = new Date(server.current_period_end);
+      if (endDate <= now) {
+        // This subscription has expired, update it to free
+        await Server.findOneAndUpdate(
+          { _id: server._id },
+          { 
+            subscription_status: 'inactive',
+            plan: 'free',
+            current_period_end: null
+          }
+        );
+        
+        expiredCount++;
+        console.log(`[AUTO EXPIRED CHECK] Updated ${server.customDomain} - expired on ${endDate.toISOString()}`);
+      }
+    }
+
+    if (expiredCount > 0) {
+      console.log(`[AUTO EXPIRED CHECK] Processed ${expiredCount} expired subscriptions out of ${cancelledServers.length} cancelled subscriptions`);
+    }
+  } catch (error) {
+    console.error('[AUTO EXPIRED CHECK] Error checking for expired subscriptions:', error);
+  }
+}
+
+// Start periodic check for expired subscriptions (every hour)
+const expiredCheckInterval = setInterval(checkExpiredSubscriptions, 60 * 60 * 1000); // 1 hour
+
+// Run initial check after 30 seconds to allow server to fully start
+setTimeout(checkExpiredSubscriptions, 30 * 1000);
 
 export default router;
 
@@ -628,6 +767,13 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             console.log(`[WEBHOOK] Updated server ${server.customDomain} - payment failed`);
           }
         }
+        break;
+      }
+
+      case 'customer.subscription.trial_will_end': {
+        const subscription = event.data.object as any;
+        console.log(`[WEBHOOK] Processing trial_will_end for subscription: ${subscription.id}`);
+        // Could send notification email here
         break;
       }
 
