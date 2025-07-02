@@ -77,17 +77,13 @@ function isMutePunishment(punishment: IPunishment): boolean {
 
 /**
  * Calculate the actual expiration timestamp for a punishment
+ * For unstarted punishments, calculates what expiration would be if started now
  */
 function calculateExpiration(punishment: IPunishment): number | null {
   // First check if effective state has an expiry (from modifications)
   const effectiveState = getEffectivePunishmentState(punishment);
   if (effectiveState.effectiveExpiry) {
     return effectiveState.effectiveExpiry.getTime();
-  }
-  
-  // If no effective expiry, calculate from duration and start time
-  if (!punishment.started) {
-    return null; // Can't calculate expiry for unstarted punishment
   }
   
   const duration = getPunishmentData(punishment, 'duration');
@@ -99,9 +95,15 @@ function calculateExpiration(punishment: IPunishment): number | null {
     return null; // Permanent punishment
   }
   
-  // Calculate expiry as start time + duration
-  const startTime = new Date(punishment.started).getTime();
-  return startTime + Number(duration);
+  // For started punishments, use actual start time
+  if (punishment.started && punishment.started !== null && punishment.started !== undefined) {
+    const startTime = new Date(punishment.started).getTime();
+    return startTime + Number(duration);
+  }
+  
+  // For unstarted punishments, calculate as if starting now (for display purposes)
+  const nowTime = new Date().getTime();
+  return nowTime + Number(duration);
 }
 
 /**
