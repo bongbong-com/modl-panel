@@ -733,56 +733,64 @@ export function setupMinecraftRoutes(app: Express): void {
       }
 
       // 2. Find new punishments that need to be executed (implement punishment stacking)
+      // Include both unstarted punishments AND recently issued punishments since last sync
       const allPlayersWithUnstartedPunishments = await Player.find({
-        'punishments.started': { $exists: false }
+        $or: [
+          { 'punishments.started': { $exists: false } }, // Unstarted punishments
+          { 'punishments.issued': { $gte: lastSync } }    // Recently issued punishments
+        ]
       }).lean();
 
       const pendingPunishments: any[] = [];
 
       for (const player of allPlayersWithUnstartedPunishments) {
-        // Get all valid unstarted punishments for this player
+        // Get all valid unstarted punishments for this player, prioritizing recently issued ones
         const validUnstartedPunishments = player.punishments
           .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
           .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
-        // Implement stacking: only send oldest unstarted ban and oldest unstarted mute
-        const oldestUnstartedBan = validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p));
-        const oldestUnstartedMute = validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p));
+        // Also get recently issued punishments that might need immediate execution
+        const recentlyIssuedUnstarted = validUnstartedPunishments
+          .filter((p: IPunishment) => new Date(p.issued) >= lastSync);
 
-        // Add the oldest unstarted ban if exists
-        if (oldestUnstartedBan) {
-          const effectiveState = getEffectivePunishmentState(oldestUnstartedBan);
-          const reason = oldestUnstartedBan.notes && oldestUnstartedBan.notes.length > 0 ? 
-            oldestUnstartedBan.notes[0].text : 'No reason provided';
+        // Prioritize recently issued punishments, then fall back to oldest unstarted
+        const priorityBan = recentlyIssuedUnstarted.find((p: IPunishment) => isBanPunishment(p)) || 
+                           validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p));
+        const priorityMute = recentlyIssuedUnstarted.find((p: IPunishment) => isMutePunishment(p)) || 
+                            validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p));
+
+        // Add the priority ban if exists
+        if (priorityBan) {
+          const effectiveState = getEffectivePunishmentState(priorityBan);
+          const description = await getPunishmentDescription(priorityBan, serverDbConnection);
 
           pendingPunishments.push({
             minecraftUuid: player.minecraftUuid,
             username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              type: getPunishmentType(oldestUnstartedBan),
+              type: getPunishmentType(priorityBan),
               started: false,
               expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
-              description: reason,
-              id: oldestUnstartedBan.id
+              description: description,
+              id: priorityBan.id
             }
           });
         }
 
-        // Add the oldest unstarted mute if exists
-        if (oldestUnstartedMute) {
-          const effectiveState = getEffectivePunishmentState(oldestUnstartedMute);
-          const reason = oldestUnstartedMute.notes && oldestUnstartedMute.notes.length > 0 ? 
-            oldestUnstartedMute.notes[0].text : 'No reason provided';
+        // Add the priority mute if exists
+        if (priorityMute) {
+          const effectiveState = getEffectivePunishmentState(priorityMute);
+          const description = await getPunishmentDescription(priorityMute, serverDbConnection);
 
           pendingPunishments.push({
             minecraftUuid: player.minecraftUuid,
             username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              type: getPunishmentType(oldestUnstartedMute),
+              type: getPunishmentType(priorityMute),
               started: false,
               expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
-              description: reason,
-              id: oldestUnstartedMute.id
+              description: description,
+              id: priorityMute.id
             }
           });
         }
