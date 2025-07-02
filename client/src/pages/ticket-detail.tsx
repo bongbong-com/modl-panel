@@ -40,6 +40,8 @@ import PlayerWindow from '@/components/windows/PlayerWindow';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from 'modl-shared-web/components/ui/card';
 import { apiRequest } from '@/lib/queryClient';
 import { useAddTicketReply } from '@/hooks/use-add-ticket-reply';
+import MarkdownRenderer from '@/components/ui/markdown-renderer';
+import MarkdownHelp from '@/components/ui/markdown-help';
 
 export interface TicketMessage {
   id: string;
@@ -1105,14 +1107,20 @@ const TicketDetail = () => {
                                 <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
                                 
                               </div>
-                              <p className="text-sm mt-1 whitespace-pre-wrap">
-                                {message.content}
-                              </p>
+                              <div className="mt-1">
+                                <MarkdownRenderer 
+                                  content={message.content} 
+                                  className="text-sm"
+                                />
+                              </div>
                             </>
                           ) : (
-                            <p className="text-sm mt-1 whitespace-pre-wrap">
-                              {message.content}
-                            </p>
+                            <div className="mt-1">
+                              <MarkdownRenderer 
+                                content={message.content} 
+                                className="text-sm"
+                              />
+                            </div>
                           )}
 
                           {/* Show attachments if any */}
@@ -1311,6 +1319,10 @@ const TicketDetail = () => {
                         </div>
                       )}
                       
+                      <div className="mb-2">
+                        <MarkdownHelp />
+                      </div>
+                      
                       <div className="relative">
                         <textarea
                           className="min-h-[120px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -1435,7 +1447,12 @@ const TicketDetail = () => {
                           <span className="font-medium text-sm">{note.author}</span>
                           <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
                         </div>
-                        <p className="text-sm mt-1.5">{note.content}</p>
+                        <div className="mt-1.5">
+                          <MarkdownRenderer 
+                            content={note.content} 
+                            className="text-sm"
+                          />
+                        </div>
                       </div>
                     ))}
 
@@ -1449,6 +1466,9 @@ const TicketDetail = () => {
                   
                   {ticketDetails.isAddingNote ? (
                     <div className="border rounded-md p-3">
+                      <div className="mb-2">
+                        <MarkdownHelp />
+                      </div>
                       <textarea
                         className="min-h-[120px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-3"
                         placeholder="Add a private staff note here..."

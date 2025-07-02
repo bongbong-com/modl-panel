@@ -26,6 +26,8 @@ import { useTicket, useAddTicketReply, useSubmitTicketForm, useSettings } from '
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
+import MarkdownRenderer from '@/components/ui/markdown-renderer';
+import MarkdownHelp from '@/components/ui/markdown-help';
 
 export interface TicketMessage {
   id: string;
@@ -715,8 +717,11 @@ const PlayerTicket = () => {
                               {formatDate(message.timestamp)}
                             </div>
                           </div>
-                          <div className="text-sm whitespace-pre-wrap">
-                            {message.content}
+                          <div className="text-sm">
+                            <MarkdownRenderer 
+                              content={message.content} 
+                              className="text-sm"
+                            />
                           </div>
                         </div>
                       </div>
@@ -734,6 +739,9 @@ const PlayerTicket = () => {
             {ticketDetails.status !== 'Closed' && !ticketDetails.locked ? (
               <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
                 <div className="p-4">
+                  <div className="mb-2">
+                    <MarkdownHelp />
+                  </div>
                   <div className="mb-4">
                     <Textarea
                       placeholder="Type your reply here..."
