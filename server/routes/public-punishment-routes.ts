@@ -129,24 +129,47 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
     try {
       const Settings = req.serverDbConnection.model('Settings');
       const settings = await Settings.findOne({});
-      if (settings?.settings?.punishmentTypes) {
-        const punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
-          ? JSON.parse(settings.settings.punishmentTypes) 
-          : settings.settings.punishmentTypes;
+      console.log(`[Public Punishment API] Settings document found:`, !!settings);
+      console.log(`[Public Punishment API] Settings.settings found:`, !!settings?.settings);
+      
+      if (settings?.settings) {
+        const punishmentTypesRaw = settings.settings.get ? settings.settings.get('punishmentTypes') : settings.settings.punishmentTypes;
+        console.log(`[Public Punishment API] Raw punishment types:`, typeof punishmentTypesRaw, Array.isArray(punishmentTypesRaw));
         
-        console.log(`[Public Punishment API] Looking for punishment type with ordinal ${punishment.type_ordinal}`);
-        console.log(`[Public Punishment API] Available punishment types:`, punishmentTypes.map((pt: any) => ({ ordinal: pt.ordinal, name: pt.name })));
-        
-        const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
-        if (punishmentType) {
-          punishmentTypeName = punishmentType.name;
-          punishmentTypeIsAppealable = punishmentType.isAppealable !== false;
-          console.log(`[Public Punishment API] Found punishment type: ${punishmentTypeName} (ordinal: ${punishment.type_ordinal})`);
+        if (punishmentTypesRaw) {
+          const punishmentTypes = typeof punishmentTypesRaw === 'string' 
+            ? JSON.parse(punishmentTypesRaw) 
+            : punishmentTypesRaw;
+          
+          console.log(`[Public Punishment API] Looking for punishment type with ordinal ${punishment.type_ordinal}`);
+          console.log(`[Public Punishment API] Available punishment types:`, punishmentTypes.map((pt: any) => ({ ordinal: pt.ordinal, name: pt.name })));
+          
+          const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
+          if (punishmentType) {
+            punishmentTypeName = punishmentType.name;
+            punishmentTypeIsAppealable = punishmentType.isAppealable !== false;
+            console.log(`[Public Punishment API] Found punishment type: ${punishmentTypeName} (ordinal: ${punishment.type_ordinal})`);
+          } else {
+            console.warn(`[Public Punishment API] No punishment type found for ordinal ${punishment.type_ordinal}`);
+            // Fallback to hardcoded names for core administrative types
+            const coreTypes: { [key: number]: string } = {
+              0: 'Kick',
+              1: 'Manual Mute', 
+              2: 'Manual Ban',
+              3: 'Security Ban',
+              4: 'Linked Ban',
+              5: 'Blacklist'
+            };
+            if (coreTypes[punishment.type_ordinal]) {
+              punishmentTypeName = coreTypes[punishment.type_ordinal];
+              console.log(`[Public Punishment API] Using fallback core type: ${punishmentTypeName}`);
+            }
+          }
         } else {
-          console.warn(`[Public Punishment API] No punishment type found for ordinal ${punishment.type_ordinal}`);
+          console.warn('[Public Punishment API] No punishment types data found in settings');
         }
       } else {
-        console.warn('[Public Punishment API] No punishment types found in settings');
+        console.warn('[Public Punishment API] No settings found in document');
       }
     } catch (settingsError) {
       console.warn('Could not fetch punishment type settings:', settingsError);
@@ -157,21 +180,23 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
     const isActive = effectiveState.effectiveActive;
     const expiresDate = effectiveState.effectiveExpiry;
     
-    // Check if there's already an existing appeal for this punishment
+    // Check if there's already an existing appeal for this punishment (appeals are stored as tickets with type 'appeal')
     let existingAppeal = null;
     try {
-      const Appeal = req.serverDbConnection.model('Appeal');
-      const appeal = await Appeal.findOne({ 
-        punishmentId: punishmentId,
-        playerUuid: player.minecraftUuid 
-      }).sort({ submittedDate: -1 });
+      const Ticket = req.serverDbConnection.model('Ticket');
+      const appealTickets = await Ticket.find({ 
+        type: 'appeal',
+        'data.punishmentId': punishmentId,
+        'data.playerUuid': player.minecraftUuid 
+      }).sort({ created: -1 }).limit(1);
       
-      if (appeal) {
+      if (appealTickets.length > 0) {
+        const appeal = appealTickets[0];
         existingAppeal = {
-          id: appeal.id,
+          id: appeal._id,
           status: appeal.status,
-          submittedDate: appeal.submittedDate,
-          resolved: appeal.resolved || false
+          submittedDate: appeal.created,
+          resolved: appeal.status !== 'Open' && appeal.status !== 'Pending'
         };
       }
     } catch (appealError) {
