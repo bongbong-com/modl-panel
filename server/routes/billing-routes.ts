@@ -148,11 +148,18 @@ router.get('/status', isAuthenticated, async (req, res) => {
       } else {
         try {
           const subscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id) as any;
-          console.log(`[BILLING STATUS] Stripe subscription status: ${subscription.status}, DB status: ${server.subscription_status}`);
+          console.log(`[BILLING STATUS] Stripe subscription status: ${subscription.status}, cancel_at_period_end: ${subscription.cancel_at_period_end}, DB status: ${server.subscription_status}`);
+
+          // Determine effective status - if cancel_at_period_end is true, treat as canceled
+          let effectiveStatus = subscription.status;
+          if (subscription.cancel_at_period_end === true && subscription.status === 'active') {
+            effectiveStatus = 'canceled';
+            console.log(`[BILLING STATUS] Subscription marked for cancellation at period end, treating as canceled`);
+          }
 
           // If there's a discrepancy, update our database
-          if (subscription.status !== server.subscription_status) {
-            console.log(`[BILLING STATUS] Status mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${subscription.status}`);
+          if (effectiveStatus !== server.subscription_status) {
+            console.log(`[BILLING STATUS] Status mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${effectiveStatus}`);
 
             const globalDb = await connectToGlobalModlDb();
             const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
@@ -168,7 +175,7 @@ router.get('/status', isAuthenticated, async (req, res) => {
               }
             }
             const updateData: any = {
-              subscription_status: subscription.status,
+              subscription_status: effectiveStatus,
             };
 
             if (periodEndDate) {
@@ -179,13 +186,13 @@ router.get('/status', isAuthenticated, async (req, res) => {
               { _id: server._id },
               updateData
             );
-            currentStatus = subscription.status;
+            currentStatus = effectiveStatus;
             if (periodEndDate) {
               currentPeriodEnd = periodEndDate;
             }
             
             // Special logging for cancelled subscriptions
-            if (subscription.status === 'canceled') {
+            if (effectiveStatus === 'canceled') {
               console.log(`[BILLING STATUS] CANCELLATION DETECTED: Server ${server.customDomain} has cancelled subscription. Access ends: ${periodEndDate ? periodEndDate.toISOString() : 'No end date'}`);
             }
           }
@@ -260,8 +267,14 @@ router.post('/debug-sync/:customDomain', async (req, res) => {
       periodEndDate = new Date(subscription.current_period_end * 1000);
     }
 
+    // Determine effective status - if cancel_at_period_end is true, treat as canceled
+    let effectiveStatus = subscription.status;
+    if (subscription.cancel_at_period_end === true && subscription.status === 'active') {
+      effectiveStatus = 'canceled';
+    }
+
     const updateData: any = {
-      subscription_status: subscription.status,
+      subscription_status: effectiveStatus,
     };
 
     if (periodEndDate) {
@@ -273,11 +286,13 @@ router.post('/debug-sync/:customDomain', async (req, res) => {
       updateData
     );
 
-    console.log(`[DEBUG SYNC] Updated ${customDomain}: status=${subscription.status}, period_end=${periodEndDate}`);
+    console.log(`[DEBUG SYNC] Updated ${customDomain}: status=${effectiveStatus}, period_end=${periodEndDate}, cancel_at_period_end=${subscription.cancel_at_period_end}`);
 
     res.json({
       message: 'Sync completed',
       stripe_status: subscription.status,
+      stripe_cancel_at_period_end: subscription.cancel_at_period_end,
+      effective_status: effectiveStatus,
       stripe_period_end: periodEndDate,
       updated: updateData
     });
@@ -382,7 +397,7 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
       
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any; // Stripe.Subscription
-        console.log(`[WEBHOOK] Processing subscription.updated: ${subscription.id}, status: ${subscription.status}`);
+        console.log(`[WEBHOOK] Processing subscription.updated: ${subscription.id}, status: ${subscription.status}, cancel_at_period_end: ${subscription.cancel_at_period_end}`);
 
         const server = await Server.findOne({ stripe_subscription_id: subscription.id });
         if (server) {
@@ -397,8 +412,15 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             }
           }
 
+          // Determine effective status - if cancel_at_period_end is true, treat as canceled
+          let effectiveStatus = subscription.status;
+          if (subscription.cancel_at_period_end === true && subscription.status === 'active') {
+            effectiveStatus = 'canceled';
+            console.log(`[WEBHOOK] Subscription marked for cancellation at period end, treating as canceled`);
+          }
+
           const updateData: any = {
-            subscription_status: subscription.status,
+            subscription_status: effectiveStatus,
           };
 
           // Always update current_period_end if we have a valid date, even for canceled subscriptions
@@ -412,10 +434,10 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             updateData
           );
 
-          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription status: ${subscription.status}, period_end: ${periodEndDate}`);
+          console.log(`[WEBHOOK] Updated server ${server.customDomain} - subscription status: ${effectiveStatus}, period_end: ${periodEndDate}`);
           
           // Special logging for cancelled subscriptions
-          if (subscription.status === 'canceled') {
+          if (effectiveStatus === 'canceled') {
             console.log(`[WEBHOOK] CANCELLATION DETECTED: Server ${server.customDomain} subscription cancelled. Access ends: ${periodEndDate ? periodEndDate.toISOString() : 'No end date'}`);
           }
         } else {
