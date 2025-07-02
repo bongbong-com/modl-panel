@@ -6,6 +6,53 @@ import { verifyMinecraftApiKey } from '../middleware/api-auth';
 import { IIPAddress, IModification, INote, IPunishment, IPlayer, ITicket, IUsername } from 'modl-shared-web/types';
 
 /**
+ * Utility function to safely get data from punishment.data (handles both Map and plain object)
+ */
+function getPunishmentData(punishment: IPunishment, key: string): any {
+  if (!punishment.data) return undefined;
+  
+  // Handle Map objects
+  if (typeof punishment.data.get === 'function') {
+    return punishment.data.get(key);
+  }
+  
+  // Handle plain objects
+  if (typeof punishment.data === 'object') {
+    return (punishment.data as any)[key];
+  }
+  
+  return undefined;
+}
+
+/**
+ * Utility function to safely set data in punishment.data (handles both Map and plain object)
+ */
+function setPunishmentData(punishment: IPunishment, key: string, value: any): void {
+  // Initialize data if it doesn't exist
+  if (!punishment.data) {
+    punishment.data = new Map();
+  }
+  
+  // Handle Map objects
+  if (typeof punishment.data.set === 'function') {
+    punishment.data.set(key, value);
+    return;
+  }
+  
+  // Handle plain objects - convert to Map
+  if (typeof punishment.data === 'object') {
+    const newMap = new Map();
+    // Copy existing data
+    for (const [k, v] of Object.entries(punishment.data)) {
+      newMap.set(k, v);
+    }
+    // Set new value
+    newMap.set(key, value);
+    punishment.data = newMap;
+  }
+}
+
+/**
  * Utility function to determine punishment type based on type_ordinal
  */
 function getPunishmentType(punishment: IPunishment): "BAN" | "MUTE" {
@@ -43,7 +90,7 @@ function calculateExpiration(punishment: IPunishment): number | null {
     return null; // Can't calculate expiry for unstarted punishment
   }
   
-  const duration = punishment.data?.get('duration');
+  const duration = getPunishmentData(punishment, 'duration');
   if (duration === undefined || duration === null) {
     return null; // No duration specified
   }
@@ -100,8 +147,10 @@ async function getPunishmentDescription(
  */
 function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive: boolean; effectiveExpiry: Date | null; hasModifications: boolean } {
   const modifications = punishment.modifications || [];
-  const originalExpiry = punishment.data?.get('expires') ? new Date(punishment.data.get('expires')) : null;
-  const originalActive = punishment.data?.has('active') ? punishment.data.get('active') !== false : true;
+  const expiresData = getPunishmentData(punishment, 'expires');
+  const originalExpiry = expiresData ? new Date(expiresData) : null;
+  const activeData = getPunishmentData(punishment, 'active');
+  const originalActive = activeData !== undefined ? activeData !== false : true;
   
   let effectiveActive = originalActive;
   let effectiveExpiry = originalExpiry;
@@ -119,8 +168,8 @@ function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive
     if (mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT') {
       effectiveActive = false;
     } else if (mod.type === 'MANUAL_DURATION_CHANGE') {
-      // Recalculate expiry based on modification
-      const effectiveDuration = mod.data?.get('effectiveDuration');
+      // Recalculate expiry based on modification  
+      const effectiveDuration = mod.data ? getPunishmentData({ data: mod.data } as IPunishment, 'effectiveDuration') : undefined;
       if (effectiveDuration === 0 || effectiveDuration === -1) {
         effectiveExpiry = null; // Permanent
         effectiveActive = true;
@@ -330,7 +379,7 @@ export function setupMinecraftRoutes(app: Express): void {
         }
         
         // Fallback to original duration logic for punishments without modifications
-        const duration = punishment.data ? punishment.data.get('duration') : undefined;
+        const duration = getPunishmentData(punishment, 'duration');
         if (duration === -1 || duration === undefined) return true; // Permanent punishment
         
         const startTime = new Date(punishment.started).getTime();
@@ -963,25 +1012,19 @@ export function setupMinecraftRoutes(app: Express): void {
         punishment.started = startTime;
         
         // Set expiry time based on when punishment actually started
-        const duration = punishment.data?.get('duration');
+        const duration = getPunishmentData(punishment, 'duration');
         if (duration && duration > 0) {
-          punishment.data.set('expires', new Date(startTime.getTime() + duration));
+          setPunishmentData(punishment, 'expires', new Date(startTime.getTime() + duration));
         }
         
         // Add execution confirmation to punishment data
-        if (!punishment.data) {
-          punishment.data = new Map();
-        }
-        punishment.data.set('executedOnServer', true);
-        punishment.data.set('executedAt', startTime);
+        setPunishmentData(punishment, 'executedOnServer', true);
+        setPunishmentData(punishment, 'executedAt', startTime);
       } else {
         // Log execution failure
-        if (!punishment.data) {
-          punishment.data = new Map();
-        }
-        punishment.data.set('executionFailed', true);
-        punishment.data.set('executionError', errorMessage || 'Unknown error');
-        punishment.data.set('executionAttemptedAt', new Date(executedAt || Date.now()));
+        setPunishmentData(punishment, 'executionFailed', true);
+        setPunishmentData(punishment, 'executionError', errorMessage || 'Unknown error');
+        setPunishmentData(punishment, 'executionAttemptedAt', new Date(executedAt || Date.now()));
       }
 
       await player.save();
