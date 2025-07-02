@@ -262,9 +262,9 @@ export function setupMinecraftRoutes(app: Express): void {
         const reason = p.notes && p.notes.length > 0 ? p.notes[0].text : 'No reason provided';
         
         return {
-          type: PunishmentType[p.type], // "BAN" or "MUTE"
+          type: p.type === PunishmentType.Ban ? "BAN" : "MUTE",
           started: p.started ? true : false,
-          expiration: effectiveState.effectiveExpiry,
+          expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
           description: reason,
           id: p.id
         };
@@ -670,9 +670,9 @@ export function setupMinecraftRoutes(app: Express): void {
             minecraftUuid: player.minecraftUuid,
             username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              type: PunishmentType[oldestUnstartedBan.type], // "BAN" or "MUTE"
+              type: oldestUnstartedBan.type === PunishmentType.Ban ? "BAN" : "MUTE",
               started: false,
-              expiration: effectiveState.effectiveExpiry,
+              expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
               description: reason,
               id: oldestUnstartedBan.id
             }
@@ -689,9 +689,9 @@ export function setupMinecraftRoutes(app: Express): void {
             minecraftUuid: player.minecraftUuid,
             username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              type: PunishmentType[oldestUnstartedMute.type], // "BAN" or "MUTE"
+              type: oldestUnstartedMute.type === PunishmentType.Mute ? "MUTE" : "BAN",
               started: false,
-              expiration: effectiveState.effectiveExpiry,
+              expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
               description: reason,
               id: oldestUnstartedMute.id
             }
@@ -719,9 +719,9 @@ export function setupMinecraftRoutes(app: Express): void {
             minecraftUuid: player.minecraftUuid,
             username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              type: PunishmentType[punishment.type], // "BAN" or "MUTE"
+              type: punishment.type === PunishmentType.Ban ? "BAN" : "MUTE",
               started: true,
-              expiration: effectiveState.effectiveExpiry,
+              expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
               description: reason,
               id: punishment.id
             }
