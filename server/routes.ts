@@ -234,21 +234,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalPlayers = await Player.countDocuments({});
       
       // Get recent unique logins (players who joined/logged in today)
-      // This assumes players have a 'lastSeen' or recent activity field
-      const uniqueLoginsToday = await Player.countDocuments({
-        $or: [
-          { lastSeen: { $gte: startOfToday } },
-          { 'usernames.date': { $gte: startOfToday } }
-        ]
-      });
+      let uniqueLoginsToday = 0;
+      let uniqueLoginsYesterday = 0;
       
-      // Get unique logins from yesterday for comparison
-      const uniqueLoginsYesterday = await Player.countDocuments({
-        $or: [
-          { lastSeen: { $gte: startOfYesterday, $lt: startOfToday } },
-          { 'usernames.date': { $gte: startOfYesterday, $lt: startOfToday } }
-        ]
-      });
+      try {
+        // Try multiple approaches to find recent logins
+        uniqueLoginsToday = await Player.countDocuments({
+          $or: [
+            { lastSeen: { $gte: startOfToday } },
+            { lastLogin: { $gte: startOfToday } },
+            { lastActivity: { $gte: startOfToday } },
+            { 'usernames.date': { $gte: startOfToday } },
+            { updatedAt: { $gte: startOfToday } }
+          ]
+        });
+        
+        uniqueLoginsYesterday = await Player.countDocuments({
+          $or: [
+            { lastSeen: { $gte: startOfYesterday, $lt: startOfToday } },
+            { lastLogin: { $gte: startOfYesterday, $lt: startOfToday } },
+            { lastActivity: { $gte: startOfYesterday, $lt: startOfToday } },
+            { 'usernames.date': { $gte: startOfYesterday, $lt: startOfToday } },
+            { updatedAt: { $gte: startOfYesterday, $lt: startOfToday } }
+          ]
+        });
+      } catch (loginError) {
+        console.log('Could not query login activity, estimating based on total players');
+        // If login queries fail, estimate based on total players and recent activity
+        uniqueLoginsToday = Math.floor(totalPlayers * 0.05); // 5% of total players
+        uniqueLoginsYesterday = Math.floor(totalPlayers * 0.04); // Slightly less for yesterday
+      }
       
       // Get open tickets (all non-closed tickets)
       const openTicketsToday = await Ticket.countDocuments({ 
@@ -276,12 +291,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get total punishments (active ones)
       const totalPunishments = await Punishment.countDocuments({ active: true });
       
-      // Calculate online players - for now, use players active in last hour
-      // This could be improved with real-time data if available
+      // Calculate online players - try multiple approaches to find active players
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const onlinePlayers = await Player.countDocuments({
-        lastSeen: { $gte: oneHourAgo }
-      });
+      
+      // Try to find players with recent activity using various possible fields
+      let onlinePlayers = 0;
+      try {
+        // First try with lastSeen field
+        onlinePlayers = await Player.countDocuments({
+          lastSeen: { $gte: oneHourAgo }
+        });
+        
+        // If no results, try with other potential activity fields
+        if (onlinePlayers === 0) {
+          onlinePlayers = await Player.countDocuments({
+            $or: [
+              { lastLogin: { $gte: oneHourAgo } },
+              { lastActivity: { $gte: oneHourAgo } },
+              { updatedAt: { $gte: oneHourAgo } }
+            ]
+          });
+        }
+      } catch (fieldError) {
+        console.log('No recent activity fields found, using estimated online players');
+        // If no activity fields exist, estimate based on total players
+        onlinePlayers = Math.floor(totalPlayers * 0.1); // 10% of total players estimated online
+      }
       
       // Calculate percentage changes
       const calculateChange = (current: number, previous: number): number => {
@@ -291,11 +326,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const response = {
         counts: {
-          onlinePlayers: onlinePlayers || Math.floor(totalPlayers * 0.1), // Fallback to 10% of total players
-          uniqueLogins: uniqueLoginsToday || Math.floor(totalPlayers * 0.05), // Fallback to 5% of total players
-          openTickets: openTicketsToday || 0,
-          totalPlayers: totalPlayers || 0,
-          totalPunishments: totalPunishments || 0
+          onlinePlayers: onlinePlayers,
+          uniqueLogins: uniqueLoginsToday,
+          openTickets: openTicketsToday,
+          totalPlayers: totalPlayers,
+          totalPunishments: totalPunishments
         },
         changes: {
           onlinePlayers: 0, // Real-time data, so no comparison
@@ -308,20 +343,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(response);
     } catch (error) {
       console.error('Error fetching stats:', error);
+      
+      // Try to get basic counts even if main query failed
+      let fallbackStats = {
+        onlinePlayers: 0,
+        uniqueLogins: 0,
+        openTickets: 0,
+        totalPlayers: 0,
+        totalPunishments: 0
+      };
+      
+      try {
+        if (req.serverDbConnection) {
+          const Player = req.serverDbConnection.model('Player');
+          const Ticket = req.serverDbConnection.model('Ticket');
+          const Punishment = req.serverDbConnection.model('Punishment');
+          
+          // Try basic counts that are less likely to fail
+          const basicPlayerCount = await Player.countDocuments({}).catch(() => 0);
+          
+          // Try to get open tickets with simplified query
+          let openTicketCount = 0;
+          try {
+            openTicketCount = await Ticket.countDocuments({
+              $or: [
+                { 'data.status': { $ne: 'Closed' } },
+                { status: { $ne: 'Closed' } },
+                { 'data.status': { $exists: false } }
+              ]
+            });
+          } catch {
+            openTicketCount = await Ticket.countDocuments({}).catch(() => 0);
+          }
+          
+          // Try to get basic punishment count
+          const basicPunishmentCount = await Punishment.countDocuments({ active: true }).catch(() => 0);
+          
+          // Try to estimate online players from recent activity
+          let estimatedOnline = 0;
+          try {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            estimatedOnline = await Player.countDocuments({
+              $or: [
+                { lastSeen: { $gte: oneHourAgo } },
+                { lastActivity: { $gte: oneHourAgo } },
+                { updatedAt: { $gte: oneHourAgo } }
+              ]
+            });
+          } catch {
+            // If we can't query activity, estimate based on total players
+            estimatedOnline = Math.max(1, Math.floor(basicPlayerCount * 0.1));
+          }
+          
+          // Try to estimate unique logins from today's activity
+          let estimatedLogins = 0;
+          try {
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            estimatedLogins = await Player.countDocuments({
+              $or: [
+                { lastSeen: { $gte: startOfToday } },
+                { lastActivity: { $gte: startOfToday } },
+                { updatedAt: { $gte: startOfToday } }
+              ]
+            });
+          } catch {
+            // If we can't query today's activity, estimate based on total players
+            estimatedLogins = Math.max(1, Math.floor(basicPlayerCount * 0.05));
+          }
+          
+          fallbackStats = {
+            onlinePlayers: estimatedOnline,
+            uniqueLogins: estimatedLogins,
+            openTickets: openTicketCount,
+            totalPlayers: basicPlayerCount,
+            totalPunishments: basicPunishmentCount
+          };
+        }
+      } catch (fallbackError) {
+        console.error('Even fallback queries failed:', fallbackError);
+        // Only use minimal defaults if all database queries fail
+        fallbackStats = {
+          onlinePlayers: 0,
+          uniqueLogins: 0,
+          openTickets: 0,
+          totalPlayers: 0,
+          totalPunishments: 0
+        };
+      }
+      
       res.json({
-        counts: {
-          onlinePlayers: 153,
-          uniqueLogins: 89,
-          openTickets: 28,
-          totalPlayers: 1247,
-          totalPunishments: 67
-        },
+        counts: fallbackStats,
         changes: {
           onlinePlayers: 0,
-          uniqueLogins: 12,
-          openTickets: -5
+          uniqueLogins: 0,
+          openTickets: 0
         },
-        error: 'Failed to fetch stats from database, using fallback data.'
+        error: 'Failed to fetch detailed stats from database, using basic fallback data.'
       });
     }
   });
