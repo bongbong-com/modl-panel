@@ -38,6 +38,11 @@ async function generateTicketId(serverDbConnection: any, type: string): Promise<
 
 // Create a new ticket via API (with API key authentication)
 router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) => {
+  console.log('[TICKET AUTH] Request received to /tickets (authenticated)');
+  console.log('[TICKET AUTH] Request method:', req.method);
+  console.log('[TICKET AUTH] Request headers:', req.headers);
+  console.log('[TICKET AUTH] Request body type:', req.body?.type);
+  
   if (!req.serverDbConnection || !req.serverName) {
     return res.status(503).json({ 
       error: 'Service unavailable',
@@ -189,6 +194,11 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
 
 // Create a new ticket without API key authentication (initially Unfinished)
 router.post('/tickets/unfinished', async (req: Request, res: Response) => {
+  console.log('[TICKET UNFINISHED] Request received to /tickets/unfinished');
+  console.log('[TICKET UNFINISHED] Request method:', req.method);
+  console.log('[TICKET UNFINISHED] Request headers:', req.headers);
+  console.log('[TICKET UNFINISHED] Request body type:', req.body?.type);
+  
   if (!req.serverDbConnection || !req.serverName) {
     return res.status(503).json({ 
       error: 'Service unavailable',

@@ -53,26 +53,94 @@ function setPunishmentData(punishment: IPunishment, key: string, value: any): vo
 }
 
 /**
- * Utility function to determine punishment type based on type_ordinal
+ * Load punishment type configuration from database
  */
-function getPunishmentType(punishment: IPunishment): "BAN" | "MUTE" {
-  // type_ordinal 1 = Manual Mute
-  // type_ordinal >= 2 = Various ban types (Manual Ban, Security Ban, Linked Ban, Blacklist, etc.)
-  return punishment.type_ordinal === 1 ? "MUTE" : "BAN";
+async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<number, "BAN" | "MUTE">> {
+  const typeMap = new Map<number, "BAN" | "MUTE">();
+  
+  // Set hardcoded administrative and system types
+  typeMap.set(1, "MUTE"); // Manual Mute
+  typeMap.set(2, "BAN");  // Manual Ban
+  typeMap.set(3, "BAN");  // Security Ban
+  typeMap.set(4, "BAN");  // Linked Ban
+  typeMap.set(5, "BAN");  // Blacklist
+  
+  try {
+    const Settings = dbConnection.model('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (settingsDoc?.settings) {
+      const punishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+      
+      for (const punishmentType of punishmentTypes) {
+        // Only process custom punishment types (ordinal 6+)
+        if (punishmentType.ordinal && punishmentType.ordinal >= 6) {
+          let type: "BAN" | "MUTE" = "BAN"; // Default to ban
+          
+          // Check duration configuration
+          if (punishmentType.durations) {
+            // Check regular/first offense as the default type
+            const firstDuration = punishmentType.durations.regular?.first || punishmentType.durations.low?.first;
+            if (firstDuration?.type) {
+              type = firstDuration.type.toUpperCase().includes('BAN') ? "BAN" : "MUTE";
+            }
+          } else if (punishmentType.singleSeverityDurations) {
+            // Check single severity duration
+            const firstDuration = punishmentType.singleSeverityDurations.first;
+            if (firstDuration?.type) {
+              type = firstDuration.type.toUpperCase().includes('BAN') ? "BAN" : "MUTE";
+            }
+          } else if (punishmentType.name) {
+            // Fallback to name-based detection
+            if (punishmentType.name.toLowerCase().includes('mute')) {
+              type = "MUTE";
+            } else if (punishmentType.name.toLowerCase().includes('ban')) {
+              type = "BAN";
+            }
+          }
+          
+          typeMap.set(punishmentType.ordinal, type);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading punishment type configuration:', error);
+  }
+  
+  return typeMap;
+}
+
+/**
+ * Utility function to determine punishment type based on type_ordinal and preloaded config
+ */
+function getPunishmentType(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): "BAN" | "MUTE" {
+  // Check preloaded config first
+  const configuredType = typeConfig.get(punishment.type_ordinal);
+  if (configuredType) {
+    return configuredType;
+  }
+  
+  // Fallback logic for unknown ordinals
+  if (punishment.type_ordinal === 1) {
+    return "MUTE"; // Manual Mute
+  }
+  
+  // All other ordinals (2, 3, 4, 5 and unknown) default to BAN
+  return "BAN";
 }
 
 /**
  * Utility function to check if punishment is a ban
  */
-function isBanPunishment(punishment: IPunishment): boolean {
-  return punishment.type_ordinal >= 2;
+function isBanPunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): boolean {
+  return getPunishmentType(punishment, typeConfig) === "BAN";
 }
 
 /**
  * Utility function to check if punishment is a mute
  */
-function isMutePunishment(punishment: IPunishment): boolean {
-  return punishment.type_ordinal === 1;
+function isMutePunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): boolean {
+  return getPunishmentType(punishment, typeConfig) === "MUTE";
 }
 
 /**
@@ -210,13 +278,13 @@ function isPunishmentValid(punishment: IPunishment): boolean {
 /**
  * Utility function to check if a punishment is currently active (started and valid)
  */
-function isPunishmentActive(punishment: IPunishment): boolean {
+function isPunishmentActive(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): boolean {
   if (!isPunishmentValid(punishment)) {
     return false;
   }
   
   // For punishments that need to be started (bans/mutes), check if they've been started
-  if ((isBanPunishment(punishment) || isMutePunishment(punishment)) && (!punishment.started || punishment.started === null || punishment.started === undefined)) {
+  if ((isBanPunishment(punishment, typeConfig) || isMutePunishment(punishment, typeConfig)) && (!punishment.started || punishment.started === null || punishment.started === undefined)) {
     return false;
   }
   
@@ -259,6 +327,9 @@ export function setupMinecraftRoutes(app: Express): void {
     const Player = serverDbConnection.model<IPlayer>('Player');
 
     try {
+      // Load punishment type configuration
+      const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
+      
       let player = await Player.findOne({ minecraftUuid });
 
       if (player) {
@@ -332,7 +403,7 @@ export function setupMinecraftRoutes(app: Express): void {
 
             // Similar to handleNewIP in Java, check for alt blocking on new accounts
             for (const linkedAccount of linkedPlayers) {
-              const activeBans = linkedAccount.punishments.filter((p: IPunishment) => isBanPunishment(p) && isPunishmentActive(p));
+              const activeBans = linkedAccount.punishments.filter((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig));
               if (activeBans.length > 0) {
                 // Create a new ban for the new player (ban evasion)
                 const newBanId = uuidv4().substring(0, 8);
@@ -396,8 +467,8 @@ export function setupMinecraftRoutes(app: Express): void {
         .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
       // Implement stacking: only include oldest unstarted ban + oldest unstarted mute
-      const oldestUnstartedBan = unstartedValidPunishments.find((p: IPunishment) => isBanPunishment(p));
-      const oldestUnstartedMute = unstartedValidPunishments.find((p: IPunishment) => isMutePunishment(p));
+      const oldestUnstartedBan = unstartedValidPunishments.find((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig));
+      const oldestUnstartedMute = unstartedValidPunishments.find((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig));
 
       // Combine started active punishments with priority unstarted ones
       const activePunishments = [
@@ -409,9 +480,10 @@ export function setupMinecraftRoutes(app: Express): void {
       // Convert to simplified active punishment format with proper descriptions
       const formattedPunishments = await Promise.all(activePunishments.map(async (p: IPunishment) => {
         const description = await getPunishmentDescription(p, serverDbConnection);
+        const punishmentType = getPunishmentType(p, punishmentTypeConfig);
         
         return {
-          type: getPunishmentType(p),
+          type: punishmentType,
           started: p.started ? true : false,
           expiration: calculateExpiration(p),
           description: description,
@@ -643,6 +715,9 @@ export function setupMinecraftRoutes(app: Express): void {
     }
 
     try {
+      // Load punishment type configuration
+      const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
+      
       const player = await Player.findOne({ minecraftUuid }).lean<IPlayer>();
       if (!player) {
         return res.status(404).json({ status: 404, message: 'Player not found' });
@@ -651,7 +726,7 @@ export function setupMinecraftRoutes(app: Express): void {
         ...player,
         punishments: player.punishments ? player.punishments.map((p: IPunishment) => ({
           ...p,
-          type: getPunishmentType(p),
+          type: getPunishmentType(p, punishmentTypeConfig),
         })) : [],
       };
       return res.status(200).json({ status: 200, player: responsePlayer });
@@ -678,6 +753,9 @@ export function setupMinecraftRoutes(app: Express): void {
     }
 
     try {
+      // Load punishment type configuration
+      const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
+      
       const player = await Player.findOne({ minecraftUuid }).select('ipList.ipAddress usernames punishments').lean<IPlayer>(); // Added usernames and punishments for full data
       if (!player || !player.ipList || player.ipList.length === 0) {
         return res.status(200).json({ status: 200, linkedAccounts: [] });
@@ -691,8 +769,8 @@ export function setupMinecraftRoutes(app: Express): void {
       const formattedLinkedAccounts = linkedPlayers.map((acc: IPlayer) => ({
         minecraftUuid: acc.minecraftUuid,
         username: acc.usernames && acc.usernames.length > 0 ? acc.usernames[0].username : 'N/A',
-        activeBans: acc.punishments ? acc.punishments.filter((p: IPunishment) => isBanPunishment(p) && isPunishmentActive(p)).length : 0,
-        activeMutes: acc.punishments ? acc.punishments.filter((p: IPunishment) => isMutePunishment(p) && isPunishmentActive(p)).length : 0,
+        activeBans: acc.punishments ? acc.punishments.filter((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig)).length : 0,
+        activeMutes: acc.punishments ? acc.punishments.filter((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig)).length : 0,
       }));
       return res.status(200).json({ status: 200, linkedAccounts: formattedLinkedAccounts });
     } catch (error: any) {
@@ -718,6 +796,8 @@ export function setupMinecraftRoutes(app: Express): void {
     }
 
     try {
+      // Load punishment type configuration
+      const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
       // Find all players who have used this username (case-insensitive)
       const playersWithUsername = await Player.find({
         'usernames.username': { $regex: new RegExp(`^${username}$`, 'i') }
@@ -744,11 +824,13 @@ export function setupMinecraftRoutes(app: Express): void {
 
       if (!mostRecentPlayer) {
         return res.status(404).json({ status: 404, message: 'Player not found' });
-      }      const responsePlayer = {
+      }      
+      
+      const responsePlayer = {
         ...mostRecentPlayer,
         punishments: mostRecentPlayer.punishments ? mostRecentPlayer.punishments.map((p: IPunishment) => ({
           ...p,
-          type: getPunishmentType(p),
+          type: getPunishmentType(p, punishmentTypeConfig),
         })) : [],
       };
 
@@ -776,6 +858,9 @@ export function setupMinecraftRoutes(app: Express): void {
     const Player = serverDbConnection.model<IPlayer>('Player');
 
     try {
+      // Load punishment type configuration
+      const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
+      
       const now = new Date();
       const lastSync = lastSyncTimestamp ? new Date(lastSyncTimestamp) : new Date(now.getTime() - 24 * 60 * 60 * 1000); // Default to 24 hours ago if no timestamp
 
@@ -823,21 +908,22 @@ export function setupMinecraftRoutes(app: Express): void {
             .filter((p: IPunishment) => new Date(p.issued) >= lastSync);
 
           // Prioritize recently issued punishments, then fall back to oldest unstarted
-          const priorityBan = recentlyIssuedUnstarted.find((p: IPunishment) => isBanPunishment(p)) || 
-                             validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p));
-          const priorityMute = recentlyIssuedUnstarted.find((p: IPunishment) => isMutePunishment(p)) || 
-                              validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p));
+          const priorityBan = recentlyIssuedUnstarted.find((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig)) || 
+                             validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig));
+          const priorityMute = recentlyIssuedUnstarted.find((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig)) || 
+                              validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig));
 
           // Add the priority ban if exists
           if (priorityBan) {
             const effectiveState = getEffectivePunishmentState(priorityBan);
             const description = await getPunishmentDescription(priorityBan, serverDbConnection);
+            const banType = getPunishmentType(priorityBan, punishmentTypeConfig);
 
             pendingPunishments.push({
               minecraftUuid: player.minecraftUuid,
               username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
               punishment: {
-                type: getPunishmentType(priorityBan),
+                type: banType,
                 started: false,
                 expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
                 description: description,
@@ -850,12 +936,13 @@ export function setupMinecraftRoutes(app: Express): void {
           if (priorityMute) {
             const effectiveState = getEffectivePunishmentState(priorityMute);
             const description = await getPunishmentDescription(priorityMute, serverDbConnection);
+            const muteType = getPunishmentType(priorityMute, punishmentTypeConfig);
 
             pendingPunishments.push({
               minecraftUuid: player.minecraftUuid,
               username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
               punishment: {
-                type: getPunishmentType(priorityMute),
+                type: muteType,
                 started: false,
                 expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
                 description: description,
@@ -881,12 +968,13 @@ export function setupMinecraftRoutes(app: Express): void {
           const effectiveState = getEffectivePunishmentState(punishment);
           const reason = punishment.notes && punishment.notes.length > 0 ? 
             punishment.notes[0].text : 'No reason provided';
+          const punishmentType = getPunishmentType(punishment, punishmentTypeConfig);
 
           recentlyStartedPunishments.push({
             minecraftUuid: player.minecraftUuid,
             username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
             punishment: {
-              type: getPunishmentType(punishment),
+              type: punishmentType,
               started: true,
               expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
               description: reason,
