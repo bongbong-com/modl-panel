@@ -1286,46 +1286,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
-                            {warning.type}
-                          </Badge>
-                          {/* Show only Active or Inactive badge based on actual punishment expiry status */}
-                          {isPunishmentCurrentlyActive(warning, effectiveState) ? (
-                            <Badge className="text-xs bg-red-500 text-white border-red-600">
-                              Active
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
-                              Inactive
-                            </Badge>
-                          )}
-                          {warning.altBlocking && (
-                            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
-                              Alt-blocking
-                            </Badge>
-                          )}
-                          {warning.severity && (
-                            <Badge variant="outline" className={`text-xs ${
-                              warning.severity.toLowerCase() === 'low' || warning.severity.toLowerCase() === 'lenient' ? 
-                                'bg-green-100 text-green-800 border-green-300' :
-                              warning.severity.toLowerCase() === 'regular' || warning.severity.toLowerCase() === 'medium' ?
-                                'bg-orange-100 text-orange-800 border-orange-300' :
-                                'bg-red-100 text-red-800 border-red-300'
-                            }`}>
-                              {warning.severity}
-                            </Badge>
-                          )}
-                          {warning.status && (
-                            <Badge variant="outline" className={`text-xs ${
-                              warning.status.toLowerCase() === 'low' || warning.status.toLowerCase() === 'first' ? 
-                                'bg-green-100 text-green-800 border-green-300' :
-                              warning.status.toLowerCase() === 'medium' ?
-                                'bg-orange-100 text-orange-800 border-orange-300' :
-                                'bg-red-100 text-red-800 border-red-300'
-                            }`}>
-                              {warning.status}
-                            </Badge>
-                          )}
                           {/* Show punishment status: Active, Inactive, or Unstarted */}
                           {isPunishment && (() => {
                             // Check if punishment is unstarted (started field is null/undefined)
@@ -1356,6 +1316,36 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               </Badge>
                             );
                           })()}
+                          <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
+                            {warning.type}
+                          </Badge>
+                          {warning.altBlocking && (
+                            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                              Alt-blocking
+                            </Badge>
+                          )}
+                          {warning.severity && (
+                            <Badge variant="outline" className={`text-xs ${
+                              warning.severity.toLowerCase() === 'low' || warning.severity.toLowerCase() === 'lenient' ? 
+                                'bg-green-100 text-green-800 border-green-300' :
+                              warning.severity.toLowerCase() === 'regular' || warning.severity.toLowerCase() === 'medium' ?
+                                'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                            }`}>
+                              {warning.severity}
+                            </Badge>
+                          )}
+                          {warning.status && (
+                            <Badge variant="outline" className={`text-xs ${
+                              warning.status.toLowerCase() === 'low' || warning.status.toLowerCase() === 'first' ? 
+                                'bg-green-100 text-green-800 border-green-300' :
+                              warning.status.toLowerCase() === 'medium' ?
+                                'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                            }`}>
+                              {warning.status}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sm mt-1 space-y-1">
                           <p>{warning.reason}</p>

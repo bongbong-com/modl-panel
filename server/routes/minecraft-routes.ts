@@ -1011,12 +1011,16 @@ export function setupMinecraftRoutes(app: Express): void {
       // Mark punishment as started if successful and set expiry from start time
       if (success) {
         const startTime = new Date(executedAt || Date.now());
-        punishment.started = startTime;
         
-        // Set expiry time based on when punishment actually started
-        const duration = getPunishmentData(punishment, 'duration');
-        if (duration && duration > 0) {
-          setPunishmentData(punishment, 'expires', new Date(startTime.getTime() + duration));
+        // Only set start date if punishment hasn't been started yet
+        if (!punishment.started) {
+          punishment.started = startTime;
+          
+          // Set expiry time based on when punishment actually started
+          const duration = getPunishmentData(punishment, 'duration');
+          if (duration && duration > 0) {
+            setPunishmentData(punishment, 'expires', new Date(startTime.getTime() + duration));
+          }
         }
         
         // Add execution confirmation to punishment data
