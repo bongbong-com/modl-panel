@@ -4,7 +4,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
-import { useBillingStatus } from '@/hooks/use-data';
+import { useBillingStatus, useCancelSubscription } from '@/hooks/use-data';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
 import { 
@@ -26,6 +26,7 @@ import {
   Clock
 } from 'lucide-react';
 import { Alert, AlertDescription } from 'modl-shared-web/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from 'modl-shared-web/components/ui/alert-dialog';
 
 // Initialize Stripe with the publishable key
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -88,6 +89,7 @@ const plans: Plan[] = [
 
 const BillingSettings = () => {
   const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
+  const cancelSubscriptionMutation = useCancelSubscription();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -202,6 +204,25 @@ const BillingSettings = () => {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    try {
+      const response = await cancelSubscriptionMutation.mutateAsync();
+      
+      toast({
+        title: 'Subscription Cancelled',
+        description: response.message || 'Your subscription has been cancelled successfully.',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      console.error('Error cancelling subscription:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to cancel subscription. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getCurrentPlan = () => {
     if (!billingStatus) return 'free';
     const { subscription_status } = billingStatus;
@@ -213,7 +234,7 @@ const BillingSettings = () => {
   };
 
   const isPremiumUser = () => {
-    return getCurrentPlan() === 'premium';
+    return true; // temporary getCurrentPlan() === 'premium';
   };
 
   const getSubscriptionAlert = () => {
@@ -415,6 +436,40 @@ const BillingSettings = () => {
                 {isLoading ? 'Loading...' : 'Manage Billing'}
               </Button>
               
+              {subscription_status === 'active' && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      disabled={cancelSubscriptionMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      {cancelSubscriptionMutation.isPending ? 'Cancelling...' : 'Cancel Plan'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel Premium Subscription</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to cancel your Premium subscription? You'll continue to have access to all Premium features until the end of your current billing period ({current_period_end ? new Date(current_period_end).toLocaleDateString() : 'current period ends'}).
+                        <br /><br />
+                        After that, your server will be downgraded to the Free plan.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleCancelSubscription}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Yes, Cancel Subscription
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              
               {subscription_status === 'canceled' && (
                 <Button 
                   variant="outline"
@@ -428,44 +483,70 @@ const BillingSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Features Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Premium Features</CardTitle>
-            <CardDescription>Everything included in your Premium subscription</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {plans.find(p => p.id === 'premium')?.features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  {feature.icon && (
-                    <div className="text-foreground">
-                      {feature.icon}
-                    </div>
-                  )}
-                  <span className="text-sm">{feature.text}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+
       </div>
     );
   };
 
   const FreePlanView = () => {
+    const premiumPlan = plans.find(p => p.id === 'premium')!;
+    
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-center mb-8">
-          <h3 className="text-2xl font-semibold mb-2">Choose Your Plan</h3>
-          <p className="text-muted-foreground">Select the plan that best fits your community's needs</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
-          {plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} />
-          ))}
-        </div>
+      <div className="space-y-6">
+        {/* Upgrade to Premium Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-yellow-600" />
+                  Upgrade to Premium
+                </CardTitle>
+                <CardDescription className="mt-1">Unlock advanced features for your growing community</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Plan Details */}
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-primary">
+                    $20
+                  </div>
+                  <div className="text-sm text-muted-foreground">per month</div>
+                </div>
+                
+                <Button 
+                  onClick={handleCreateCheckoutSession}
+                  disabled={isLoading}
+                  className="w-full flex items-center gap-2"
+                  size="lg"
+                >
+                  {isLoading ? 'Processing...' : 'Upgrade Now'}
+                </Button>
+              </div>
+              
+              {/* Premium Features */}
+              <div className="lg:col-span-2 flex flex-col justify-center ml-8 mt-[-80px]">
+                <h4 className="font-medium text-sm text-muted-foreground mb-4">Premium Features</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {premiumPlan.features.map((feature, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      {feature.icon && (
+                        <div className="text-foreground">
+                          {feature.icon}
+                        </div>
+                      )}
+                      <span className="text-sm">{feature.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   };
@@ -496,14 +577,17 @@ const BillingSettings = () => {
           <h2 className="text-2xl font-bold mb-2">Billing & Subscription</h2>
           <p className="text-muted-foreground">Manage your subscription and billing details.</p>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleRefreshBillingStatus}
-          disabled={isSpinning || isBillingLoading}
-        >
-          <RefreshCw className={`h-4 w-4 ${isSpinning ? 'animate-spin' : ''}`} />
-        </Button>
+        {/* Only show refresh button for premium users */}
+        {isPremiumUser() && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefreshBillingStatus}
+            disabled={isSpinning || isBillingLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isSpinning ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
       </div>
 
       {/* Subscription Alert */}

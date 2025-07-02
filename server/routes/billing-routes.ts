@@ -84,6 +84,52 @@ router.post('/create-portal-session', isAuthenticated, async (req, res) => {
   }
 });
 
+router.post('/cancel-subscription', isAuthenticated, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).send('Billing service unavailable. Stripe not configured.');
+  }
+
+  const server = req.modlServer;
+
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
+  }
+
+  try {
+    if (!server.stripe_subscription_id) {
+      return res.status(404).send('No active subscription found to cancel');
+    }
+
+    // Cancel the subscription at period end (so user keeps access until billing period ends)
+    const canceledSubscription = await stripe.subscriptions.update(server.stripe_subscription_id, {
+      cancel_at_period_end: true
+    }) as any;
+
+    console.log(`[CANCEL SUBSCRIPTION] Subscription ${server.stripe_subscription_id} for server ${server.customDomain} set to cancel at period end`);
+
+    // Update our database to reflect the cancellation
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    await Server.findOneAndUpdate(
+      { _id: server._id },
+      { 
+        subscription_status: 'canceled'
+        // Note: We keep current_period_end as is, since user keeps access until then
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Subscription cancelled successfully. Access will continue until the end of your current billing period.',
+      cancels_at: canceledSubscription.current_period_end ? new Date(canceledSubscription.current_period_end * 1000) : null
+    });
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    res.status(500).send('Failed to cancel subscription. Please try again or contact support.');
+  }
+});
+
 router.get('/status', isAuthenticated, async (req, res) => {
   const server = req.modlServer;
 
