@@ -1196,7 +1196,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                       "bg-warning/10 text-warning border-warning/20" : 
                       "bg-destructive/10 text-destructive border-destructive/20"
                   }>
-                    Social: {playerInfo.social.toLowerCase() === 'low' ? 'lenient' : playerInfo.social}
+                    Social: {playerInfo.social.toLowerCase()}
                   </Badge>
                   <Badge variant="outline" className={
                     playerInfo.gameplay.toLowerCase() === 'low' ? 
@@ -1205,7 +1205,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                       "bg-warning/10 text-warning border-warning/20" : 
                       "bg-destructive/10 text-destructive border-destructive/20"
                   }>
-                    Gameplay: {playerInfo.gameplay.toLowerCase() === 'low' ? 'lenient' : playerInfo.gameplay}
+                    Gameplay: {playerInfo.gameplay.toLowerCase()}
                   </Badge>
                   {playerInfo.punished && (
                     <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
