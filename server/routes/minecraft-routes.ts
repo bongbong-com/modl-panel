@@ -29,6 +29,35 @@ function isMutePunishment(punishment: IPunishment): boolean {
 }
 
 /**
+ * Calculate the actual expiration timestamp for a punishment
+ */
+function calculateExpiration(punishment: IPunishment): number | null {
+  // First check if effective state has an expiry (from modifications)
+  const effectiveState = getEffectivePunishmentState(punishment);
+  if (effectiveState.effectiveExpiry) {
+    return effectiveState.effectiveExpiry.getTime();
+  }
+  
+  // If no effective expiry, calculate from duration and start time
+  if (!punishment.started) {
+    return null; // Can't calculate expiry for unstarted punishment
+  }
+  
+  const duration = punishment.data?.get('duration');
+  if (duration === undefined || duration === null) {
+    return null; // No duration specified
+  }
+  
+  if (duration === -1) {
+    return null; // Permanent punishment
+  }
+  
+  // Calculate expiry as start time + duration
+  const startTime = new Date(punishment.started).getTime();
+  return startTime + Number(duration);
+}
+
+/**
  * Utility function to get the effective punishment state considering modifications
  */
 function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive: boolean; effectiveExpiry: Date | null; hasModifications: boolean } {
@@ -276,13 +305,12 @@ export function setupMinecraftRoutes(app: Express): void {
 
       // Convert to simplified active punishment format
       const formattedPunishments = activePunishments.map((p: IPunishment) => {
-        const effectiveState = getEffectivePunishmentState(p);
         const reason = p.notes && p.notes.length > 0 ? p.notes[0].text : 'No reason provided';
         
         return {
           type: getPunishmentType(p),
           started: p.started ? true : false,
-          expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
+          expiration: calculateExpiration(p),
           description: reason,
           id: p.id
         };

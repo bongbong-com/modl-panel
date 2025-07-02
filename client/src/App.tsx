@@ -127,7 +127,7 @@ function Router() {
           <AuthRoute path="/panel/auth" component={AuthPage} />
            {/* These routes are assumed to be outside /panel */}
           <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
-          <Route path="/appeals" component={AppealsPage} />
+          <Route path="/appeal" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
           <Route path="/accept-invitation" component={AcceptInvitationPage} />
