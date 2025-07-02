@@ -58,6 +58,44 @@ function calculateExpiration(punishment: IPunishment): number | null {
 }
 
 /**
+ * Get the appropriate description for a punishment
+ * Uses punishment type player description for non-manual punishments, notes for manual ones
+ */
+async function getPunishmentDescription(
+  punishment: IPunishment, 
+  dbConnection: Connection
+): Promise<string> {
+  const defaultDescription = 'No reason provided';
+  
+  // For manual punishments (Manual Mute=1, Manual Ban=2, Kick=0), use notes
+  if (punishment.type_ordinal <= 2) {
+    const noteText = punishment.notes && punishment.notes.length > 0 ? punishment.notes[0].text : null;
+    return noteText || defaultDescription;
+  }
+  
+  // For non-manual punishments, get the player description from punishment type configuration
+  try {
+    const Settings = dbConnection.model('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (settingsDoc?.settings) {
+      const punishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+      const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
+      
+      if (punishmentType?.playerDescription) {
+        return punishmentType.playerDescription;
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching punishment type description:', error);
+  }
+  
+  // Fallback to notes if no player description found
+  const noteText = punishment.notes && punishment.notes.length > 0 ? punishment.notes[0].text : null;
+  return noteText || defaultDescription;
+}
+
+/**
  * Utility function to get the effective punishment state considering modifications
  */
 function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive: boolean; effectiveExpiry: Date | null; hasModifications: boolean } {
@@ -303,18 +341,18 @@ export function setupMinecraftRoutes(app: Express): void {
         return endTime > Date.now(); // Active if not expired
       });
 
-      // Convert to simplified active punishment format
-      const formattedPunishments = activePunishments.map((p: IPunishment) => {
-        const reason = p.notes && p.notes.length > 0 ? p.notes[0].text : 'No reason provided';
+      // Convert to simplified active punishment format with proper descriptions
+      const formattedPunishments = await Promise.all(activePunishments.map(async (p: IPunishment) => {
+        const description = await getPunishmentDescription(p, serverDbConnection);
         
         return {
           type: getPunishmentType(p),
           started: p.started ? true : false,
           expiration: calculateExpiration(p),
-          description: reason,
+          description: description,
           id: p.id
         };
-      });
+      }));
 
       return res.status(200).json({
         status: 200,
