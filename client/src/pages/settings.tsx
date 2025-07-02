@@ -239,6 +239,7 @@ const Settings = () => {
 
   // Unified API Key management states
   const [apiKey, setApiKey] = useState('');
+  const [fullApiKey, setFullApiKey] = useState(''); // Store the full key for copying
   const [showApiKey, setShowApiKey] = useState(false);
   const [isGeneratingApiKey, setIsGeneratingApiKey] = useState(false);
   const [isRevokingApiKey, setIsRevokingApiKey] = useState(false);
@@ -391,16 +392,13 @@ const Settings = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setApiKey(data.apiKey);
+        setFullApiKey(data.apiKey); // Store the full key for copying
+        setApiKey(data.apiKey); // Display the full key initially
         setShowApiKey(true);
         toast({
           title: "API Key Generated",
           description: "Your new API key has been generated. Make sure to copy it as it won't be shown again.",
         });
-        // Reload the API key after a short delay to ensure it appears on refresh
-        setTimeout(() => {
-          loadApiKey();
-        }, 1000);
       } else {
         throw new Error('Failed to generate API key');
       }
@@ -428,6 +426,7 @@ const Settings = () => {
       });
       if (response.ok) {
         setApiKey('');
+        setFullApiKey('');
         setShowApiKey(false);
         toast({
           title: "API Key Revoked",
@@ -449,13 +448,30 @@ const Settings = () => {
   };
 
   const copyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    setApiKeyCopied(true);
-    setTimeout(() => setApiKeyCopied(false), 2000);
-    toast({
-      title: "Copied",
-      description: "API key copied to clipboard",
-    });
+    // Use fullApiKey if available (when freshly generated), otherwise use apiKey if shown
+    if (fullApiKey) {
+      navigator.clipboard.writeText(fullApiKey);
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 2000);
+      toast({
+        title: "Copied",
+        description: "API key copied to clipboard",
+      });
+    } else if (showApiKey && apiKey) {
+      navigator.clipboard.writeText(apiKey);
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 2000);
+      toast({
+        title: "Copied",
+        description: "API key copied to clipboard",
+      });
+    } else {
+      toast({
+        title: "Cannot copy masked key",
+        description: "Please click the eye icon to reveal the key first, or regenerate a new key to copy it.",
+        variant: "destructive",
+      });
+    }
   };
 
   const maskApiKey = (key: string) => {
@@ -1901,7 +1917,6 @@ const Settings = () => {
                               variant="outline"
                               size="sm"
                               onClick={copyApiKey}
-                              disabled={!showApiKey}
                             >
                               {apiKeyCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                             </Button>
@@ -1972,6 +1987,9 @@ const Settings = () => {
                         <p>• For Minecraft: Use the API key in the <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">X-API-Key</code> header</p>
                         <p>• Endpoints: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/api/public/tickets</code>, <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/api/minecraft/*</code></p>
                         <p>• View API documentation for detailed usage examples</p>
+                        {!fullApiKey && apiKey && (
+                          <p className="text-orange-700 dark:text-orange-300">• <strong>Note:</strong> To copy the full key, regenerate a new one</p>
+                        )}
                       </div>
                     </div>
                   </div>
