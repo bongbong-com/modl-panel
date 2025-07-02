@@ -233,10 +233,16 @@ const BillingSettings = () => {
       const response = await updateUsageBillingMutation.mutateAsync({ enabled });
       
       toast({
-        title: 'Usage Billing Updated',
+        title: enabled ? 'Usage Billing Enabled' : 'Usage Billing Disabled',
         description: response.message,
         variant: 'default',
       });
+      
+      // Force a fresh data fetch to ensure UI is up to date
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/panel/billing/usage'] }),
+        queryClient.refetchQueries({ queryKey: ['/api/panel/billing/status'] })
+      ]);
     } catch (error: any) {
       console.error('Error updating usage billing:', error);
       toast({

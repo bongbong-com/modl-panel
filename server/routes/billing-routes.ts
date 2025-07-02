@@ -226,14 +226,20 @@ router.get('/usage', isAuthenticated, async (req, res) => {
     const globalDb = await connectToGlobalModlDb();
     const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
 
+    // Fetch fresh server data from database to get latest usage billing settings
+    const freshServer = await Server.findById(server._id);
+    if (!freshServer) {
+      return res.status(404).send('Server not found in database.');
+    }
+
     // Get current billing period start and end dates
-    const currentPeriodStart = server.current_period_start || new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Default to 30 days ago
-    const currentPeriodEnd = server.current_period_end || new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)); // Default to 30 days from now
+    const currentPeriodStart = freshServer.current_period_start || new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Default to 30 days ago
+    const currentPeriodEnd = freshServer.current_period_end || new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)); // Default to 30 days from now
 
     // For now, return mock data since nothing tracks usage yet
     // TODO: Replace with actual usage tracking from your CDN and AI service logs
-    const cdnUsageGB = server.cdn_usage_current_period || 0;
-    const aiRequestsUsed = server.ai_requests_current_period || 0;
+    const cdnUsageGB = freshServer.cdn_usage_current_period || 0;
+    const aiRequestsUsed = freshServer.ai_requests_current_period || 0;
 
     // Premium limits
     const CDN_LIMIT_GB = 200;
@@ -272,7 +278,7 @@ router.get('/usage', isAuthenticated, async (req, res) => {
         percentage: Math.min(100, (aiRequestsUsed / AI_LIMIT_REQUESTS) * 100)
       },
       totalOverageCost,
-      usageBillingEnabled: server.usage_billing_enabled || false
+      usageBillingEnabled: freshServer.usage_billing_enabled || false
     });
   } catch (error) {
     console.error('Error fetching usage statistics:', error);
@@ -456,15 +462,44 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
         if (session.customer && session.subscription) {
           const server = await Server.findOne({ stripe_customer_id: session.customer });
           if (server) {
+            // Fetch the subscription details to get period information
+            const subscription = await stripe.subscriptions.retrieve(session.subscription as string) as any;
+            
+            let periodStartDate = null;
+            let periodEndDate = null;
+            if (subscription.current_period_start && typeof subscription.current_period_start === 'number') {
+              periodStartDate = new Date(subscription.current_period_start * 1000);
+              if (isNaN(periodStartDate.getTime())) {
+                console.error(`[WEBHOOK] Invalid start date from Stripe timestamp: ${subscription.current_period_start}`);
+                periodStartDate = null;
+              }
+            }
+            if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
+              periodEndDate = new Date(subscription.current_period_end * 1000);
+              if (isNaN(periodEndDate.getTime())) {
+                console.error(`[WEBHOOK] Invalid end date from Stripe timestamp: ${subscription.current_period_end}`);
+                periodEndDate = null;
+              }
+            }
+
+            const updateData: any = {
+              stripe_subscription_id: session.subscription,
+              subscription_status: 'active',
+              plan: 'premium' // Assuming checkout means premium plan
+            };
+            
+            if (periodStartDate) {
+              updateData.current_period_start = periodStartDate;
+            }
+            if (periodEndDate) {
+              updateData.current_period_end = periodEndDate;
+            }
+
             await Server.findOneAndUpdate(
               { _id: server._id },
-              {
-                stripe_subscription_id: session.subscription,
-                subscription_status: 'active',
-                plan: 'premium' // Assuming checkout means premium plan
-              }
+              updateData
             );
-            console.log(`[WEBHOOK] Updated server ${server.customDomain} - checkout completed`);
+            console.log(`[WEBHOOK] Updated server ${server.customDomain} - checkout completed with periods: ${periodStartDate?.toISOString()} to ${periodEndDate?.toISOString()}`);
           } else {
             console.warn(`[WEBHOOK] No server found for customer: ${session.customer}`);
           }
