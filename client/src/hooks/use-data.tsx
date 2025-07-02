@@ -422,6 +422,8 @@ export function useUpdateUsageBillingSettings() {
   
   return useMutation({
     mutationFn: async ({ enabled }: { enabled: boolean }) => {
+      console.log('[FRONTEND] Sending usage billing update request:', { enabled });
+      
       const res = await fetch('/api/panel/billing/usage-billing-settings', {
         method: 'POST',
         headers: {
@@ -432,16 +434,23 @@ export function useUpdateUsageBillingSettings() {
       
       if (!res.ok) {
         const errorText = await res.text();
+        console.error('[FRONTEND] Usage billing update failed:', errorText);
         throw new Error(errorText || 'Failed to update usage billing settings');
       }
       
-      return res.json();
+      const result = await res.json();
+      console.log('[FRONTEND] Usage billing update response:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('[FRONTEND] Usage billing update successful, invalidating queries');
       // Invalidate usage data and billing status to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/usage'] });
       queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
     },
+    onError: (error) => {
+      console.error('[FRONTEND] Usage billing update mutation error:', error);
+    }
   });
 }
 

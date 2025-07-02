@@ -233,10 +233,16 @@ const BillingSettings = () => {
       const response = await updateUsageBillingMutation.mutateAsync({ enabled });
       
       toast({
-        title: 'Usage Billing Updated',
+        title: enabled ? 'Usage Billing Enabled' : 'Usage Billing Disabled',
         description: response.message,
         variant: 'default',
       });
+      
+      // Force a fresh data fetch to ensure UI is up to date
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['/api/panel/billing/usage'] }),
+        queryClient.refetchQueries({ queryKey: ['/api/panel/billing/status'] })
+      ]);
     } catch (error: any) {
       console.error('Error updating usage billing:', error);
       toast({
@@ -249,9 +255,22 @@ const BillingSettings = () => {
 
   const getCurrentPlan = () => {
     if (!billingStatus) return 'free';
-    const { subscription_status } = billingStatus;
+    const { subscription_status, current_period_end } = billingStatus;
     
-    if (['active', 'trialing', 'canceled'].includes(subscription_status)) {
+    // For cancelled subscriptions, check if the period has ended
+    if (subscription_status === 'canceled') {
+      if (!current_period_end) {
+        return 'free'; // No end date means it's already expired
+      }
+      const endDate = new Date(current_period_end);
+      const now = new Date();
+      if (endDate <= now) {
+        return 'free'; // Cancellation period has ended
+      }
+      return 'premium'; // Still has access until end date
+    }
+    
+    if (['active', 'trialing'].includes(subscription_status)) {
       return 'premium';
     }
     return 'free';
@@ -266,12 +285,36 @@ const BillingSettings = () => {
 
     const { subscription_status, current_period_end } = billingStatus;
 
-    // Special handling for cancelled subscriptions that haven't ended yet
-    if (subscription_status === 'canceled' && current_period_end) {
+    // Special handling for cancelled subscriptions
+    if (subscription_status === 'canceled') {
+      if (!current_period_end) {
+        // No end date means it's already expired - show expired message
+        return (
+          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              <strong>Subscription Expired:</strong> Your premium subscription has ended. You are now on the free plan.
+            </AlertDescription>
+          </Alert>
+        );
+      }
+      
       const endDate = new Date(current_period_end);
       const today = new Date();
       
-      if (endDate > today) {
+      if (endDate <= today) {
+        // Cancellation period has ended
+        return (
+          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              <strong>Subscription Expired:</strong> Your premium subscription ended on{' '}
+              <strong>{endDate.toLocaleDateString()}</strong>. You are now on the free plan.
+            </AlertDescription>
+          </Alert>
+        );
+      } else {
+        // Still has access until end date
         return (
           <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -302,15 +345,27 @@ const BillingSettings = () => {
   const getSubscriptionStatusBadge = () => {
     if (!billingStatus) return null;
     
-    const { subscription_status } = billingStatus;
+    const { subscription_status, current_period_end } = billingStatus;
+    
+    // Special handling for cancelled subscriptions
+    if (subscription_status === 'canceled') {
+      if (!current_period_end) {
+        return <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"><AlertTriangle className="h-3 w-3 mr-1" />Expired</Badge>;
+      }
+      const endDate = new Date(current_period_end);
+      const today = new Date();
+      if (endDate <= today) {
+        return <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"><AlertTriangle className="h-3 w-3 mr-1" />Expired</Badge>;
+      } else {
+        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"><AlertTriangle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+      }
+    }
     
     switch (subscription_status) {
       case 'active':
         return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
       case 'trialing':
         return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"><Clock className="h-3 w-3 mr-1" />Trial</Badge>;
-      case 'canceled':
-        return <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"><AlertTriangle className="h-3 w-3 mr-1" />Cancelled</Badge>;
       case 'past_due':
         return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Past Due</Badge>;
       default:
@@ -322,7 +377,7 @@ const BillingSettings = () => {
     const isCurrent = getCurrentPlan() === plan.id;
     const canUpgrade = plan.id === 'premium' && getCurrentPlan() === 'free';
     
-    return (
+      return (
       <Card className={`relative ${isCurrent && plan.id === 'premium' ? 'ring-2 ring-primary' : ''}`}>
         {isCurrent && plan.id === 'premium' && (
           <div className="absolute -top-3 right-4">
@@ -382,15 +437,15 @@ const BillingSettings = () => {
                 {plan.buttonText}
               </Button>
             )}
-          </div>
+        </div>
         </CardContent>
       </Card>
-    );
+      );
   };
 
   const PremiumBillingView = () => {
     const { subscription_status, current_period_end } = billingStatus || {};
-    
+
     if (isUsageLoading) {
       return (
         <div className="space-y-6">
@@ -406,7 +461,7 @@ const BillingSettings = () => {
         </div>
       );
     }
-    
+
     return (
       <div className="space-y-6">
         {/* Combined Premium Subscription & Usage */}
@@ -607,13 +662,13 @@ const BillingSettings = () => {
   const FreePlanView = () => {
     const premiumPlan = plans.find(p => p.id === 'premium')!;
     
-    return (
+  return (
       <div className="space-y-6">
         {/* Upgrade to Premium Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
                 <CardTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-yellow-600" />
                   Upgrade to Premium
@@ -711,7 +766,7 @@ const BillingSettings = () => {
 
       {/* Conditional rendering based on plan */}
       {isPremiumUser() ? <PremiumBillingView /> : <FreePlanView />}
-    </div>
+        </div>
   );
 };
 
