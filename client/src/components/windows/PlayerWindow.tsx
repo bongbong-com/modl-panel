@@ -290,11 +290,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       } else if (playerInfo.selectedSeverity) {
         // For multi-severity punishments, map UI severity to punishment system values
         const severityMapping = {
-          'Lenient': 'low',
+          'Lenient': 'lenient',
           'Regular': 'regular', 
           'Aggravated': 'severe'
         };
-        severity = severityMapping[playerInfo.selectedSeverity] || 'regular';
+        severity = severityMapping[playerInfo.selectedSeverity] || 'n/a';
         
         // Status is always low for multi-severity (default offense level)
         status = 'low'; // Could be enhanced to track actual offense count
