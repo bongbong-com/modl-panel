@@ -6,6 +6,7 @@ import { setupVerificationAndProvisioningRoutes } from './routes/verify-provisio
 import { connectToGlobalModlDb } from './db/connectionManager';
 import { type Connection as MongooseConnection } from 'mongoose';
 import { isAuthenticated } from './middleware/auth-middleware';
+import { strictRateLimit } from './middleware/rate-limiter';
 
 import appealRoutes from './routes/appeal-routes';
 import playerRoutes from './routes/player-routes';
@@ -42,6 +43,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/public', publicHomepageCardRoutes); // Public homepage cards
   app.use('/api/public', publicTicketRoutes); // Public ticket routes (API key protected)
   app.use('/api/public', publicPunishmentRoutes); // Public punishment routes
+
+  // Public staff invitation acceptance - no authentication required
+  app.get('/api/staff/invitations/accept', strictRateLimit, async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Invalid invitation link.' });
+    }
+
+    try {
+      if (!req.serverDbConnection) {
+        return res.status(503).json({ error: 'Service unavailable. Database connection not established for this server.' });
+      }
+
+      const InvitationModel = req.serverDbConnection.model('Invitation');
+      const invitation = await InvitationModel.findOne({ token: token as string });
+
+      if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < new Date()) {
+        return res.status(400).json({ message: 'Invitation is invalid, expired, or has already been used.' });
+      }
+
+      const Staff = req.serverDbConnection.model('Staff');
+      const { email, role } = invitation;
+      const username = email.split('@')[0]; // Or generate a unique username
+
+      const newUser = new Staff({
+        email,
+        username,
+        role,
+      });
+
+      await newUser.save();
+
+      invitation.status = 'accepted';
+      await invitation.save();
+
+      // Log the new user in
+      req.session.userId = newUser._id.toString();
+      req.session.email = newUser.email;
+      req.session.username = newUser.username;
+      req.session.role = newUser.role;
+
+      await req.session.save();
+
+      res.status(200).json({ message: 'Invitation accepted successfully.' });
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      res.status(500).json({ message: 'Internal server error.' });
+    }
+  });
 
   // Public settings endpoint - no authentication required
   app.get('/api/public/settings', async (req, res) => {

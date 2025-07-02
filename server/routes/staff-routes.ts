@@ -32,52 +32,7 @@ router.get('/check-username/:username', async (req: Request<{ username: string }
   }
 });
 
-router.get('/invitations/accept', strictRateLimit, async (req: Request, res: Response) => {
-  const { token } = req.query;
-
-  if (!token) {
-    return res.status(400).json({ message: 'Invalid invitation link.' });
-  }
-
-  try {
-    const InvitationModel = req.serverDbConnection!.model('Invitation');
-    const invitation = await InvitationModel.findOne({ token: token as string });
-
-    if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < new Date()) {
-      return res.status(400).json({ message: 'Invitation is invalid, expired, or has already been used.' });
-    }
-
-    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
-    const { email, role } = invitation;
-    const username = email.split('@')[0]; // Or generate a unique username
-
-    const newUser = new Staff({
-      email,
-      username,
-      role,
-    });
-
-    await newUser.save();
-
-    invitation.status = 'accepted';
-    await invitation.save();
-
-    // Log the new user in
-    req.session.userId = newUser._id.toString();
-    req.session.email = newUser.email;
-    req.session.username = newUser.username;
-    req.session.role = newUser.role;
-
-    await req.session.save();
-
-    res.status(200).json({ message: 'Invitation accepted successfully.' });
-  } catch (error) {
-    console.error('Error accepting invitation:', error);
-    res.status(500).json({ message: 'Internal server error.' });
-  }
-});
-
-// Apply isAuthenticated middleware to all routes in this router AFTER public routes
+// Apply isAuthenticated middleware to all routes in this router
 router.use(isAuthenticated);
 
 router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
