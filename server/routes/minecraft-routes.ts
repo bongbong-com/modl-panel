@@ -138,7 +138,7 @@ function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive
  * Utility function to check if a punishment is valid for execution (ignores started status)
  */
 function isPunishmentValid(punishment: IPunishment): boolean {
-  if (!punishment.type) return false;
+  if (!punishment.type_ordinal) return false;
 
   // Get effective state considering modifications
   const { effectiveActive, effectiveExpiry } = getEffectivePunishmentState(punishment);
@@ -165,7 +165,7 @@ function isPunishmentActive(punishment: IPunishment): boolean {
   }
   
   // For punishments that need to be started (bans/mutes), check if they've been started
-  if ((isBanPunishment(punishment) || isMutePunishment(punishment)) && !punishment.started) {
+  if ((isBanPunishment(punishment) || isMutePunishment(punishment)) && (!punishment.started || punishment.started === null || punishment.started === undefined)) {
     return false;
   }
   
@@ -316,7 +316,7 @@ export function setupMinecraftRoutes(app: Express): void {
       // 2. Unstarted punishments that are valid (for immediate execution)
       const startedActivePunishments = player.punishments.filter((punishment: IPunishment) => {
         // Must be started
-        if (!punishment.started) return false;
+        if (!punishment.started || punishment.started === null || punishment.started === undefined) return false;
         
         // Get effective state considering modifications (pardons, duration changes, etc.)
         const effectiveState = getEffectivePunishmentState(punishment);
@@ -341,7 +341,7 @@ export function setupMinecraftRoutes(app: Express): void {
 
       // Get valid unstarted punishments (for immediate execution by server)
       const unstartedValidPunishments = player.punishments
-        .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
+        .filter((p: IPunishment) => (!p.started || p.started === null || p.started === undefined) && isPunishmentValid(p))
         .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
       // Implement stacking: only include oldest unstarted ban + oldest unstarted mute
@@ -755,7 +755,8 @@ export function setupMinecraftRoutes(app: Express): void {
         const onlinePlayersWithPendingPunishments = await Player.find({
           minecraftUuid: { $in: onlineUuids },
           $or: [
-            { 'punishments.started': { $exists: false } }, // Unstarted punishments
+            { 'punishments.started': null }, // Unstarted punishments (null)
+            { 'punishments.started': { $exists: false } }, // Unstarted punishments (missing field)
             { 'punishments.issued': { $gte: lastSync } }    // Recently issued punishments
           ]
         }).lean();
@@ -763,7 +764,7 @@ export function setupMinecraftRoutes(app: Express): void {
         for (const player of onlinePlayersWithPendingPunishments) {
           // Get all valid unstarted punishments for this player, prioritizing recently issued ones
           const validUnstartedPunishments = player.punishments
-            .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
+            .filter((p: IPunishment) => (!p.started || p.started === null || p.started === undefined) && isPunishmentValid(p))
             .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
           // Also get recently issued punishments that might need immediate execution
