@@ -409,7 +409,7 @@ const BillingSettings = () => {
     
     return (
       <div className="space-y-6">
-        {/* Premium Subscription Overview */}
+        {/* Combined Premium Subscription & Usage */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -417,7 +417,8 @@ const BillingSettings = () => {
                 <CardTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-yellow-600" />
                   Premium Subscription
-                  <span className="text-2xl font-bold text-primary ml-4">$20/month</span>
+                  <span className="text-muted-foreground mx-2">—</span>
+                  <span className="text-2xl font-bold text-primary">$20/month</span>
                 </CardTitle>
                 <CardDescription>
                   {subscription_status === 'canceled' && current_period_end
@@ -431,7 +432,8 @@ const BillingSettings = () => {
               {getSubscriptionStatusBadge()}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Billing Management Buttons */}
             <div className="flex gap-3">
               {subscription_status !== 'canceled' && (
                 <Button 
@@ -489,113 +491,112 @@ const BillingSettings = () => {
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Usage & Billing */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5" />
-              Usage & Overages
-            </CardTitle>
-            <CardDescription>
-              Track your CDN and AI usage. Enable usage billing to automatically pay for overages.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* CDN Usage */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">CDN Storage</span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {usageData?.cdn?.used || 0} GB / {usageData?.cdn?.limit || 200} GB
-                </div>
+            {/* Usage & Overages Section */}
+            <div className="border-t pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <HardDrive className="h-5 w-5" />
+                <h3 className="text-lg font-semibold">Usage & Overages</h3>
               </div>
-              <Progress 
-                value={usageData?.cdn?.percentage || 0} 
-                className="h-2"
-              />
-              {usageData?.cdn?.overage > 0 && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-orange-600">Overage: {usageData.cdn.overage} GB</span>
-                  <span className="font-medium text-orange-600">${usageData.cdn.overageCost.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground">
-                Additional storage: $0.05/GB per month
-              </div>
-            </div>
-
-            {/* AI Usage */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">AI Requests</span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {usageData?.ai?.used || 0} / {usageData?.ai?.limit || 10000} requests
-                </div>
-              </div>
-              <Progress 
-                value={usageData?.ai?.percentage || 0} 
-                className="h-2"
-              />
-              {usageData?.ai?.overage > 0 && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-orange-600">Overage: {usageData.ai.overage} requests</span>
-                  <span className="font-medium text-orange-600">${usageData.ai.overageCost.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="text-xs text-muted-foreground">
-                Additional requests: $0.01 per request
-              </div>
-            </div>
-
-            {/* Total Overage Cost */}
-            {usageData?.totalOverageCost > 0 && (
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between text-lg font-semibold">
-                  <span>Total Overage Cost</span>
-                  <span className="text-orange-600">${usageData.totalOverageCost.toFixed(2)}</span>
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  Will be added to your next invoice
-                </div>
-              </div>
-            )}
-
-            {/* Usage Billing Settings */}
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="usage-billing" className="text-sm font-medium">
-                    Enable Usage Billing
-                  </Label>
+              <p className="text-sm text-muted-foreground mb-6">
+                Track your CDN and AI usage. Enable usage billing to automatically pay for overages.
+              </p>
+              
+              <div className="space-y-6">
+                {/* CDN Usage */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <HardDrive className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">CDN Storage</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {usageData?.cdn?.used || 0} GB / {usageData?.cdn?.limit || 200} GB
+                    </div>
+                  </div>
+                  <Progress 
+                    value={usageData?.cdn?.percentage || 0} 
+                    className="h-2"
+                  />
+                  {usageData?.cdn?.overage > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-orange-600">Overage: {usageData.cdn.overage} GB</span>
+                      <span className="font-medium text-orange-600">${usageData.cdn.overageCost.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="text-xs text-muted-foreground">
-                    Automatically charge for overages on your next invoice
+                    Additional storage: $0.05/GB per month
                   </div>
                 </div>
-                <Switch
-                  id="usage-billing"
-                  checked={usageData?.usageBillingEnabled || false}
-                  onCheckedChange={handleUsageBillingToggle}
-                  disabled={updateUsageBillingMutation.isPending}
-                />
+
+                {/* AI Usage */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">AI Requests</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {usageData?.ai?.used || 0} / {usageData?.ai?.limit || 10000} requests
+                    </div>
+                  </div>
+                  <Progress 
+                    value={usageData?.ai?.percentage || 0} 
+                    className="h-2"
+                  />
+                  {usageData?.ai?.overage > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-orange-600">Overage: {usageData.ai.overage} requests</span>
+                      <span className="font-medium text-orange-600">${usageData.ai.overageCost.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    Additional requests: $0.01 per request
+                  </div>
+                </div>
+
+                {/* Total Overage Cost */}
+                {usageData?.totalOverageCost > 0 && (
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between text-lg font-semibold">
+                      <span>Total Overage Cost</span>
+                      <span className="text-orange-600">${usageData.totalOverageCost.toFixed(2)}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Will be added to your next invoice
+                    </div>
+                  </div>
+                )}
+
+                {/* Usage Billing Settings */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label htmlFor="usage-billing" className="text-sm font-medium">
+                        Enable Usage Billing
+                      </Label>
+                      <div className="text-xs text-muted-foreground">
+                        Automatically charge for overages on your next invoice
+                      </div>
+                    </div>
+                    <Switch
+                      id="usage-billing"
+                      checked={usageData?.usageBillingEnabled || false}
+                      onCheckedChange={handleUsageBillingToggle}
+                      disabled={updateUsageBillingMutation.isPending}
+                    />
+                  </div>
+                  
+                  {!usageData?.usageBillingEnabled && usageData?.totalOverageCost > 0 && (
+                    <Alert className="mt-4">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        You have ${usageData.totalOverageCost.toFixed(2)} in overages. Enable usage billing to be automatically charged for these overages.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
               </div>
-              
-              {!usageData?.usageBillingEnabled && usageData?.totalOverageCost > 0 && (
-                <Alert className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    You have ${usageData.totalOverageCost.toFixed(2)} in overages. Enable usage billing to be automatically charged for these overages.
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
           </CardContent>
         </Card>
