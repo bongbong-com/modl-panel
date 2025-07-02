@@ -4,7 +4,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
-import { useBillingStatus, useCancelSubscription } from '@/hooks/use-data';
+import { useBillingStatus, useCancelSubscription, useUsageData, useUpdateUsageBillingSettings } from '@/hooks/use-data';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
 import { 
@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription } from 'modl-shared-web/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from 'modl-shared-web/components/ui/alert-dialog';
+import { Progress } from 'modl-shared-web/components/ui/progress';
+import { Switch } from 'modl-shared-web/components/ui/switch';
+import { Label } from 'modl-shared-web/components/ui/label';
 
 // Initialize Stripe with the publishable key
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
@@ -89,7 +92,9 @@ const plans: Plan[] = [
 
 const BillingSettings = () => {
   const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
+  const { data: usageData, isLoading: isUsageLoading } = useUsageData();
   const cancelSubscriptionMutation = useCancelSubscription();
+  const updateUsageBillingMutation = useUpdateUsageBillingSettings();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -223,6 +228,25 @@ const BillingSettings = () => {
     }
   };
 
+  const handleUsageBillingToggle = async (enabled: boolean) => {
+    try {
+      const response = await updateUsageBillingMutation.mutateAsync({ enabled });
+      
+      toast({
+        title: 'Usage Billing Updated',
+        description: response.message,
+        variant: 'default',
+      });
+    } catch (error: any) {
+      console.error('Error updating usage billing:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update usage billing settings.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getCurrentPlan = () => {
     if (!billingStatus) return 'free';
     const { subscription_status } = billingStatus;
@@ -234,7 +258,7 @@ const BillingSettings = () => {
   };
 
   const isPremiumUser = () => {
-    return true; // temporary getCurrentPlan() === 'premium';
+    return getCurrentPlan() === 'premium';
   };
 
   const getSubscriptionAlert = () => {
@@ -367,9 +391,25 @@ const BillingSettings = () => {
   const PremiumBillingView = () => {
     const { subscription_status, current_period_end } = billingStatus || {};
     
+    if (isUsageLoading) {
+      return (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-32 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
     return (
       <div className="space-y-6">
-        {/* Current Subscription Card */}
+        {/* Premium Subscription Overview */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -377,56 +417,22 @@ const BillingSettings = () => {
                 <CardTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-yellow-600" />
                   Premium Subscription
+                  <span className="text-2xl font-bold text-primary ml-4">$20/month</span>
                 </CardTitle>
-                <CardDescription>You're currently on the Premium plan</CardDescription>
+                <CardDescription>
+                  {subscription_status === 'canceled' && current_period_end
+                    ? `Access ends ${new Date(current_period_end).toLocaleDateString()}`
+                    : current_period_end 
+                    ? `${subscription_status === 'trialing' ? 'Trial ends' : 'Next billing'} ${new Date(current_period_end).toLocaleDateString()}`
+                    : 'Premium features enabled'
+                  }
+                </CardDescription>
               </div>
               {getSubscriptionStatusBadge()}
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-sm text-muted-foreground mb-2">Plan Details</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Plan:</span>
-                      <span className="font-medium">Premium</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Price:</span>
-                      <span className="font-medium">$20/month</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Status:</span>
-                      <span className="font-medium capitalize">{subscription_status}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-sm text-muted-foreground mb-2">Billing Information</h4>
-                  <div className="space-y-2">
-                    {current_period_end && (
-                      <div className="flex justify-between">
-                        <span>{subscription_status === 'trialing' ? 'Trial ends:' : subscription_status === 'canceled' ? 'Access ends:' : 'Next billing:'}</span>
-                        <span className="font-medium">{new Date(current_period_end).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                    {subscription_status === 'active' && (
-                      <div className="flex justify-between">
-                        <span>Next charge:</span>
-                        <span className="font-medium">$20</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3">
               {subscription_status !== 'canceled' && (
                 <Button 
                   onClick={handleCreatePortalSession}
@@ -486,7 +492,113 @@ const BillingSettings = () => {
           </CardContent>
         </Card>
 
+        {/* Usage & Billing */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HardDrive className="h-5 w-5" />
+              Usage & Overages
+            </CardTitle>
+            <CardDescription>
+              Track your CDN and AI usage. Enable usage billing to automatically pay for overages.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* CDN Usage */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">CDN Storage</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {usageData?.cdn?.used || 0} GB / {usageData?.cdn?.limit || 200} GB
+                </div>
+              </div>
+              <Progress 
+                value={usageData?.cdn?.percentage || 0} 
+                className="h-2"
+              />
+              {usageData?.cdn?.overage > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-orange-600">Overage: {usageData.cdn.overage} GB</span>
+                  <span className="font-medium text-orange-600">${usageData.cdn.overageCost.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground">
+                Additional storage: $0.05/GB per month
+              </div>
+            </div>
 
+            {/* AI Usage */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">AI Requests</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {usageData?.ai?.used || 0} / {usageData?.ai?.limit || 10000} requests
+                </div>
+              </div>
+              <Progress 
+                value={usageData?.ai?.percentage || 0} 
+                className="h-2"
+              />
+              {usageData?.ai?.overage > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-orange-600">Overage: {usageData.ai.overage} requests</span>
+                  <span className="font-medium text-orange-600">${usageData.ai.overageCost.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="text-xs text-muted-foreground">
+                Additional requests: $0.01 per request
+              </div>
+            </div>
+
+            {/* Total Overage Cost */}
+            {usageData?.totalOverageCost > 0 && (
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between text-lg font-semibold">
+                  <span>Total Overage Cost</span>
+                  <span className="text-orange-600">${usageData.totalOverageCost.toFixed(2)}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Will be added to your next invoice
+                </div>
+              </div>
+            )}
+
+            {/* Usage Billing Settings */}
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="usage-billing" className="text-sm font-medium">
+                    Enable Usage Billing
+                  </Label>
+                  <div className="text-xs text-muted-foreground">
+                    Automatically charge for overages on your next invoice
+                  </div>
+                </div>
+                <Switch
+                  id="usage-billing"
+                  checked={usageData?.usageBillingEnabled || false}
+                  onCheckedChange={handleUsageBillingToggle}
+                  disabled={updateUsageBillingMutation.isPending}
+                />
+              </div>
+              
+              {!usageData?.usageBillingEnabled && usageData?.totalOverageCost > 0 && (
+                <Alert className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    You have ${usageData.totalOverageCost.toFixed(2)} in overages. Enable usage billing to be automatically charged for these overages.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   };
@@ -554,7 +666,7 @@ const BillingSettings = () => {
     );
   };
 
-  if (isBillingLoading) {
+  if (isBillingLoading || (isPremiumUser() && isUsageLoading)) {
     return (
       <div className="space-y-8">
         <div>

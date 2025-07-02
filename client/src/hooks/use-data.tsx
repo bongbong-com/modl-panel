@@ -403,6 +403,48 @@ export function useCancelSubscription() {
   });
 }
 
+export function useUsageData() {
+  return useQuery({
+    queryKey: ['/api/panel/billing/usage'],
+    queryFn: async () => {
+      const res = await fetch('/api/panel/billing/usage');
+      if (!res.ok) {
+        throw new Error('Failed to fetch usage data');
+      }
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+export function useUpdateUsageBillingSettings() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ enabled }: { enabled: boolean }) => {
+      const res = await fetch('/api/panel/billing/usage-billing-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ enabled })
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to update usage billing settings');
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      // Invalidate usage data and billing status to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/usage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
+    },
+  });
+}
+
 // Punishment hooks
 export function useApplyPunishment() {
   return useMutation({

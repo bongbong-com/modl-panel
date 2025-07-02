@@ -214,6 +214,118 @@ router.get('/status', isAuthenticated, async (req, res) => {
   }
 });
 
+// Get usage statistics for CDN and AI
+router.get('/usage', isAuthenticated, async (req, res) => {
+  const server = req.modlServer;
+
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
+  }
+
+  try {
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    // Get current billing period start and end dates
+    const currentPeriodStart = server.current_period_start || new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)); // Default to 30 days ago
+    const currentPeriodEnd = server.current_period_end || new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)); // Default to 30 days from now
+
+    // For now, return mock data since nothing tracks usage yet
+    // TODO: Replace with actual usage tracking from your CDN and AI service logs
+    const cdnUsageGB = server.cdn_usage_current_period || 0;
+    const aiRequestsUsed = server.ai_requests_current_period || 0;
+
+    // Premium limits
+    const CDN_LIMIT_GB = 200;
+    const AI_LIMIT_REQUESTS = 10000;
+    const CDN_OVERAGE_RATE = 0.05; // $0.05 per GB
+    const AI_OVERAGE_RATE = 0.01; // $0.01 per request
+
+    // Calculate overages
+    const cdnOverageGB = Math.max(0, cdnUsageGB - CDN_LIMIT_GB);
+    const aiOverageRequests = Math.max(0, aiRequestsUsed - AI_LIMIT_REQUESTS);
+
+    // Calculate overage costs
+    const cdnOverageCost = cdnOverageGB * CDN_OVERAGE_RATE;
+    const aiOverageCost = aiOverageRequests * AI_OVERAGE_RATE;
+    const totalOverageCost = cdnOverageCost + aiOverageCost;
+
+    res.json({
+      period: {
+        start: currentPeriodStart,
+        end: currentPeriodEnd
+      },
+      cdn: {
+        used: cdnUsageGB,
+        limit: CDN_LIMIT_GB,
+        overage: cdnOverageGB,
+        overageRate: CDN_OVERAGE_RATE,
+        overageCost: cdnOverageCost,
+        percentage: Math.min(100, (cdnUsageGB / CDN_LIMIT_GB) * 100)
+      },
+      ai: {
+        used: aiRequestsUsed,
+        limit: AI_LIMIT_REQUESTS,
+        overage: aiOverageRequests,
+        overageRate: AI_OVERAGE_RATE,
+        overageCost: aiOverageCost,
+        percentage: Math.min(100, (aiRequestsUsed / AI_LIMIT_REQUESTS) * 100)
+      },
+      totalOverageCost,
+      usageBillingEnabled: server.usage_billing_enabled || false
+    });
+  } catch (error) {
+    console.error('Error fetching usage statistics:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Enable/disable usage billing and setup automatic payments
+router.post('/usage-billing-settings', isAuthenticated, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).send('Billing service unavailable. Stripe not configured.');
+  }
+
+  const server = req.modlServer;
+  const { enabled } = req.body;
+
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
+  }
+
+  try {
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    if (enabled && !server.stripe_customer_id) {
+      return res.status(400).send('No Stripe customer ID found. Please ensure you have an active subscription.');
+    }
+
+    // Update the server's usage billing setting
+    await Server.findOneAndUpdate(
+      { _id: server._id },
+      { 
+        usage_billing_enabled: enabled,
+        usage_billing_updated_at: new Date()
+      }
+    );
+
+    // If enabling usage billing, we could set up Stripe metering here
+    // For now, we'll just track the setting in our database
+    
+    res.json({ 
+      success: true, 
+      message: enabled 
+        ? 'Usage billing has been enabled. You will be charged for overages at the end of each billing period.'
+        : 'Usage billing has been disabled. Overages will not be charged.',
+      usageBillingEnabled: enabled
+    });
+  } catch (error) {
+    console.error('Error updating usage billing settings:', error);
+    res.status(500).send('Failed to update usage billing settings. Please try again.');
+  }
+});
+
 // Mock endpoint for testing when Stripe is not configured
 router.post('/debug-status/:customDomain', async (req, res) => {
   try {
