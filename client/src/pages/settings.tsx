@@ -370,17 +370,21 @@ const Settings = () => {
         console.log('API Key response data:', data); // Debug log
         if (data.hasApiKey && data.maskedKey) {
           setApiKey(data.maskedKey);
+          setFullApiKey(''); // Clear full key since we only have masked version
         } else {
           setApiKey(''); // No API key exists
+          setFullApiKey('');
         }
       } else {
         const errorText = await response.text();
         console.error('Failed to load API key:', response.status, response.statusText, errorText);
         setApiKey('');
+        setFullApiKey('');
       }
     } catch (error) {
       console.error('Error loading API key:', error);
       setApiKey(''); // Set to empty on error
+      setFullApiKey('');
     }
   };
 
@@ -447,18 +451,44 @@ const Settings = () => {
     }
   };
 
+  const revealApiKey = async () => {
+    if (showApiKey) {
+      // Hide the key
+      setShowApiKey(false);
+      return;
+    }
+    
+    // Show the key - fetch full key if we don't have it
+    if (!fullApiKey) {
+      try {
+        const response = await fetch('/api/panel/settings/api-key/reveal');
+        if (response.ok) {
+          const data = await response.json();
+          setFullApiKey(data.apiKey);
+          setApiKey(data.apiKey);
+        } else {
+          throw new Error('Failed to reveal API key');
+        }
+      } catch (error) {
+        console.error('Error revealing API key:', error);
+        toast({
+          title: "Error",
+          description: "Failed to reveal API key. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    setShowApiKey(true);
+  };
+
   const copyApiKey = () => {
-    // Use fullApiKey if available (when freshly generated), otherwise use apiKey if shown
-    if (fullApiKey) {
-      navigator.clipboard.writeText(fullApiKey);
-      setApiKeyCopied(true);
-      setTimeout(() => setApiKeyCopied(false), 2000);
-      toast({
-        title: "Copied",
-        description: "API key copied to clipboard",
-      });
-    } else if (showApiKey && apiKey) {
-      navigator.clipboard.writeText(apiKey);
+    // Use fullApiKey if available, otherwise use apiKey if shown
+    const keyToCopy = fullApiKey || (showApiKey ? apiKey : '');
+    
+    if (keyToCopy && !keyToCopy.includes('•••')) {
+      navigator.clipboard.writeText(keyToCopy);
       setApiKeyCopied(true);
       setTimeout(() => setApiKeyCopied(false), 2000);
       toast({
@@ -1901,12 +1931,12 @@ const Settings = () => {
                             <Label className="text-xs text-muted-foreground">Current API Key</Label>
                             <div className="flex items-center gap-2 mt-1">
                               <code className="text-sm font-mono bg-background px-2 py-1 rounded border">
-                                {showApiKey ? apiKey : maskApiKey(apiKey)}
+                                {showApiKey ? (fullApiKey || apiKey) : maskApiKey(apiKey)}
                               </code>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setShowApiKey(!showApiKey)}
+                                onClick={revealApiKey}
                               >
                                 {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                               </Button>
@@ -1987,9 +2017,6 @@ const Settings = () => {
                         <p>• For Minecraft: Use the API key in the <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">X-API-Key</code> header</p>
                         <p>• Endpoints: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/api/public/tickets</code>, <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/api/minecraft/*</code></p>
                         <p>• View API documentation for detailed usage examples</p>
-                        {!fullApiKey && apiKey && (
-                          <p className="text-orange-700 dark:text-orange-300">• <strong>Note:</strong> To copy the full key, regenerate a new one</p>
-                        )}
                       </div>
                     </div>
                   </div>

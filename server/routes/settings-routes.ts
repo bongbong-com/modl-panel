@@ -592,6 +592,37 @@ router.post('/api-key/generate', async (req: Request, res: Response) => {
   }
 });
 
+// Get full unified API key (for revealing/copying)
+router.get('/api-key/reveal', async (req: Request, res: Response) => {
+  try {
+    console.log('[Unified API Key REVEAL] Request received');
+    console.log('[Unified API Key REVEAL] Server name:', req.serverName);
+    
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    const apiKey = settingsDoc.settings.get('api_key');
+    
+    if (!apiKey) {
+      return res.status(404).json({ 
+        error: 'API key not found'
+      });
+    }
+    
+    // Return the full key
+    res.json({ 
+      apiKey: apiKey
+    });
+  } catch (error) {
+    console.error('[Unified API Key REVEAL] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Revoke unified API key
 router.delete('/api-key', async (req: Request, res: Response) => {
   try {
