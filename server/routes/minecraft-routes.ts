@@ -310,21 +310,19 @@ export function setupMinecraftRoutes(app: Express): void {
         await player.save();
         await createSystemLog(serverDbConnection, serverName, `New player ${username} (${minecraftUuid}) registered`, 'info', 'system-login');
       }
-      // Use the same active punishment logic as player-routes to ensure consistency
-      // Only return punishments that are:
-      // 1. Not explicitly marked as inactive (active !== false)
-      // 2. Have been started by the server 
-      // 3. Not expired based on duration calculation
-      // 4. Consider modifications (pardons, duration changes, etc.)
-      const activePunishments = player.punishments.filter((punishment: IPunishment) => {
+      // Get both started and unstarted punishments for login response
+      // Include:
+      // 1. Started punishments that are still active
+      // 2. Unstarted punishments that are valid (for immediate execution)
+      const startedActivePunishments = player.punishments.filter((punishment: IPunishment) => {
+        // Must be started
+        if (!punishment.started) return false;
+        
         // Get effective state considering modifications (pardons, duration changes, etc.)
         const effectiveState = getEffectivePunishmentState(punishment);
         
         // If punishment has been pardoned or otherwise made inactive by modifications
         if (!effectiveState.effectiveActive) return false;
-        
-        // Check if punishment has been started (required for bans/mutes to be active)
-        if (!punishment.started) return false;
 
         // Check duration-based expiry using effective expiry if available
         if (effectiveState.effectiveExpiry) {
@@ -340,6 +338,22 @@ export function setupMinecraftRoutes(app: Express): void {
         
         return endTime > Date.now(); // Active if not expired
       });
+
+      // Get valid unstarted punishments (for immediate execution by server)
+      const unstartedValidPunishments = player.punishments
+        .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
+        .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
+
+      // Implement stacking: only include oldest unstarted ban + oldest unstarted mute
+      const oldestUnstartedBan = unstartedValidPunishments.find((p: IPunishment) => isBanPunishment(p));
+      const oldestUnstartedMute = unstartedValidPunishments.find((p: IPunishment) => isMutePunishment(p));
+
+      // Combine started active punishments with priority unstarted ones
+      const activePunishments = [
+        ...startedActivePunishments,
+        ...(oldestUnstartedBan ? [oldestUnstartedBan] : []),
+        ...(oldestUnstartedMute ? [oldestUnstartedMute] : [])
+      ];
 
       // Convert to simplified active punishment format with proper descriptions
       const formattedPunishments = await Promise.all(activePunishments.map(async (p: IPunishment) => {
@@ -732,67 +746,71 @@ export function setupMinecraftRoutes(app: Express): void {
         }
       }
 
-      // 2. Find new punishments that need to be executed (implement punishment stacking)
-      // Include both unstarted punishments AND recently issued punishments since last sync
-      const allPlayersWithUnstartedPunishments = await Player.find({
-        $or: [
-          { 'punishments.started': { $exists: false } }, // Unstarted punishments
-          { 'punishments.issued': { $gte: lastSync } }    // Recently issued punishments
-        ]
-      }).lean();
-
+      // 2. Find pending punishments for online players specifically
+      const onlineUuids = onlinePlayers ? onlinePlayers.map((p: any) => p.uuid || p.minecraftUuid) : [];
       const pendingPunishments: any[] = [];
 
-      for (const player of allPlayersWithUnstartedPunishments) {
-        // Get all valid unstarted punishments for this player, prioritizing recently issued ones
-        const validUnstartedPunishments = player.punishments
-          .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
-          .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
+      if (onlineUuids.length > 0) {
+        // Get online players with unstarted punishments or recently issued punishments
+        const onlinePlayersWithPendingPunishments = await Player.find({
+          minecraftUuid: { $in: onlineUuids },
+          $or: [
+            { 'punishments.started': { $exists: false } }, // Unstarted punishments
+            { 'punishments.issued': { $gte: lastSync } }    // Recently issued punishments
+          ]
+        }).lean();
 
-        // Also get recently issued punishments that might need immediate execution
-        const recentlyIssuedUnstarted = validUnstartedPunishments
-          .filter((p: IPunishment) => new Date(p.issued) >= lastSync);
+        for (const player of onlinePlayersWithPendingPunishments) {
+          // Get all valid unstarted punishments for this player, prioritizing recently issued ones
+          const validUnstartedPunishments = player.punishments
+            .filter((p: IPunishment) => !p.started && isPunishmentValid(p))
+            .sort((a: IPunishment, b: IPunishment) => new Date(a.issued).getTime() - new Date(b.issued).getTime());
 
-        // Prioritize recently issued punishments, then fall back to oldest unstarted
-        const priorityBan = recentlyIssuedUnstarted.find((p: IPunishment) => isBanPunishment(p)) || 
-                           validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p));
-        const priorityMute = recentlyIssuedUnstarted.find((p: IPunishment) => isMutePunishment(p)) || 
-                            validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p));
+          // Also get recently issued punishments that might need immediate execution
+          const recentlyIssuedUnstarted = validUnstartedPunishments
+            .filter((p: IPunishment) => new Date(p.issued) >= lastSync);
 
-        // Add the priority ban if exists
-        if (priorityBan) {
-          const effectiveState = getEffectivePunishmentState(priorityBan);
-          const description = await getPunishmentDescription(priorityBan, serverDbConnection);
+          // Prioritize recently issued punishments, then fall back to oldest unstarted
+          const priorityBan = recentlyIssuedUnstarted.find((p: IPunishment) => isBanPunishment(p)) || 
+                             validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p));
+          const priorityMute = recentlyIssuedUnstarted.find((p: IPunishment) => isMutePunishment(p)) || 
+                              validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p));
 
-          pendingPunishments.push({
-            minecraftUuid: player.minecraftUuid,
-            username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
-            punishment: {
-              type: getPunishmentType(priorityBan),
-              started: false,
-              expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
-              description: description,
-              id: priorityBan.id
-            }
-          });
-        }
+          // Add the priority ban if exists
+          if (priorityBan) {
+            const effectiveState = getEffectivePunishmentState(priorityBan);
+            const description = await getPunishmentDescription(priorityBan, serverDbConnection);
 
-        // Add the priority mute if exists
-        if (priorityMute) {
-          const effectiveState = getEffectivePunishmentState(priorityMute);
-          const description = await getPunishmentDescription(priorityMute, serverDbConnection);
+            pendingPunishments.push({
+              minecraftUuid: player.minecraftUuid,
+              username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
+              punishment: {
+                type: getPunishmentType(priorityBan),
+                started: false,
+                expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
+                description: description,
+                id: priorityBan.id
+              }
+            });
+          }
 
-          pendingPunishments.push({
-            minecraftUuid: player.minecraftUuid,
-            username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
-            punishment: {
-              type: getPunishmentType(priorityMute),
-              started: false,
-              expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
-              description: description,
-              id: priorityMute.id
-            }
-          });
+          // Add the priority mute if exists
+          if (priorityMute) {
+            const effectiveState = getEffectivePunishmentState(priorityMute);
+            const description = await getPunishmentDescription(priorityMute, serverDbConnection);
+
+            pendingPunishments.push({
+              minecraftUuid: player.minecraftUuid,
+              username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
+              punishment: {
+                type: getPunishmentType(priorityMute),
+                started: false,
+                expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
+                description: description,
+                id: priorityMute.id
+              }
+            });
+          }
         }
       }
 
