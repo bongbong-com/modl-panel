@@ -427,14 +427,16 @@ const BillingSettings = () => {
             </div>
             
             <div className="flex gap-3 mt-6">
-              <Button 
-                onClick={handleCreatePortalSession}
-                disabled={isLoading}
-                className="flex items-center gap-2"
-              >
-                <CreditCard className="h-4 w-4" />
-                {isLoading ? 'Loading...' : 'Manage Billing'}
-              </Button>
+              {subscription_status !== 'canceled' && (
+                <Button 
+                  onClick={handleCreatePortalSession}
+                  disabled={isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {isLoading ? 'Loading...' : 'Manage Billing'}
+                </Button>
+              )}
               
               {subscription_status === 'active' && (
                 <AlertDialog>
@@ -472,11 +474,12 @@ const BillingSettings = () => {
               
               {subscription_status === 'canceled' && (
                 <Button 
-                  variant="outline"
-                  onClick={handleCreateCheckoutSession}
+                  onClick={handleCreatePortalSession}
                   disabled={isLoading}
+                  className="flex items-center gap-2"
                 >
-                  {isLoading ? 'Processing...' : 'Resubscribe'}
+                  <CreditCard className="h-4 w-4" />
+                  {isLoading ? 'Loading...' : 'Resubscribe'}
                 </Button>
               )}
             </div>
