@@ -505,7 +505,117 @@ router.post('/reset', async (req: Request, res: Response) => {
   }
 });
 
-// API Key Management Routes - Moved before generic /:key route to prevent interception
+// Unified API Key Management Routes - Moved before generic /:key route to prevent interception
+
+// Get current unified API key (masked for security)
+router.get('/api-key', async (req: Request, res: Response) => {
+  try {
+    console.log('[Unified API Key GET] Request received');
+    console.log('[Unified API Key GET] Server name:', req.serverName);
+    console.log('[Unified API Key GET] DB connection exists:', !!req.serverDbConnection);
+    
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    console.log('[Unified API Key GET] Settings doc found:', !!settingsDoc);
+    console.log('[Unified API Key GET] Settings map exists:', !!settingsDoc?.settings);
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      console.log('[Unified API Key GET] No settings found, returning 404');
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    const apiKey = settingsDoc.settings.get('api_key');
+    console.log('[Unified API Key GET] API key exists:', !!apiKey);
+    console.log('[Unified API Key GET] API key length:', apiKey ? apiKey.length : 0);
+    
+    if (!apiKey) {
+      return res.json({ 
+        hasApiKey: false,
+        maskedKey: null
+      });
+    }
+    
+    // Return masked key for security (show only first 8 and last 4 characters)
+    const maskedKey = apiKey.length > 12 
+      ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
+      : apiKey; // For very short keys, don't mask
+    
+    console.log('[Unified API Key GET] Returning masked key:', maskedKey);
+    
+    res.json({ 
+      hasApiKey: true,
+      maskedKey: maskedKey
+    });
+  } catch (error) {
+    console.error('[Unified API Key GET] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Generate new unified API key
+router.post('/api-key/generate', async (req: Request, res: Response) => {
+  try {
+    console.log('[Unified API Key GENERATE] Request received');
+    console.log('[Unified API Key GENERATE] Server name:', req.serverName);
+    console.log('[Unified API Key GENERATE] DB connection exists:', !!req.serverDbConnection);
+    
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    let settingsDoc = await Settings.findOne({});
+    
+    console.log('[Unified API Key GENERATE] Settings doc found:', !!settingsDoc);
+    
+    // Create settings document if it doesn't exist
+    if (!settingsDoc) {
+      console.log('[Unified API Key GENERATE] Creating default settings document');
+      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
+    }
+    
+    // Generate new API key
+    const newApiKey = generateTicketApiKey();
+    console.log('[Unified API Key GENERATE] Generated new API key with length:', newApiKey.length);
+    
+    // Save to settings
+    settingsDoc.settings.set('api_key', newApiKey);
+    await settingsDoc.save();
+    
+    console.log('[Unified API Key GENERATE] Saved new API key to settings');
+    
+    // Return the full key only once (for copying)
+    res.json({ 
+      apiKey: newApiKey,
+      message: 'New API key generated successfully. Please save this key as it will not be shown again.' 
+    });
+  } catch (error) {
+    console.error('[Unified API Key GENERATE] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Revoke unified API key
+router.delete('/api-key', async (req: Request, res: Response) => {
+  try {
+    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+    const settingsDoc = await Settings.findOne({});
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+    
+    // Remove the API key
+    settingsDoc.settings.delete('api_key');
+    await settingsDoc.save();
+    
+    res.json({ 
+      message: 'API key revoked successfully' 
+    });
+  } catch (error) {
+    console.error('Error revoking API key:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Legacy API Key Management Routes (for backward compatibility)
 
 // Get current ticket API key (masked for security)
 router.get('/ticket-api-key', async (req: Request, res: Response) => {

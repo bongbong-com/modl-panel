@@ -431,7 +431,7 @@ const PlayerDetailPage = () => {
                     "bg-warning/10 text-warning border-warning/20" : 
                     "bg-destructive/10 text-destructive border-destructive/20"
                 }>
-                  Social: {playerInfo.social}
+                  Social: {playerInfo.social.toLowerCase() === 'low' ? 'lenient' : playerInfo.social}
                 </Badge>
                 <Badge variant="outline" className={
                   playerInfo.gameplay.toLowerCase() === 'low' ? 
@@ -440,7 +440,7 @@ const PlayerDetailPage = () => {
                     "bg-warning/10 text-warning border-warning/20" : 
                     "bg-destructive/10 text-destructive border-destructive/20"
                 }>
-                  Gameplay: {playerInfo.gameplay}
+                  Gameplay: {playerInfo.gameplay.toLowerCase() === 'low' ? 'lenient' : playerInfo.gameplay}
                 </Badge>
                 {playerInfo.punished && (
                   <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
