@@ -43,7 +43,7 @@ function Router() {
   // Check if the location is NOT part of the admin panel, auth, appeals, etc.
   const isAdminPanelRoute = location.startsWith("/panel");
   const isAuthPage = location === '/auth' || location === '/panel/auth';
-  const isAppealsPage = location === '/appeals'; // Assuming appeals is not under /panel
+  const isAppealsPage = location === '/appeal'; // Assuming appeals is not under /panel
   const isPlayerTicketPage = location.startsWith('/player-ticket/'); // Assuming player-ticket is not under /panel
   const isProvisioningPage = location === '/provisioning-in-progress';
   const isAcceptInvitationPage = location.startsWith('/accept-invitation');
@@ -70,7 +70,7 @@ function Router() {
         <Switch>
           <AuthRoute path="/auth" component={AuthPage} />
           <AuthRoute path="/panel/auth" component={AuthPage} />
-          <Route path="/appeals" component={AppealsPage} />
+          <Route path="/appeal" component={AppealsPage} />
           <Route path="/player-ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
           <Route path="/accept-invitation" component={AcceptInvitationPage} />
@@ -96,7 +96,7 @@ function Router() {
             <AuthRoute path="/panel/auth" component={AuthPage} />
             {/* These routes are assumed to be outside /panel */}
             <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
-            <Route path="/appeals" component={AppealsPage} />
+            <Route path="/appeal" component={AppealsPage} />
             <Route path="/player-ticket/:id" component={PlayerTicket} />
             <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />          <Route path="/accept-invitation" component={AcceptInvitationPage} />
             {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
@@ -155,7 +155,7 @@ function AppContent() {
     const isOnPanelHomePage = location === '/panel';
     const isFromProvisioning = new URLSearchParams(window.location.search).get('fromProvisioning') === 'true';
     
-    const excludedPages = ['/auth', '/panel/auth', '/appeals', '/provisioning-in-progress'];
+    const excludedPages = ['/auth', '/panel/auth', '/appeal', '/provisioning-in-progress'];
     const isOnExcludedPage = excludedPages.some(page => location.startsWith(page));
     const isOnPlayerTicketPage = location.startsWith('/player-ticket/');
     const isOnAcceptInvitationPage = location.startsWith('/accept-invitation');

@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send } from 'lucide-react';
+import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX } from 'lucide-react';
 import { Label } from "modl-shared-web/components/ui/label";
 import { Button } from "modl-shared-web/components/ui/button";
 import { Input } from "modl-shared-web/components/ui/input";
@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from 'modl-shared-web/components/ui/separator';
 import { Textarea } from 'modl-shared-web/components/ui/textarea';
 import { Badge } from 'modl-shared-web/components/ui/badge';
-import { useSettings, useCreateAppeal, useAppealsByPunishment } from '@/hooks/use-data';
+import { useSettings, useCreateAppeal } from '@/hooks/use-data';
 
 // Appeal form field interfaces
 interface AppealFormField {
@@ -116,7 +116,6 @@ const AppealsPage = () => {
   const [appealInfo, setAppealInfo] = useState<AppealInfo | null>(null);
   const [showAppealForm, setShowAppealForm] = useState(false);
   const [isLoadingPunishment, setIsLoadingPunishment] = useState(false);
-  const [newReply, setNewReply] = useState("");
 
   // Fetch settings to get appeal form configuration
   const { data: settings } = useSettings();
@@ -124,7 +123,6 @@ const AppealsPage = () => {
 
   // API mutations
   const createAppealMutation = useCreateAppeal();
-  const { data: existingAppeals } = useAppealsByPunishment(banInfo?.id || '');
 
   // Create dynamic form schema based on appeal form settings
   const createDynamicSchema = () => {
@@ -203,8 +201,8 @@ const AppealsPage = () => {
     setIsLoadingPunishment(true);
 
     try {
-      // Fetch punishment information from API
-      const response = await fetch(`/api/panel/players/punishment/${normalizedBanId}`);
+      // Fetch punishment information from public API
+      const response = await fetch(`/api/public/punishment/${normalizedBanId}/appeal-info`);
       
       if (!response.ok) {
         throw new Error('Punishment not found');
@@ -216,20 +214,27 @@ const AppealsPage = () => {
         id: punishment.id,
         reason: punishment.reason,
         date: formatDate(punishment.issued),
-        staffMember: punishment.issuerName,
+        staffMember: 'Staff', // Public API doesn't expose staff member names
         status: punishment.active ? 'Active' : 'Expired',
-        expiresIn: punishment.expires ? formatDate(punishment.expires) : undefined,
+        expiresIn: punishment.started && punishment.active ? 'Unknown' : undefined, // Public API doesn't expose expiry details
         type: punishment.type,
-        playerUuid: punishment.playerUuid,
-        isAppealable: punishment.isAppealable !== false, // Default to true if not specified
+        playerUuid: punishment.playerUsername, // Use username instead of UUID for public API
+        isAppealable: punishment.appealable, // Use the appealable field from public API
       };
 
       setBanInfo(banInfo);
 
-      // Check for existing appeals
-      const existingAppeal = existingAppeals?.[0];
-      if (existingAppeal) {
-        setAppealInfo(existingAppeal);
+      // Check for existing appeals from the public API response
+      if (punishment.existingAppeal) {
+        const appealInfo: AppealInfo = {
+          id: punishment.existingAppeal.id,
+          banId: punishment.id,
+          submittedOn: punishment.existingAppeal.submittedDate,
+          status: punishment.existingAppeal.status,
+          lastUpdate: punishment.existingAppeal.submittedDate,
+          messages: [] // Public API doesn't expose appeal messages for security
+        };
+        setAppealInfo(appealInfo);
         setShowAppealForm(false);
       } else {        // Show appeal form if no existing appeal and punishment is active and appealable
         const canAppeal = banInfo.status === 'Active' && 
@@ -294,46 +299,6 @@ const AppealsPage = () => {
     }
   };
 
-  // Handle sending a reply to an existing appeal
-  const handleSendReply = async () => {
-    if (!newReply.trim() || !appealInfo) return;
-
-    try {
-      const response = await fetch(`/api/panel/appeals/${appealInfo.id}/replies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'You',
-          content: newReply,
-          type: 'player',
-          staff: false,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send reply');
-      }
-
-      // Refresh appeal data
-      onSearchSubmit({ banId: appealInfo.banId });
-      setNewReply("");
-
-      toast({
-        title: "Reply Sent",
-        description: "Your reply has been added to the appeal.",
-      });
-
-    } catch (error) {
-      console.error('Error sending reply:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send reply. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
 
   // Render dynamic form field
   const renderFormField = (field: AppealFormField) => {
@@ -593,80 +558,17 @@ const AppealsPage = () => {
                   </Alert>
                 )}
                 
-                {/* Messages Section */}
-                {appealInfo.messages && appealInfo.messages.length > 0 && (
-                  <div className="mt-6 space-y-4">
-                    <Separator />
-                    <h4 className="text-md font-semibold">Conversation</h4>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto p-2">
-                      {appealInfo.messages
-                        .filter(message => !message.isStaffNote)
-                        .map((message) => (
-                          <div 
-                            key={message.id} 
-                            className={`flex flex-col ${
-                              message.sender === 'player' 
-                                ? 'items-end' 
-                                : 'items-center'
-                            }`}
-                          >
-                            <div 
-                              className={`max-w-[85%] rounded-lg p-3 ${
-                                message.sender === 'player' 
-                                  ? 'bg-primary text-primary-foreground' 
-                                  : 'bg-muted/50 text-xs w-full text-center'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-xs font-medium ${
-                                  message.sender === 'player' 
-                                    ? 'text-primary-foreground/80' 
-                                    : 'text-muted-foreground'
-                                }`}>
-                                  {message.senderName}
-                                </span>
-                              </div>
-                              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                              <div className="text-xs opacity-70 mt-1 text-right">
-                                {formatDate(message.timestamp)}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                    
-                    {/* Reply input */}
-                    {appealInfo.status !== 'Approved' && appealInfo.status !== 'Rejected' && appealInfo.status !== 'Closed' && (
-                      <div className="mt-4">
-                        <div className="flex flex-col space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="reply">Add a reply</Label>
-                            <div className="text-xs text-muted-foreground">
-                              Your reply will be visible to staff
-                            </div>
-                          </div>
-                          <Textarea
-                            id="reply"
-                            placeholder="Type your message here..."
-                            rows={3}
-                            value={newReply}
-                            onChange={(e) => setNewReply(e.target.value)}
-                          />
-                          <div className="flex justify-end">
-                            <Button 
-                              onClick={handleSendReply}
-                              disabled={!newReply.trim()}
-                              size="sm"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              Send Reply
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Note about communication */}
+                <div className="mt-6 space-y-4">
+                  <Separator />
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Communication</AlertTitle>
+                    <AlertDescription>
+                      For any questions or additional information regarding your appeal, please contact our support team directly.
+                    </AlertDescription>
+                  </Alert>
+                </div>
               </div>
             )}
             

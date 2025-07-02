@@ -20,6 +20,7 @@ import publicKnowledgebaseRoutes from './routes/public-knowledgebase-routes'; //
 import homepageCardRoutes from './routes/homepage-card-routes'; // Import homepage card routes
 import publicHomepageCardRoutes from './routes/public-homepage-card-routes'; // Import public homepage card routes
 import publicTicketRoutes from './routes/public-ticket-routes'; // Import public ticket routes
+import publicPunishmentRoutes from './routes/public-punishment-routes'; // Import public punishment routes
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -40,6 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
   app.use('/api/public', publicHomepageCardRoutes); // Public homepage cards
   app.use('/api/public', publicTicketRoutes); // Public ticket routes (API key protected)
+  app.use('/api/public', publicPunishmentRoutes); // Public punishment routes
 
   // Public settings endpoint - no authentication required
   app.get('/api/public/settings', async (req, res) => {

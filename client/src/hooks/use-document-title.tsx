@@ -23,7 +23,7 @@ function getPageName(location: string): string {
   // Handle public routes
   if (location === '/') return 'Support';
   if (location === '/knowledgebase') return 'Knowledge Base';
-  if (location === '/appeals') return 'Appeals';
+  if (location === '/appeal') return 'Appeals';
   if (location === '/auth') return 'Login';
   if (location.startsWith('/player-ticket/')) return 'Ticket';
   if (location === '/provisioning-in-progress') return 'Provisioning';
