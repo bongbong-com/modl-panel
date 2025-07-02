@@ -420,12 +420,12 @@ const BillingSettings = () => {
                   <span className="text-muted-foreground mx-2">—</span>
                   <span className="text-2xl font-bold text-primary">$20/month</span>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className='mt-4'>
                   {subscription_status === 'canceled' && current_period_end
                     ? `Access ends ${new Date(current_period_end).toLocaleDateString()}`
                     : current_period_end 
                     ? `${subscription_status === 'trialing' ? 'Trial ends' : 'Next billing'} ${new Date(current_period_end).toLocaleDateString()}`
-                    : 'Premium features enabled'
+                    : 'Modl uses Stripe to handle billing. Use the buttons below to manage your subscription.'
                   }
                 </CardDescription>
               </div>
