@@ -1084,41 +1084,47 @@ const TicketDetail = () => {
               
               {activeTab === 'conversation' && (
                 <div className="space-y-4">
-                  <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
-                    {ticketDetails.messages.map((message) => (                      <div                        key={message.id} 
-                        className={`flex gap-3 ${message.senderType === 'user' ? '' : 'bg-muted/20 p-3 rounded-md'}`}
+                  <div className="space-y-6 mb-5 max-h-[480px] overflow-y-auto p-2">
+                    {ticketDetails.messages.map((message) => (
+                      <div 
+                        key={message.id} 
+                        className={`${message.senderType === 'user' ? 'ml-0' : 'bg-muted/20 p-4 rounded-lg ml-0'}`}
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between">
-                            <div className="font-medium text-sm flex items-center">
-                              <>{message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}</>
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="font-medium text-sm flex items-center gap-2">
+                              <span className="text-foreground">
+                                {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
+                              </span>
                               {(message.senderType === 'staff' || message.staff) && (
-                                <Badge variant="outline" className="ml-2 text-xs bg-success/10 text-success border-success/20">
+                                <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
                                   Staff
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground">{formatDate(message.timestamp) || formatDate(new Date().toISOString())}</span>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                              {formatDate(message.timestamp) || formatDate(new Date().toISOString())}
+                            </span>
                           </div>
+                          
                           {/* If this message has a closedAs status, show the ticket closing info */}
                           {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
                             <>
-                              <div className="text-sm mt-1 flex items-center">
+                              <div className="text-sm mb-2 flex items-center">
                                 <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
-                                
                               </div>
-                              <div className="mt-1">
+                              <div className="message-content">
                                 <MarkdownRenderer 
                                   content={message.content} 
-                                  className="text-sm"
+                                  className="text-sm leading-relaxed"
                                 />
                               </div>
                             </>
                           ) : (
-                            <div className="mt-1">
+                            <div className="message-content">
                               <MarkdownRenderer 
                                 content={message.content} 
-                                className="text-sm"
+                                className="text-sm leading-relaxed"
                               />
                             </div>
                           )}
@@ -1442,15 +1448,15 @@ const TicketDetail = () => {
                 <div className="space-y-4">
                   <div className="space-y-4 mb-5 max-h-[480px] overflow-y-auto p-2">
                     {ticketDetails.notes.map((note, idx) => (
-                      <div key={idx} className="bg-muted/20 p-3 rounded-md">
-                        <div className="flex justify-between">
-                          <span className="font-medium text-sm">{note.author}</span>
-                          <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
+                      <div key={idx} className="bg-muted/20 p-4 rounded-lg">
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="font-medium text-sm text-foreground">{note.author}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">{formatDate(note.date)}</span>
                         </div>
-                        <div className="mt-1.5">
+                        <div className="note-content">
                           <MarkdownRenderer 
                             content={note.content} 
-                            className="text-sm"
+                            className="text-sm leading-relaxed"
                           />
                         </div>
                       </div>

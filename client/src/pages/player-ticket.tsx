@@ -686,20 +686,21 @@ const PlayerTicket = () => {
               {/* Messages section */}
               <div className="p-4 max-h-[600px] overflow-y-auto">
                 {ticketDetails.messages.length > 0 ? (
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col space-y-6">
                     {ticketDetails.messages.map((message) => (
-                      <div                        key={message.id}
+                      <div
+                        key={message.id}
                         className={`flex gap-3 ${
                           message.senderType === 'staff' || message.staff
-                            ? 'bg-primary/5 p-3 rounded-lg'
+                            ? 'bg-primary/5 p-4 rounded-lg'
                             : message.senderType === 'system'
-                            ? 'bg-muted/20 p-3 rounded-lg italic text-muted-foreground'
+                            ? 'bg-muted/20 p-4 rounded-lg italic text-muted-foreground'
                             : ''
                         }`}
                       >
                         <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="font-medium flex items-center gap-2">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="font-medium flex items-center gap-2 flex-shrink-0">
                               {message.sender}
                               {(message.senderType === 'staff' || message.staff) && (
                                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] py-0 h-4">
@@ -720,7 +721,7 @@ const PlayerTicket = () => {
                           <div className="text-sm">
                             <MarkdownRenderer 
                               content={message.content} 
-                              className="text-sm"
+                              className="text-sm leading-relaxed"
                             />
                           </div>
                         </div>
