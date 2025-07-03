@@ -57,7 +57,7 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Get appeals by punishment ID
-router.get('/api/appeals/punishment/:id', async (req: Request, res: Response) => {
+router.get('/punishment/:id', async (req: Request, res: Response) => {
   const Ticket: Model<ITicket> = req.serverDbConnection!.model<ITicket>('Ticket');
   try {
     const appeals = await Ticket.find({ 'data.punishmentId': req.params.id, type: 'appeal' });
@@ -74,7 +74,7 @@ router.get('/api/appeals/punishment/:id', async (req: Request, res: Response) =>
 });
 
 // Get appeal by ID
-router.get('/api/appeals/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   const Ticket: Model<ITicket> = req.serverDbConnection!.model<ITicket>('Ticket');
   try {
     const appeal = await Ticket.findById(req.params.id);
@@ -95,7 +95,7 @@ router.get('/api/appeals/:id', async (req: Request, res: Response) => {
 });
 
 // Create new appeal
-router.post('/api/appeals', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const Player: Model<IPlayer> = req.serverDbConnection!.model<IPlayer>('Player');
   const Ticket: Model<ITicket> = req.serverDbConnection!.model<ITicket>('Ticket');
 
@@ -212,7 +212,7 @@ router.post('/api/appeals', async (req: Request, res: Response) => {
 });
 
 // Add reply to appeal
-router.post('/api/appeals/:id/replies', async (req: Request, res: Response) => {
+router.post('/:id/replies', async (req: Request, res: Response) => {
   const Ticket: Model<ITicket> = req.serverDbConnection!.model<ITicket>('Ticket');
   try {
     const { name, content, type, staff, action, avatar } = req.body;
@@ -253,7 +253,7 @@ router.post('/api/appeals/:id/replies', async (req: Request, res: Response) => {
 });
 
 // Update appeal status (and potentially other fields like locked)
-router.patch('/api/appeals/:id/status', async (req: Request, res: Response) => {
+router.patch('/:id/status', async (req: Request, res: Response) => {
   const Ticket: Model<ITicket> = req.serverDbConnection!.model<ITicket>('Ticket');
   const Player: Model<IPlayer> = req.serverDbConnection!.model<IPlayer>('Player');
   try {
