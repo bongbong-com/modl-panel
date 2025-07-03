@@ -199,7 +199,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const Player = req.serverDbConnection.model('Player');
       const Ticket = req.serverDbConnection.model('Ticket');
-      const Punishment = req.serverDbConnection.model('Punishment');
       
       // Date calculations for comparisons
       const now = new Date();
@@ -267,7 +266,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Get total punishments (active ones)
-      const totalPunishments = await Punishment.countDocuments({ active: true });
+      // TODO: This is a simplified active check. For full accuracy, this should use the same complex logic as elsewhere.
+      const playersForPunishments = await Player.find({ 'punishments.0': { $exists: true } }, 'punishments').lean();
+      let totalPunishments = 0;
+      for (const player of playersForPunishments) {
+        for (const punishment of player.punishments) {
+          if (punishment.data) {
+            const punishmentData = punishment.data as any;
+            // Active by default, only inactive if 'active' is explicitly false
+            if (punishmentData.active !== false) {
+              totalPunishments++;
+            }
+          } else {
+            // If no data field, assume active
+            totalPunishments++;
+          }
+        }
+      }
       
       // Calculate online players - try multiple approaches to find active players
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -335,7 +350,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.serverDbConnection) {
           const Player = req.serverDbConnection.model('Player');
           const Ticket = req.serverDbConnection.model('Ticket');
-          const Punishment = req.serverDbConnection.model('Punishment');
           
           // Try basic counts that are less likely to fail
           const basicPlayerCount = await Player.countDocuments({}).catch(() => 0);
@@ -355,7 +369,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Try to get basic punishment count
-          const basicPunishmentCount = await Punishment.countDocuments({ active: true }).catch(() => 0);
+          const playersForPunishmentCount = await Player.find({ 'punishments.0': { $exists: true } }, 'punishments').lean().catch(() => []);
+          let basicPunishmentCount = 0;
+          for (const player of playersForPunishmentCount) {
+            if (player.punishments) {
+              basicPunishmentCount += player.punishments.length; // Count all punishments for fallback
+            }
+          }
           
           // Try to estimate online players from recent activity
           let estimatedOnline = 0;
