@@ -21,6 +21,49 @@ interface StaffMember {
   status: string;
 }
 
+interface User {
+  _id: string;
+  email: string;
+  role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
+}
+
+// Helper function to check if a user can change another member's role
+const canChangeRole = (currentUser: User, member: StaffMember): boolean => {
+  // Super Admin can change any role (server will handle additional protections)
+  if (currentUser.role === 'Super Admin') {
+    return true;
+  }
+  
+  // Admins can only change Moderator/Helper roles, not other Admins or Super Admins
+  if (currentUser.role === 'Admin') {
+    return member.role === 'Moderator' || member.role === 'Helper';
+  }
+  
+  // Other roles cannot change roles
+  return false;
+};
+
+// Helper function to check if a user can remove another member
+const canRemoveMember = (currentUser: User, member: StaffMember): boolean => {
+  // Cannot remove yourself (checked by member ID comparison in the actual removal)
+  if (currentUser._id === member._id) {
+    return false;
+  }
+  
+  // Super Admin can remove anyone (server will handle additional protections)
+  if (currentUser.role === 'Super Admin') {
+    return true;
+  }
+  
+  // Admins can only remove Moderators and Helpers, not other Admins or Super Admins
+  if (currentUser.role === 'Admin') {
+    return member.role === 'Moderator' || member.role === 'Helper';
+  }
+  
+  // Other roles cannot remove anyone
+  return false;
+};
+
 const StaffManagementPanel = () => {
   const { data: staff, isLoading, error, refetch: refetchStaff, isRefetching } = useStaff();
   const { user: currentUser } = useAuth();
@@ -81,10 +124,23 @@ const StaffManagementPanel = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to remove staff member');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to remove staff member' }));
+        toast({
+          title: 'Error',
+          description: errorData.message || 'Failed to remove staff member',
+          variant: 'destructive',
+        });
+        return;
       }
 
       queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
+      
+      toast({
+        title: 'Success',
+        description: selectedStaffMember?.status === 'Pending Invitation' 
+          ? 'Invitation cancelled successfully.' 
+          : 'Staff member removed successfully.',
+      });
     } catch (error) {
       console.error(error);
     } finally {
@@ -183,14 +239,16 @@ const StaffManagementPanel = () => {
                             </>
                           ) : (
                             <>
-                              {currentUser && (currentUser.role === 'Super Admin' || (currentUser.role === 'Admin' && (member.role === 'Moderator' || member.role === 'Helper'))) && (
+                              {currentUser && canChangeRole(currentUser, member) && (
                                 <DropdownMenuItem onSelect={() => openChangeRoleModal(member)}>
                                   Change Role
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onSelect={() => openConfirmationDialog(member)}>
-                                Remove Staff Member
-                              </DropdownMenuItem>
+                              {currentUser && canRemoveMember(currentUser, member) && (
+                                <DropdownMenuItem onSelect={() => openConfirmationDialog(member)}>
+                                  Remove Staff Member
+                                </DropdownMenuItem>
+                              )}
                             </>
                           )}
                         </DropdownMenuContent>

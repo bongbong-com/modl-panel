@@ -270,9 +270,22 @@ const BillingSettings = () => {
       return 'premium'; // Still has access until end date
     }
     
+    // Active and trialing are clearly premium
     if (['active', 'trialing'].includes(subscription_status)) {
       return 'premium';
     }
+    
+    // For payment issues (past_due, unpaid), check if still within period
+    if (['past_due', 'unpaid', 'incomplete'].includes(subscription_status)) {
+      if (current_period_end) {
+        const endDate = new Date(current_period_end);
+        const now = new Date();
+        if (endDate > now) {
+          return 'premium'; // Still within paid period despite payment issues
+        }
+      }
+    }
+    
     return 'free';
   };
 
@@ -478,8 +491,12 @@ const BillingSettings = () => {
                 <CardDescription className='mt-4'>
                   {subscription_status === 'canceled' && current_period_end
                     ? `Access ends ${new Date(current_period_end).toLocaleDateString()}`
+                    : subscription_status === 'canceled' && !current_period_end
+                    ? 'Your subscription has been cancelled and access has ended.'
                     : current_period_end 
                     ? `${subscription_status === 'trialing' ? 'Trial ends' : 'Next billing'} ${new Date(current_period_end).toLocaleDateString()}`
+                    : subscription_status === 'active'
+                    ? 'Your premium subscription is active. Billing information is being synced with Stripe.'
                     : 'Modl uses Stripe to handle billing. Use the buttons below to manage your subscription.'
                   }
                 </CardDescription>
@@ -517,7 +534,7 @@ const BillingSettings = () => {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Cancel Premium Subscription</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to cancel your Premium subscription? You'll continue to have access to all Premium features until the end of your current billing period ({current_period_end ? new Date(current_period_end).toLocaleDateString() : 'current period ends'}).
+                        Are you sure you want to cancel your Premium subscription? You'll continue to have access to all Premium features until the end of your current billing period{current_period_end ? ` (${new Date(current_period_end).toLocaleDateString()})` : ''}.
                         <br /><br />
                         After that, your server will be downgraded to the Free plan.
                       </AlertDialogDescription>

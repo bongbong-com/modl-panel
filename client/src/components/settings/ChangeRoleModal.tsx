@@ -50,6 +50,7 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, staf
     }
 
     if (currentUser.role === 'Super Admin') {
+      // Super Admin can change most roles, but certain users may be protected server-side
       setAvailableRoles(ROLES);
     } else if (currentUser.role === 'Admin') {
       // Admins cannot change a user's role to 'Admin' or 'Super Admin'.
@@ -77,7 +78,7 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, staf
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Failed to change role' }));
         throw new Error(errorData.message || 'Failed to change role');
       }
 

@@ -498,16 +498,29 @@ router.patch('/profile', async (req: Request, res: Response) => {
       { new: true, select: 'email username role' }
     );
     
-    // If user not found and it's an email (Super Admin), create a new staff record
+    // If user not found and it's an email (Super Admin), handle session-only update
     if (!updatedUser && isEmail) {
-      console.log('[PROFILE ENDPOINT] Super Admin not found in Staff collection, creating new record');      const newStaffData = {
+      console.log('[PROFILE ENDPOINT] Super Admin not found in Staff collection - updating session only');
+      // Super Admin should not be auto-created in Staff collection
+      // Update session data directly for Super Admin
+      if (username !== undefined) {
+        (req.session as any).username = username;
+      }
+      
+      await req.session.save();
+      
+      const sessionUser = {
+        _id: userId,
         email: userId,
         username: username || userId.split('@')[0],
         role: 'Super Admin'
       };
       
-      updatedUser = await StaffModel.create(newStaffData);
-      console.log('[PROFILE ENDPOINT] Created new Staff record for Super Admin:', updatedUser);
+      console.log('[PROFILE ENDPOINT] Super Admin session updated:', sessionUser);
+      return res.json({ 
+        message: 'Profile updated successfully',
+        user: sessionUser
+      });
     }
     
     if (!updatedUser) {

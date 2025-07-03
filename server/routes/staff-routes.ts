@@ -44,7 +44,17 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
     const users = await UserModel.find({});
     const invitations = await InvitationModel.find({ status: 'pending' });
 
-    const staff = users.map(user => ({
+    // Filter out Super Admin entries that match the server admin email
+    const adminEmail = req.modlServer?.adminEmail?.toLowerCase();
+    const filteredUsers = users.filter(user => {
+      // If this is a Super Admin with the same email as the server admin, exclude it
+      if (user.role === 'Super Admin' && adminEmail && user.email.toLowerCase() === adminEmail) {
+        return false;
+      }
+      return true;
+    });
+
+    const staff = filteredUsers.map(user => ({
       ...user.toObject(),
       status: 'Active'
     }));
@@ -80,6 +90,11 @@ router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async
 
   if (invitingUser.role === 'Admin' && role === 'Admin') {
     return res.status(403).json({ message: 'Admins cannot invite other Admins.' });
+  }
+
+  // Check if the email is the admin email
+  if (req.modlServer?.adminEmail && email.toLowerCase() === req.modlServer.adminEmail.toLowerCase()) {
+    return res.status(409).json({ message: 'Cannot send invitation to the admin email address.' });
   }
 
   try {
@@ -182,12 +197,20 @@ router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, 
             return res.status(404).json({ message: 'User or invitation not found.' });
         }
 
+        // Prevent Admins from removing other Admins or Super Admins
         if (removerUser.role === 'Admin' && (userToRemove.role === 'Admin' || userToRemove.role === 'Super Admin')) {
             return res.status(403).json({ message: 'Admins can only remove Moderators and Helpers.' });
         }
 
+        // Prevent removing yourself
         if (removerUser.userId === id) {
             return res.status(400).json({ message: 'You cannot remove yourself.' });
+        }
+
+        // Additional protection: Prevent removing the server admin (Super Admin with admin email)
+        const adminEmail = req.modlServer?.adminEmail?.toLowerCase();
+        if (userToRemove.role === 'Super Admin' && adminEmail && userToRemove.email.toLowerCase() === adminEmail) {
+            return res.status(403).json({ message: 'Cannot remove the server administrator.' });
         }
 
         await Staff.findByIdAndDelete(id);
@@ -350,9 +373,15 @@ router.patch('/:id/role', checkRole(['Super Admin', 'Admin']), async (req: Reque
       return res.status(404).json({ message: 'Staff member not found.' });
     }
 
+    // Additional protection: Prevent changing role of the server admin (Super Admin with admin email)
+    const adminEmail = req.modlServer?.adminEmail?.toLowerCase();
+    if (staffToUpdate.role === 'Super Admin' && adminEmail && staffToUpdate.email.toLowerCase() === adminEmail) {
+      return res.status(403).json({ message: 'Cannot change the role of the server administrator.' });
+    }
+
     // Super Admin can change any role to any other role.
     if (performingUser.role === 'Super Admin') {
-      // No restrictions for Super Admin
+      // No restrictions for Super Admin (except server admin protection above)
     } else if (performingUser.role === 'Admin') {
       // Admins cannot change their own role.
       if (staffToUpdate._id.toString() === performingUser.userId) {
