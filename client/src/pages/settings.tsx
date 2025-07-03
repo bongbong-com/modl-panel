@@ -595,34 +595,34 @@ const Settings = () => {
   // Add AI punishment type configuration
   const addAiPunishmentType = async (punishmentTypeId: number, aiDescription: string) => {
     try {
-      const requestBody = { punishmentTypeId, aiDescription };
-      
       const response = await fetch('/api/panel/settings/ai-punishment-types', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ punishmentTypeId, aiDescription }),
       });
       
-      const responseData = await response.json();
-      
       if (response.ok) {
-        await loadAiPunishmentTypes();
-        await loadAvailablePunishmentTypes();
         toast({
           title: "AI Punishment Type Added",
-          description: "The punishment type has been enabled for AI use.",
+          description: "The punishment type has been configured for AI services.",
         });
+        await loadAiPunishmentTypes();
+        await loadAvailablePunishmentTypes();
       } else {
-        console.error('Request failed with status:', response.status, 'Error:', responseData.error);
-        throw new Error(responseData.error || 'Failed to add AI punishment type');
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to add AI punishment type.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error adding AI punishment type:', error);
       toast({
         title: "Error",
-        description: `Failed to add AI punishment type: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     }
@@ -3756,9 +3756,9 @@ const Settings = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
                     if (selectedPunishmentTypeId && newAIPunishmentDescription.trim()) {
-                      addAiPunishmentType(selectedPunishmentTypeId, newAIPunishmentDescription.trim());
+                      await addAiPunishmentType(selectedPunishmentTypeId, newAIPunishmentDescription.trim());
                       setIsAddAIPunishmentDialogOpen(false);
                       setNewAIPunishmentDescription('');
                       setSelectedPunishmentTypeId(null);
