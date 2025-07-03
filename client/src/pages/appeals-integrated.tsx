@@ -199,59 +199,50 @@ const AppealsPage = () => {
 
   // Handle search form submission
   const onSearchSubmit = async (values: SearchFormValues) => {
-    const normalizedBanId = values.banId.toUpperCase().replace(/\s/g, '');
     setIsLoadingPunishment(true);
+    // Reset previous state
+    setBanInfo(null);
+    setAppealInfo(null);
+    setShowAppealForm(false);
 
     try {
-      // Fetch punishment information from public API (changed from panel API to public API for unauth access)
-      const response = await fetch(`/api/public/punishment/${normalizedBanId}/appeal-info`);
-      
-      if (!response.ok) {
-        if (response.status === 400) {
-          // Check if it's an unstarted punishment error
-          const errorData = await response.json();
-          if (errorData.error?.includes('not been started yet')) {
-            toast({
-              title: "Cannot Appeal Unstarted Punishment",
-              description: "This punishment has not been started yet and cannot be appealed at this time.",
-              variant: "destructive"
-            });
-            return;
-          }
+      // Simulate fetching from a generic public endpoint
+      // In a real app, this would be /api/public/punishments/:id
+      const res = await fetch(`/api/public/punishments/${values.banId}`);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          toast({
+            variant: "destructive",
+            title: "Punishment not found",
+            description: `No punishment with ID '${values.banId}' was found. Please double-check the ID.`,
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "An unexpected error occurred while searching for the punishment.",
+          });
         }
-        throw new Error('Punishment not found');
+        return;
       }
 
-      const punishment = await response.json();
-        // Transform punishment data to BanInfo format
-      const banInfo: BanInfo = {
-        id: punishment.id,
-        reason: 'Punishment details are not available publicly', // Reason is no longer provided by public API
-        date: formatDate(punishment.issued),
-        staffMember: 'Staff', // Public API doesn't expose staff member names
-        status: punishment.active ? 'Active' : 'Expired',
-        expiresIn: punishment.expires ? formatDate(punishment.expires) : 'Permanent', // Use the expires field from API
-        type: punishment.type,
-        playerUuid: punishment.playerUsername, // Use username instead of UUID for public API
-        isAppealable: punishment.appealable, // Use the appealable field from public API
-      };
+      const data = await res.json();
+      
+      setBanInfo({
+        id: data.id,
+        reason: data.reason,
+        date: data.date,
+        staffMember: data.staffMember,
+        status: data.status,
+        expiresIn: data.expiresIn,
+        type: data.type,
+        isAppealable: data.isAppealable,
+        playerUuid: data.playerUuid, // Store playerUuid here
+      });
 
-      setBanInfo(banInfo);
-
-      // Check for existing appeals
-      const existingAppeal = existingAppeals?.[0];
-      if (existingAppeal) {
-        setAppealInfo(existingAppeal);
-        setShowAppealForm(false);
-      } else {        // Show appeal form if no existing appeal and punishment is active and appealable
-        const canAppeal = banInfo.status === 'Active' && 
-                          banInfo.isAppealable !== false;
-        setShowAppealForm(canAppeal);
-        setAppealInfo(null);
-      }
-
-      // Prefill form with punishment ID
-      appealForm.setValue('banId', normalizedBanId);
+      // Automatically set the banId in the appeal form
+      appealForm.setValue('banId', data.id);
 
     } catch (error) {
       console.error('Error fetching punishment:', error);
@@ -260,7 +251,7 @@ const AppealsPage = () => {
       setShowAppealForm(false);
       toast({
         title: "Punishment not found",
-        description: `No punishment found with ID: ${normalizedBanId}`,
+        description: `No punishment found with ID: ${values.banId}`,
         variant: "destructive"
       });
     } finally {
@@ -270,34 +261,48 @@ const AppealsPage = () => {
 
   // Handle appeal form submission
   const onAppealSubmit = async (values: DynamicFormValues) => {
-    if (!banInfo) return;
+    if (!banInfo) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No punishment information is loaded. Please search for a punishment first.",
+      });
+      return;
+    }
+
+    const appealData = {
+      punishmentId: banInfo.id,
+      playerUuid: banInfo.playerUuid, // Add playerUuid to the submission
+      email: values.email,
+      reason: values.reason, // Assuming 'reason' is a standard field
+      additionalData: {
+        ...values, // Pass all form fields as additional data
+      },
+    };
+
+    // Remove fields already explicitly set
+    delete appealData.additionalData.banId;
+    delete appealData.additionalData.email;
+    delete appealData.additionalData.reason;
 
     try {
-      const appealData = {
-        punishmentId: values.banId,
-        playerUuid: banInfo.playerUuid,
-        email: values.email,
-        reason: values.reason || '', // Fallback for basic schema
-        additionalData: Object.fromEntries(
-          Object.entries(values).filter(([key]) => 
-            !['banId', 'email', 'reason'].includes(key)
-          )
-        ),
-      };
-
       await createAppealMutation.mutateAsync(appealData);
-
       toast({
         title: "Appeal Submitted",
-        description: `Your appeal for punishment ${values.banId} has been submitted and will be reviewed by our staff.`,
+        description: "Your appeal has been successfully submitted and is now pending review.",
       });
-
-      // Refresh the page data
       setShowAppealForm(false);
-      onSearchSubmit({ banId: values.banId });
+      // Refetch appeal info to show the newly created appeal
+      // This will trigger the useAppealsByPunishment hook again
+      // A small delay to ensure data is available after submission
+      setTimeout(() => {
+        // In a real app, you might want a more robust way to trigger refetch
+        // For now, we'll just re-set the banInfo to trigger the hook
+        setBanInfo(banInfo); 
+      }, 500);
 
     } catch (error) {
-      console.error('Error submitting appeal:', error);
+      console.error("Error submitting appeal:", error);
       toast({
         title: "Error",
         description: "Failed to submit appeal. Please try again.",
