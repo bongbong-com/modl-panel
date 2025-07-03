@@ -2567,49 +2567,46 @@ const Settings = () => {
                     <div className="space-y-4">
                       {/* Current AI Punishment Types */}
                       <div className="space-y-3">
-                        {aiPunishmentTypes.map((punishmentType) => {
-                          return (
-                              <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-3">
-                                    <Switch
-                                      checked={punishmentType.enabled}
-                                      onCheckedChange={(checked) => {
-                                        updateAiPunishmentType(punishmentType.id, { enabled: checked });
-                                      }}
-                                    />
-                                    <div>
-                                      <h5 className="font-medium">{punishmentType.name}</h5>
-                                      <p className="text-xs text-muted-foreground">{punishmentType.category}</p>
-                                      <p className="text-xs text-muted-foreground">Ordinal: {punishmentType.ordinal}</p>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground ml-10">
-                                    {punishmentType.aiDescription}
-                                  </p>
-                                </div>
-                                <div className="flex gap-2 ml-4">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSelectedAIPunishmentType(punishmentType)}
-                                  >
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => {
-                                      removeAiPunishmentType(punishmentType.id);
-                                    }}
-                                  >
-                                    Remove
-                                  </Button>
+                        {aiPunishmentTypes.map((punishmentType) => (
+                          <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-3">
+                                <Switch
+                                  checked={punishmentType.enabled}
+                                  onCheckedChange={(checked) => {
+                                    updateAiPunishmentType(punishmentType.id, { enabled: checked });
+                                  }}
+                                />
+                                <div>
+                                  <h5 className="font-medium">{punishmentType.name}</h5>
+                                  <p className="text-xs text-muted-foreground">{punishmentType.category}</p>
+                                  <p className="text-xs text-muted-foreground">Ordinal: {punishmentType.ordinal}</p>
                                 </div>
                               </div>
-                            );
-                          });
-                        })}
+                              <p className="text-sm text-muted-foreground ml-10">
+                                {punishmentType.aiDescription}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedAIPunishmentType(punishmentType)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  removeAiPunishmentType(punishmentType.id);
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
 
                         {aiPunishmentTypes.length === 0 && (
                           <div className="text-center py-8 text-muted-foreground">
