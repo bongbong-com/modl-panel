@@ -976,6 +976,7 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
     console.log('[AI Punishment Types POST] Updated AI settings:', JSON.stringify(newAiSettings, null, 2));
 
     settingsDoc.settings.set('aiModerationSettings', newAiSettings);
+    settingsDoc.markModified('settings');
     
     console.log('[AI Punishment Types POST] Settings set on document, saving...');
     const saveResult = await settingsDoc.save();
@@ -1066,6 +1067,7 @@ router.put('/ai-punishment-types/:id', async (req: Request, res: Response) => {
     };
 
     settingsDoc.settings.set('aiModerationSettings', newAiSettings);
+    settingsDoc.markModified('settings');
     await settingsDoc.save();
 
     const responseData = {
@@ -1127,6 +1129,7 @@ router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) =>
     };
 
     settingsDoc.settings.set('aiModerationSettings', newAiSettings);
+    settingsDoc.markModified('settings');
     await settingsDoc.save();
 
     res.json({ success: true, message: 'AI punishment type disabled successfully' });
