@@ -321,7 +321,7 @@ const BillingSettings = () => {
       if (!current_period_end) {
         // No end date means it's already expired - show expired message
         return (
-          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+          <Alert className="flex items-center border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800 dark:text-red-200">
               <strong>Subscription Expired:</strong> Your premium subscription has ended. You are now on the free plan.
@@ -336,7 +336,7 @@ const BillingSettings = () => {
       if (endDate <= today) {
         // Cancellation period has ended
         return (
-          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+          <Alert className="flex items-center border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800 dark:text-red-200">
               <strong>Subscription Expired:</strong> Your premium subscription ended on{' '}
@@ -347,7 +347,7 @@ const BillingSettings = () => {
       } else {
         // Still has access until end date
         return (
-          <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+          <Alert className="flex items-center border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800 dark:text-orange-200">
               <strong>Subscription Cancelled:</strong> Your premium access will end on{' '}
@@ -361,7 +361,7 @@ const BillingSettings = () => {
     // Handle other problematic statuses
     if (['past_due', 'unpaid'].includes(subscription_status)) {
       return (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="flex items-center">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <strong>Payment Issue:</strong> There's an issue with your payment method. Please update it to continue using premium features.
@@ -498,7 +498,7 @@ const BillingSettings = () => {
         {/* Combined Premium Subscription & Usage */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-yellow-600" />
@@ -519,7 +519,9 @@ const BillingSettings = () => {
                   }
                 </CardDescription>
               </div>
-              {getSubscriptionStatusBadge()}
+              <div>
+                {getSubscriptionStatusBadge()}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
