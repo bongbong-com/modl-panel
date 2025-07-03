@@ -201,8 +201,9 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
       active: isActive,
       appealable: punishmentTypeIsAppealable,
       existingAppeal: existingAppeal,
-      // Only include the most recent username for verification purposes
-      playerUsername: player.usernames.length > 0 ? player.usernames[player.usernames.length - 1].username : 'Unknown'
+      // Include both username for display and UUID for API calls
+      playerUsername: player.usernames.length > 0 ? player.usernames[player.usernames.length - 1].username : 'Unknown',
+      playerUuid: player.minecraftUuid // Add the actual UUID needed for appeals API
     };
     
     res.json(publicPunishmentData);

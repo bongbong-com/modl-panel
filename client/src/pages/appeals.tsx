@@ -230,7 +230,7 @@ const AppealsPage = () => {
         status: punishment.active ? 'Active' : 'Expired',
         expiresIn: punishment.expires ? formatDate(punishment.expires) : 'Permanent', // Use the expires field from API
         type: punishment.type,
-        playerUuid: punishment.playerUsername, // Use username instead of UUID for public API
+        playerUuid: punishment.playerUuid, // Use the actual UUID from the API response
         isAppealable: punishment.appealable, // Use the appealable field from public API
       };
 
