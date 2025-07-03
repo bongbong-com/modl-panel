@@ -983,9 +983,9 @@ const TicketDetail = () => {
                                 const punishmentType = punishmentTypes.find(
                                   pt => pt.ordinal === ticketDetails.aiAnalysis?.suggestedAction?.punishmentTypeId
                                 );
-                                return punishmentType ? punishmentType.name : 'Unknown Punishment';
+                                return (punishmentType ? punishmentType.name : 'Unknown Punishment') + " ";
                               })()} 
-                              ({ticketDetails.aiAnalysis.suggestedAction.severity} severity)
+                              ({ticketDetails.aiAnalysis.suggestedAction.severity})
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
                               Analyzed on {new Date(ticketDetails.aiAnalysis.createdAt).toLocaleString()}

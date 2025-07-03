@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import domainRoutes from './domain-routes';
+import PunishmentService from '../services/punishment-service';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -1248,7 +1249,14 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     }
 
     const { ticketId } = req.params;
-    const { staffName } = req.body;
+    
+    // Get staff information from session (more secure than request body)
+    if (!req.currentUser) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    const staffName = req.currentUser.username;
+    const staffRole = req.currentUser.role;
 
     // Get the ticket with AI analysis
     const TicketModel = req.serverDbConnection.model('Ticket');
@@ -1264,34 +1272,58 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     }
 
     if (aiAnalysis.wasAppliedAutomatically) {
-      return res.status(400).json({ error: 'Punishment was already applied automatically' });
+      return res.status(400).json({ error: 'Punishment was already applied' });
     }
 
-    // Get the reported player
-    const reportedPlayer = ticket.relatedPlayer || ticket.data?.get?.('reportedPlayer') || ticket.data?.reportedPlayer;
-    if (!reportedPlayer) {
+    // Get the reported player identifier (prefer UUID, fallback to name)
+    const reportedPlayerUuid = ticket.reportedPlayerUuid || ticket.data?.get?.('reportedPlayerUuid') || ticket.data?.reportedPlayerUuid;
+    const reportedPlayer = ticket.reportedPlayer || ticket.data?.get?.('reportedPlayer') || ticket.data?.reportedPlayer;
+    const playerIdentifier = reportedPlayerUuid || reportedPlayer;
+
+    if (!playerIdentifier) {
       return res.status(400).json({ error: 'No reported player found for this ticket' });
+    }
+
+    // Initialize punishment service and apply the punishment
+    const punishmentService = new PunishmentService(req.serverDbConnection);
+    const punishmentResult = await punishmentService.applyPunishment(
+      playerIdentifier,
+      aiAnalysis.suggestedAction.punishmentTypeId,
+      aiAnalysis.suggestedAction.severity,
+      `AI-suggested moderation (applied by ${staffName}) - ${aiAnalysis.analysis}`,
+      ticketId,
+      staffName
+    );
+
+    if (!punishmentResult.success) {
+      return res.status(500).json({ 
+        error: `Failed to apply punishment: ${punishmentResult.error}` 
+      });
     }
 
     // Update the AI analysis to mark it as manually applied
     aiAnalysis.wasAppliedAutomatically = true; // Mark as applied (even though manually)
     aiAnalysis.appliedBy = staffName;
+    aiAnalysis.appliedByRole = staffRole;
     aiAnalysis.appliedAt = new Date();
+    aiAnalysis.appliedPunishmentId = punishmentResult.punishmentId;
 
     ticket.data.set('aiAnalysis', aiAnalysis);
     await ticket.save();
 
-    console.log(`[AI Moderation] Manual punishment application approved for ticket ${ticketId} by ${staffName}`);
+    console.log(`[AI Moderation] Manual punishment application approved for ticket ${ticketId} by ${staffName} (${staffRole}), punishment ID: ${punishmentResult.punishmentId}`);
 
     res.json({ 
       success: true, 
       message: 'AI-suggested punishment applied successfully',
+      punishmentId: punishmentResult.punishmentId,
       punishmentData: {
         punishmentTypeId: aiAnalysis.suggestedAction.punishmentTypeId,
         severity: aiAnalysis.suggestedAction.severity,
         reason: `AI-suggested moderation (applied by ${staffName}) - ${aiAnalysis.analysis}`,
         ticketId: ticketId,
-        staffName: staffName
+        staffName: staffName,
+        staffRole: staffRole
       }
     });
   } catch (error) {
@@ -1308,7 +1340,15 @@ router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Respon
     }
 
     const { ticketId } = req.params;
-    const { staffName, reason } = req.body;
+    const { reason } = req.body; // Only accept reason from body, not staff name
+    
+    // Get staff information from session (more secure than request body)
+    if (!req.currentUser) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    const staffName = req.currentUser.username;
+    const staffRole = req.currentUser.role;
 
     // Get the ticket with AI analysis
     const TicketModel = req.serverDbConnection.model('Ticket');
@@ -1323,16 +1363,25 @@ router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Respon
       return res.status(400).json({ error: 'No AI analysis found for this ticket' });
     }
 
+    if (aiAnalysis.wasAppliedAutomatically) {
+      return res.status(400).json({ error: 'Cannot dismiss - punishment was already applied' });
+    }
+
+    if (aiAnalysis.dismissed) {
+      return res.status(400).json({ error: 'AI suggestion was already dismissed' });
+    }
+
     // Mark the suggestion as dismissed
     aiAnalysis.dismissed = true;
     aiAnalysis.dismissedBy = staffName;
+    aiAnalysis.dismissedByRole = staffRole;
     aiAnalysis.dismissedAt = new Date();
     aiAnalysis.dismissalReason = reason || 'No reason provided';
 
     ticket.data.set('aiAnalysis', aiAnalysis);
     await ticket.save();
 
-    console.log(`[AI Moderation] AI suggestion dismissed for ticket ${ticketId} by ${staffName}`);
+    console.log(`[AI Moderation] AI suggestion dismissed for ticket ${ticketId} by ${staffName} (${staffRole}). Reason: ${aiAnalysis.dismissalReason}`);
 
     res.json({ 
       success: true, 
@@ -1340,6 +1389,39 @@ router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Respon
     });
   } catch (error) {
     console.error('Error dismissing AI suggestion:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get AI analysis for a specific ticket
+router.get('/ai-analysis/:ticketId', async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { ticketId } = req.params;
+
+    // Get the ticket with AI analysis
+    const TicketModel = req.serverDbConnection.model('Ticket');
+    const ticket = await TicketModel.findById(ticketId);
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
+    
+    if (!aiAnalysis) {
+      return res.status(404).json({ error: 'No AI analysis found for this ticket' });
+    }
+
+    res.json({ 
+      success: true, 
+      data: aiAnalysis
+    });
+  } catch (error) {
+    console.error('Error fetching AI analysis:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
