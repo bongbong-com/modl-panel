@@ -921,7 +921,7 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
     const { punishmentTypeId, aiDescription = '' } = req.body;
     console.log('[AI Punishment Types POST] Parsed punishmentTypeId:', punishmentTypeId, 'aiDescription:', aiDescription);
 
-    if (!punishmentTypeId) {
+    if (punishmentTypeId === undefined || punishmentTypeId === null) {
       console.log('[AI Punishment Types POST] Missing punishmentTypeId');
       return res.status(400).json({ error: 'punishmentTypeId is required' });
     }
@@ -941,7 +941,7 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
     console.log('[AI Punishment Types POST] Found punishment type:', punishmentType ? `${punishmentType.name} (customizable: ${punishmentType.isCustomizable})` : 'null');
 
     if (!punishmentType) {
-      console.log('[AI Punishment Types POST] Punishment type not found');
+      console.log('[AI Punishment Types POST] Punishment type not found for ID:', punishmentTypeId);
       return res.status(404).json({ error: 'Punishment type not found. It may have been deleted. Please refresh and try again.' });
     }
 
@@ -957,25 +957,30 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
     };
     console.log('[AI Punishment Types POST] Current AI settings before update:', JSON.stringify(aiSettings, null, 2));
 
-    // Check if already enabled
     if (aiSettings.aiPunishmentConfigs?.[punishmentTypeId]?.enabled) {
       console.log('[AI Punishment Types POST] Already enabled');
       return res.status(409).json({ error: 'Punishment type is already enabled for AI moderation' });
     }
 
-    // Add AI configuration for this punishment type
-    aiSettings.aiPunishmentConfigs = aiSettings.aiPunishmentConfigs || {};
-    aiSettings.aiPunishmentConfigs[punishmentTypeId] = {
-      enabled: true,
-      aiDescription: aiDescription
+    // Create a new AI settings object to avoid mutation issues with Mongoose change detection
+    const newAiSettings = {
+      ...aiSettings,
+      aiPunishmentConfigs: {
+        ...(aiSettings.aiPunishmentConfigs || {}),
+        [punishmentTypeId]: {
+          enabled: true,
+          aiDescription: aiDescription,
+        },
+      },
     };
-    console.log('[AI Punishment Types POST] Updated AI settings:', JSON.stringify(aiSettings, null, 2));
+    console.log('[AI Punishment Types POST] Updated AI settings:', JSON.stringify(newAiSettings, null, 2));
 
-    settingsDoc.settings.set('aiModerationSettings', aiSettings);
-    console.log('[AI Punishment Types POST] Settings set on document, saving...');
+    settingsDoc.settings.set('aiModerationSettings', newAiSettings);
     
+    console.log('[AI Punishment Types POST] Settings set on document, saving...');
     const saveResult = await settingsDoc.save();
     console.log('[AI Punishment Types POST] Save result:', saveResult ? 'success' : 'failed');
+
 
     // Verify the save by re-reading the document
     const verificationDoc = await SettingsModel.findOne({});
@@ -1047,20 +1052,20 @@ router.put('/ai-punishment-types/:id', async (req: Request, res: Response) => {
       aiPunishmentConfigs: {}
     };
 
-    // Update AI configuration
-    aiSettings.aiPunishmentConfigs = aiSettings.aiPunishmentConfigs || {};
-    if (!aiSettings.aiPunishmentConfigs[punishmentTypeId]) {
-      aiSettings.aiPunishmentConfigs[punishmentTypeId] = { enabled: false, aiDescription: '' };
-    }
+    // Create a new AI settings object to avoid mutation issues
+    const newAiSettings = {
+      ...aiSettings,
+      aiPunishmentConfigs: {
+        ...(aiSettings.aiPunishmentConfigs || {}),
+        [punishmentTypeId]: {
+          ...(aiSettings.aiPunishmentConfigs?.[punishmentTypeId] || { enabled: false, aiDescription: '' }),
+          ...(aiDescription !== undefined && { aiDescription }),
+          ...(enabled !== undefined && { enabled }),
+        },
+      },
+    };
 
-    if (aiDescription !== undefined) {
-      aiSettings.aiPunishmentConfigs[punishmentTypeId].aiDescription = aiDescription;
-    }
-    if (enabled !== undefined) {
-      aiSettings.aiPunishmentConfigs[punishmentTypeId].enabled = enabled;
-    }
-
-    settingsDoc.settings.set('aiModerationSettings', aiSettings);
+    settingsDoc.settings.set('aiModerationSettings', newAiSettings);
     await settingsDoc.save();
 
     const responseData = {
@@ -1068,8 +1073,8 @@ router.put('/ai-punishment-types/:id', async (req: Request, res: Response) => {
       ordinal: punishmentType.ordinal,
       name: punishmentType.name,
       category: punishmentType.category,
-      aiDescription: aiSettings.aiPunishmentConfigs[punishmentTypeId].aiDescription,
-      enabled: aiSettings.aiPunishmentConfigs[punishmentTypeId].enabled
+      aiDescription: newAiSettings.aiPunishmentConfigs[punishmentTypeId].aiDescription,
+      enabled: newAiSettings.aiPunishmentConfigs[punishmentTypeId].enabled
     };
 
     res.json({ 
@@ -1114,9 +1119,14 @@ router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) =>
       return res.status(404).json({ error: 'AI punishment configuration not found' });
     }
 
-    // Remove AI configuration for this punishment type
-    delete aiSettings.aiPunishmentConfigs[punishmentTypeId];
-    settingsDoc.settings.set('aiModerationSettings', aiSettings);
+    // Create new object with the property removed to avoid mutation
+    const { [punishmentTypeId]: _, ...remainingConfigs } = aiSettings.aiPunishmentConfigs;
+    const newAiSettings = {
+        ...aiSettings,
+        aiPunishmentConfigs: remainingConfigs
+    };
+
+    settingsDoc.settings.set('aiModerationSettings', newAiSettings);
     await settingsDoc.save();
 
     res.json({ success: true, message: 'AI punishment type disabled successfully' });
