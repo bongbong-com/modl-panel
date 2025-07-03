@@ -915,7 +915,6 @@ export function setupMinecraftRoutes(app: Express): void {
 
           // Add the priority ban if exists
           if (priorityBan) {
-            const effectiveState = getEffectivePunishmentState(priorityBan);
             const description = await getPunishmentDescription(priorityBan, serverDbConnection);
             const banType = getPunishmentType(priorityBan, punishmentTypeConfig);
 
@@ -925,7 +924,7 @@ export function setupMinecraftRoutes(app: Express): void {
               punishment: {
                 type: banType,
                 started: false,
-                expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
+                expiration: calculateExpiration(priorityBan),
                 description: description,
                 id: priorityBan.id
               }
@@ -934,7 +933,6 @@ export function setupMinecraftRoutes(app: Express): void {
 
           // Add the priority mute if exists
           if (priorityMute) {
-            const effectiveState = getEffectivePunishmentState(priorityMute);
             const description = await getPunishmentDescription(priorityMute, serverDbConnection);
             const muteType = getPunishmentType(priorityMute, punishmentTypeConfig);
 
@@ -944,7 +942,7 @@ export function setupMinecraftRoutes(app: Express): void {
               punishment: {
                 type: muteType,
                 started: false,
-                expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
+                expiration: calculateExpiration(priorityMute),
                 description: description,
                 id: priorityMute.id
               }
@@ -965,9 +963,7 @@ export function setupMinecraftRoutes(app: Express): void {
           .filter((p: IPunishment) => p.started && new Date(p.started) >= lastSync);
 
         for (const punishment of recentlyStarted) {
-          const effectiveState = getEffectivePunishmentState(punishment);
-          const reason = punishment.notes && punishment.notes.length > 0 ? 
-            punishment.notes[0].text : 'No reason provided';
+          const description = await getPunishmentDescription(punishment, serverDbConnection);
           const punishmentType = getPunishmentType(punishment, punishmentTypeConfig);
 
           recentlyStartedPunishments.push({
@@ -976,8 +972,8 @@ export function setupMinecraftRoutes(app: Express): void {
             punishment: {
               type: punishmentType,
               started: true,
-              expiration: effectiveState.effectiveExpiry ? effectiveState.effectiveExpiry.getTime() : null,
-              description: reason,
+              expiration: calculateExpiration(punishment),
+              description: description,
               id: punishment.id
             }
           });
