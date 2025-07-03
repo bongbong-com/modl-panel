@@ -424,7 +424,7 @@ export function useUpdateUsageBillingSettings() {
   
   return useMutation({
     mutationFn: async ({ enabled }: { enabled: boolean }) => {
-      console.log('[FRONTEND] Sending usage billing update request:', { enabled });
+      // Sending usage billing update
       
       const res = await fetch('/api/panel/billing/usage-billing-settings', {
         method: 'POST',
@@ -441,11 +441,11 @@ export function useUpdateUsageBillingSettings() {
       }
       
       const result = await res.json();
-      console.log('[FRONTEND] Usage billing update response:', result);
+      // Usage billing update response
       return result;
     },
     onSuccess: (data) => {
-      console.log('[FRONTEND] Usage billing update successful, invalidating queries');
+      // Update successful, invalidating queries
       // Invalidate usage data and billing status to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/usage'] });
       queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
@@ -492,19 +492,10 @@ export function usePanelTicket(id: string) {
   return useQuery({
     queryKey: ['/api/panel/tickets', id],
     queryFn: async () => {
-      console.log('=== usePanelTicket FETCH DEBUG ===');
-      console.log('Fetching ticket ID:', id);
-      console.log('Full URL:', `${window.location.origin}/api/panel/tickets/${id}`);
-      
       const res = await fetch(`/api/panel/tickets/${id}`);
       
-      console.log('Response status:', res.status);
-      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-      
       if (!res.ok) {
-        console.log('Request failed with status:', res.status);
         const errorText = await res.text();
-        console.log('Error response body:', errorText);
         
         if (res.status === 404) {
           return null;
@@ -513,8 +504,6 @@ export function usePanelTicket(id: string) {
       }
       
       const data = await res.json();
-      console.log('Successful response data:', data);
-      console.log('================================');
       
       return data;
     },

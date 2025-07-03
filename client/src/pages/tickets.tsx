@@ -160,7 +160,7 @@ const Tickets = () => {
   }) : [];
     const handleNavigateToTicket = (ticketId: string) => {
     // Navigate to the ticket detail page
-    console.log('Navigating to ticket:', ticketId);
+    // Navigate to ticket
     
     // Ensure ticketId is defined and is a string
     if (!ticketId || typeof ticketId !== 'string') {
@@ -171,7 +171,7 @@ const Tickets = () => {
     // Remove any characters that might cause issues in the URL
     // Replace # with "ID-" to avoid hash confusion in the URL
     const safeTicketId = ticketId.replace('#', 'ID-');
-    console.log('Safe ticket ID for URL:', safeTicketId);
+    // Ticket ID processed for URL
     
     // Add a small delay to make sure the navigation occurs
     setTimeout(() => {

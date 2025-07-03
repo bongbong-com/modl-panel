@@ -37,6 +37,70 @@ interface ITicket extends MongooseDocument {
   locked?: boolean;
 }
 
+/**
+ * Add a notification to a player's pending notifications
+ * If player is not found, the notification is skipped
+ */
+async function addNotificationToPlayer(
+  dbConnection: Connection, 
+  playerUuid: string, 
+  notificationId: string
+): Promise<void> {
+  try {
+    const Player = dbConnection.model('Player');
+    await Player.updateOne(
+      { minecraftUuid: playerUuid },
+      { $addToSet: { pendingNotifications: notificationId } }
+    );
+  } catch (error) {
+    console.error(`Error adding notification to player ${playerUuid}:`, error);
+  }
+}
+
+/**
+ * Create a notification for a staff reply to a ticket
+ * Returns the notification ID that can be stored in pendingNotifications
+ */
+function createTicketReplyNotification(ticketId: string, staffName: string, replyContent: string): string {
+  // Create a unique notification ID
+  const notificationId = `ticket-reply-${ticketId}-${Date.now()}`;
+  
+  // For now, we'll just return the ID. Later this could be expanded to store
+  // full notification data in a separate notifications collection
+  return notificationId;
+}
+
+/**
+ * Get and clear pending notifications for a player
+ * Returns the notifications and removes them from the player's pendingNotifications array
+ */
+async function getAndClearPlayerNotifications(
+  dbConnection: Connection, 
+  playerUuid: string
+): Promise<string[]> {
+  try {
+    const Player = dbConnection.model('Player');
+    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    
+    if (!player || !player.pendingNotifications || player.pendingNotifications.length === 0) {
+      return [];
+    }
+    
+    const notifications = [...player.pendingNotifications];
+    
+    // Clear the notifications
+    await Player.updateOne(
+      { minecraftUuid: playerUuid },
+      { $set: { pendingNotifications: [] } }
+    );
+    
+    return notifications;
+  } catch (error) {
+    console.error(`Error getting notifications for player ${playerUuid}:`, error);
+    return [];
+  }
+}
+
 const router = express.Router();
 
 router.use((req: Request, res: Response, next: NextFunction) => {
@@ -240,6 +304,16 @@ router.post('/:id/replies', async (req: Request<{ id: string }, {}, AddReplyBody
     ticket.replies.push(newReply);
     await ticket.save();
 
+    // Add notification for staff replies
+    if (newReply.staff && ticket.creator) {
+      const notificationId = createTicketReplyNotification(
+        req.params.id, 
+        newReply.name, 
+        newReply.content
+      );
+      await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
+    }
+
     res.status(201).json(newReply);
   } catch (error: any) {
     res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -349,6 +423,16 @@ router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, 
         staff: updates.newReply.staff
       };
       ticket.replies.push(newReply);
+
+      // Add notification for staff replies
+      if (newReply.staff && ticket.creator) {
+        const notificationId = createTicketReplyNotification(
+          req.params.id, 
+          newReply.name, 
+          newReply.content
+        );
+        await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
+      }
     }
 
     // Add new note if provided

@@ -129,28 +129,20 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
     try {
       const Settings = req.serverDbConnection.model('Settings');
       const settings = await Settings.findOne({});
-      console.log(`[Public Punishment API] Settings document found:`, !!settings);
-      console.log(`[Public Punishment API] Settings.settings found:`, !!settings?.settings);
       
       if (settings?.settings) {
         const punishmentTypesRaw = settings.settings.get ? settings.settings.get('punishmentTypes') : settings.settings.punishmentTypes;
-        console.log(`[Public Punishment API] Raw punishment types:`, typeof punishmentTypesRaw, Array.isArray(punishmentTypesRaw));
         
         if (punishmentTypesRaw) {
           const punishmentTypes = typeof punishmentTypesRaw === 'string' 
             ? JSON.parse(punishmentTypesRaw) 
             : punishmentTypesRaw;
           
-          console.log(`[Public Punishment API] Looking for punishment type with ordinal ${punishment.type_ordinal}`);
-          console.log(`[Public Punishment API] Available punishment types:`, punishmentTypes.map((pt: any) => ({ ordinal: pt.ordinal, name: pt.name })));
-          
           const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
           if (punishmentType) {
             punishmentTypeName = punishmentType.name;
             punishmentTypeIsAppealable = punishmentType.isAppealable !== false;
-            console.log(`[Public Punishment API] Found punishment type: ${punishmentTypeName} (ordinal: ${punishment.type_ordinal})`);
           } else {
-            console.warn(`[Public Punishment API] No punishment type found for ordinal ${punishment.type_ordinal}`);
             // Fallback to hardcoded names for core administrative types
             const coreTypes: { [key: number]: string } = {
               0: 'Kick',
@@ -162,14 +154,9 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
             };
             if (coreTypes[punishment.type_ordinal]) {
               punishmentTypeName = coreTypes[punishment.type_ordinal];
-              console.log(`[Public Punishment API] Using fallback core type: ${punishmentTypeName}`);
             }
           }
-        } else {
-          console.warn('[Public Punishment API] No punishment types data found in settings');
         }
-      } else {
-        console.warn('[Public Punishment API] No settings found in document');
       }
     } catch (settingsError) {
       console.warn('Could not fetch punishment type settings:', settingsError);

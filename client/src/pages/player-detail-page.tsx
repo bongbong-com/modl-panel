@@ -244,7 +244,7 @@ const PlayerDetailPage = () => {
   // Load player data into state when it changes
   useEffect(() => {
     if (player) {
-      console.log('Player data received:', player);
+      // Player data received
       
       // Check if we're dealing with MongoDB data or the API response format
       if (player.usernames) {
@@ -362,7 +362,7 @@ const PlayerDetailPage = () => {
             Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
           };
           
-          console.log('Punishment types categorized in player-detail-page:', categorized);
+          // Punishment types categorized
           
           setPunishmentTypesByCategory(categorized);
         }

@@ -364,10 +364,10 @@ const Settings = () => {
   const loadApiKey = async () => {
     try {
       const response = await fetch('/api/panel/settings/api-key');
-      console.log('API Key response status:', response.status); // Debug log
+      // API Key loaded successfully
       if (response.ok) {
         const data = await response.json();
-        console.log('API Key response data:', data); // Debug log
+        // API Key data received
         if (data.hasApiKey && data.maskedKey) {
           setApiKey(data.maskedKey);
           setFullApiKey(''); // Clear full key since we only have masked version
@@ -562,24 +562,11 @@ const Settings = () => {
   // Load AI punishment types (enabled ones)
   const loadAiPunishmentTypes = async () => {
     try {
-      console.log('[AI Debug] loadAiPunishmentTypes: Starting fetch...');
       const response = await fetch('/api/panel/settings/ai-punishment-types');
-      console.log('[AI Debug] loadAiPunishmentTypes: Response status:', response.status);
-      console.log('[AI Debug] loadAiPunishmentTypes: Response ok:', response.ok);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('[AI Debug] loadAiPunishmentTypes: Response data:', data);
-        console.log('[AI Debug] loadAiPunishmentTypes: data.data length:', data.data?.length);
-        console.log('[AI Debug] loadAiPunishmentTypes: Current aiPunishmentTypes state before update:', aiPunishmentTypes);
-        
         setAiPunishmentTypes(data.data);
-        console.log('[AI Debug] loadAiPunishmentTypes: setAiPunishmentTypes called with:', data.data);
-        
-        // Check state immediately after (though it may not have updated due to async nature)
-        setTimeout(() => {
-          console.log('[AI Debug] loadAiPunishmentTypes: AI punishment types state after 100ms:', aiPunishmentTypes);
-        }, 100);
       } else {
         console.error('Failed to load AI punishment types:', response.status);
         setAiPunishmentTypes([]);
@@ -607,11 +594,8 @@ const Settings = () => {
 
   // Add AI punishment type configuration
   const addAiPunishmentType = async (punishmentTypeId: number, aiDescription: string) => {
-    console.log('addAiPunishmentType called with:', { punishmentTypeId, aiDescription });
-    
     try {
       const requestBody = { punishmentTypeId, aiDescription };
-      console.log('Making request to /api/panel/settings/ai-punishment-types with body:', requestBody);
       
       const response = await fetch('/api/panel/settings/ai-punishment-types', {
         method: 'POST',
@@ -621,14 +605,9 @@ const Settings = () => {
         body: JSON.stringify(requestBody),
       });
       
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
       const responseData = await response.json();
-      console.log('Response data:', responseData);
       
       if (response.ok) {
-        console.log('Request successful, reloading data...');
         await loadAiPunishmentTypes();
         await loadAvailablePunishmentTypes();
         toast({
@@ -1023,7 +1002,7 @@ const Settings = () => {
     setProfileUsernameState(newValue);
     profileUsernameRef.current = newValue; // Keep ref in sync
     
-    console.log('Profile username changed to:', newValue);
+    // Profile username changed
       // Trigger auto-save for profile updates, but skip during initial load
     if (!justLoadedFromServerRef.current && initialLoadCompletedRef.current) {
       triggerProfileAutoSave();
@@ -1048,11 +1027,11 @@ const Settings = () => {
         })
       });
 
-      console.log('Profile save response status:', response.status);
+      // Profile save response received
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Profile save success:', data);
+        // Profile save successful
         setLastSaved(new Date());
         // Update the user context without refreshing
         if (user) {
@@ -1088,30 +1067,16 @@ const Settings = () => {
   
   // Auto-save function for profile settings
   const triggerProfileAutoSave = useCallback(() => {
-    console.log('triggerProfileAutoSave called');
-    console.log('Current profile state:', {
-      username: profileUsernameState
-    });
-    console.log('Current profile refs:', {
-      username: profileUsernameRef.current
-    });
-    
     if (profileSaveTimeoutRef.current) {
       clearTimeout(profileSaveTimeoutRef.current);
     }
     
     profileSaveTimeoutRef.current = setTimeout(async () => {
-      console.log('Executing profile auto-save...');
-      
       // Use refs to get the latest values at execution time
       const currentUsername = profileUsernameRef.current;
-        console.log('Saving profile with current values from refs:', {
-        username: currentUsername
-      });
       
       // Skip save if username is empty
       if (!currentUsername.trim()) {
-        console.log('Skipping save - username is empty');
         return;
       }
       
@@ -1127,11 +1092,11 @@ const Settings = () => {
           })
         });
 
-        console.log('Profile save response status:', response.status);
+        // Profile save attempt
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Profile save success:', data);
+          // Profile save successful
           setLastSaved(new Date());
           
           // Update the user context without refreshing
@@ -2602,12 +2567,8 @@ const Settings = () => {
                     <div className="space-y-4">
                       {/* Current AI Punishment Types */}
                       <div className="space-y-3">
-                        {(() => {
-                          console.log('[AI Debug] Render: About to render AI punishment types list');
-                          console.log('[AI Debug] Render: aiPunishmentTypes for map:', aiPunishmentTypes);
-                          return aiPunishmentTypes.map((punishmentType) => {
-                            console.log('[AI Debug] Render: Rendering punishment type:', punishmentType);
-                            return (
+                        {aiPunishmentTypes.map((punishmentType) => {
+                          return (
                               <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
                                 <div className="flex-1 space-y-2">
                                   <div className="flex items-center gap-3">
@@ -2648,14 +2609,9 @@ const Settings = () => {
                               </div>
                             );
                           });
-                        })()}
+                        })}
 
-                        {(() => {
-                          console.log('[AI Debug] Render: aiPunishmentTypes length check:', aiPunishmentTypes.length);
-                          console.log('[AI Debug] Render: aiPunishmentTypes state:', aiPunishmentTypes);
-                          console.log('[AI Debug] Render: showing no AI punishment types message:', aiPunishmentTypes.length === 0);
-                          return aiPunishmentTypes.length === 0;
-                        })() && (
+                        {aiPunishmentTypes.length === 0 && (
                           <div className="text-center py-8 text-muted-foreground">
                             <p className="text-sm">No AI punishment types configured.</p>
                             <p className="text-xs">Add punishment types for the AI to reference when analyzing reports.</p>

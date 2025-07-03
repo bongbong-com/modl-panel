@@ -713,9 +713,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         
         // Add punishments to warnings with full details
         if (player.punishments) {
-          console.log('Processing punishments:', player.punishments);
+          // Processing player punishments
           player.punishments.forEach((punishment: any) => {
-            console.log('Processing punishment:', punishment);            // Determine punishment type name from ordinal using settings data
+            // Processing individual punishment            // Determine punishment type name from ordinal using settings data
             const getPunishmentTypeName = (ordinal: number) => {
               // First check all loaded punishment types from settings
               const allTypes = [
@@ -757,7 +757,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               status: punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status),
               evidence: (() => {
                 const evidenceArray = punishment.evidence || [];
-                console.log('Evidence for punishment', punishment.id, ':', evidenceArray);
+                // Processing evidence data
                 return evidenceArray;
               })(),
               notes: punishment.notes || [],

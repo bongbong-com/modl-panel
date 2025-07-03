@@ -320,14 +320,14 @@ const Lookup = () => {
       setIsSearching(true);
       try {
         // Fetch the player data to get their UUID
-        console.log(`Searching for player: ${searchQuery}`);
+        // Searching for player
         const response = await fetch(`/api/player/${searchQuery}`);
         if (response.ok) {
           const playerData = await response.json();
-          console.log('Search response:', playerData);
+          // Search response received
           if (playerData && playerData.uuid) {
             // Redirect to the player lookup window with the UUID
-            console.log('Found player:', playerData);
+            // Player found
             window.location.href = `/lookup?id=${playerData.uuid}`;
           } else {
             console.error('Player found but UUID is missing in data');

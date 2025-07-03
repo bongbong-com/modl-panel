@@ -175,6 +175,37 @@ function calculateExpiration(punishment: IPunishment): number | null {
 }
 
 /**
+ * Get and clear pending notifications for a player
+ * Returns the notifications and removes them from the player's pendingNotifications array
+ */
+async function getAndClearPlayerNotifications(
+  dbConnection: Connection, 
+  playerUuid: string
+): Promise<string[]> {
+  try {
+    const Player = dbConnection.model('Player');
+    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    
+    if (!player || !player.pendingNotifications || player.pendingNotifications.length === 0) {
+      return [];
+    }
+    
+    const notifications = [...player.pendingNotifications];
+    
+    // Clear the notifications
+    await Player.updateOne(
+      { minecraftUuid: playerUuid },
+      { $set: { pendingNotifications: [] } }
+    );
+    
+    return notifications;
+  } catch (error) {
+    console.error(`Error getting notifications for player ${playerUuid}:`, error);
+    return [];
+  }
+}
+
+/**
  * Get the appropriate description for a punishment
  * Uses punishment type player description for non-manual punishments, notes for manual ones
  */
@@ -491,9 +522,13 @@ export function setupMinecraftRoutes(app: Express): void {
         };
       }));
 
+      // Get and clear pending notifications for the player
+      const pendingNotifications = await getAndClearPlayerNotifications(serverDbConnection, minecraftUuid);
+
       return res.status(200).json({
         status: 200,
         activePunishments: formattedPunishments,
+        pendingNotifications: pendingNotifications,
       });
     } catch (error: any) {
       console.error('Error in player login:', error);
@@ -1046,6 +1081,21 @@ export function setupMinecraftRoutes(app: Express): void {
         'minecraft-sync'
       );
 
+      // 5. Get notifications for online players
+      const playerNotifications: any[] = [];
+      
+      if (onlineUuids.length > 0) {
+        for (const playerUuid of onlineUuids) {
+          const notifications = await getAndClearPlayerNotifications(serverDbConnection, playerUuid);
+          if (notifications.length > 0) {
+            playerNotifications.push({
+              minecraftUuid: playerUuid,
+              notifications: notifications
+            });
+          }
+        }
+      }
+
       return res.status(200).json({
         status: 200,
         timestamp: now.toISOString(),
@@ -1053,6 +1103,7 @@ export function setupMinecraftRoutes(app: Express): void {
           pendingPunishments,
           recentlyStartedPunishments,
           recentlyModifiedPunishments,
+          playerNotifications,
           stats,
           serverStatus: {
             lastSync: now.toISOString(),

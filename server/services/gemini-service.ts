@@ -78,12 +78,12 @@ Please analyze the chat transcript and respond with a JSON object following the 
       const response = await result.response;
       const text = response.text();
 
-      console.log('[Gemini Service] Raw response from Gemini:', text);
+      // Raw response from Gemini received
 
       // Parse the JSON response
       const analysisResponse = this.parseGeminiResponse(text);
       
-      console.log('[Gemini Service] Parsed response:', analysisResponse);
+      // Response parsed successfully
 
       return analysisResponse;
     } catch (error) {

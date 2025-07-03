@@ -41,8 +41,7 @@ export function useDocumentTitle() {
   const [location] = useLocation();
 
   useEffect(() => {
-    console.log('[useDocumentTitle] publicSettings:', publicSettings);
-    console.log('[useDocumentTitle] location:', location);
+    // Hook triggered
     
     const serverDisplayName = publicSettings?.serverDisplayName || '';
     const panelIconUrl = publicSettings?.panelIconUrl;
@@ -53,15 +52,6 @@ export function useDocumentTitle() {
     const isHomepageRoute = !location.startsWith('/panel');
     const iconUrl = isHomepageRoute ? homepageIconUrl : panelIconUrl;
 
-    console.log('[useDocumentTitle] Extracted values:', {
-      serverDisplayName,
-      panelIconUrl,
-      homepageIconUrl,
-      pageName,
-      isHomepageRoute,
-      iconUrl
-    });
-
     // Update document title
     if (serverDisplayName) {
       document.title = `${pageName} - ${serverDisplayName}`;
@@ -69,11 +59,9 @@ export function useDocumentTitle() {
       document.title = `${pageName} - modl`;
     }
 
-    console.log('[useDocumentTitle] Set document.title to:', document.title);
-
     // Update favicon if available
     if (iconUrl) {
-      console.log('[useDocumentTitle] Setting favicon to:', iconUrl);
+      // Setting favicon
       // Remove existing favicon links
       const existingFavicons = document.querySelectorAll('link[rel*="icon"]');
       existingFavicons.forEach(link => link.remove());
@@ -90,8 +78,6 @@ export function useDocumentTitle() {
       appleTouchIcon.rel = 'apple-touch-icon';
       appleTouchIcon.href = iconUrl;
       document.head.appendChild(appleTouchIcon);
-    } else {
-      console.log('[useDocumentTitle] No iconUrl available, skipping favicon update');
     }
   }, [publicSettings, location]);
 

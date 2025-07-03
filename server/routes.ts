@@ -97,11 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public settings endpoint - no authentication required
   app.get('/api/public/settings', async (req, res) => {
     try {
-      console.log('[Public Settings] Request received for /api/public/settings');
-      console.log('[Public Settings] serverDbConnection exists:', !!req.serverDbConnection);
-      
       if (!req.serverDbConnection) {
-        console.log('[Public Settings] No serverDbConnection, returning default values');
         return res.json({
           serverDisplayName: 'modl',
           panelIconUrl: null,
@@ -109,14 +105,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('[Public Settings] Attempting to find Settings document...');
       const SettingsModel = req.serverDbConnection.model('Settings');
       let settingsDoc = await SettingsModel.findOne({});
       
-      console.log('[Public Settings] Settings document found:', !!settingsDoc);
-      
       if (!settingsDoc || !settingsDoc.settings) {
-        console.log('[Public Settings] No settings document or settings data, returning defaults');
         return res.json({
           serverDisplayName: 'modl',
           panelIconUrl: null,
@@ -125,7 +117,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const settings = Object.fromEntries(settingsDoc.settings);
-      console.log('[Public Settings] Raw settings object:', JSON.stringify(settings, null, 2));
       
       const result = {
         serverDisplayName: settings.general?.serverDisplayName || settings.serverDisplayName || 'modl',
@@ -133,7 +124,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         homepageIconUrl: settings.general?.homepageIconUrl || settings.homepageIconUrl || null
       };
       
-      console.log('[Public Settings] Returning result:', result);
       res.json(result);
     } catch (error) {
       console.error('[Public Settings] Error occurred:', error);
@@ -147,20 +137,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Panel specific API routes
   const panelRouter = express.Router();
   
-  // Add debug logging middleware for panel routes
+  // Panel routes (debug logging removed)
   panelRouter.use((req, res, next) => {
-    console.log('=== PANEL ROUTER REQUEST DEBUG ===');
-    console.log('Panel request URL:', req.originalUrl);
-    console.log('Panel request method:', req.method);
-    console.log('Panel request path:', req.path);
-    console.log('Request headers (auth):', {
-      authorization: req.headers.authorization,
-      cookie: req.headers.cookie
-    });
-    console.log('Session data:', req.session);
-    console.log('Server name:', req.serverName);
-    console.log('Database connection:', !!req.serverDbConnection);
-    console.log('===================================');
     next();
   });
   

@@ -128,7 +128,7 @@ const PlayerTicket = () => {
   // Update ticket details when data is fetched
   useEffect(() => {
     if (ticketData) {
-      console.log('Received ticket data:', ticketData);
+      // Ticket data received
         // Map API data to our TicketDetails interface
       const status = ticketData.status || 'Unfinished';
       // Map the status to one of our three statuses: Unfinished, Open, or Closed
@@ -471,7 +471,7 @@ const PlayerTicket = () => {
     // If no fields found in settings, use defaults
     if (fields.length === 0) {
       fields = getDefaultFormFields(ticketDetails.type);
-      console.log('Using default form template for', ticketDetails.type);
+      // Using default form template
     }
     
     return (

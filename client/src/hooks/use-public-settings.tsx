@@ -9,10 +9,10 @@ export function usePublicSettings() {
     queryKey: ['/api/public/settings'],
     queryFn: async () => {
       try {
-        console.log('[usePublicSettings] Fetching from /api/public/settings...');
+        // Fetching public settings
         const res = await fetch('/api/public/settings');
         
-        console.log('[usePublicSettings] Response status:', res.status, res.statusText);
+        // Response received
         
         if (!res.ok) {
           const errorText = await res.text();
@@ -21,7 +21,7 @@ export function usePublicSettings() {
         }
         
         const data = await res.json();
-        console.log('[usePublicSettings] Received data:', data);
+        // Data received
         return data;
       } catch (error) {
         console.error('[usePublicSettings] Error occurred:', error);
@@ -31,7 +31,7 @@ export function usePublicSettings() {
           panelIconUrl: null,
           homepageIconUrl: null
         };
-        console.log('[usePublicSettings] Using fallback values:', fallback);
+        // Using fallback values
         return fallback;
       }
     },

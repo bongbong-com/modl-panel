@@ -186,11 +186,7 @@ const TicketDetail = () => {
     ticketId = ticketId.replace('ID-', '#');
   }
   
-  // Debug
-  console.log('Current URL path:', path);
-  console.log('Path parts:', pathParts);
-  console.log('Raw URL ticket ID:', pathParts[pathParts.length - 1]);
-  console.log('Processed ticket ID for API:', ticketId);
+  // Extract ticket ID from URL
 
   // Sample default tags based on category
   const getDefaultTagsForCategory = (category: TicketCategory): string[] => {
@@ -235,25 +231,8 @@ const TicketDetail = () => {
   };  // Use React Query to fetch ticket data from panel API
   const { data: ticketData, isLoading, isError, error } = usePanelTicket(ticketId);
   
-  // Enhanced debugging for remote environment
-  console.log('=== TICKET DETAIL DEBUG (Remote Environment) ===');
-  console.log('Current environment:', {
-    location: window.location.href,
-    origin: window.location.origin,
-    pathname: window.location.pathname
-  });
-  console.log('Ticket ID:', ticketId);
-  console.log('User auth status:', user ? 'authenticated' : 'not authenticated');
-  console.log('User details:', user);
-  console.log('Query state:', { isLoading, isError, hasData: !!ticketData });
-  console.log('Error details:', error);
-  console.log('Raw ticket data:', ticketData);
-  console.log('================================================');
-  
   useEffect(() => {
-    if (ticketData) {
-      console.log('Ticket data received in component:', JSON.stringify(ticketData, null, 2));
-    }
+    // Ticket data received
   }, [ticketData]);
   
   // Mutation hook for updating tickets
@@ -356,14 +335,9 @@ const TicketDetail = () => {
     }
   };
   useEffect(() => {
-    console.log('useEffect triggered. ticketData:', ticketData);
-    console.log('isLoading:', isLoading, 'isError:', isError);
-    console.log('ticketId:', ticketId);
-    
     if (ticketData) {
-      console.log('Received ticket data from MongoDB:', ticketData);
-      console.log('Ticket data keys:', Object.keys(ticketData));
-        // Convert ticket type to category
+      // Process ticket data
+      // Convert ticket type to category
       if (!ticketData.type) {
         // Try to infer type from ID if not present
         if (ticketData.id?.startsWith("BUG")) {

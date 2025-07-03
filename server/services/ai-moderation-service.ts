@@ -54,19 +54,19 @@ export class AIModerationService {
     playerNameForAI?: string
   ): Promise<AIAnalysisResult | null> {
     try {
-      console.log(`[AI Moderation] Starting analysis for ticket ${ticketId}`);
+      // Starting AI analysis for ticket
 
       // Get AI settings
       const aiSettings = await this.getAISettings();
       if (!aiSettings) {
-        console.log('[AI Moderation] AI settings not found, skipping analysis');
+        // AI settings not found, skipping analysis
         return null;
       }
 
       // Get punishment types
       const punishmentTypes = await this.getPunishmentTypes();
       if (!punishmentTypes || punishmentTypes.length === 0) {
-        console.log('[AI Moderation] No punishment types found, skipping analysis');
+        // No punishment types found, skipping analysis
         return null;
       }
 
