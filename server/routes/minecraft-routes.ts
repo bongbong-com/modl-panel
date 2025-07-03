@@ -1073,13 +1073,13 @@ export function setupMinecraftRoutes(app: Express): void {
       };
 
       // Log sync activity
-      await createSystemLog(
-        serverDbConnection, 
-        serverName, 
-        `Server sync completed. Online: ${stats.onlinePlayers}, Pending punishments: ${pendingPunishments.length}, Recent modifications: ${recentlyModifiedPunishments.length}`, 
-        'info', 
-        'minecraft-sync'
-      );
+      // await createSystemLog(
+      //   serverDbConnection, 
+      //   serverName, 
+      //   `Server sync completed. Online: ${stats.onlinePlayers}, Pending punishments: ${pendingPunishments.length}, Recent modifications: ${recentlyModifiedPunishments.length}`, 
+      //   'info', 
+      //   'minecraft-sync'
+      // );
 
       // 5. Get notifications for online players
       const playerNotifications: any[] = [];
