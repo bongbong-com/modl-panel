@@ -17,10 +17,14 @@ export function useProvisioningStatusCheck() {
       '/auth',
       '/pending-verification',
       '/resend-verification',
-      '/verify-email'
+      '/verify-email',
+      '/player-ticket',
+      '/tickets',
+      '/appeal',
+      '/knowledgebase',
     ];
 
-    if (exemptPaths.some(path => location.startsWith(path))) {
+    if (exemptPaths.some(path => location.startsWith(path)) || location === '/') {
       return;
     }
 
