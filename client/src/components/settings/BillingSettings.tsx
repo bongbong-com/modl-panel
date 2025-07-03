@@ -4,7 +4,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
-import { useBillingStatus, useCancelSubscription, useUsageData, useUpdateUsageBillingSettings } from '@/hooks/use-data';
+import { useBillingStatus, useCancelSubscription, useUsageData, useUpdateUsageBillingSettings, useResubscribe } from '@/hooks/use-data';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
 import { 
@@ -94,6 +94,7 @@ const BillingSettings = () => {
   const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
   const { data: usageData, isLoading: isUsageLoading } = useUsageData();
   const cancelSubscriptionMutation = useCancelSubscription();
+  const resubscribeMutation = useResubscribe();
   const updateUsageBillingMutation = useUpdateUsageBillingSettings();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -221,6 +222,25 @@ const BillingSettings = () => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to cancel subscription. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleResubscribe = async () => {
+    try {
+      const response = await resubscribeMutation.mutateAsync();
+      
+      toast({
+        title: 'Subscription Reactivated!',
+        description: response.message || 'Your premium subscription has been reactivated successfully.',
+        variant: 'default',
+      });
+    } catch (error: any) {
+      console.error('Error resubscribing:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reactivate subscription. Please try again.',
         variant: 'destructive',
       });
     }
@@ -551,14 +571,48 @@ const BillingSettings = () => {
               )}
               
               {subscription_status === 'canceled' && (
-                <Button 
-                  onClick={handleCreatePortalSession}
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  {isLoading ? 'Loading...' : 'Resubscribe'}
-                </Button>
+                <>
+                  <Button 
+                    onClick={handleCreatePortalSession}
+                    disabled={isLoading}
+                    className="flex items-center gap-2"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    {isLoading ? 'Loading...' : 'Manage Billing'}
+                  </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="outline"
+                        disabled={resubscribeMutation.isPending}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        {resubscribeMutation.isPending ? 'Resubscribing...' : 'Resubscribe'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reactivate Premium Subscription</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to reactivate your Premium subscription? You'll be charged $20/month starting immediately and regain access to all premium features.
+                          <br /><br />
+                          Your subscription will automatically renew each month unless cancelled.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleResubscribe}
+                          className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                          Yes, Reactivate Subscription
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
               )}
             </div>
 

@@ -434,6 +434,147 @@ const expiredCheckInterval = setInterval(checkExpiredSubscriptions, 60 * 60 * 10
 // Run initial check after 30 seconds to allow server to fully start
 setTimeout(checkExpiredSubscriptions, 30 * 1000);
 
+router.post('/resubscribe', isAuthenticated, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).send('Billing service unavailable. Stripe not configured.');
+  }
+
+  const server = req.modlServer;
+
+  if (!server) {
+    return res.status(400).send('Server context not found in request.');
+  }
+
+  try {
+    // Check if the server has a cancelled subscription
+    if (server.subscription_status !== 'canceled') {
+      return res.status(400).json({ 
+        error: 'No cancelled subscription found to reactivate.' 
+      });
+    }
+
+    let subscriptionResult;
+    
+    if (server.stripe_subscription_id) {
+      try {
+        // First, try to retrieve the existing subscription
+        const existingSubscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id) as any;
+        
+        if (existingSubscription.status === 'active' && existingSubscription.cancel_at_period_end) {
+          // Subscription is active but set to cancel at period end - just remove the cancellation
+          subscriptionResult = await stripe.subscriptions.update(server.stripe_subscription_id, {
+            cancel_at_period_end: false
+          }) as any;
+          
+          console.log(`[RESUBSCRIBE] Removed cancellation for subscription ${server.stripe_subscription_id} for server ${server.customDomain}`);
+        } else if (existingSubscription.status === 'canceled') {
+          // Subscription was fully cancelled, need to create a new one
+          throw new Error('Subscription was fully cancelled, creating new one');
+        } else {
+          return res.status(400).json({ 
+            error: 'Subscription is not in a cancelled state that can be reactivated.' 
+          });
+        }
+      } catch (stripeError: any) {
+        if (stripeError.code === 'resource_missing') {
+          // Subscription was deleted, create a new one
+          console.log(`[RESUBSCRIBE] Subscription ${server.stripe_subscription_id} not found, creating new subscription`);
+        } else {
+          console.log(`[RESUBSCRIBE] Stripe error retrieving subscription, creating new one:`, stripeError.message);
+        }
+        
+        // Create new subscription
+        if (!server.stripe_customer_id) {
+          return res.status(400).json({ 
+            error: 'No Stripe customer ID found. Cannot create new subscription.' 
+          });
+        }
+        
+        subscriptionResult = await stripe.subscriptions.create({
+          customer: server.stripe_customer_id,
+          items: [{ price: process.env.STRIPE_PRICE_ID }],
+        }) as any;
+        
+        console.log(`[RESUBSCRIBE] Created new subscription ${subscriptionResult.id} for server ${server.customDomain}`);
+      }
+    } else {
+      // No subscription ID stored, create a new subscription
+      if (!server.stripe_customer_id) {
+        return res.status(400).json({ 
+          error: 'No Stripe customer ID found. Cannot create subscription.' 
+        });
+      }
+      
+      subscriptionResult = await stripe.subscriptions.create({
+        customer: server.stripe_customer_id,
+        items: [{ price: process.env.STRIPE_PRICE_ID }],
+      }) as any;
+      
+      console.log(`[RESUBSCRIBE] Created new subscription ${subscriptionResult.id} for server ${server.customDomain} (no previous subscription ID)`);
+    }
+
+    // Update our database with the new subscription details
+    const globalDb = await connectToGlobalModlDb();
+    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
+
+    // Parse period dates from the subscription
+    let periodStartDate = null;
+    let periodEndDate = null;
+    
+    if (subscriptionResult.current_period_start && typeof subscriptionResult.current_period_start === 'number') {
+      periodStartDate = new Date(subscriptionResult.current_period_start * 1000);
+      if (isNaN(periodStartDate.getTime())) {
+        console.error(`[RESUBSCRIBE] Invalid start date from Stripe timestamp: ${subscriptionResult.current_period_start}`);
+        periodStartDate = null;
+      }
+    }
+    
+    if (subscriptionResult.current_period_end && typeof subscriptionResult.current_period_end === 'number') {
+      periodEndDate = new Date(subscriptionResult.current_period_end * 1000);
+      if (isNaN(periodEndDate.getTime())) {
+        console.error(`[RESUBSCRIBE] Invalid end date from Stripe timestamp: ${subscriptionResult.current_period_end}`);
+        periodEndDate = null;
+      }
+    }
+
+    const updateData: any = {
+      stripe_subscription_id: subscriptionResult.id,
+      subscription_status: subscriptionResult.status,
+      plan: 'premium'
+    };
+    
+    if (periodStartDate) {
+      updateData.current_period_start = periodStartDate;
+    }
+    if (periodEndDate) {
+      updateData.current_period_end = periodEndDate;
+    }
+
+    await Server.findOneAndUpdate(
+      { _id: server._id },
+      updateData
+    );
+
+    console.log(`[RESUBSCRIBE] Successfully resubscribed ${server.customDomain} - new status: ${subscriptionResult.status}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Subscription reactivated successfully! Your premium features are now active.',
+      subscription: {
+        id: subscriptionResult.id,
+        status: subscriptionResult.status,
+        current_period_end: periodEndDate
+      }
+    });
+  } catch (error) {
+    console.error('Error resubscribing:', error);
+    res.status(500).json({ 
+      error: 'Failed to reactivate subscription. Please try again or contact support.',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
 
 // Stripe webhook handler - this needs to be separate from the authenticated routes

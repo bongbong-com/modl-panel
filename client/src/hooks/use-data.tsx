@@ -456,6 +456,33 @@ export function useUpdateUsageBillingSettings() {
   });
 }
 
+export function useResubscribe() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/panel/billing/resubscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to resubscribe');
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      // Invalidate billing status and usage data to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/usage'] });
+    },
+  });
+}
+
 // Punishment hooks
 export function useApplyPunishment() {
   return useMutation({
