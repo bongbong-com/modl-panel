@@ -2,6 +2,7 @@ import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import GeminiService from './gemini-service';
 import SystemPromptsService from './system-prompts-service';
+import { calculatePlayerStatus } from '../utils/player-status-calculator';
 
 interface ChatMessage {
   username: string;
@@ -16,6 +17,36 @@ interface PunishmentType {
   category: string;
   aiDescription: string;
   enabled: boolean;
+  durations?: {
+    low: { 
+      first: { value: number; unit: string; };
+      medium: { value: number; unit: string; };
+      habitual: { value: number; unit: string; };
+    };
+    regular: { 
+      first: { value: number; unit: string; };
+      medium: { value: number; unit: string; };
+      habitual: { value: number; unit: string; };
+    };
+    severe: { 
+      first: { value: number; unit: string; };
+      medium: { value: number; unit: string; };
+      habitual: { value: number; unit: string; };
+    };
+  };
+  singleSeverityDurations?: {
+    first: { value: number; unit: string; type: 'mute' | 'ban'; };
+    medium: { value: number; unit: string; type: 'mute' | 'ban'; };
+    habitual: { value: number; unit: string; type: 'mute' | 'ban'; };
+  };
+  singleSeverityPunishment?: boolean;
+  points?: {
+    low: number;
+    regular: number;
+    severe: number;
+  };
+  customPoints?: number;
+  singleSeverityPoints?: number;
 }
 
 interface AIAnalysisResult {
@@ -162,7 +193,7 @@ export class AIModerationService {
         return false;
       }
       
-      // Get punishment type details from settings to determine duration
+      // Get punishment type details and calculate duration based on player status
       const settings = await Settings.findOne({});
       let punishmentTypes = [];
       let duration = -1; // Default to permanent
@@ -180,22 +211,70 @@ export class AIModerationService {
         if (punishmentType) {
           punishmentTypeName = punishmentType.name;
           
-          // Get duration based on severity if available
-          if (punishmentType.durations?.[severity]) {
-            const severityDuration = punishmentType.durations[severity];
-            // For AI moderation, we'll use the 'first' offense duration
-            const durationConfig = severityDuration.first;
+          // Calculate player status to determine appropriate offense level
+          let offenseLevel = 'first'; // Default to first offense
+          
+          try {
+            // Get status thresholds from settings
+            const statusThresholds = settings?.settings?.statusThresholds || {
+              gameplay: { medium: 5, habitual: 10 },
+              social: { medium: 4, habitual: 8 }
+            };
+            
+            // Calculate player status based on existing punishments
+            const playerStatus = calculatePlayerStatus(
+              player.punishments || [],
+              punishmentTypes,
+              statusThresholds
+            );
+            
+            // Determine offense level based on punishment category and player status
+            const punishmentCategory = punishmentType.category?.toLowerCase();
+            let relevantStatus = 'Low';
+            
+            if (punishmentCategory === 'social') {
+              relevantStatus = playerStatus.social;
+            } else if (punishmentCategory === 'gameplay') {
+              relevantStatus = playerStatus.gameplay;
+            } else {
+              // For administrative or unknown categories, use the higher of the two statuses
+              const statusPriority = { 'Low': 1, 'Medium': 2, 'Habitual': 3 };
+              relevantStatus = statusPriority[playerStatus.social] >= statusPriority[playerStatus.gameplay] 
+                ? playerStatus.social 
+                : playerStatus.gameplay;
+            }
+            
+            // Map status to offense level (same logic as PlayerWindow.tsx)
+            const statusToDurationKey = {
+              'Low': 'first',
+              'Medium': 'medium', 
+              'Habitual': 'habitual'
+            };
+            offenseLevel = statusToDurationKey[relevantStatus as keyof typeof statusToDurationKey] || 'first';
+          } catch (error) {
+            console.error('[AI Moderation] Error calculating player status, using first offense level:', error);
+            offenseLevel = 'first';
+          }
+          
+          // Get duration based on punishment type configuration
+          if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
+            // Single-severity punishment - use duration from offense level
+            const durationConfig = punishmentType.singleSeverityDurations[offenseLevel as 'first' | 'medium' | 'habitual'];
             if (durationConfig) {
-              const multiplierMap: Record<string, number> = {
-                'seconds': 1000,
-                'minutes': 60 * 1000,
-                'hours': 60 * 60 * 1000,
-                'days': 24 * 60 * 60 * 1000,
-                'weeks': 7 * 24 * 60 * 60 * 1000,
-                'months': 30 * 24 * 60 * 60 * 1000
-              };
-              const multiplier = multiplierMap[durationConfig.unit] || 1;
-              duration = durationConfig.value * multiplier;
+              duration = this.convertDurationToMilliseconds(durationConfig);
+            }
+          } else if (punishmentType.durations?.[severity]) {
+            // Multi-severity punishment - use duration from punishment type config based on severity and offense level
+            const severityDuration = punishmentType.durations[severity];
+            const durationConfig = severityDuration[offenseLevel as 'first' | 'medium' | 'habitual'];
+            if (durationConfig) {
+              duration = this.convertDurationToMilliseconds(durationConfig);
+            } else {
+              // Try with 'first' as fallback
+              const fallbackDuration = severityDuration.first;
+              if (fallbackDuration) {
+                duration = this.convertDurationToMilliseconds(fallbackDuration);
+              }
             }
           }
         }
@@ -248,6 +327,22 @@ export class AIModerationService {
        console.error(`[AI Moderation] Error applying punishment to ${playerIdentifier}:`, error);
        return false;
      }
+  }
+
+  /**
+   * Convert duration configuration to milliseconds
+   */
+  private convertDurationToMilliseconds(durationConfig: { value: number; unit: string }): number {
+    const multiplierMap: Record<string, number> = {
+      'seconds': 1000,
+      'minutes': 60 * 1000,
+      'hours': 60 * 60 * 1000,
+      'days': 24 * 60 * 60 * 1000,
+      'weeks': 7 * 24 * 60 * 60 * 1000,
+      'months': 30 * 24 * 60 * 60 * 1000
+    };
+    const multiplier = multiplierMap[durationConfig.unit] || 1;
+    return durationConfig.value * multiplier;
   }
 
   /**
