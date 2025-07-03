@@ -190,10 +190,13 @@ router.get('/status', isAuthenticated, async (req, res) => {
             }
           }
 
-          // If there's a discrepancy, update our database
+          // If there's a discrepancy or missing period data, update our database
           const needsUpdate = effectiveStatus !== server.subscription_status || 
                              (periodEndDate && (!server.current_period_end || Math.abs(new Date(server.current_period_end).getTime() - periodEndDate.getTime()) > 1000)) ||
-                             (periodStartDate && (!server.current_period_start || Math.abs(new Date(server.current_period_start).getTime() - periodStartDate.getTime()) > 1000));
+                             (periodStartDate && (!server.current_period_start || Math.abs(new Date(server.current_period_start).getTime() - periodStartDate.getTime()) > 1000)) ||
+                             // Also update if we have period data from Stripe but missing in DB
+                             (!server.current_period_end && periodEndDate) ||
+                             (!server.current_period_start && periodStartDate);
 
           if (needsUpdate) {
             console.log(`[BILLING STATUS] Status/date mismatch detected. Updating ${server.customDomain} from ${server.subscription_status} to ${effectiveStatus}`);
@@ -384,171 +387,6 @@ router.post('/usage-billing-settings', isAuthenticated, async (req, res) => {
   }
 });
 
-// Mock endpoint for testing when Stripe is not configured
-router.post('/debug-status/:customDomain', async (req, res) => {
-  try {
-    const { customDomain } = req.params;
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
-
-    const server = await Server.findOne({ customDomain });
-    if (!server) {
-      return res.status(404).json({ error: 'Server not found' });
-    }
-
-    res.json({
-      customDomain: server.customDomain,
-      subscription_status: server.subscription_status,
-      current_period_end: server.current_period_end,
-      stripe_customer_id: server.stripe_customer_id,
-      stripe_subscription_id: server.stripe_subscription_id,
-      plan: server.plan
-    });
-  } catch (error) {
-    console.error('Error fetching debug status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Test endpoint to manually trigger subscription status update
-router.post('/debug-sync/:customDomain', async (req, res) => {
-  if (!stripe) {
-    return res.status(503).json({ error: 'Stripe not configured' });
-  }
-
-  try {
-    const { customDomain } = req.params;
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
-
-    const server = await Server.findOne({ customDomain });
-    if (!server) {
-      return res.status(404).json({ error: 'Server not found' });
-    }
-
-    if (!server.stripe_subscription_id) {
-      return res.status(400).json({ error: 'No subscription ID found' });
-    }
-
-    const subscription = await stripe.subscriptions.retrieve(server.stripe_subscription_id) as any;
-    
-    let periodEndDate = null;
-    if (subscription.current_period_end) {
-      periodEndDate = new Date(subscription.current_period_end * 1000);
-    }
-
-    // Determine effective status - if cancel_at_period_end is true, treat as canceled
-    let effectiveStatus = subscription.status;
-    if (subscription.cancel_at_period_end === true && subscription.status === 'active') {
-      effectiveStatus = 'canceled';
-    }
-
-    const updateData: any = {
-      subscription_status: effectiveStatus,
-    };
-
-    if (periodEndDate) {
-      updateData.current_period_end = periodEndDate;
-    }
-
-    await Server.findOneAndUpdate(
-      { _id: server._id },
-      updateData
-    );
-
-    console.log(`[DEBUG SYNC] Updated ${customDomain}: status=${effectiveStatus}, period_end=${periodEndDate}, cancel_at_period_end=${subscription.cancel_at_period_end}`);
-
-    res.json({
-      message: 'Sync completed',
-      stripe_status: subscription.status,
-      stripe_cancel_at_period_end: subscription.cancel_at_period_end,
-      effective_status: effectiveStatus,
-      stripe_period_end: periodEndDate,
-      updated: updateData
-    });
-  } catch (error) {
-    console.error('Error syncing subscription status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Endpoint to check for and update expired cancelled subscriptions
-router.post('/debug-check-expired', async (req, res) => {
-  try {
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
-
-    // Find all servers with cancelled subscriptions that have a period end date
-    const cancelledServers = await Server.find({
-      subscription_status: 'canceled',
-      current_period_end: { $exists: true, $ne: null }
-    });
-
-    const now = new Date();
-    const expiredServers: any[] = [];
-    
-    for (const server of cancelledServers) {
-      const endDate = new Date(server.current_period_end);
-      if (endDate <= now) {
-        // This subscription has expired, update it to free
-        await Server.findOneAndUpdate(
-          { _id: server._id },
-          { 
-            subscription_status: 'inactive',
-            plan: 'free',
-            current_period_end: null
-          }
-        );
-        
-        expiredServers.push({
-          customDomain: server.customDomain,
-          endDate: endDate.toISOString()
-        });
-        
-        console.log(`[EXPIRED CHECK] Updated ${server.customDomain} - expired on ${endDate.toISOString()}`);
-      }
-    }
-
-    res.json({
-      message: 'Expired subscription check completed',
-      total_cancelled: cancelledServers.length,
-      expired_count: expiredServers.length,
-      expired_servers: expiredServers
-    });
-  } catch (error) {
-    console.error('Error checking for expired subscriptions:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Debug endpoint for usage billing settings
-router.get('/debug-usage/:customDomain', async (req, res) => {
-  try {
-    const { customDomain } = req.params;
-    const globalDb = await connectToGlobalModlDb();
-    const Server = globalDb.models.ModlServer || globalDb.model('ModlServer', ModlServerSchema);
-
-    const server = await Server.findOne({ customDomain });
-    if (!server) {
-      return res.status(404).json({ error: 'Server not found' });
-    }
-
-    res.json({
-      customDomain: server.customDomain,
-      usage_billing_enabled: server.usage_billing_enabled,
-      usage_billing_updated_at: server.usage_billing_updated_at,
-      cdn_usage_current_period: server.cdn_usage_current_period,
-      ai_requests_current_period: server.ai_requests_current_period,
-      subscription_status: server.subscription_status,
-      plan: server.plan,
-      raw_usage_billing_field: server.get('usage_billing_enabled') // Direct field access
-    });
-  } catch (error) {
-    console.error('Error fetching usage debug info:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Function to check for and update expired cancelled subscriptions
 async function checkExpiredSubscriptions() {
   try {
@@ -641,19 +479,20 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
             // Fetch the subscription details to get period information
             const subscription = await stripe.subscriptions.retrieve(session.subscription as string) as any;
             
+            let item = subscription.items.data[0];
             let periodStartDate = null;
             let periodEndDate = null;
-            if (subscription.current_period_start && typeof subscription.current_period_start === 'number') {
-              periodStartDate = new Date(subscription.current_period_start * 1000);
+            if (item.current_period_start && typeof item.current_period_start === 'number') {
+              periodStartDate = new Date(item.current_period_start * 1000);
               if (isNaN(periodStartDate.getTime())) {
-                console.error(`[WEBHOOK] Invalid start date from Stripe timestamp: ${subscription.current_period_start}`);
+                console.error(`[WEBHOOK] Invalid start date from Stripe timestamp: ${item.current_period_start}`);
                 periodStartDate = null;
               }
             }
-            if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
-              periodEndDate = new Date(subscription.current_period_end * 1000);
+            if (item.current_period_end && typeof item.current_period_end === 'number') {
+              periodEndDate = new Date(item.current_period_end * 1000);
               if (isNaN(periodEndDate.getTime())) {
-                console.error(`[WEBHOOK] Invalid end date from Stripe timestamp: ${subscription.current_period_end}`);
+                console.error(`[WEBHOOK] Invalid end date from Stripe timestamp: ${item.current_period_end}`);
                 periodEndDate = null;
               }
             }
@@ -689,21 +528,31 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
 
         const server = await Server.findOne({ stripe_customer_id: subscription.customer });
         if (server) {
+          console.log(`[WEBHOOK] Subscription.created details for ${server.customDomain}:`, {
+            id: subscription.id,
+            status: subscription.status,
+            current_period_start: subscription.current_period_start,
+            current_period_end: subscription.current_period_end,
+            current_period_start_type: typeof subscription.current_period_start,
+            current_period_end_type: typeof subscription.current_period_end
+          });
+          
           let periodStartDate = null;
           let periodEndDate = null;
           
-          if (subscription.current_period_start && typeof subscription.current_period_start === 'number') {
-            periodStartDate = new Date(subscription.current_period_start * 1000);
+          let item = subscription.items.data[0];
+          if (item.current_period_start && typeof item.current_period_start === 'number') {
+            periodStartDate = new Date(item.current_period_start * 1000);
             if (isNaN(periodStartDate.getTime())) {
-              console.error(`[WEBHOOK] Invalid start date from Stripe timestamp for created subscription: ${subscription.current_period_start}`);
+              console.error(`[WEBHOOK] Invalid start date from Stripe timestamp for created subscription: ${item.current_period_start}`);
               periodStartDate = null;
             }
           }
           
-          if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
-            periodEndDate = new Date(subscription.current_period_end * 1000);
+          if (item.current_period_end && typeof item.current_period_end === 'number') {
+            periodEndDate = new Date(item.current_period_end * 1000);
             if (isNaN(periodEndDate.getTime())) {
-              console.error(`[WEBHOOK] Invalid end date from Stripe timestamp for created subscription: ${subscription.current_period_end}`);
+              console.error(`[WEBHOOK] Invalid end date from Stripe timestamp for created subscription: ${item.current_period_end}`);
               periodEndDate = null;
             }
           }
@@ -742,18 +591,19 @@ webhookRouter.post('/stripe-webhooks', express.raw({ type: 'application/json' })
           let periodStartDate = null;
           let periodEndDate = null;
           
-          if (subscription.current_period_start && typeof subscription.current_period_start === 'number') {
-            periodStartDate = new Date(subscription.current_period_start * 1000);
+          let item = subscription.items.data[0];
+          if (item.current_period_start && typeof item.current_period_start === 'number') {
+            periodStartDate = new Date(item.current_period_start * 1000);
             if (isNaN(periodStartDate.getTime())) {
-              console.error(`[WEBHOOK] Invalid start date from Stripe timestamp: ${subscription.current_period_start}`);
+              console.error(`[WEBHOOK] Invalid start date from Stripe timestamp: ${item.current_period_start}`);
               periodStartDate = null;
             }
           }
           
-          if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
-            periodEndDate = new Date(subscription.current_period_end * 1000);
+          if (item.current_period_end && typeof item.current_period_end === 'number') {
+            periodEndDate = new Date(item.current_period_end * 1000);
             if (isNaN(periodEndDate.getTime())) {
-              console.error(`[WEBHOOK] Invalid end date from Stripe timestamp: ${subscription.current_period_end}`);
+              console.error(`[WEBHOOK] Invalid end date from Stripe timestamp: ${item.current_period_end}`);
               periodEndDate = null;
             }
           }

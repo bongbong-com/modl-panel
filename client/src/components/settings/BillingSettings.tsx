@@ -184,25 +184,23 @@ const BillingSettings = () => {
 
   const handleRefreshBillingStatus = async () => {
     setIsSpinning(true);
-    
     try {
-      // Ensure minimum spin duration of 800ms
+      // Using Promise.all to run both refresh and sync in parallel
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] }),
-        new Promise(resolve => setTimeout(resolve, 800))
+        queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/usage'] })
       ]);
-      
+
       toast({
         title: 'Billing Status Refreshed',
         description: 'Your billing information has been updated.',
-        variant: 'default',
       });
     } catch (error) {
       console.error('Error refreshing billing status:', error);
       toast({
+        variant: 'destructive',
         title: 'Error',
         description: 'Could not refresh billing status. Please try again.',
-        variant: 'destructive',
       });
     } finally {
       setIsSpinning(false);
@@ -765,17 +763,6 @@ const BillingSettings = () => {
           <h2 className="text-2xl font-bold mb-2">Billing & Subscription</h2>
           <p className="text-muted-foreground">Manage your subscription and billing details.</p>
         </div>
-        {/* Only show refresh button for premium users */}
-        {isPremiumUser() && (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleRefreshBillingStatus}
-            disabled={isSpinning || isBillingLoading}
-          >
-            <RefreshCw className={`h-4 w-4 ${isSpinning ? 'animate-spin' : ''}`} />
-          </Button>
-        )}
       </div>
 
       {/* Subscription Alert */}
