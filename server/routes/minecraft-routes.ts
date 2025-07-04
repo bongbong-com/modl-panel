@@ -55,10 +55,11 @@ function setPunishmentData(punishment: IPunishment, key: string, value: any): vo
 /**
  * Load punishment type configuration from database
  */
-async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<number, "BAN" | "MUTE">> {
-  const typeMap = new Map<number, "BAN" | "MUTE">();
+async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<number, "BAN" | "MUTE" | "KICK">> {
+  const typeMap = new Map<number, "BAN" | "MUTE" | "KICK">();
   
   // Set hardcoded administrative and system types
+  typeMap.set(0, "KICK"); // Kick
   typeMap.set(1, "MUTE"); // Manual Mute
   typeMap.set(2, "BAN");  // Manual Ban
   typeMap.set(3, "BAN");  // Security Ban
@@ -75,26 +76,43 @@ async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<n
       for (const punishmentType of punishmentTypes) {
         // Only process custom punishment types (ordinal 6+)
         if (punishmentType.ordinal && punishmentType.ordinal >= 6) {
-          let type: "BAN" | "MUTE" = "BAN"; // Default to ban
+          let type: "BAN" | "MUTE" | "KICK" = "BAN"; // Default to ban
           
           // Check duration configuration
           if (punishmentType.durations) {
             // Check regular/first offense as the default type
             const firstDuration = punishmentType.durations.regular?.first || punishmentType.durations.low?.first;
             if (firstDuration?.type) {
-              type = firstDuration.type.toUpperCase().includes('BAN') ? "BAN" : "MUTE";
+              const typeStr = firstDuration.type.toUpperCase();
+              if (typeStr.includes('KICK')) {
+                type = "KICK";
+              } else if (typeStr.includes('BAN')) {
+                type = "BAN";
+              } else {
+                type = "MUTE";
+              }
             }
           } else if (punishmentType.singleSeverityDurations) {
             // Check single severity duration
             const firstDuration = punishmentType.singleSeverityDurations.first;
             if (firstDuration?.type) {
-              type = firstDuration.type.toUpperCase().includes('BAN') ? "BAN" : "MUTE";
+              const typeStr = firstDuration.type.toUpperCase();
+              if (typeStr.includes('KICK')) {
+                type = "KICK";
+              } else if (typeStr.includes('BAN')) {
+                type = "BAN";
+              } else {
+                type = "MUTE";
+              }
             }
           } else if (punishmentType.name) {
             // Fallback to name-based detection
-            if (punishmentType.name.toLowerCase().includes('mute')) {
+            const nameStr = punishmentType.name.toLowerCase();
+            if (nameStr.includes('kick')) {
+              type = "KICK";
+            } else if (nameStr.includes('mute')) {
               type = "MUTE";
-            } else if (punishmentType.name.toLowerCase().includes('ban')) {
+            } else if (nameStr.includes('ban')) {
               type = "BAN";
             }
           }
@@ -113,7 +131,7 @@ async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<n
 /**
  * Utility function to determine punishment type based on type_ordinal and preloaded config
  */
-function getPunishmentType(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): "BAN" | "MUTE" {
+function getPunishmentType(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE" | "KICK">): "BAN" | "MUTE" | "KICK" {
   // Check preloaded config first
   const configuredType = typeConfig.get(punishment.type_ordinal);
   if (configuredType) {
@@ -121,7 +139,9 @@ function getPunishmentType(punishment: IPunishment, typeConfig: Map<number, "BAN
   }
   
   // Fallback logic for unknown ordinals
-  if (punishment.type_ordinal === 1) {
+  if (punishment.type_ordinal === 0) {
+    return "KICK"; // Kick
+  } else if (punishment.type_ordinal === 1) {
     return "MUTE"; // Manual Mute
   }
   
@@ -132,15 +152,22 @@ function getPunishmentType(punishment: IPunishment, typeConfig: Map<number, "BAN
 /**
  * Utility function to check if punishment is a ban
  */
-function isBanPunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): boolean {
+function isBanPunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE" | "KICK">): boolean {
   return getPunishmentType(punishment, typeConfig) === "BAN";
 }
 
 /**
  * Utility function to check if punishment is a mute
  */
-function isMutePunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): boolean {
+function isMutePunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE" | "KICK">): boolean {
   return getPunishmentType(punishment, typeConfig) === "MUTE";
+}
+
+/**
+ * Utility function to check if punishment is a kick
+ */
+function isKickPunishment(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE" | "KICK">): boolean {
+  return getPunishmentType(punishment, typeConfig) === "KICK";
 }
 
 /**
@@ -309,8 +336,13 @@ function isPunishmentValid(punishment: IPunishment): boolean {
 /**
  * Utility function to check if a punishment is currently active (started and valid)
  */
-function isPunishmentActive(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE">): boolean {
+function isPunishmentActive(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE" | "KICK">): boolean {
   if (!isPunishmentValid(punishment)) {
+    return false;
+  }
+  
+  // Kicks are never active - they are instant actions
+  if (isKickPunishment(punishment, typeConfig)) {
     return false;
   }
   
@@ -652,7 +684,9 @@ export function setupMinecraftRoutes(app: Express): void {
 
       // Convert type string to type_ordinal
       let type_ordinal: number;
-      if (type === 'Mute' || type === 'MUTE') {
+      if (type === 'Kick' || type === 'KICK') {
+        type_ordinal = 0; // Kick
+      } else if (type === 'Mute' || type === 'MUTE') {
         type_ordinal = 1; // Manual Mute
       } else if (type === 'Ban' || type === 'BAN') {
         type_ordinal = 2; // Manual Ban
@@ -947,6 +981,8 @@ export function setupMinecraftRoutes(app: Express): void {
                              validUnstartedPunishments.find((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig));
           const priorityMute = recentlyIssuedUnstarted.find((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig)) || 
                               validUnstartedPunishments.find((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig));
+          // For kicks, only send recently issued ones (kicks are instant)
+          const priorityKick = recentlyIssuedUnstarted.find((p: IPunishment) => isKickPunishment(p, punishmentTypeConfig));
 
           // Add the priority ban if exists
           if (priorityBan) {
@@ -980,6 +1016,24 @@ export function setupMinecraftRoutes(app: Express): void {
                 expiration: calculateExpiration(priorityMute),
                 description: description,
                 id: priorityMute.id
+              }
+            });
+          }
+
+          // Add the priority kick if exists (kicks are instant and don't persist)
+          if (priorityKick) {
+            const description = await getPunishmentDescription(priorityKick, serverDbConnection);
+            const kickType = getPunishmentType(priorityKick, punishmentTypeConfig);
+
+            pendingPunishments.push({
+              minecraftUuid: player.minecraftUuid,
+              username: player.usernames[player.usernames.length - 1]?.username || 'Unknown',
+              punishment: {
+                type: kickType,
+                started: false,
+                expiration: null, // Kicks are instant
+                description: description,
+                id: priorityKick.id
               }
             });
           }
@@ -1143,6 +1197,10 @@ export function setupMinecraftRoutes(app: Express): void {
         return res.status(404).json({ status: 404, message: 'Punishment not found' });
       }
 
+      // Load punishment type configuration to check if this is a kick
+      const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
+      const isKick = isKickPunishment(punishment, punishmentTypeConfig);
+      
       // Mark punishment as started if successful and set expiry from start time
       if (success) {
         const startTime = new Date(executedAt || Date.now());
@@ -1151,10 +1209,17 @@ export function setupMinecraftRoutes(app: Express): void {
         if (!punishment.started) {
           punishment.started = startTime;
           
-          // Set expiry time based on when punishment actually started
-          const duration = getPunishmentData(punishment, 'duration');
-          if (duration && duration > 0) {
-            setPunishmentData(punishment, 'expires', new Date(startTime.getTime() + duration));
+          // Set expiry time based on when punishment actually started (except for kicks)
+          if (!isKick) {
+            const duration = getPunishmentData(punishment, 'duration');
+            if (duration && duration > 0) {
+              setPunishmentData(punishment, 'expires', new Date(startTime.getTime() + duration));
+            }
+          }
+          // For kicks, mark as completed immediately
+          else {
+            setPunishmentData(punishment, 'completed', true);
+            setPunishmentData(punishment, 'completedAt', startTime);
           }
         }
         
