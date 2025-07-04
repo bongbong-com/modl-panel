@@ -8,7 +8,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets, useModifyPunishment, useAddPunishmentNote } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets, useModifyPunishment, useAddPunishmentNote, useLinkedAccounts, useFindLinkedAccounts } from '@/hooks/use-data';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -534,7 +534,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   
   // Fetch player tickets
   const { data: playerTickets, isLoading: isLoadingTickets } = usePlayerTickets(playerId);
-    // Fetch punishment types from settings
+  
+  // Fetch linked accounts
+  const { data: linkedAccountsData, isLoading: isLoadingLinkedAccounts, refetch: refetchLinkedAccounts } = useLinkedAccounts(playerId);
+  
+  // Hook to trigger linked account search
+  const findLinkedAccountsMutation = useFindLinkedAccounts();
+  
+  // Fetch punishment types from settings
   const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
   
   // Parse punishment types from settings - must be declared before useEffect that uses it
@@ -678,8 +685,12 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     if (isOpen) {
       // Refetch data to ensure we have the latest
       refetch();
+      // Also trigger linked account search when window opens
+      if (playerId) {
+        findLinkedAccountsMutation.mutate(playerId);
+      }
     }
-  }, [isOpen, refetch]);
+  }, [isOpen, refetch, playerId, findLinkedAccountsMutation]);
 
   useEffect(() => {
     if (player && isOpen) {
@@ -775,35 +786,17 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         const notes = player.notes          ? player.notes.map((note: any) => `${note.text} (Added by ${note.issuerName} on ${formatDateWithTime(note.date)})`) 
           : [];
         
-        // Extract linked accounts - accounts sharing IPs (non-proxy/hosting unless within 6 hours)
+        // Extract linked accounts from API data
         const linkedAccounts: string[] = [];
         
-        // Add traditional linked accounts (Discord, Email, etc.)
-        if (player.discord) linkedAccounts.push(`${player.discord} (Discord)`);
-        if (player.email) linkedAccounts.push(`${player.email} (Email)`);
-        
-        // Add IP-based connections
-        if (player.ipConnections && Array.isArray(player.ipConnections)) {
-          player.ipConnections.forEach((connection: any) => {
-            const timeDiff = connection.timeDifference ? connection.timeDifference : 0;
-            const isWithin6Hours = timeDiff <= 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+        if (linkedAccountsData?.linkedAccounts && Array.isArray(linkedAccountsData.linkedAccounts)) {
+          linkedAccountsData.linkedAccounts.forEach((account: any) => {
+            const statusInfo = [];
+            if (account.activeBans > 0) statusInfo.push(`${account.activeBans} active ban${account.activeBans > 1 ? 's' : ''}`);
+            if (account.activeMutes > 0) statusInfo.push(`${account.activeMutes} active mute${account.activeMutes > 1 ? 's' : ''}`);
             
-            // Include non-proxy/hosting IPs, or proxy/hosting IPs within 6 hours
-            if (!connection.isProxy && !connection.isHosting) {
-              linkedAccounts.push(`${connection.username} (shared IP: ${connection.ip})`);
-            } else if ((connection.isProxy || connection.isHosting) && isWithin6Hours) {
-              const connectionType = connection.isProxy ? 'proxy' : 'hosting';
-              linkedAccounts.push(`${connection.username} (shared ${connectionType} IP: ${connection.ip})`);
-            }
-          });
-        }
-        
-        // If no specific IP connections data, fall back to generic linked accounts
-        if (player.linkedAccounts && Array.isArray(player.linkedAccounts)) {
-          player.linkedAccounts.forEach((account: string) => {
-            if (!linkedAccounts.includes(account)) {
-              linkedAccounts.push(account);
-            }
+            const statusText = statusInfo.length > 0 ? ` (${statusInfo.join(', ')})` : '';
+            linkedAccounts.push(`${account.username}${statusText}`);
           });
         }
         
@@ -858,7 +851,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           status: player.status === 'Active' ? 'Online' : player.status
         }));
       }
-    }  }, [player, isOpen, punishmentTypesByCategory, settingsData]);
+    }  }, [player, isOpen, punishmentTypesByCategory, settingsData, linkedAccountsData]);
   
   // Show loading state
   if (isLoading) {

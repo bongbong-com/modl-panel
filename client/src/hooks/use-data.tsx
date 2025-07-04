@@ -38,6 +38,52 @@ export function usePlayer(uuid: string) {
   });
 }
 
+export function useLinkedAccounts(uuid: string) {
+  return useQuery({
+    queryKey: ['/api/minecraft/player/linked', uuid],
+    queryFn: async () => {
+      const res = await fetch(`/api/minecraft/player/linked?minecraftUuid=${uuid}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          return { linkedAccounts: [] };
+        }
+        throw new Error('Failed to fetch linked accounts');
+      }
+      return res.json();
+    },
+    enabled: !!uuid,
+    staleTime: 1000, // 1 second
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
+  });
+}
+
+export function useFindLinkedAccounts() {
+  return useMutation({
+    mutationFn: async (minecraftUuid: string) => {
+      const res = await fetch('/api/minecraft/player/find-linked', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ minecraftUuid })
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to trigger linked account search');
+      }
+      
+      return res.json();
+    },
+    onSuccess: (data, minecraftUuid) => {
+      // Invalidate linked accounts query to refresh it
+      queryClient.invalidateQueries({ queryKey: ['/api/minecraft/player/linked', minecraftUuid] });
+      // Also invalidate player data to refresh it
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players', minecraftUuid] });
+    }
+  });
+}
+
 // Ticket-related hooks
 export function useTickets() {
   return useQuery({

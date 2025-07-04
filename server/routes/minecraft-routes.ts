@@ -1206,6 +1206,63 @@ export function setupMinecraftRoutes(app: Express): void {
   });
 
   /**
+   * Trigger account linking search for a player
+   * - Searches for linked accounts and updates the player's linked accounts list
+   */
+  app.post('/api/minecraft/player/find-linked', async (req: Request, res: Response) => {
+    const { minecraftUuid } = req.body;
+    const serverDbConnection = req.serverDbConnection!;
+    const serverName = req.serverName!;
+    const Player = serverDbConnection.model<IPlayer>('Player');
+
+    if (!minecraftUuid || typeof minecraftUuid !== 'string') {
+      return res.status(400).json({ status: 400, message: 'minecraftUuid is required' });
+    }
+
+    try {
+      const player = await Player.findOne({ minecraftUuid });
+      if (!player) {
+        return res.status(404).json({ status: 404, message: 'Player not found' });
+      }
+
+      // Get player's IP addresses for linking
+      const playerIPs = player.ipList?.map((ip: any) => ip.ipAddress) || [];
+      
+      if (playerIPs.length === 0) {
+        return res.status(200).json({ 
+          status: 200, 
+          message: 'No IP addresses found for player',
+          linkedAccountsFound: 0
+        });
+      }
+
+      console.log(`[Find Linked API] Triggering account linking search for ${minecraftUuid} with ${playerIPs.length} IP addresses`);
+
+      // Trigger the account linking process
+      await findAndLinkAccounts(serverDbConnection, playerIPs, minecraftUuid, serverName);
+
+      // Check for and issue linked bans if any linked accounts have active alt-blocking bans
+      await checkAndIssueLinkedBans(serverDbConnection, minecraftUuid, serverName);
+
+      // Get updated linked accounts count
+      const updatedPlayer = await Player.findOne({ minecraftUuid });
+      const linkedAccounts = updatedPlayer?.data?.get('linkedAccounts') || [];
+
+      return res.status(200).json({ 
+        status: 200, 
+        message: 'Account linking search completed',
+        linkedAccountsFound: linkedAccounts.length
+      });
+    } catch (error: any) {
+      console.error('Error triggering account linking search:', error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error'
+      });
+    }
+  });
+
+  /**
    * Get player profile by username
    * - Get player information by username (most recent player to use that username)
    */
