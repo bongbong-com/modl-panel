@@ -791,40 +791,6 @@ export function setupMinecraftRoutes(app: Express): void {
           data: new Map<string, any>([['firstJoin', new Date()]])
         });
 
-        // After creating the player, check for linked accounts with this IP (only if ipAddress is present)
-        if (ipAddress) {
-            const linkedPlayers = await Player.find({
-              minecraftUuid: { $ne: minecraftUuid },
-              'ipList.ipAddress': ipAddress
-            });
-
-            // Similar to handleNewIP in Java, check for alt blocking on new accounts
-            for (const linkedAccount of linkedPlayers) {
-              const activeBans = linkedAccount.punishments.filter((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig));
-              if (activeBans.length > 0) {
-                // Create a new ban for the new player (ban evasion)
-                const newBanId = uuidv4().substring(0, 8);
-                const banReason = `Ban Evasion (Linked to: ${linkedAccount.usernames[0].username} - ${linkedAccount.minecraftUuid})`;
-                const evasionBan: IPunishment = {
-                  id: newBanId,
-                  issuerName: 'System', // Or a specific admin/system user
-                  issued: new Date(),
-                  started: undefined, // Even evasion bans need server acknowledgement
-                  type_ordinal: 2, // Manual Ban
-                  modifications: [],
-                  notes: [{ text: banReason, date: new Date(), issuerName: 'System' } as INote],
-                  attachedTicketIds: [],
-                  data: new Map<string, any>([
-                      ['reason', banReason],
-                      ['duration', -1] // Permanent ban
-                    ])
-                };
-                player.punishments.push(evasionBan);
-                await createSystemLog(serverDbConnection, serverName, `Player ${username} (${minecraftUuid}) banned for evasion. Linked to ${linkedAccount.usernames[0].username} (${linkedAccount.minecraftUuid}).`, 'moderation', 'system-evasion');
-                break; // One evasion ban is enough
-              }
-            }
-        }
 
         await player.save();
         await createSystemLog(serverDbConnection, serverName, `New player ${username} (${minecraftUuid}) registered`, 'info', 'system-login');
