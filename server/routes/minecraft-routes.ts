@@ -574,6 +574,9 @@ async function getPunishmentDescription(
       const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
       
       if (punishmentType?.playerDescription) {
+        if (punishmentType.ordinal === 4) {
+          return punishmentType.playerDescription.replace("{linked-id}", punishment.data.get('linkedBanId') || 'Unknown');
+        }
         return punishmentType.playerDescription;
       }
     }
