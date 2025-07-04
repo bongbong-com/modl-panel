@@ -40,9 +40,9 @@ export function usePlayer(uuid: string) {
 
 export function useLinkedAccounts(uuid: string) {
   return useQuery({
-    queryKey: ['/api/minecraft/player/linked', uuid],
+    queryKey: ['/api/panel/players/linked', uuid],
     queryFn: async () => {
-      const res = await fetch(`/api/minecraft/player/linked?minecraftUuid=${uuid}`);
+      const res = await fetch(`/api/panel/players/${uuid}/linked`);
       if (!res.ok) {
         if (res.status === 404) {
           return { linkedAccounts: [] };
@@ -61,12 +61,11 @@ export function useLinkedAccounts(uuid: string) {
 export function useFindLinkedAccounts() {
   return useMutation({
     mutationFn: async (minecraftUuid: string) => {
-      const res = await fetch('/api/minecraft/player/find-linked', {
+      const res = await fetch(`/api/panel/players/${minecraftUuid}/find-linked`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ minecraftUuid })
+        }
       });
       
       if (!res.ok) {
@@ -77,7 +76,7 @@ export function useFindLinkedAccounts() {
     },
     onSuccess: (data, minecraftUuid) => {
       // Invalidate linked accounts query to refresh it
-      queryClient.invalidateQueries({ queryKey: ['/api/minecraft/player/linked', minecraftUuid] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/players/linked', minecraftUuid] });
       // Also invalidate player data to refresh it
       queryClient.invalidateQueries({ queryKey: ['/api/panel/players', minecraftUuid] });
     }

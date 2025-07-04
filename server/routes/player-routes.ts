@@ -840,4 +840,273 @@ router.post('/:uuid/punishments/:punishmentId/notes', async (req: Request<{ uuid
   }
 });
 
+// Get linked accounts for a player (panel version)
+router.get('/:uuid/linked', async (req: Request<{ uuid: string }>, res: Response): Promise<void> => {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');
+  const minecraftUuid = req.params.uuid;
+  
+  try {
+    const player = await Player.findOne({ minecraftUuid }).lean<IPlayer>();
+    if (!player) {
+      res.status(200).json({ linkedAccounts: [] });
+      return;
+    }
+
+    const linkedAccountUuids = new Set<string>();
+
+    // Method 1: Get linked accounts from stored data (new system)
+    const storedLinkedAccounts = player.data?.linkedAccounts || [];
+    if (storedLinkedAccounts && Array.isArray(storedLinkedAccounts)) {
+      storedLinkedAccounts.forEach((uuid: string) => linkedAccountUuids.add(uuid));
+      console.log(`[Panel Linked Accounts API] Found ${storedLinkedAccounts.length} stored linked accounts for ${minecraftUuid}`);
+    }
+
+    // Method 2: Get linked accounts by IP addresses (legacy/fallback system)
+    if (player.ipAddresses && player.ipAddresses.length > 0) {
+      const playerIps = player.ipAddresses.map((ip: any) => ip.ipAddress);
+      const ipLinkedPlayers = await Player.find({
+        minecraftUuid: { $ne: minecraftUuid },
+        'ipAddresses.ipAddress': { $in: playerIps }
+      }).select('minecraftUuid').lean();
+      
+      ipLinkedPlayers.forEach((p: any) => linkedAccountUuids.add(p.minecraftUuid));
+      console.log(`[Panel Linked Accounts API] Found ${ipLinkedPlayers.length} IP-linked accounts for ${minecraftUuid}`);
+    }
+
+    if (linkedAccountUuids.size === 0) {
+      console.log(`[Panel Linked Accounts API] No linked accounts found for ${minecraftUuid}`);
+      res.status(200).json({ linkedAccounts: [] });
+      return;
+    }
+
+    // Get full player data for all linked accounts
+    const linkedPlayers = await Player.find({
+      minecraftUuid: { $in: Array.from(linkedAccountUuids) }
+    }).select('minecraftUuid usernames punishments data').lean<IPlayer[]>();
+
+    const formattedLinkedAccounts = linkedPlayers.map((acc: IPlayer) => {
+      // Count active punishments (simplified - just check for recent punishments)
+      const activeBans = acc.punishments ? acc.punishments.filter((p: any) => 
+        (p.type_ordinal === 2 || p.type_ordinal === 4) && 
+        p.started && 
+        (!p.data?.expires || new Date(p.data.expires) > new Date())
+      ).length : 0;
+      
+      const activeMutes = acc.punishments ? acc.punishments.filter((p: any) => 
+        p.type_ordinal === 1 && 
+        p.started && 
+        (!p.data?.expires || new Date(p.data.expires) > new Date())
+      ).length : 0;
+      
+      const lastLinkedUpdate = acc.data?.lastLinkedAccountUpdate;
+      
+      return {
+        minecraftUuid: acc.minecraftUuid,
+        username: acc.usernames && acc.usernames.length > 0 ? acc.usernames[acc.usernames.length - 1].username : 'N/A',
+        activeBans,
+        activeMutes,
+        lastLinkedUpdate: lastLinkedUpdate || null
+      };
+    });
+    
+    console.log(`[Panel Linked Accounts API] Returning ${formattedLinkedAccounts.length} linked accounts for ${minecraftUuid}`);
+    res.status(200).json({ linkedAccounts: formattedLinkedAccounts });
+  } catch (error: any) {
+    console.error('Error getting linked accounts:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Find and link accounts endpoint for player window
+router.post('/:uuid/find-linked', async (req: Request<{ uuid: string }>, res: Response): Promise<void> => {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');
+  const minecraftUuid = req.params.uuid;
+  const serverName = req.serverName!;
+  
+  try {
+    const player = await Player.findOne({ minecraftUuid });
+    if (!player) {
+      res.status(404).json({ error: 'Player not found' });
+      return;
+    }
+
+    // Get player's IP addresses for linking
+    const playerIPs = player.ipAddresses?.map((ip: any) => ip.ipAddress) || [];
+    
+    if (playerIPs.length === 0) {
+      res.status(200).json({ 
+        success: true,
+        message: 'No IP addresses found for player',
+        linkedAccountsFound: 0
+      });
+      return;
+    }
+
+    console.log(`[Panel Find Linked] Triggering account linking search for ${minecraftUuid} with ${playerIPs.length} IP addresses`);
+
+    // Call the minecraft routes function (we need to import it)
+    // For now, let's implement a simplified version here
+    await findAndLinkAccountsForPanel(req.serverDbConnection!, playerIPs, minecraftUuid, serverName);
+
+    // Get updated linked accounts count
+    const updatedPlayer = await Player.findOne({ minecraftUuid });
+    const linkedAccounts = updatedPlayer?.data?.get ? updatedPlayer.data.get('linkedAccounts') : updatedPlayer?.data?.linkedAccounts || [];
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Account linking search completed',
+      linkedAccountsFound: Array.isArray(linkedAccounts) ? linkedAccounts.length : 0
+    });
+  } catch (error) {
+    console.error('Error triggering account linking search:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Find and link accounts for panel (simplified version of minecraft-routes function)
+ */
+async function findAndLinkAccountsForPanel(
+  dbConnection: any,
+  ipAddresses: string[],
+  currentPlayerUuid: string,
+  serverName: string
+): Promise<void> {
+  try {
+    const Player = dbConnection.model('Player');
+    
+    if (!ipAddresses || ipAddresses.length === 0) {
+      return;
+    }
+
+    console.log(`[Panel Account Linking] Checking for linked accounts with IPs: ${ipAddresses.join(', ')}`);
+    
+    // Find all players that have used any of these IP addresses
+    const potentialLinkedPlayers = await Player.find({
+      minecraftUuid: { $ne: currentPlayerUuid }, // Exclude current player
+      'ipAddresses.ipAddress': { $in: ipAddresses }
+    }).lean();
+
+    const currentPlayer = await Player.findOne({ minecraftUuid: currentPlayerUuid });
+    if (!currentPlayer) {
+      console.error(`[Panel Account Linking] Current player ${currentPlayerUuid} not found`);
+      return;
+    }
+
+    const linkedAccounts: string[] = [];
+
+    for (const player of potentialLinkedPlayers) {
+      let shouldLink = false;
+      const matchingIPs: string[] = [];
+
+      // Check each IP address for linking criteria
+      for (const ipAddress of ipAddresses) {
+        const playerIpEntry = player.ipAddresses?.find((ip: any) => ip.ipAddress === ipAddress);
+        const currentPlayerIpEntry = currentPlayer.ipAddresses?.find((ip: any) => ip.ipAddress === ipAddress);
+        
+        if (playerIpEntry && currentPlayerIpEntry) {
+          // Both players have used this IP
+          const isProxy = playerIpEntry.proxy || currentPlayerIpEntry.proxy;
+          
+          if (!isProxy) {
+            // Non-proxy IP - always link
+            shouldLink = true;
+            matchingIPs.push(ipAddress);
+          } else {
+            // Proxy IP - only link if used within 6 hours of each other
+            const playerLastLogin = playerIpEntry.logins && playerIpEntry.logins.length > 0 
+              ? new Date(Math.max(...playerIpEntry.logins.map((d: any) => new Date(d).getTime())))
+              : playerIpEntry.firstLogin;
+            
+            const currentPlayerLastLogin = currentPlayerIpEntry.logins && currentPlayerIpEntry.logins.length > 0
+              ? new Date(Math.max(...currentPlayerIpEntry.logins.map((d: any) => new Date(d).getTime())))
+              : currentPlayerIpEntry.firstLogin;
+
+            if (playerLastLogin && currentPlayerLastLogin) {
+              const timeDiff = Math.abs(playerLastLogin.getTime() - currentPlayerLastLogin.getTime());
+              const sixHours = 6 * 60 * 60 * 1000;
+              
+              if (timeDiff <= sixHours) {
+                shouldLink = true;
+                matchingIPs.push(`${ipAddress} (proxy, within 6h)`);
+              }
+            }
+          }
+        }
+      }
+
+      if (shouldLink) {
+        linkedAccounts.push(player.minecraftUuid);
+        
+        // Update both players' linked accounts
+        await updatePlayerLinkedAccountsForPanel(dbConnection, currentPlayer.minecraftUuid, player.minecraftUuid);
+        await updatePlayerLinkedAccountsForPanel(dbConnection, player.minecraftUuid, currentPlayer.minecraftUuid);
+        
+        console.log(`[Panel Account Linking] Linked ${currentPlayer.minecraftUuid} with ${player.minecraftUuid} via IPs: ${matchingIPs.join(', ')}`);
+        
+        // Create system log
+        await createSystemLog(
+          dbConnection,
+          serverName,
+          `Panel account linking: ${currentPlayer.usernames[0]?.username || 'Unknown'} (${currentPlayer.minecraftUuid}) linked to ${player.usernames[0]?.username || 'Unknown'} (${player.minecraftUuid}) via shared IPs: ${matchingIPs.join(', ')}`,
+          'info',
+          'panel-linking'
+        );
+      }
+    }
+
+    if (linkedAccounts.length > 0) {
+      console.log(`[Panel Account Linking] Found ${linkedAccounts.length} linked accounts for ${currentPlayerUuid}`);
+    } else {
+      console.log(`[Panel Account Linking] No linked accounts found for ${currentPlayerUuid}`);
+    }
+  } catch (error) {
+    console.error(`[Panel Account Linking] Error finding linked accounts:`, error);
+  }
+}
+
+/**
+ * Update a player's linked accounts list for panel
+ */
+async function updatePlayerLinkedAccountsForPanel(
+  dbConnection: any,
+  playerUuid: string,
+  linkedUuid: string
+): Promise<void> {
+  try {
+    const Player = dbConnection.model('Player');
+    
+    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    if (!player) {
+      return;
+    }
+
+    // Initialize linkedAccounts if it doesn't exist
+    if (!player.data) {
+      player.data = new Map<string, any>();
+    }
+    
+    const existingLinkedAccounts = player.data.get ? player.data.get('linkedAccounts') : player.data.linkedAccounts || [];
+    
+    // Only add if not already linked
+    if (!existingLinkedAccounts.includes(linkedUuid)) {
+      const updatedLinkedAccounts = [...existingLinkedAccounts, linkedUuid];
+      if (player.data.set) {
+        player.data.set('linkedAccounts', updatedLinkedAccounts);
+        player.data.set('lastLinkedAccountUpdate', new Date());
+      } else {
+        player.data.linkedAccounts = updatedLinkedAccounts;
+        player.data.lastLinkedAccountUpdate = new Date();
+      }
+      await player.save();
+      
+      console.log(`[Panel Account Linking] Updated ${playerUuid} linked accounts: added ${linkedUuid}`);
+    }
+  } catch (error) {
+    console.error(`[Panel Account Linking] Error updating player linked accounts:`, error);
+  }
+}
+
 export default router;
