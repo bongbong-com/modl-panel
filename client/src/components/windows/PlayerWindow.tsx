@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2,
@@ -541,6 +541,23 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   // Hook to trigger linked account search
   const findLinkedAccountsMutation = useFindLinkedAccounts();
   
+  // State to track if we've already triggered linked account search for this window session
+  const [hasTriggeredLinkedSearch, setHasTriggeredLinkedSearch] = useState(false);
+  
+  // Stable function to trigger linked account search
+  const triggerLinkedAccountSearch = useCallback(() => {
+    if (playerId && !hasTriggeredLinkedSearch && !findLinkedAccountsMutation.isPending) {
+      setHasTriggeredLinkedSearch(true);
+      findLinkedAccountsMutation.mutate(playerId, {
+        onError: (error) => {
+          console.error('Failed to trigger linked account search:', error);
+          // Reset the flag so user can try again if needed
+          setHasTriggeredLinkedSearch(false);
+        }
+      });
+    }
+  }, [playerId, hasTriggeredLinkedSearch]);
+  
   // Fetch punishment types from settings
   const { data: settingsData, isLoading: isLoadingSettings } = useSettings();
   
@@ -685,12 +702,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     if (isOpen) {
       // Refetch data to ensure we have the latest
       refetch();
-      // Also trigger linked account search when window opens
-      if (playerId) {
-        findLinkedAccountsMutation.mutate(playerId);
-      }
+      // Also trigger linked account search when window opens (only once per session)
+      triggerLinkedAccountSearch();
+    } else {
+      // Reset the search flag when window closes
+      setHasTriggeredLinkedSearch(false);
     }
-  }, [isOpen, refetch, playerId, findLinkedAccountsMutation]);
+  }, [isOpen, refetch, triggerLinkedAccountSearch]);
 
   useEffect(() => {
     if (player && isOpen) {
@@ -1928,13 +1946,38 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               Accounts sharing IPs (excluding proxy/hosting IPs unless within 6 hours of each other)
             </p>
             <div className="bg-muted/30 p-3 rounded-lg">
+              {/* Show error if linked account search failed */}
+              {findLinkedAccountsMutation.isError && (
+                <div className="text-sm text-destructive mb-3 p-2 bg-destructive/10 rounded border border-destructive/20">
+                  <TriangleAlert className="h-4 w-4 inline mr-2" />
+                  Failed to search for linked accounts. Please try reopening the player window.
+                </div>
+              )}
+              
+              {/* Show loading state for linked accounts search */}
+              {findLinkedAccountsMutation.isPending && (
+                <div className="text-sm text-muted-foreground mb-3 p-2 bg-muted/20 rounded flex items-center">
+                  <Loader2 className="h-4 w-4 inline mr-2 animate-spin" />
+                  Searching for linked accounts...
+                </div>
+              )}
+              
               <ul className="space-y-2">
-                {playerInfo.linkedAccounts.map((account, idx) => (
-                  <li key={idx} className="text-sm flex items-center">
-                    <Link2 className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
-                    <span>{account}</span>
+                {playerInfo.linkedAccounts.length > 0 ? (
+                  playerInfo.linkedAccounts.map((account, idx) => (
+                    <li key={idx} className="text-sm flex items-center">
+                      <Link2 className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+                      <span>{account}</span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-sm text-muted-foreground">
+                    {findLinkedAccountsMutation.isPending ? 
+                      'Searching...' : 
+                      'No linked accounts found'
+                    }
                   </li>
-                ))}
+                )}
               </ul>
             </div>
           </TabsContent>
