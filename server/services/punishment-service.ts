@@ -548,9 +548,21 @@ export class PunishmentService {
       let linkedBanDuration = -1; // Default to permanent
       let linkedBanExpiry: Date | null = null;
       
-      if (originalExpiry && originalExpiry > Date.now()) {
-        linkedBanDuration = originalExpiry - Date.now();
-        linkedBanExpiry = new Date(originalExpiry);
+      if (originalExpiry) {
+        if (originalExpiry > Date.now()) {
+          // Original punishment is still active - link expiry matches original
+          linkedBanDuration = originalExpiry - Date.now();
+          linkedBanExpiry = new Date(originalExpiry);
+        } else {
+          // Original punishment has expired - linked ban should be permanent by default
+          // This handles cases where an alt-blocking punishment has already expired
+          linkedBanDuration = -1; // Permanent
+          linkedBanExpiry = null;
+        }
+      } else {
+        // Original punishment is permanent - linked ban should also be permanent
+        linkedBanDuration = -1; // Permanent
+        linkedBanExpiry = null;
       }
       
       // Get linked accounts from player data

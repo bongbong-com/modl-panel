@@ -1089,7 +1089,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             console.warn('Invalid modification date calculated, using current date as fallback:', modDate);
             modDate = new Date();
           }
-            if (mod.effectiveDuration === 0) {
+            if (mod.effectiveDuration === 0 || mod.effectiveDuration === -1 || mod.effectiveDuration < 0) {
             effectiveExpiry = null; // Permanent
             effectiveActive = true; // Permanent punishments are always active
           } else {
@@ -1124,7 +1124,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   };
   // Helper function to format duration from milliseconds
   const formatDuration = (durationMs: number) => {
-    if (durationMs === 0) return 'Permanent';
+    if (durationMs === 0 || durationMs === -1 || durationMs < 0) return 'Permanent';
     
     const days = Math.floor(durationMs / (24 * 60 * 60 * 1000));
     const hours = Math.floor((durationMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
@@ -1475,7 +1475,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 /* Show modified duration only when we don't have an effective expiry */
                                 return (
                                   <div className="text-muted-foreground">
-                                    {effectiveState.effectiveDuration === 0 ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`}
+                                    {(effectiveState.effectiveDuration === 0 || effectiveState.effectiveDuration === -1 || effectiveState.effectiveDuration < 0) ? 'Permanent' : `Duration: ${formatDuration(effectiveState.effectiveDuration)}`}
                                   </div>
                                 );} else if (warning.expires) {
                                 /* Show original expiry for unmodified punishments */
@@ -1557,7 +1557,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           
                           // Always show the original duration and action type
                           if (originalDuration !== undefined && originalDuration !== null) {
-                            const durationText = originalDuration === 0 ? 'permanent' : formatDuration(originalDuration);
+                            const durationText = (originalDuration === 0 || originalDuration === -1 || originalDuration < 0) ? 'permanent' : formatDuration(originalDuration);
                             return (
                               <span className="ml-2 opacity-60">
                                 ({durationText} {originalAction})
@@ -1651,7 +1651,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   )}
                                   {mod.effectiveDuration !== undefined && (
                                     <p className="text-muted-foreground">
-                                      New duration: {mod.effectiveDuration === 0 ? 'Permanent' : formatDuration(mod.effectiveDuration)}
+                                      New duration: {(mod.effectiveDuration === 0 || mod.effectiveDuration === -1 || mod.effectiveDuration < 0) ? 'Permanent' : formatDuration(mod.effectiveDuration)}
                                     </p>
                                   )}
                                   <p className="text-muted-foreground text-xs">

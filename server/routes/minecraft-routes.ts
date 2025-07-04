@@ -1144,22 +1144,57 @@ export function setupMinecraftRoutes(app: Express): void {
       // Load punishment type configuration
       const punishmentTypeConfig = await loadPunishmentTypeConfig(serverDbConnection);
       
-      const player = await Player.findOne({ minecraftUuid }).select('ipList.ipAddress usernames punishments').lean<IPlayer>(); // Added usernames and punishments for full data
-      if (!player || !player.ipList || player.ipList.length === 0) {
+      const player = await Player.findOne({ minecraftUuid }).lean<IPlayer>();
+      if (!player) {
         return res.status(200).json({ status: 200, linkedAccounts: [] });
       }
-      const playerIps = player.ipList.map((ip: IIPAddress) => ip.ipAddress);
-      const linkedPlayers = await Player.find({
-        minecraftUuid: { $ne: minecraftUuid },
-        'ipList.ipAddress': { $in: playerIps }
-      }).select('minecraftUuid usernames punishments').lean<IPlayer[]>(); // Ensure array type for lean
 
-      const formattedLinkedAccounts = linkedPlayers.map((acc: IPlayer) => ({
-        minecraftUuid: acc.minecraftUuid,
-        username: acc.usernames && acc.usernames.length > 0 ? acc.usernames[0].username : 'N/A',
-        activeBans: acc.punishments ? acc.punishments.filter((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig)).length : 0,
-        activeMutes: acc.punishments ? acc.punishments.filter((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig)).length : 0,
-      }));
+      const linkedAccountUuids = new Set<string>();
+
+      // Method 1: Get linked accounts from stored data (new system)
+      const storedLinkedAccounts = player.data?.get ? player.data.get('linkedAccounts') : player.data?.linkedAccounts;
+      if (storedLinkedAccounts && Array.isArray(storedLinkedAccounts)) {
+        storedLinkedAccounts.forEach((uuid: string) => linkedAccountUuids.add(uuid));
+        console.log(`[Linked Accounts API] Found ${storedLinkedAccounts.length} stored linked accounts for ${minecraftUuid}`);
+      }
+
+      // Method 2: Get linked accounts by IP addresses (legacy/fallback system)
+      if (player.ipList && player.ipList.length > 0) {
+        const playerIps = player.ipList.map((ip: IIPAddress) => ip.ipAddress);
+        const ipLinkedPlayers = await Player.find({
+          minecraftUuid: { $ne: minecraftUuid },
+          'ipList.ipAddress': { $in: playerIps }
+        }).select('minecraftUuid').lean();
+        
+        ipLinkedPlayers.forEach((p: any) => linkedAccountUuids.add(p.minecraftUuid));
+        console.log(`[Linked Accounts API] Found ${ipLinkedPlayers.length} IP-linked accounts for ${minecraftUuid}`);
+      }
+
+      if (linkedAccountUuids.size === 0) {
+        console.log(`[Linked Accounts API] No linked accounts found for ${minecraftUuid}`);
+        return res.status(200).json({ status: 200, linkedAccounts: [] });
+      }
+
+      // Get full player data for all linked accounts
+      const linkedPlayers = await Player.find({
+        minecraftUuid: { $in: Array.from(linkedAccountUuids) }
+      }).select('minecraftUuid usernames punishments data').lean<IPlayer[]>();
+
+      const formattedLinkedAccounts = linkedPlayers.map((acc: IPlayer) => {
+        const activeBans = acc.punishments ? acc.punishments.filter((p: IPunishment) => isBanPunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig)).length : 0;
+        const activeMutes = acc.punishments ? acc.punishments.filter((p: IPunishment) => isMutePunishment(p, punishmentTypeConfig) && isPunishmentActive(p, punishmentTypeConfig)).length : 0;
+        const lastLinkedUpdate = acc.data?.get ? acc.data.get('lastLinkedAccountUpdate') : acc.data?.lastLinkedAccountUpdate;
+        
+        return {
+          minecraftUuid: acc.minecraftUuid,
+          username: acc.usernames && acc.usernames.length > 0 ? acc.usernames[acc.usernames.length - 1].username : 'N/A',
+          activeBans,
+          activeMutes,
+          lastLinkedUpdate: lastLinkedUpdate || null
+        };
+      });
+      
+      console.log(`[Linked Accounts API] Returning ${formattedLinkedAccounts.length} linked accounts for ${minecraftUuid}`);
       return res.status(200).json({ status: 200, linkedAccounts: formattedLinkedAccounts });
     } catch (error: any) {
       console.error('Error getting linked accounts:', error);

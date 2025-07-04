@@ -1746,7 +1746,7 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
         },
         points: { low: 2, regular: 2, severe: 3 },
         staffDescription: 'Intentionally harming teammates, cross-teaming, or aiding cheaters.',
-        playerDescription: 'Please be considerate to fellow playres by not team-griefing, aiding cheaters, or cross-teaming.',
+        playerDescription: 'Please be considerate to fellow players by not team-griefing, aiding cheaters, or cross-teaming.',
         canBeAltBlocking: true,
         canBeStatWiping: true,
         appealForm: {
