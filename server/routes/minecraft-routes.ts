@@ -233,6 +233,322 @@ async function getAndClearPlayerNotifications(
 }
 
 /**
+ * Find and link accounts by IP addresses
+ * Links accounts that share IP addresses, considering proxy detection and timing
+ * @param dbConnection Database connection
+ * @param ipAddresses Array of IP addresses to check for linking
+ * @param currentPlayerUuid UUID of the current player (to avoid self-linking)
+ * @param serverName Server name for logging
+ */
+async function findAndLinkAccounts(
+  dbConnection: Connection,
+  ipAddresses: string[],
+  currentPlayerUuid: string,
+  serverName: string
+): Promise<void> {
+  try {
+    const Player = dbConnection.model<IPlayer>('Player');
+    
+    if (!ipAddresses || ipAddresses.length === 0) {
+      return;
+    }
+
+    console.log(`[Account Linking] Checking for linked accounts with IPs: ${ipAddresses.join(', ')}`);
+    
+    // Find all players that have used any of these IP addresses
+    const potentialLinkedPlayers = await Player.find({
+      minecraftUuid: { $ne: currentPlayerUuid }, // Exclude current player
+      'ipList.ipAddress': { $in: ipAddresses }
+    }).lean<IPlayer[]>();
+
+    const currentPlayer = await Player.findOne({ minecraftUuid: currentPlayerUuid });
+    if (!currentPlayer) {
+      console.error(`[Account Linking] Current player ${currentPlayerUuid} not found`);
+      return;
+    }
+
+    const linkedAccounts: string[] = [];
+
+    for (const player of potentialLinkedPlayers) {
+      let shouldLink = false;
+      const matchingIPs: string[] = [];
+
+      // Check each IP address for linking criteria
+      for (const ipAddress of ipAddresses) {
+        const playerIpEntry = player.ipList?.find((ip: IIPAddress) => ip.ipAddress === ipAddress);
+        const currentPlayerIpEntry = currentPlayer.ipList?.find((ip: IIPAddress) => ip.ipAddress === ipAddress);
+        
+        if (playerIpEntry && currentPlayerIpEntry) {
+          // Both players have used this IP
+          const isProxy = playerIpEntry.proxy || currentPlayerIpEntry.proxy;
+          
+          if (!isProxy) {
+            // Non-proxy IP - always link
+            shouldLink = true;
+            matchingIPs.push(ipAddress);
+          } else {
+            // Proxy IP - only link if used within 6 hours of each other
+            const playerLastLogin = playerIpEntry.logins && playerIpEntry.logins.length > 0 
+              ? new Date(Math.max(...playerIpEntry.logins.map((d: any) => new Date(d).getTime())))
+              : playerIpEntry.firstLogin;
+            
+            const currentPlayerLastLogin = currentPlayerIpEntry.logins && currentPlayerIpEntry.logins.length > 0
+              ? new Date(Math.max(...currentPlayerIpEntry.logins.map((d: any) => new Date(d).getTime())))
+              : currentPlayerIpEntry.firstLogin;
+
+            if (playerLastLogin && currentPlayerLastLogin) {
+              const timeDiff = Math.abs(playerLastLogin.getTime() - currentPlayerLastLogin.getTime());
+              const sixHours = 6 * 60 * 60 * 1000;
+              
+              if (timeDiff <= sixHours) {
+                shouldLink = true;
+                matchingIPs.push(`${ipAddress} (proxy, within 6h)`);
+              }
+            }
+          }
+        }
+      }
+
+      if (shouldLink) {
+        linkedAccounts.push(player.minecraftUuid);
+        
+        // Update both players' linked accounts
+        await updatePlayerLinkedAccounts(dbConnection, currentPlayer.minecraftUuid, player.minecraftUuid);
+        await updatePlayerLinkedAccounts(dbConnection, player.minecraftUuid, currentPlayer.minecraftUuid);
+        
+        console.log(`[Account Linking] Linked ${currentPlayer.minecraftUuid} with ${player.minecraftUuid} via IPs: ${matchingIPs.join(', ')}`);
+        
+        // Create system log
+        await createSystemLog(
+          dbConnection,
+          serverName,
+          `Account linking detected: ${currentPlayer.usernames[0]?.username || 'Unknown'} (${currentPlayer.minecraftUuid}) linked to ${player.usernames[0]?.username || 'Unknown'} (${player.minecraftUuid}) via shared IPs: ${matchingIPs.join(', ')}`,
+          'info',
+          'account-linking'
+        );
+      }
+    }
+
+    if (linkedAccounts.length > 0) {
+      console.log(`[Account Linking] Found ${linkedAccounts.length} linked accounts for ${currentPlayerUuid}`);
+    } else {
+      console.log(`[Account Linking] No linked accounts found for ${currentPlayerUuid}`);
+    }
+  } catch (error) {
+    console.error(`[Account Linking] Error finding linked accounts:`, error);
+  }
+}
+
+/**
+ * Update a player's linked accounts list
+ * @param dbConnection Database connection
+ * @param playerUuid Player to update
+ * @param linkedUuid Account to link
+ */
+async function updatePlayerLinkedAccounts(
+  dbConnection: Connection,
+  playerUuid: string,
+  linkedUuid: string
+): Promise<void> {
+  try {
+    const Player = dbConnection.model<IPlayer>('Player');
+    
+    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    if (!player) {
+      return;
+    }
+
+    // Initialize linkedAccounts if it doesn't exist
+    if (!player.data) {
+      player.data = new Map<string, any>();
+    }
+    
+    const existingLinkedAccounts = player.data.get('linkedAccounts') || [];
+    
+    // Only add if not already linked
+    if (!existingLinkedAccounts.includes(linkedUuid)) {
+      existingLinkedAccounts.push(linkedUuid);
+      player.data.set('linkedAccounts', existingLinkedAccounts);
+      player.data.set('lastLinkedAccountUpdate', new Date());
+      await player.save();
+      
+      console.log(`[Account Linking] Updated ${playerUuid} linked accounts: added ${linkedUuid}`);
+    }
+  } catch (error) {
+    console.error(`[Account Linking] Error updating player linked accounts:`, error);
+  }
+}
+
+/**
+ * Check if an IP address is new for a player
+ * @param player Player object
+ * @param ipAddress IP address to check
+ * @returns True if this is a new IP for the player
+ */
+function isNewIPForPlayer(player: IPlayer, ipAddress: string): boolean {
+  if (!player.ipList || player.ipList.length === 0) {
+    return true; // First IP for this player
+  }
+  
+  return !player.ipList.some((ip: IIPAddress) => ip.ipAddress === ipAddress);
+}
+
+/**
+ * Check for active alt-blocking bans in linked accounts and issue linked bans
+ * @param dbConnection Database connection
+ * @param playerUuid Player to check for linked bans
+ * @param serverName Server name for logging
+ */
+async function checkAndIssueLinkedBans(
+  dbConnection: Connection,
+  playerUuid: string,
+  serverName: string
+): Promise<void> {
+  try {
+    const Player = dbConnection.model<IPlayer>('Player');
+    const punishmentTypeConfig = await loadPunishmentTypeConfig(dbConnection);
+    
+    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    if (!player) {
+      console.error(`[Linked Bans] Player ${playerUuid} not found`);
+      return;
+    }
+
+    const linkedAccountUuids = player.data?.get('linkedAccounts') || [];
+    if (linkedAccountUuids.length === 0) {
+      console.log(`[Linked Bans] No linked accounts found for ${playerUuid}`);
+      return;
+    }
+
+    console.log(`[Linked Bans] Checking ${linkedAccountUuids.length} linked accounts for active alt-blocking bans`);
+
+    // Check each linked account for active alt-blocking bans
+    for (const linkedUuid of linkedAccountUuids) {
+      const linkedPlayer = await Player.findOne({ minecraftUuid: linkedUuid });
+      if (!linkedPlayer) {
+        console.warn(`[Linked Bans] Linked player ${linkedUuid} not found`);
+        continue;
+      }
+
+      // Find active alt-blocking bans in linked account
+      const activeAltBlockingBans = linkedPlayer.punishments.filter((punishment: IPunishment) => {
+        // Must be a ban
+        if (!isBanPunishment(punishment, punishmentTypeConfig)) {
+          return false;
+        }
+        
+        // Must be active
+        if (!isPunishmentActive(punishment, punishmentTypeConfig)) {
+          return false;
+        }
+        
+        // Must have alt-blocking enabled
+        const isAltBlocking = getPunishmentData(punishment, 'altBlocking');
+        return isAltBlocking === true;
+      });
+
+      // Issue linked bans for each active alt-blocking ban
+      for (const altBlockingBan of activeAltBlockingBans) {
+        await issueLinkedBan(
+          dbConnection,
+          player,
+          linkedPlayer,
+          altBlockingBan,
+          serverName
+        );
+      }
+    }
+  } catch (error) {
+    console.error(`[Linked Bans] Error checking for linked bans:`, error);
+  }
+}
+
+/**
+ * Issue a linked ban to a player based on an alt-blocking ban from a linked account
+ * @param dbConnection Database connection
+ * @param targetPlayer Player to receive the linked ban
+ * @param sourcePlayer Player with the alt-blocking ban
+ * @param sourceAltBlockingBan The alt-blocking ban from the source player
+ * @param serverName Server name for logging
+ */
+async function issueLinkedBan(
+  dbConnection: Connection,
+  targetPlayer: IPlayer,
+  sourcePlayer: IPlayer,
+  sourceAltBlockingBan: IPunishment,
+  serverName: string
+): Promise<void> {
+  try {
+    // Check if player already has a linked ban for this source punishment
+    const existingLinkedBan = targetPlayer.punishments.find((punishment: IPunishment) => {
+      const linkedBanId = getPunishmentData(punishment, 'linkedBanId');
+      return linkedBanId === sourceAltBlockingBan.id;
+    });
+
+    if (existingLinkedBan) {
+      console.log(`[Linked Bans] Player ${targetPlayer.minecraftUuid} already has linked ban for source punishment ${sourceAltBlockingBan.id}`);
+      return;
+    }
+
+    // Calculate expiry based on source ban
+    const sourceExpiry = calculateExpiration(sourceAltBlockingBan);
+    let linkedBanDuration = -1; // Default to permanent
+    let linkedBanExpiry: Date | null = null;
+    
+    if (sourceExpiry && sourceExpiry > Date.now()) {
+      linkedBanDuration = sourceExpiry - Date.now();
+      linkedBanExpiry = new Date(sourceExpiry);
+    }
+
+    // Generate linked ban ID
+    const linkedBanId = uuidv4().substring(0, 8).toUpperCase();
+    const reason = `Linked ban (connected to ${sourcePlayer.usernames[0]?.username || 'Unknown'} - ${sourceAltBlockingBan.id})`;
+
+    // Create linked ban data
+    const linkedBanData = new Map<string, any>();
+    linkedBanData.set('reason', reason);
+    linkedBanData.set('automated', true);
+    linkedBanData.set('linkedBanId', sourceAltBlockingBan.id);
+    linkedBanData.set('linkedToPlayer', sourcePlayer.minecraftUuid);
+    linkedBanData.set('duration', linkedBanDuration);
+    
+    if (linkedBanExpiry) {
+      linkedBanData.set('expires', linkedBanExpiry);
+    }
+
+    // Create linked ban punishment
+    const linkedBanPunishment: IPunishment = {
+      id: linkedBanId,
+      issuerName: 'System (Linked Ban)',
+      issued: new Date(),
+      started: undefined, // Needs server acknowledgment
+      type_ordinal: 4, // Linked Ban
+      modifications: [],
+      notes: [],
+      attachedTicketIds: [],
+      data: linkedBanData
+    };
+
+    // Add linked ban to target player
+    targetPlayer.punishments.push(linkedBanPunishment);
+    await targetPlayer.save();
+
+    // Create system log
+    await createSystemLog(
+      dbConnection,
+      serverName,
+      `Linked ban issued: ${targetPlayer.usernames[0]?.username || 'Unknown'} (${targetPlayer.minecraftUuid}) banned due to alt-blocking ban ${sourceAltBlockingBan.id} from linked account ${sourcePlayer.usernames[0]?.username || 'Unknown'} (${sourcePlayer.minecraftUuid}). Expires: ${linkedBanExpiry ? linkedBanExpiry.toISOString() : 'Never'}`,
+      'moderation',
+      'linked-ban'
+    );
+
+    console.log(`[Linked Bans] Issued linked ban ${linkedBanId} to ${targetPlayer.minecraftUuid} based on alt-blocking ban ${sourceAltBlockingBan.id} from ${sourcePlayer.minecraftUuid}`);
+  } catch (error) {
+    console.error(`[Linked Bans] Error issuing linked ban:`, error);
+  }
+}
+
+/**
  * Get the appropriate description for a punishment
  * Uses punishment type player description for non-manual punishments, notes for manual ones
  */
@@ -401,6 +717,8 @@ export function setupMinecraftRoutes(app: Express): void {
         player.data.set('lastConnect', new Date());
 
         const existingIp = player.ipList.find((ip: IIPAddress) => ip.ipAddress === ipAddress);
+        const isNewIP = !existingIp;
+        
         if (existingIp) {
           existingIp.logins.push(new Date());
         } else if (ipInfo) { // Only add if ipInfo is available
@@ -430,6 +748,22 @@ export function setupMinecraftRoutes(app: Express): void {
         }
 
         await player.save();
+        
+        // Check for linked accounts if this is a new IP address
+        if (isNewIP && ipAddress) {
+          console.log(`[Account Linking] Player ${username} (${minecraftUuid}) logged in with new IP ${ipAddress}`);
+          // Run account linking asynchronously to avoid blocking login
+          setImmediate(() => {
+            findAndLinkAccounts(serverDbConnection, [ipAddress], minecraftUuid, serverName)
+              .then(() => {
+                // After linking accounts, check for linked bans
+                return checkAndIssueLinkedBans(serverDbConnection, minecraftUuid, serverName);
+              })
+              .catch(error => {
+                console.error(`[Account Linking] Error during login linking for ${minecraftUuid}:`, error);
+              });
+          });
+        }
       } else {
         // For new players, we need to get the IP information
         if (!ipInfo) {
@@ -494,6 +828,22 @@ export function setupMinecraftRoutes(app: Express): void {
 
         await player.save();
         await createSystemLog(serverDbConnection, serverName, `New player ${username} (${minecraftUuid}) registered`, 'info', 'system-login');
+        
+        // Check for linked accounts for new players
+        if (ipAddress) {
+          console.log(`[Account Linking] New player ${username} (${minecraftUuid}) joined with IP ${ipAddress}`);
+          // Run account linking asynchronously to avoid blocking login
+          setImmediate(() => {
+            findAndLinkAccounts(serverDbConnection, [ipAddress], minecraftUuid, serverName)
+              .then(() => {
+                // After linking accounts, check for linked bans
+                return checkAndIssueLinkedBans(serverDbConnection, minecraftUuid, serverName);
+              })
+              .catch(error => {
+                console.error(`[Account Linking] Error during new player linking for ${minecraftUuid}:`, error);
+              });
+          });
+        }
       }
       // Get both started and unstarted punishments for login response
       // Include:
