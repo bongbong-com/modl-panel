@@ -1059,10 +1059,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   // Helper function to check if a value is a valid display value for badges
   const isValidBadgeValue = (value: any): boolean => {
     if (!value || value === null || value === undefined) return false;
+    if (typeof value === 'number' && value === 0) return false;
     if (typeof value !== 'string') return false;
     const trimmed = value.trim();
     if (trimmed.length === 0) return false;
-    if (trimmed === '0' || trimmed === 'null' || trimmed === 'undefined') return false;
+    if (trimmed === '0' || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'false') return false;
     return true;
   };
 
@@ -1543,7 +1544,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         </div>
                       </div>                      <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="text-xs text-muted-foreground">{warning.date}</span>
-                        {warning.id && (
+                        {warning.id && warning.id !== '0' && String(warning.id) !== '0' && (
                           <span className="text-xs text-muted-foreground">ID: {warning.id}</span>
                         )}
                         {isPunishment && (
@@ -1690,7 +1691,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             <div className="text-xs bg-muted/20 p-2 rounded font-mono">
                               {Object.entries(warning.data).map(([key, value]) => (
                                 <div key={key}>
-                                  <span className="text-muted-foreground">{key}:</span> {JSON.stringify(value)}
+                                  <span className="text-muted-foreground">{key}:</span> {
+                                    value === null ? 'null' :
+                                    value === undefined ? 'undefined' :
+                                    value === 0 ? '0' :
+                                    value === '' ? '(empty)' :
+                                    typeof value === 'object' ? JSON.stringify(value) : 
+                                    String(value)
+                                  }
                                 </div>
                               ))}
                             </div>
