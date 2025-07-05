@@ -1541,7 +1541,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             })()}
                           </div>
                         </div>
-                      </div>                      <div className="flex items-center gap-2">
+                      </div>                      <div className="flex items-center gap-2 flex-shrink-0">
                         <span className="text-xs text-muted-foreground">{warning.date}</span>
                         {warning.id && (
                           <span className="text-xs text-muted-foreground">ID: {warning.id}</span>
@@ -2111,8 +2111,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 {playerTickets.map((ticket: any) => (
                   <div key={ticket._id} className="bg-muted/30 p-3 rounded-lg">
                     <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-medium text-sm">{ticket._id}</span>
                           <Badge variant={ticket.status === 'Open' ? 'destructive' : ticket.status === 'Closed' ? 'secondary' : 'default'} className="text-xs">
