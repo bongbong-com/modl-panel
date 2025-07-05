@@ -777,10 +777,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               // Additional punishment details
               id: punishment.id || punishment._id,
               severity: (() => {
+                // For linked bans (type_ordinal 4), severity should always be null
+                if (punishment.type_ordinal === 4) return null;
                 const severity = punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity);
                 return severity === 0 || severity === '0' || severity === null || severity === undefined ? null : severity;
               })(),
               status: (() => {
+                // For linked bans (type_ordinal 4), status should always be null
+                if (punishment.type_ordinal === 4) return null;
                 const status = punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status);
                 return status === 0 || status === '0' || status === null || status === undefined ? null : status;
               })(),
@@ -794,7 +798,22 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               active: punishment.data?.active !== false || (punishment.data?.get ? punishment.data.get('active') !== false : punishment.active),
               modifications: punishment.modifications || [],
               expires: punishment.expires || punishment.data?.expires || (punishment.data?.get ? punishment.data.get('expires') : null),
-              data: punishment.data || {},
+              data: (() => {
+                const data = punishment.data || {};
+                // For linked bans, filter out fields that might contain 0 values that shouldn't be displayed
+                if (punishment.type_ordinal === 4) {
+                  const filteredData = { ...data };
+                  // Remove any fields that are 0 or null for linked bans
+                  Object.keys(filteredData).forEach(key => {
+                    const value = filteredData[key];
+                    if (value === 0 || value === '0' || value === null || value === undefined) {
+                      delete filteredData[key];
+                    }
+                  });
+                  return filteredData;
+                }
+                return data;
+              })(),
               altBlocking: punishment.data?.altBlocking || (punishment.data?.get ? punishment.data.get('altBlocking') : false),
               started: punishment.started
             });
