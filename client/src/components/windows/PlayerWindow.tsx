@@ -9,6 +9,7 @@ import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
 import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets, useModifyPunishment, useAddPunishmentNote, useLinkedAccounts, useFindLinkedAccounts } from '@/hooks/use-data';
+import { ClickablePlayer } from '@/components/ui/clickable-player';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -1967,7 +1968,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   playerInfo.linkedAccounts.map((account, idx) => (
                     <li key={idx} className="text-sm flex items-center">
                       <Link2 className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
-                      <span>{account}</span>
+                      <ClickablePlayer 
+                        playerText={account}
+                        showIcon={true}
+                        className="text-sm"
+                      >
+                        {account}
+                      </ClickablePlayer>
                     </li>
                   ))
                 ) : (

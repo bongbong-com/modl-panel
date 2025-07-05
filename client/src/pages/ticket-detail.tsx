@@ -36,12 +36,12 @@ import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket, useSettings } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
-import PlayerWindow from '@/components/windows/PlayerWindow';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from 'modl-shared-web/components/ui/card';
 import { apiRequest } from '@/lib/queryClient';
 import { useAddTicketReply } from '@/hooks/use-add-ticket-reply';
 import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import MarkdownHelp from '@/components/ui/markdown-help';
+import { ClickablePlayer } from '@/components/ui/clickable-player';
 
 export interface TicketMessage {
   id: string;
@@ -135,8 +135,6 @@ export interface TicketDetails {
 const TicketDetail = () => {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('conversation');
-  const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
-  const [isPunishWindowOpen, setIsPunishWindowOpen] = useState(false);
   const [punishmentTypes, setPunishmentTypes] = useState<any[]>([]);
   const location = useLocation();
   const { user } = useAuth();
@@ -784,25 +782,6 @@ const TicketDetail = () => {
         
         {!isLoading && !isError && ticketData && (
           <>
-            {/* Player window for viewing related player */}
-            {ticketDetails.relatedPlayerId && (
-              <PlayerWindow
-                playerId={ticketDetails.relatedPlayerId}
-                isOpen={isPlayerWindowOpen}
-                onClose={() => setIsPlayerWindowOpen(false)}
-                initialPosition={{ x: 50, y: 50 }}
-              />
-            )}
-            
-            {/* Punish window for reported player */}
-            {ticketDetails.relatedPlayerId && (
-              <PlayerWindow
-                playerId={ticketDetails.relatedPlayerId}
-                isOpen={isPunishWindowOpen}
-                onClose={() => setIsPunishWindowOpen(false)}
-                initialPosition={{ x: 100, y: 100 }}
-              />
-            )}
 
             <div className="bg-background-lighter p-6 rounded-lg">
               <div className="flex flex-col gap-4">
@@ -916,7 +895,15 @@ const TicketDetail = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-2 text-sm">
                   <div>
                     <span className="text-muted-foreground">Reported By:</span>
-                    <span className="ml-1">{ticketDetails.reportedBy}</span>
+                    <span className="ml-1">
+                      <ClickablePlayer 
+                        playerText={ticketDetails.reportedBy}
+                        showIcon={true}
+                        className="text-sm"
+                      >
+                        {ticketDetails.reportedBy}
+                      </ClickablePlayer>
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Date:</span>
@@ -926,20 +913,15 @@ const TicketDetail = () => {
                   {ticketDetails.relatedPlayer && (
                     <div className="flex items-center">
                       <span className="text-muted-foreground">Related Player:</span>
-                      <span 
-                        className="ml-1 cursor-pointer hover:underline"
-                        onClick={() => setIsPlayerWindowOpen(true)}
-                      >
-                        {ticketDetails.relatedPlayer}
+                      <span className="ml-1">
+                        <ClickablePlayer 
+                          playerText={ticketDetails.relatedPlayer}
+                          showIcon={true}
+                          className="text-sm"
+                        >
+                          {ticketDetails.relatedPlayer}
+                        </ClickablePlayer>
                       </span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 ml-1"
-                        onClick={() => setIsPlayerWindowOpen(true)}
-                      >
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </Button>
                     </div>
                   )}
                 </div>
@@ -1068,7 +1050,19 @@ const TicketDetail = () => {
                           <div className="flex justify-between items-start mb-3">
                             <div className="font-medium text-sm flex items-center gap-2">
                               <span className="text-foreground">
-                                {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
+                                {message.sender && message.sender !== 'user' ? (
+                                  message.senderType === 'staff' || message.senderType === 'system' ? (
+                                    message.sender
+                                  ) : (
+                                    <ClickablePlayer 
+                                      playerText={message.sender}
+                                      showIcon={true}
+                                      className="text-sm font-medium"
+                                    >
+                                      {message.sender}
+                                    </ClickablePlayer>
+                                  )
+                                ) : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
                               </span>
                               {(message.senderType === 'staff' || message.staff) && (
                                 <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
@@ -1424,7 +1418,15 @@ const TicketDetail = () => {
                     {ticketDetails.notes.map((note, idx) => (
                       <div key={idx} className="bg-muted/20 p-4 rounded-lg">
                         <div className="flex justify-between items-start mb-3">
-                          <span className="font-medium text-sm text-foreground">{note.author}</span>
+                          <span className="font-medium text-sm text-foreground">
+                            <ClickablePlayer 
+                              playerText={note.author}
+                              showIcon={true}
+                              className="text-sm font-medium"
+                            >
+                              {note.author}
+                            </ClickablePlayer>
+                          </span>
                           <span className="text-xs text-muted-foreground flex-shrink-0">{formatDate(note.date)}</span>
                         </div>
                         <div className="note-content">

@@ -12,6 +12,7 @@ import { ProtectedRoute, AuthRoute } from "@/lib/protected-route";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useProvisioningStatusCheck } from "@/hooks/use-provisioning-status";
+import { PlayerWindowProvider } from "@/contexts/PlayerWindowContext";
 import Home from "@/pages/home";
 import Lookup from "@/pages/lookup";
 import LookupPage from "@/pages/lookup-page";
@@ -203,9 +204,11 @@ function App() {
     <AuthProvider>
       <SidebarProvider>
         <DashboardProvider>
-          <TooltipProvider>
-            <AppContent />
-          </TooltipProvider>
+          <PlayerWindowProvider>
+            <TooltipProvider>
+              <AppContent />
+            </TooltipProvider>
+          </PlayerWindowProvider>
         </DashboardProvider>
       </SidebarProvider>
     </AuthProvider>
