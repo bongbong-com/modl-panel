@@ -606,6 +606,8 @@ export class PunishmentService {
           linkedBanDataMap.set('linkedBanId', originalPunishmentId);
           linkedBanDataMap.set('linkedToPlayer', originalPlayer.minecraftUuid);
           linkedBanDataMap.set('duration', linkedBanDuration);
+          linkedBanDataMap.set('severity', null); // Set severity to null for linked bans
+          linkedBanDataMap.set('status', null); // Set status to null for linked bans
           
           if (linkedBanExpiry) {
             linkedBanDataMap.set('expires', linkedBanExpiry);

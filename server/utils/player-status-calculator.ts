@@ -188,6 +188,16 @@ export function updatePunishmentDataStructure(punishment: IPunishment): void {
     punishment.data.set('chatLog', null);
   }
   
+  // Ensure severity and status have proper null values for linked bans
+  if (punishment.type_ordinal === 4) { // Linked Ban
+    if (!punishment.data.has('severity') || punishment.data.get('severity') === undefined || punishment.data.get('severity') === 0) {
+      punishment.data.set('severity', null);
+    }
+    if (!punishment.data.has('status') || punishment.data.get('status') === undefined || punishment.data.get('status') === 0) {
+      punishment.data.set('status', null);
+    }
+  }
+  
   if (!punishment.data.has('duration')) {
     punishment.data.set('duration', 0);
   }

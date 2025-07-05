@@ -511,6 +511,8 @@ async function issueLinkedBan(
     linkedBanData.set('linkedBanId', sourceAltBlockingBan.id);
     linkedBanData.set('linkedToPlayer', sourcePlayer.minecraftUuid);
     linkedBanData.set('duration', linkedBanDuration);
+    linkedBanData.set('severity', null); // Set severity to null for linked bans
+    linkedBanData.set('status', null); // Set status to null for linked bans
     
     if (linkedBanExpiry) {
       linkedBanData.set('expires', linkedBanExpiry);

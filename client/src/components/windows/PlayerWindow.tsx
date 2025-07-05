@@ -196,13 +196,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return duration.value * (multipliers[duration.unit as keyof typeof multipliers] || 0);
   };  // Handler for applying punishment
   const handleApplyPunishment = async () => {
-    // Test toast to verify it's working
-    toast({
-      title: "DEBUG: Function called",
-      description: `Attempting to apply ${playerInfo.selectedPunishmentCategory}`,
-      variant: "default"
-    });
-
     const punishmentType = getCurrentPunishmentType();
     
     // Validate required fields
@@ -783,8 +776,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               by: punishment.issuerName,
               // Additional punishment details
               id: punishment.id || punishment._id,
-              severity: punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity),
-              status: punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status),
+              severity: (() => {
+                const severity = punishment.data?.severity || (punishment.data?.get ? punishment.data.get('severity') : punishment.severity);
+                return severity === 0 || severity === '0' || severity === null || severity === undefined ? null : severity;
+              })(),
+              status: (() => {
+                const status = punishment.data?.status || (punishment.data?.get ? punishment.data.get('status') : punishment.status);
+                return status === 0 || status === '0' || status === null || status === undefined ? null : status;
+              })(),
               evidence: (() => {
                 const evidenceArray = punishment.evidence || [];
                 // Processing evidence data
@@ -1055,6 +1054,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       preview += ` [${options.join(', ')}]`;
     }
       return preview;
+  };
+
+  // Helper function to check if a value is a valid display value for badges
+  const isValidBadgeValue = (value: any): boolean => {
+    if (!value || value === null || value === undefined) return false;
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return false;
+    if (trimmed === '0' || trimmed === 'null' || trimmed === 'undefined') return false;
+    return true;
   };
 
   // Helper function to calculate effective punishment status and expiry based on modifications
@@ -1347,22 +1356,22 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               Alt-blocking
                             </Badge>
                           )}
-                          {warning.severity && (
+                          {isValidBadgeValue(warning.severity) && (
                             <Badge variant="outline" className={`text-xs ${
-                              warning.severity.toLowerCase() === 'low' || warning.severity.toLowerCase() === 'lenient' ? 
+                              (warning.severity && warning.severity.toLowerCase() === 'low') || (warning.severity && warning.severity.toLowerCase() === 'lenient') ? 
                                 'bg-green-100 text-green-800 border-green-300' :
-                              warning.severity.toLowerCase() === 'regular' || warning.severity.toLowerCase() === 'medium' ?
+                              (warning.severity && warning.severity.toLowerCase() === 'regular') || (warning.severity && warning.severity.toLowerCase() === 'medium') ?
                                 'bg-orange-100 text-orange-800 border-orange-300' :
                                 'bg-red-100 text-red-800 border-red-300'
                             }`}>
                               {warning.severity}
                             </Badge>
                           )}
-                          {warning.status && (
+                          {isValidBadgeValue(warning.status) && (
                             <Badge variant="outline" className={`text-xs ${
-                              warning.status.toLowerCase() === 'low' || warning.status.toLowerCase() === 'first' ? 
+                              (warning.status && warning.status.toLowerCase() === 'low') || (warning.status && warning.status.toLowerCase() === 'first') ? 
                                 'bg-green-100 text-green-800 border-green-300' :
-                              warning.status.toLowerCase() === 'medium' ?
+                              warning.status && warning.status.toLowerCase() === 'medium' ?
                                 'bg-orange-100 text-orange-800 border-orange-300' :
                                 'bg-red-100 text-red-800 border-red-300'
                             }`}>
