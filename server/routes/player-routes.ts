@@ -94,7 +94,24 @@ router.use((req: Request, res: Response, next: NextFunction): void => {
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
-    const players = await Player.find({});
+    const search = req.query.search as string;
+    let query = {};
+    
+    if (search) {
+      // Check if search term is a UUID
+      const isUuid = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(search);
+      
+      if (isUuid) {
+        query = { minecraftUuid: search };
+      } else {
+        // Search by username (case-insensitive, exact match for better accuracy)
+        query = {
+          'usernames.username': { $regex: new RegExp(`^${search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') }
+        };
+      }
+    }
+    
+    const players = await Player.find(query);
     const formattedPlayers = players.map(player => ({
       uuid: player.minecraftUuid,
       username: player.usernames?.length > 0 
