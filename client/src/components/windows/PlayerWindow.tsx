@@ -868,7 +868,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           region: player.latestIPData?.region || player.region || 'Unknown',
           country: player.latestIPData?.country || player.country || 'Unknown',
           firstJoined: firstJoined,
-          lastOnline: 'Recent', // This data isn't available in our current schema
+          lastOnline: player.data?.get('isOnline') ? 'Online' : 
+            (player.data?.get('lastDisconnect') ? 
+              formatDateWithTime(player.data.get('lastDisconnect')) : 
+              'Unknown'),
           lastServer: player.lastServer || 'Unknown',
           playtime: player.playtime ? `${player.playtime} hours` : 'Not tracked',
           social: calculatedStatus.social,

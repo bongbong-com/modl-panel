@@ -705,7 +705,7 @@ export function setupMinecraftRoutes(app: Express): void {
    * - Start inactive bans or return active punishments
    */
   app.post('/api/minecraft/player/login', async (req: Request, res: Response) => {
-    const { minecraftUuid, username, ipAddress, skinHash, ipInfo } = req.body;
+    const { minecraftUuid, username, ipAddress, skinHash, ipInfo, serverName: requestServerName } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
     const Player = serverDbConnection.model<IPlayer>('Player');
@@ -720,6 +720,25 @@ export function setupMinecraftRoutes(app: Express): void {
         // Update last connect and IP list for existing player
         player.data = player.data || new Map<string, any>();
         player.data.set('lastConnect', new Date());
+        
+        // Update last server and session tracking
+        const currentServer = requestServerName || serverName;
+        player.data.set('lastServer', currentServer);
+        player.data.set('isOnline', true);
+        
+        // End previous session if player was marked as online (handles server switches)
+        const currentSessionStart = player.data.get('currentSessionStart');
+        const lastDisconnect = player.data.get('lastDisconnect');
+        
+        if (currentSessionStart && !lastDisconnect) {
+          // Player was online but no disconnect recorded - end previous session
+          const sessionDuration = new Date().getTime() - new Date(currentSessionStart).getTime();
+          const totalPlaytime = player.data.get('totalPlaytime') || 0;
+          player.data.set('totalPlaytime', totalPlaytime + sessionDuration);
+        }
+        
+        // Start new session
+        player.data.set('currentSessionStart', new Date());
 
         const existingIp = player.ipList.find((ip: IIPAddress) => ip.ipAddress === ipAddress);
         const isNewIP = !existingIp;
@@ -793,7 +812,14 @@ export function setupMinecraftRoutes(app: Express): void {
           } as IIPAddress] : [] as IIPAddress[],
           punishments: [] as IPunishment[],
           pendingNotifications: [] as string[],
-          data: new Map<string, any>([['firstJoin', new Date()]])
+          data: new Map<string, any>([
+            ['firstJoin', new Date()],
+            ['lastConnect', new Date()],
+            ['lastServer', requestServerName || serverName],
+            ['isOnline', true],
+            ['currentSessionStart', new Date()],
+            ['totalPlaytime', 0]
+          ])
         });
 
 
@@ -914,6 +940,27 @@ export function setupMinecraftRoutes(app: Express): void {
 
       player.data = player.data || new Map<string, any>();
       player.data.set('lastDisconnect', new Date());
+      player.data.set('isOnline', false);
+      
+      // Calculate session duration and update total playtime
+      const currentSessionStart = player.data.get('currentSessionStart');
+      if (currentSessionStart) {
+        const sessionDuration = new Date().getTime() - new Date(currentSessionStart).getTime();
+        const totalPlaytime = player.data.get('totalPlaytime') || 0;
+        player.data.set('totalPlaytime', totalPlaytime + sessionDuration);
+        
+        // Clear current session
+        player.data.delete('currentSessionStart');
+        
+        await createSystemLog(
+          serverDbConnection, 
+          serverName, 
+          `Player ${minecraftUuid} disconnected after ${Math.round(sessionDuration / 60000)} minutes`, 
+          'info', 
+          'system-disconnect'
+        );
+      }
+      
       await player.save();
 
       return res.status(200).json({ status: 200, message: 'Player disconnect time updated' });

@@ -172,10 +172,10 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         player.punishments || [],
         punishmentTypes,
         thresholds
-      );      // Calculate latest IP data
+      );      // Calculate latest IP data with proxy/non-proxy priority
       let latestIPData = null;
       if (player.ipAddresses && player.ipAddresses.length > 0) {
-        // Find the IP with the most recent login
+        // Sort IPs by recency first
         const sortedIPs = player.ipAddresses.sort((a, b) => {
           const aLatest = a.logins && a.logins.length > 0 ? 
             Math.max(...a.logins.map(login => new Date(login).getTime())) : 
@@ -186,7 +186,10 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
           return bLatest - aLatest;
         });
         
-        const latestIP = sortedIPs[0];
+        // Prefer latest non-proxy IP, fallback to latest proxy IP if no non-proxy exists
+        const latestNonProxyIP = sortedIPs.find(ip => !ip.proxy && !ip.hosting);
+        const latestIP = latestNonProxyIP || sortedIPs[0];
+        
         if (latestIP) {
           latestIPData = {
             country: latestIP.country,
@@ -199,6 +202,10 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         }
       }
 
+      // Calculate additional player metrics
+      const totalPlaytime = player.data?.get('totalPlaytime') || 0; // in milliseconds
+      const lastServer = player.data?.get('lastServer') || 'Unknown';
+      
       // Add calculated status to player data
       const enhancedPlayer = {
         ...player.toObject(),
@@ -207,6 +214,8 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         socialPoints: playerStatus.socialPoints,
         gameplayPoints: playerStatus.gameplayPoints,
         latestIPData: latestIPData,
+        lastServer: lastServer,
+        playtime: Math.round(totalPlaytime / (1000 * 60 * 60 * 100)) / 100, // Convert to hours with 2 decimal places
         // Transform punishments to include properly extracted data from Maps
         punishments: player.punishments.map((punishment: any) => {
           const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
@@ -237,10 +246,10 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
       res.json(enhancedPlayer);    } catch (statusError) {
       console.error('Error calculating player status:', statusError);
       
-      // Calculate latest IP data (same as above)
+      // Calculate latest IP data with proxy/non-proxy priority (same as above)
       let latestIPData = null;
       if (player.ipAddresses && player.ipAddresses.length > 0) {
-        // Find the IP with the most recent login
+        // Sort IPs by recency first
         const sortedIPs = player.ipAddresses.sort((a, b) => {
           const aLatest = a.logins && a.logins.length > 0 ? 
             Math.max(...a.logins.map(login => new Date(login).getTime())) : 
@@ -251,7 +260,10 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
           return bLatest - aLatest;
         });
         
-        const latestIP = sortedIPs[0];
+        // Prefer latest non-proxy IP, fallback to latest proxy IP if no non-proxy exists
+        const latestNonProxyIP = sortedIPs.find(ip => !ip.proxy && !ip.hosting);
+        const latestIP = latestNonProxyIP || sortedIPs[0];
+        
         if (latestIP) {
           latestIPData = {
             country: latestIP.country,
@@ -264,11 +276,17 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         }
       }
       
+      // Calculate additional player metrics (same as above)
+      const totalPlaytime = player.data?.get('totalPlaytime') || 0; // in milliseconds
+      const lastServer = player.data?.get('lastServer') || 'Unknown';
+      
       // Return player without calculated status if calculation fails, but still process punishments
       const playerObj = player.toObject();
       const enhancedPlayer = {
         ...playerObj,
         latestIPData: latestIPData,
+        lastServer: lastServer,
+        playtime: Math.round(totalPlaytime / (1000 * 60 * 60 * 100)) / 100, // Convert to hours with 2 decimal places
         // Transform punishments to include properly extracted data from Maps
         punishments: player.punishments.map((punishment: any) => {
           const punishmentObj = punishment.toObject ? punishment.toObject() : punishment;
