@@ -868,9 +868,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
           region: player.latestIPData?.region || player.region || 'Unknown',
           country: player.latestIPData?.country || player.country || 'Unknown',
           firstJoined: firstJoined,
-          lastOnline: player.data?.get('isOnline') ? 'Online' : 
-            (player.data?.get('lastDisconnect') ? 
-              formatDateWithTime(player.data.get('lastDisconnect')) : 
+          lastOnline: getPlayerData(player, 'isOnline') ? 'Online' : 
+            (getPlayerData(player, 'lastDisconnect') ? 
+              formatDateWithTime(getPlayerData(player, 'lastDisconnect')) : 
               'Unknown'),
           lastServer: player.lastServer || 'Unknown',
           playtime: player.playtime ? `${player.playtime} hours` : 'Not tracked',
@@ -1076,6 +1076,15 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       preview += ` [${options.join(', ')}]`;
     }
       return preview;
+  };
+
+  // Helper function to safely get data from player.data (handles both Map and plain object)
+  const getPlayerData = (player: any, key: string) => {
+    if (!player?.data) return undefined;
+    if (typeof player.data.get === 'function') {
+      return player.data.get(key);
+    }
+    return (player.data as any)[key];
   };
 
   // Helper function to check if a value is a valid display value for badges

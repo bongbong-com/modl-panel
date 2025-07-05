@@ -206,9 +206,21 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
       const totalPlaytime = player.data?.get('totalPlaytime') || 0; // in milliseconds
       const lastServer = player.data?.get('lastServer') || 'Unknown';
       
+      // Convert player data Map to plain object for JSON serialization
+      const playerObj = player.toObject();
+      const dataObj: { [key: string]: any } = {};
+      if (playerObj.data && playerObj.data instanceof Map) {
+        for (const [key, value] of playerObj.data.entries()) {
+          dataObj[key] = value;
+        }
+      } else if (playerObj.data) {
+        Object.assign(dataObj, playerObj.data);
+      }
+
       // Add calculated status to player data
       const enhancedPlayer = {
-        ...player.toObject(),
+        ...playerObj,
+        data: dataObj, // Use converted plain object
         social: playerStatus.social,
         gameplay: playerStatus.gameplay,
         socialPoints: playerStatus.socialPoints,
@@ -280,10 +292,21 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
       const totalPlaytime = player.data?.get('totalPlaytime') || 0; // in milliseconds
       const lastServer = player.data?.get('lastServer') || 'Unknown';
       
-      // Return player without calculated status if calculation fails, but still process punishments
+      // Convert player data Map to plain object for JSON serialization (same as above)
       const playerObj = player.toObject();
+      const dataObj: { [key: string]: any } = {};
+      if (playerObj.data && playerObj.data instanceof Map) {
+        for (const [key, value] of playerObj.data.entries()) {
+          dataObj[key] = value;
+        }
+      } else if (playerObj.data) {
+        Object.assign(dataObj, playerObj.data);
+      }
+      
+      // Return player without calculated status if calculation fails, but still process punishments
       const enhancedPlayer = {
         ...playerObj,
+        data: dataObj, // Use converted plain object
         latestIPData: latestIPData,
         lastServer: lastServer,
         playtime: Math.round(totalPlaytime / (1000 * 60 * 60 * 100)) / 100, // Convert to hours with 2 decimal places
