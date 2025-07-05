@@ -1324,7 +1324,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
             <h4 className="font-medium">Player History</h4>
             <div className="space-y-2">              {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => {
                 const isExpanded = expandedPunishments.has(warning.id || `warning-${index}`);
-                const isPunishment = warning.id && (warning.severity || warning.status || warning.evidence?.length || warning.notes?.length);
+                const isPunishment = warning.id && (
+                  warning.severity || 
+                  warning.status || 
+                  warning.evidence?.length || 
+                  warning.notes?.length ||
+                  warning.type === 'Linked Ban' ||
+                  (warning.type && ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Blacklist'].includes(warning.type))
+                );
                 
                 // Calculate effective status and expiry based on modifications
                 const effectiveState = getEffectivePunishmentState(warning);
