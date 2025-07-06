@@ -172,6 +172,53 @@ interface AvailablePunishmentType {
   ordinal: number;
 }
 
+// FieldDropZone Component for cross-section field drops
+interface FieldDropZoneProps {
+  sectionId: string;
+  moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
+}
+
+const FieldDropZone = ({ sectionId, moveFieldBetweenSections }: FieldDropZoneProps) => {
+  const [{ isOver, canDrop }, drop] = useDrop({
+    accept: 'field',
+    drop: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Only handle cross-section drops
+      if (item.sectionId !== sectionId) {
+        moveFieldBetweenSections(item.fieldId, item.sectionId, sectionId);
+      }
+    },
+    canDrop: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Only allow drops from other sections
+      return item.sectionId !== sectionId;
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  });
+
+  return (
+    <div
+      ref={drop}
+      className={`border-2 border-dashed rounded-lg p-2 text-center text-sm transition-colors ${
+        isOver && canDrop
+          ? 'border-primary bg-primary/10 text-primary'
+          : canDrop
+          ? 'border-muted-foreground/50 text-muted-foreground'
+          : 'border-transparent'
+      }`}
+    >
+      {isOver && canDrop ? (
+        <span>Drop field here</span>
+      ) : canDrop ? (
+        <span className="opacity-50">Drop fields from other sections here</span>
+      ) : (
+        <span className="opacity-0">Drop zone</span>
+      )}
+    </div>
+  );
+};
+
 // DraggableSectionCard Component
 interface DraggableSectionCardProps {
   section: TicketFormSection;
@@ -274,6 +321,12 @@ const DraggableSectionCard = ({
             onDeleteField={onDeleteField}
           />
         ))}
+        
+        {/* Drop zone for adding fields from other sections */}
+        <FieldDropZone
+          sectionId={section.id}
+          moveFieldBetweenSections={moveFieldBetweenSections}
+        />
         
         <Button
           size="sm"
