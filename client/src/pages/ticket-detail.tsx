@@ -33,7 +33,7 @@ import {
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
-import { useTicket, usePanelTicket, useUpdateTicket, useSettings } from '@/hooks/use-data';
+import { useTicket, usePanelTicket, useUpdateTicket, useSettings, useStaff } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from 'modl-shared-web/components/ui/card';
@@ -238,12 +238,101 @@ const TicketDetail = () => {
 
   // Fetch settings to get punishment types
   const { data: settingsData } = useSettings();
+  
+  // Fetch staff data to get assigned Minecraft accounts
+  const { data: staffData } = useStaff();
 
   useEffect(() => {
     if (settingsData?.settings?.punishmentTypes) {
       setPunishmentTypes(settingsData.settings.punishmentTypes);
     }
   }, [settingsData]);
+
+  // Avatar component for messages
+  const MessageAvatar = ({ message }: { message: TicketMessage }) => {
+    const [avatarError, setAvatarError] = useState(false);
+    const [avatarLoading, setAvatarLoading] = useState(true);
+
+    // For player messages, use the ticket creator's UUID if available
+    if (message.senderType === 'user') {
+      const creatorUuid = ticketData?.creatorUuid;
+      if (creatorUuid && !avatarError) {
+        return (
+          <div className="relative h-8 w-8 bg-muted rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img 
+              src={`https://crafatar.com/avatars/${creatorUuid}?size=32&default=MHF_Steve&overlay`}
+              alt={`${message.sender} Avatar`}
+              className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
+              onError={() => {
+                setAvatarError(true);
+                setAvatarLoading(false);
+              }}
+              onLoad={() => {
+                setAvatarError(false);
+                setAvatarLoading(false);
+              }}
+            />
+            {avatarLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-primary">{message.sender?.substring(0, 2) || 'U'}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+      // Fallback for player without UUID
+      return (
+        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-xs font-bold text-blue-600">{message.sender?.substring(0, 2) || 'U'}</span>
+        </div>
+      );
+    }
+
+    // For staff messages, check if they have an assigned Minecraft account
+    if (message.senderType === 'staff' || message.staff) {
+      const staffMember = staffData?.find((staff: any) => staff.username === message.sender);
+      const minecraftUuid = staffMember?.assignedMinecraftUuid;
+      
+      if (minecraftUuid && !avatarError) {
+        return (
+          <div className="relative h-8 w-8 bg-muted rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img 
+              src={`https://crafatar.com/avatars/${minecraftUuid}?size=32&default=MHF_Steve&overlay`}
+              alt={`${message.sender} Avatar`}
+              className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
+              onError={() => {
+                setAvatarError(true);
+                setAvatarLoading(false);
+              }}
+              onLoad={() => {
+                setAvatarError(false);
+                setAvatarLoading(false);
+              }}
+            />
+            {avatarLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-primary">{message.sender?.substring(0, 2) || 'S'}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+      
+      // Fallback for staff without assigned Minecraft account
+      return (
+        <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-xs font-bold text-green-600">{message.sender?.substring(0, 2) || 'S'}</span>
+        </div>
+      );
+    }
+
+    // System messages
+    return (
+      <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <span className="text-xs font-bold text-gray-600">SY</span>
+      </div>
+    );
+  };
 
   // Function to apply AI-suggested punishment
   const applyAISuggestion = async () => {
@@ -1038,22 +1127,24 @@ const TicketDetail = () => {
                         key={message.id} 
                         className={`${message.senderType === 'user' ? 'ml-0' : 'bg-muted/20 p-4 rounded-lg ml-0'}`}
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="font-medium text-sm flex items-center gap-2">
-                              <span className="text-foreground">
-                                {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
+                        <div className="flex gap-3">
+                          <MessageAvatar message={message} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="font-medium text-sm flex items-center gap-2">
+                                <span className="text-foreground">
+                                  {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
+                                </span>
+                                {(message.senderType === 'staff' || message.staff) && (
+                                  <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
+                                    Staff
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                {formatDate(message.timestamp) || formatDate(new Date().toISOString())}
                               </span>
-                              {(message.senderType === 'staff' || message.staff) && (
-                                <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
-                                  Staff
-                                </Badge>
-                              )}
                             </div>
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
-                              {formatDate(message.timestamp) || formatDate(new Date().toISOString())}
-                            </span>
-                          </div>
                           
                           {/* If this message has a closedAs status, show the ticket closing info */}
                           {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
@@ -1077,17 +1168,18 @@ const TicketDetail = () => {
                             </div>
                           )}
 
-                          {/* Show attachments if any */}
-                          {message.attachments && message.attachments.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {message.attachments.map((attachment, idx) => (
-                                <div key={idx} className="border rounded-md p-1 flex items-center gap-1.5 text-xs bg-muted/30">
-                                  <Link2 className="h-3 w-3" />
-                                  <span className="text-blue-600">{attachment}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                            {/* Show attachments if any */}
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {message.attachments.map((attachment, idx) => (
+                                  <div key={idx} className="border rounded-md p-1 flex items-center gap-1.5 text-xs bg-muted/30">
+                                    <Link2 className="h-3 w-3" />
+                                    <span className="text-blue-600">{attachment}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
