@@ -2180,8 +2180,8 @@ const Settings = () => {
                 setSelectedTicketFormType={setSelectedTicketFormType}
                 aiModerationSettings={aiModerationSettings}
                 setAiModerationSettings={setAiModerationSettings}
-                aiPunishmentConfigs={aiPunishmentConfigs}
-                setAiPunishmentConfigs={setAiPunishmentConfigs}
+                aiPunishmentConfigs={aiModerationSettings.aiPunishmentConfigs}
+                setAiPunishmentConfigs={(configs) => setAiModerationSettings(prev => ({ ...prev, aiPunishmentConfigs: configs }))}
                 punishmentTypesState={punishmentTypes}
                 onEditSection={onEditSection}
                 onDeleteSection={onDeleteSection}
