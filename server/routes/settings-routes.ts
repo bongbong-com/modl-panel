@@ -290,7 +290,8 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
     };
     defaultSettingsMap.set('system', systemSettings);
     
-    const ticketForms: ITicketForms = {
+    // Legacy ticket forms - kept for backward compatibility but not used in the new system
+    const legacyTicketForms: ITicketForms = {
       'bug': [
         { fieldName: 'description', fieldLabel: 'Bug Description', fieldType: 'textarea', required: true },
         { fieldName: 'steps', fieldLabel: 'Steps to Reproduce', fieldType: 'textarea', required: true },
@@ -331,7 +332,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         }
       ]
     };
-    defaultSettingsMap.set('ticketForms', ticketForms);
+    defaultSettingsMap.set('legacyTicketForms', legacyTicketForms);
     
     // Add default appeal form settings
     const defaultAppealForm: IAppealFormSettings = {
@@ -390,7 +391,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
 
     // Default Ticket Forms Configuration
     const defaultTicketForms = {
-      bug: {
+      bug_report: {
         fields: [
           {
             id: 'bug_title',
@@ -456,6 +457,130 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             description: 'Upload any screenshots or evidence of the bug',
             required: false,
             order: 8
+          }
+        ],
+        sections: []
+      },
+      player_report: {
+        fields: [
+          {
+            id: 'reported_player',
+            type: 'text',
+            label: 'Player Username',
+            description: 'Username of the player you are reporting',
+            required: true,
+            order: 1
+          },
+          {
+            id: 'violation_type',
+            type: 'dropdown',
+            label: 'Violation Type',
+            description: 'What type of violation occurred?',
+            required: true,
+            options: ['Cheating/Hacking', 'Game Trading', 'Team Abuse', 'Game Abuse', 'Account Abuse', 'Systems Abuse', 'Other'],
+            order: 2
+          },
+          {
+            id: 'incident_description',
+            type: 'textarea',
+            label: 'Incident Description',
+            description: 'Describe what the player did wrong',
+            required: true,
+            order: 3
+          },
+          {
+            id: 'when_occurred',
+            type: 'text',
+            label: 'When did this happen?',
+            description: 'Approximate date and time',
+            required: true,
+            order: 4
+          },
+          {
+            id: 'server_location',
+            type: 'text',
+            label: 'Server/Game Mode',
+            description: 'Which server or game mode did this occur in?',
+            required: true,
+            order: 5
+          },
+          {
+            id: 'evidence_provided',
+            type: 'textarea',
+            label: 'Evidence',
+            description: 'Describe any evidence you have (screenshots, videos, witnesses)',
+            required: true,
+            order: 6
+          },
+          {
+            id: 'additional_witnesses',
+            type: 'text',
+            label: 'Witnesses',
+            description: 'Any other players who witnessed this (optional)',
+            required: false,
+            order: 7
+          }
+        ],
+        sections: []
+      },
+      chat_report: {
+        fields: [
+          {
+            id: 'reported_player',
+            type: 'text',
+            label: 'Player Username',
+            description: 'Username of the player you are reporting',
+            required: true,
+            order: 1
+          },
+          {
+            id: 'chat_violation_type',
+            type: 'dropdown',
+            label: 'Chat Violation Type',
+            description: 'What type of chat violation occurred?',
+            required: true,
+            options: ['Inappropriate Language', 'Spam', 'Harassment', 'Advertising', 'Anti-Social Behavior', 'Other'],
+            order: 2
+          },
+          {
+            id: 'chat_description',
+            type: 'textarea',
+            label: 'What happened?',
+            description: 'Describe the inappropriate chat behavior',
+            required: true,
+            order: 3
+          },
+          {
+            id: 'when_occurred',
+            type: 'text',
+            label: 'When did this happen?',
+            description: 'Approximate date and time',
+            required: true,
+            order: 4
+          },
+          {
+            id: 'server_location',
+            type: 'text',
+            label: 'Server/Chat Channel',
+            description: 'Which server or chat channel did this occur in?',
+            required: true,
+            order: 5
+          },
+          {
+            id: 'chat_log',
+            type: 'textarea',
+            label: 'Chat Log',
+            description: 'Copy and paste the relevant chat messages (include timestamps if possible)',
+            required: true,
+            order: 6
+          },
+          {
+            id: 'additional_context',
+            type: 'textarea',
+            label: 'Additional Context',
+            description: 'Any additional information that might be relevant',
+            required: false,
+            order: 7
           }
         ],
         sections: []
@@ -691,6 +816,60 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             showIfValue: 'Developer'
           }
         ]
+      },
+      appeal: {
+        fields: [
+          {
+            id: 'punishment_id',
+            type: 'text',
+            label: 'Punishment ID',
+            description: 'The ID of the punishment you are appealing (found in your punishment details)',
+            required: true,
+            order: 1
+          },
+          {
+            id: 'appeal_reason',
+            type: 'dropdown',
+            label: 'Appeal Reason',
+            description: 'Why are you appealing this punishment?',
+            required: true,
+            options: ['I was wrongfully punished', 'The punishment is too severe', 'I have learned from my mistake', 'Technical issue/mistake', 'Other'],
+            order: 2
+          },
+          {
+            id: 'appeal_explanation',
+            type: 'textarea',
+            label: 'Detailed Explanation',
+            description: 'Provide a detailed explanation of why you believe this punishment should be reviewed',
+            required: true,
+            order: 3
+          },
+          {
+            id: 'evidence_links',
+            type: 'text',
+            label: 'Evidence Links (Optional)',
+            description: 'Provide links to any screenshots, videos, or other evidence',
+            required: false,
+            order: 4
+          },
+          {
+            id: 'acknowledge_rules',
+            type: 'checkbox',
+            label: 'I understand and acknowledge the server rules',
+            description: 'Check this box to confirm you understand the server rules',
+            required: true,
+            order: 5
+          },
+          {
+            id: 'additional_info',
+            type: 'textarea',
+            label: 'Additional Information',
+            description: 'Any other information you think is relevant to your appeal',
+            required: false,
+            order: 6
+          }
+        ],
+        sections: []
       }
     };
     defaultSettingsMap.set('ticketForms', defaultTicketForms);
