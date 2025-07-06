@@ -1121,60 +1121,47 @@ const TicketDetail = () => {
               
               {activeTab === 'conversation' && (
                 <div className="space-y-4">
-                  <div className="space-y-6 mb-5 max-h-[480px] overflow-y-auto p-2">
+                  <div className="max-h-[480px] overflow-y-auto divide-y">
                     {ticketDetails.messages.map((message) => (
-                      <div 
-                        key={message.id} 
-                        className={`${message.senderType === 'user' ? 'ml-0' : 'bg-muted/20 p-4 rounded-lg ml-0'}`}
-                      >
-                        <div className="flex gap-3">
+                      <div key={message.id} className="p-4">
+                        <div className="flex items-start gap-3">
                           <MessageAvatar message={message} />
                           <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="font-medium text-sm flex items-center gap-2">
-                                <span className="text-foreground">
-                                  {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
-                                </span>
-                                {(message.senderType === 'staff' || message.staff) && (
-                                  <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
-                                    Staff
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">
+                                {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
                                 {formatDate(message.timestamp) || formatDate(new Date().toISOString())}
                               </span>
+                              {(message.senderType === 'staff' || message.staff) && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Staff
+                                </Badge>
+                              )}
+                              {message.senderType === 'system' && (
+                                <Badge variant="outline" className="text-xs">
+                                  System
+                                </Badge>
+                              )}
+                              {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") && (
+                                <Badge variant="outline" className="text-xs">
+                                  {message.closedAs}
+                                </Badge>
+                              )}
                             </div>
-                          
-                          {/* If this message has a closedAs status, show the ticket closing info */}
-                          {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
-                            <>
-                              <div className="text-sm mb-2 flex items-center">
-                                <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
-                              </div>
-                              <div className="message-content">
-                                <MarkdownRenderer 
-                                  content={message.content} 
-                                  className="text-sm leading-relaxed"
-                                />
-                              </div>
-                            </>
-                          ) : (
-                            <div className="message-content">
-                              <MarkdownRenderer 
-                                content={message.content} 
-                                className="text-sm leading-relaxed"
-                              />
+                            
+                            <div className="text-sm">
+                              <MarkdownRenderer content={message.content} />
                             </div>
-                          )}
 
                             {/* Show attachments if any */}
                             {message.attachments && message.attachments.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-2">
+                              <div className="mt-2 space-y-1">
                                 {message.attachments.map((attachment, idx) => (
-                                  <div key={idx} className="border rounded-md p-1 flex items-center gap-1.5 text-xs bg-muted/30">
-                                    <Link2 className="h-3 w-3" />
-                                    <span className="text-blue-600">{attachment}</span>
+                                  <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Link2 className="h-4 w-4" />
+                                    <span>{attachment}</span>
                                   </div>
                                 ))}
                               </div>
