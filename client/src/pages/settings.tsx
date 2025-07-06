@@ -39,10 +39,30 @@ interface AppealFormField {
   required: boolean;
   options?: string[]; // For dropdown fields
   order: number;
+  // Divergent form paths
+  showIfFieldId?: string; // Field ID to watch for conditions
+  showIfValue?: string | boolean; // Value that triggers showing this field
+  hideIfValue?: string | boolean; // Value that triggers hiding this field
 }
 
 interface AppealFormSettings {
   fields: AppealFormField[];
+}
+
+// Type definitions for configurable ticket forms
+interface TicketFormField extends AppealFormField {
+  // Inherits all properties from AppealFormField including divergent paths
+}
+
+interface TicketFormSettings {
+  fields: TicketFormField[];
+}
+
+// Configuration for all ticket form types
+interface TicketFormsConfiguration {
+  bug: TicketFormSettings;
+  support: TicketFormSettings;
+  application: TicketFormSettings;
 }
 
 // Type definitions for punishment types
@@ -224,6 +244,27 @@ const Settings = () => {
   const [newPlayerTagState, setNewPlayerTagState] = useState('');
   const [newAppealTagState, setNewAppealTagState] = useState('');
   
+  // Ticket Forms Configuration State
+  const [ticketFormsState, setTicketFormsState] = useState<TicketFormsConfiguration>({
+    bug: { fields: [] },
+    support: { fields: [] },
+    application: { fields: [] }
+  });
+  
+  // Form builder states for each ticket type
+  const [selectedTicketFormType, setSelectedTicketFormType] = useState<'bug' | 'support' | 'application'>('bug');
+  const [selectedTicketFormField, setSelectedTicketFormField] = useState<TicketFormField | null>(null);
+  const [isAddTicketFormFieldDialogOpen, setIsAddTicketFormFieldDialogOpen] = useState(false);
+  const [newTicketFormFieldLabel, setNewTicketFormFieldLabel] = useState('');
+  const [newTicketFormFieldType, setNewTicketFormFieldType] = useState<'checkbox' | 'text' | 'textarea' | 'dropdown'>('text');
+  const [newTicketFormFieldDescription, setNewTicketFormFieldDescription] = useState('');
+  const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
+  const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
+  const [newTicketFormFieldShowIfFieldId, setNewTicketFormFieldShowIfFieldId] = useState('');
+  const [newTicketFormFieldShowIfValue, setNewTicketFormFieldShowIfValue] = useState<string | boolean>('');
+  const [newTicketFormFieldHideIfValue, setNewTicketFormFieldHideIfValue] = useState<string | boolean>('');
+  const [newTicketFormOption, setNewTicketFormOption] = useState('');
+  
   // Updated AI Punishment Types management state
   const [aiPunishmentTypes, setAiPunishmentTypes] = useState<AIServicePunishmentType[]>([]);
   const [availablePunishmentTypes, setAvailablePunishmentTypes] = useState<AvailablePunishmentType[]>([]);
@@ -335,6 +376,7 @@ const Settings = () => {
   const newBugTag = newBugTagState;
   const newPlayerTag = newPlayerTagState;
   const newAppealTag = newAppealTagState;
+  const ticketForms = ticketFormsState;
   const has2FA = has2FAState;
   const hasPasskey = hasPasskeyState;
   const showSetup2FA = showSetup2FAState;
@@ -777,6 +819,7 @@ const Settings = () => {
       bugReportTags: JSON.parse(JSON.stringify(bugReportTags)), // Deep copy
       playerReportTags: JSON.parse(JSON.stringify(playerReportTags)), // Deep copy
       appealTags: JSON.parse(JSON.stringify(appealTags)), // Deep copy
+      ticketForms: JSON.parse(JSON.stringify(ticketForms)), // Deep copy
       mongodbUri,
       has2FA,
       hasPasskey,
@@ -785,7 +828,7 @@ const Settings = () => {
       panelIconUrl,
     };
     initialSettingsRef.current = currentSettingsSnapshot;
-  }, [punishmentTypes, statusThresholds, bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, serverDisplayName, homepageIconUrl, panelIconUrl]);
+  }, [punishmentTypes, statusThresholds, bugReportTags, playerReportTags, appealTags, ticketForms, mongodbUri, has2FA, hasPasskey, serverDisplayName, homepageIconUrl, panelIconUrl]);
 
   // Helper to apply a settings object to all state variables without triggering auto-save
   const applySettingsObjectToState = useCallback((settingsObject: any) => {
@@ -810,6 +853,10 @@ const Settings = () => {
     if (settingsObject.appealTags) {
       const at = settingsObject.appealTags;
       setAppealTagsState(typeof at === 'string' ? JSON.parse(at) : JSON.parse(JSON.stringify(at)));
+    }
+    if (settingsObject.ticketForms) {
+      const tf = settingsObject.ticketForms;
+      setTicketFormsState(typeof tf === 'string' ? JSON.parse(tf) : JSON.parse(JSON.stringify(tf)));
     }
     if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
     if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
@@ -851,6 +898,7 @@ const Settings = () => {
         bugReportTags,
         playerReportTags,
         appealTags,
+        ticketForms,
         mongodbUri,
         has2FA,
         hasPasskey,
@@ -893,7 +941,7 @@ const Settings = () => {
     }
   }, [
     punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
-    bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, toast
+    bugReportTags, playerReportTags, appealTags, ticketForms, mongodbUri, has2FA, hasPasskey, toast
   ]);
 
   // Effect: Load settings from React Query into local component state
@@ -959,7 +1007,7 @@ const Settings = () => {
       }
     };  }, [
     punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
-    bugReportTags, playerReportTags, appealTags, mongodbUri, has2FA, hasPasskey, 
+    bugReportTags, playerReportTags, appealTags, ticketForms, mongodbUri, has2FA, hasPasskey, 
     profileUsername, // Add profile settings to auto-save
     isLoadingSettings, isFetchingSettings, saveSettings
   ]);
@@ -1353,6 +1401,78 @@ const Settings = () => {
 
   const removeAppealFieldOption = (index: number) => {
     setNewAppealFieldOptions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Ticket Form Management Functions
+  const addTicketFormField = () => {
+    if (!newTicketFormFieldLabel.trim()) return;
+    
+    const newField: TicketFormField = {
+      id: Date.now().toString(),
+      type: newTicketFormFieldType,
+      label: newTicketFormFieldLabel,
+      description: newTicketFormFieldDescription || undefined,
+      required: newTicketFormFieldRequired,
+      options: newTicketFormFieldType === 'dropdown' ? newTicketFormFieldOptions : undefined,
+      order: ticketForms[selectedTicketFormType].fields.length,
+      showIfFieldId: newTicketFormFieldShowIfFieldId || undefined,
+      showIfValue: newTicketFormFieldShowIfValue || undefined,
+      hideIfValue: newTicketFormFieldHideIfValue || undefined,
+    };
+
+    if (selectedTicketFormField) {
+      // Update existing field
+      setTicketFormsState(prev => ({
+        ...prev,
+        [selectedTicketFormType]: {
+          fields: prev[selectedTicketFormType].fields.map(field =>
+            field.id === selectedTicketFormField.id ? { ...newField, id: selectedTicketFormField.id } : field
+          )
+        }
+      }));
+    } else {
+      // Add new field
+      setTicketFormsState(prev => ({
+        ...prev,
+        [selectedTicketFormType]: {
+          fields: [...prev[selectedTicketFormType].fields, newField]
+        }
+      }));
+    }
+
+    // Reset form
+    setNewTicketFormFieldLabel('');
+    setNewTicketFormFieldType('text');
+    setNewTicketFormFieldDescription('');
+    setNewTicketFormFieldRequired(false);
+    setNewTicketFormFieldOptions([]);
+    setNewTicketFormFieldShowIfFieldId('');
+    setNewTicketFormFieldShowIfValue('');
+    setNewTicketFormFieldHideIfValue('');
+    setSelectedTicketFormField(null);
+    setIsAddTicketFormFieldDialogOpen(false);
+  };
+
+  const removeTicketFormField = (fieldId: string) => {
+    setTicketFormsState(prev => ({
+      ...prev,
+      [selectedTicketFormType]: {
+        fields: prev[selectedTicketFormType].fields
+          .filter(f => f.id !== fieldId)
+          .map((field, index) => ({ ...field, order: index }))
+      }
+    }));
+  };
+
+  const addNewTicketFormFieldOption = () => {
+    if (newTicketFormOption.trim()) {
+      setNewTicketFormFieldOptions(prev => [...prev, newTicketFormOption.trim()]);
+      setNewTicketFormOption('');
+    }
+  };
+
+  const removeTicketFormFieldOption = (index: number) => {
+    setNewTicketFormFieldOptions(prev => prev.filter((_, i) => i !== index));
   };
 
   // Format the last saved time
@@ -2598,6 +2718,142 @@ const Settings = () => {
                         <Plus className="h-4 w-4 mr-1" />
                         Add Tag
                       </Button>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Ticket Form Builder Section */}
+                  <div className="space-y-4">
+                    <h4 className="text-base font-medium">Ticket Form Configuration</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Configure custom forms for bug reports, support requests, and applications. These forms will be used when players submit tickets.
+                    </p>
+
+                    {/* Form Type Selector */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Form Type</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={selectedTicketFormType === 'bug' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedTicketFormType('bug')}
+                        >
+                          Bug Report
+                        </Button>
+                        <Button
+                          variant={selectedTicketFormType === 'support' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedTicketFormType('support')}
+                        >
+                          Support Request
+                        </Button>
+                        <Button
+                          variant={selectedTicketFormType === 'application' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedTicketFormType('application')}
+                        >
+                          Application
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Form Fields for Selected Type */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-medium">
+                          {selectedTicketFormType === 'bug' && 'Bug Report Form Fields'}
+                          {selectedTicketFormType === 'support' && 'Support Request Form Fields'}
+                          {selectedTicketFormType === 'application' && 'Application Form Fields'}
+                        </h5>
+                        <Button
+                          size="sm"
+                          onClick={() => setIsAddTicketFormFieldDialogOpen(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Field
+                        </Button>
+                      </div>
+
+                      {/* Field List */}
+                      <div className="space-y-2">
+                        {ticketForms[selectedTicketFormType].fields
+                          .sort((a, b) => a.order - b.order)
+                          .map((field) => (
+                            <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {field.type}
+                                  </Badge>
+                                  <span className="font-medium">{field.label}</span>
+                                  {field.required && (
+                                    <Badge variant="secondary" className="text-xs">Required</Badge>
+                                  )}
+                                  {field.showIfFieldId && (
+                                    <Badge variant="outline" className="text-xs bg-blue-50">
+                                      Conditional
+                                    </Badge>
+                                  )}
+                                </div>
+                                {field.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
+                                )}
+                                {field.options && field.options.length > 0 && (
+                                  <div className="flex gap-1 mt-2">
+                                    {field.options.map((option, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {option}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                                {field.showIfFieldId && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Shows when "{field.showIfFieldId}" = {String(field.showIfValue)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedTicketFormField(field);
+                                    setNewTicketFormFieldLabel(field.label);
+                                    setNewTicketFormFieldType(field.type);
+                                    setNewTicketFormFieldDescription(field.description || '');
+                                    setNewTicketFormFieldRequired(field.required);
+                                    setNewTicketFormFieldOptions(field.options || []);
+                                    setNewTicketFormFieldShowIfFieldId(field.showIfFieldId || '');
+                                    setNewTicketFormFieldShowIfValue(field.showIfValue || '');
+                                    setNewTicketFormFieldHideIfValue(field.hideIfValue || '');
+                                    setIsAddTicketFormFieldDialogOpen(true);
+                                  }}
+                                  className="text-xs px-2 h-7"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeTicketFormField(field.id)}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+
+                        {ticketForms[selectedTicketFormType].fields.length === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No custom fields configured</p>
+                            <p className="text-xs mt-1">Players will see a default form</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -3972,6 +4228,180 @@ const Settings = () => {
                   disabled={!selectedAIPunishmentType?.aiDescription.trim()}
                 >
                   Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Add/Edit Ticket Form Field Dialog */}
+        {isAddTicketFormFieldDialogOpen && (
+          <Dialog open={isAddTicketFormFieldDialogOpen} onOpenChange={setIsAddTicketFormFieldDialogOpen}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedTicketFormField ? 'Edit Form Field' : 'Add Form Field'}
+                </DialogTitle>
+                <DialogDescription>
+                  Configure a custom field for the {selectedTicketFormType} form.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Field Label */}
+                <div className="space-y-2">
+                  <Label htmlFor="field-label">Field Label</Label>
+                  <Input
+                    id="field-label"
+                    placeholder="Enter field label"
+                    value={newTicketFormFieldLabel}
+                    onChange={(e) => setNewTicketFormFieldLabel(e.target.value)}
+                  />
+                </div>
+
+                {/* Field Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="field-type">Field Type</Label>
+                  <Select value={newTicketFormFieldType} onValueChange={(value: 'checkbox' | 'text' | 'textarea' | 'dropdown') => setNewTicketFormFieldType(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text Input</SelectItem>
+                      <SelectItem value="textarea">Textarea</SelectItem>
+                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                      <SelectItem value="dropdown">Dropdown</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Field Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="field-description">Description (Optional)</Label>
+                  <Input
+                    id="field-description"
+                    placeholder="Enter field description"
+                    value={newTicketFormFieldDescription}
+                    onChange={(e) => setNewTicketFormFieldDescription(e.target.value)}
+                  />
+                </div>
+
+                {/* Required Toggle */}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="field-required"
+                    checked={newTicketFormFieldRequired}
+                    onCheckedChange={setNewTicketFormFieldRequired}
+                  />
+                  <Label htmlFor="field-required">Required Field</Label>
+                </div>
+
+                {/* Dropdown Options */}
+                {newTicketFormFieldType === 'dropdown' && (
+                  <div className="space-y-2">
+                    <Label>Dropdown Options</Label>
+                    <div className="space-y-2">
+                      {newTicketFormFieldOptions.map((option, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input value={option} readOnly className="flex-1" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTicketFormFieldOption(index)}
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add option"
+                          value={newTicketFormOption}
+                          onChange={(e) => setNewTicketFormOption(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addNewTicketFormFieldOption();
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={addNewTicketFormFieldOption}
+                          disabled={!newTicketFormOption.trim()}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Conditional Display Settings */}
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="text-sm font-medium">Conditional Display (Optional)</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Show or hide this field based on another field's value.
+                  </p>
+                  
+                  {/* Show If Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="show-if-field">Show When Field</Label>
+                    <Select value={newTicketFormFieldShowIfFieldId} onValueChange={setNewTicketFormFieldShowIfFieldId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select field (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {ticketForms[selectedTicketFormType].fields
+                          .filter(f => f.id !== selectedTicketFormField?.id)
+                          .map(field => (
+                            <SelectItem key={field.id} value={field.id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {newTicketFormFieldShowIfFieldId && (
+                    <div className="space-y-2">
+                      <Label htmlFor="show-if-value">Equals Value</Label>
+                      <Input
+                        id="show-if-value"
+                        placeholder="Enter value to match"
+                        value={String(newTicketFormFieldShowIfValue)}
+                        onChange={(e) => setNewTicketFormFieldShowIfValue(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddTicketFormFieldDialogOpen(false);
+                    setSelectedTicketFormField(null);
+                    setNewTicketFormFieldLabel('');
+                    setNewTicketFormFieldType('text');
+                    setNewTicketFormFieldDescription('');
+                    setNewTicketFormFieldRequired(false);
+                    setNewTicketFormFieldOptions([]);
+                    setNewTicketFormFieldShowIfFieldId('');
+                    setNewTicketFormFieldShowIfValue('');
+                    setNewTicketFormFieldHideIfValue('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={addTicketFormField}
+                  disabled={!newTicketFormFieldLabel.trim()}
+                >
+                  {selectedTicketFormField ? 'Update Field' : 'Add Field'}
                 </Button>
               </DialogFooter>
             </DialogContent>
