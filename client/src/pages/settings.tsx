@@ -1353,7 +1353,7 @@ const Settings = () => {
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
               >
                 <SettingsIcon className="h-4 w-4 mr-2" />
-                General
+                Server & Billing
               </TabsTrigger>
               <TabsTrigger
                 value="punishment"
@@ -1369,24 +1369,6 @@ const Settings = () => {
                 <Tag className="h-4 w-4 mr-2" />
                 Tickets
               </TabsTrigger>
-              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
-                <TabsTrigger
-                  value="domain"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-                >
-                  <Globe className="h-4 w-4 mr-2" />
-                  Custom Domain
-                </TabsTrigger>
-              )}
-              {user?.role === 'Super Admin' && (
-                <TabsTrigger
-                  value="billing"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Billing
-                </TabsTrigger>
-              )}
               {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
                 <TabsTrigger
                   value="staff"
@@ -1986,6 +1968,38 @@ const Settings = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Custom Domain Settings */}
+                  {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+                    <>
+                      <Separator />
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-base font-medium mb-3 flex items-center">
+                            <Globe className="h-4 w-4 mr-2" />
+                            Custom Domain
+                          </h4>
+                        </div>
+                        <DomainSettings />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Billing Settings */}
+                  {user?.role === 'Super Admin' && (
+                    <>
+                      <Separator />
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-base font-medium mb-3 flex items-center">
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Billing & Subscription
+                          </h4>
+                        </div>
+                        <BillingSettings />
+                      </div>
+                    </>
+                  )}
 
                 </div>
               </div>
@@ -2678,9 +2692,6 @@ const Settings = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="domain" className="p-6">
-              <DomainSettings />
-            </TabsContent>
 
             <TabsContent value="staff" className="p-6">
               {(user?.role === 'Super Admin' || user?.role === 'Admin') ? (
@@ -2711,11 +2722,6 @@ const Settings = () => {
               )}
             </TabsContent>
 
-            {user?.role === 'Super Admin' && (
-              <TabsContent value="billing" className="space-y-6 p-6">
-                <BillingSettings />
-              </TabsContent>
-            )}
 
             <TabsContent value="knowledgebase" className="space-y-6 p-6">
               <KnowledgebaseSettings />
