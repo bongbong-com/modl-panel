@@ -9,12 +9,13 @@ import { Switch } from 'modl-shared-web/components/ui/switch';
 import { Label } from 'modl-shared-web/components/ui/label';
 import { Separator } from 'modl-shared-web/components/ui/separator';
 import { Slider } from 'modl-shared-web/components/ui/slider';
+import { Progress } from 'modl-shared-web/components/ui/progress';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
-import { useSettings } from '@/hooks/use-data';
+import { useSettings, useBillingStatus, useUsageData } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "modl-shared-web/components/ui/dialog";
 import { queryClient } from '@/lib/queryClient';
@@ -265,7 +266,61 @@ const Settings = () => {
   const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
   
   const { toast } = useToast();
-  const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();  const [currentEmail, setCurrentEmail] = useState('');
+  const { data: settingsData, isLoading: isLoadingSettings, isFetching: isFetchingSettings } = useSettings();
+  const { data: billingStatus } = useBillingStatus();
+  const { data: usageData } = useUsageData();
+  const [currentEmail, setCurrentEmail] = useState('');
+
+  // Helper functions for enhanced summaries
+  const getBillingSummary = () => {
+    if (!billingStatus) return "Loading billing info...";
+    
+    const plan = billingStatus.current_plan || "Free";
+    const status = billingStatus.subscription_status || "active";
+    const nextBilling = billingStatus.current_period_end ? new Date(billingStatus.current_period_end).toLocaleDateString() : null;
+    
+    let statusBadge = "";
+    if (status === "active") statusBadge = "Active";
+    else if (status === "canceled") statusBadge = "Cancelled";
+    else if (status === "past_due") statusBadge = "Past Due";
+    else statusBadge = status;
+    
+    return nextBilling ? `${plan} Plan • ${statusBadge} • Next: ${nextBilling}` : `${plan} Plan • ${statusBadge}`;
+  };
+
+  const getUsageSummary = () => {
+    if (!usageData) return null;
+    
+    const highUsageItems = [];
+    if (usageData.cdn && usageData.cdn.percentage > 80) {
+      highUsageItems.push(`CDN: ${usageData.cdn.percentage}%`);
+    }
+    if (usageData.ai && usageData.ai.percentage > 80) {
+      highUsageItems.push(`AI: ${usageData.ai.percentage}%`);
+    }
+    
+    return highUsageItems.length > 0 ? ` • ${highUsageItems.join(", ")}` : "";
+  };
+
+  const getServerConfigSummary = () => {
+    const parts = [];
+    parts.push(serverDisplayName || 'Untitled Server');
+    
+    const iconStatus = (homepageIconUrl && panelIconUrl) ? "Icons ✓" : 
+                      (homepageIconUrl || panelIconUrl) ? "Icons ◐" : "Icons ✗";
+    parts.push(iconStatus);
+    
+    const apiStatus = apiKey ? "API Key ✓" : "API Key ✗";
+    parts.push(apiStatus);
+    
+    return parts.join(" • ");
+  };
+
+  const getDomainSummary = () => {
+    // We'll need to add domain status fetching here
+    // For now, show a basic summary
+    return "Configure custom domain";
+  };
 
   // Create aliases for the state variables to maintain backward compatibility
   const punishmentTypes = punishmentTypesState;
@@ -1769,7 +1824,39 @@ const Settings = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {!isBillingExpanded && (
-                          <span className="text-sm text-muted-foreground">Manage subscription and billing</span>
+                          <div className="flex flex-col items-end space-y-1">
+                            <span className="text-sm text-muted-foreground">
+                              {getBillingSummary()}{getUsageSummary()}
+                            </span>
+                            {usageData && (usageData.cdn?.percentage > 0 || usageData.ai?.percentage > 0) && (
+                              <div className="flex items-center space-x-2 text-xs">
+                                {usageData.cdn?.percentage > 0 && (
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-muted-foreground">CDN:</span>
+                                    <Progress 
+                                      value={usageData.cdn.percentage} 
+                                      className="w-16 h-1.5" 
+                                    />
+                                    <span className={`text-xs ${usageData.cdn.percentage > 90 ? 'text-red-500' : usageData.cdn.percentage > 80 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+                                      {usageData.cdn.percentage}%
+                                    </span>
+                                  </div>
+                                )}
+                                {usageData.ai?.percentage > 0 && (
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-muted-foreground">AI:</span>
+                                    <Progress 
+                                      value={usageData.ai.percentage} 
+                                      className="w-16 h-1.5" 
+                                    />
+                                    <span className={`text-xs ${usageData.ai.percentage > 90 ? 'text-red-500' : usageData.ai.percentage > 80 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+                                      {usageData.ai.percentage}%
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
                         {isBillingExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </div>
@@ -1790,7 +1877,7 @@ const Settings = () => {
                     <div className="flex items-center space-x-2">
                       {!isServerConfigExpanded && (
                         <span className="text-sm text-muted-foreground">
-                          {serverDisplayName || 'Untitled Server'} • Icons • API Key
+                          {getServerConfigSummary()}
                         </span>
                       )}
                       {isServerConfigExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -2015,7 +2102,7 @@ const Settings = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {!isDomainExpanded && (
-                          <span className="text-sm text-muted-foreground">Configure custom domain</span>
+                          <span className="text-sm text-muted-foreground">{getDomainSummary()}</span>
                         )}
                         {isDomainExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </div>
