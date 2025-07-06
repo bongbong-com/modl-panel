@@ -385,6 +385,7 @@ router.get('/tickets/:id', async (req: Request, res: Response) => {
   }
   
   const Ticket = req.serverDbConnection.model('Ticket');
+  const Staff = req.serverDbConnection.model('Staff');
   
   try {
     const { id } = req.params;
@@ -395,6 +396,48 @@ router.get('/tickets/:id', async (req: Request, res: Response) => {
         error: 'Not found',
         message: 'Ticket not found'
       });
+    }
+    
+    // Enhance messages with staff Minecraft UUIDs for avatar display
+    const enhancedMessages = [];
+    if (ticket.replies && ticket.replies.length > 0) {
+      // Get all staff usernames from messages
+      const staffUsernames = ticket.replies
+        .filter((message: any) => message.staff === true || message.senderType === 'staff')
+        .map((message: any) => message.name || message.sender)
+        .filter((name: string) => name && name !== 'System');
+      
+      // Fetch staff data for these usernames (only username and assignedMinecraftUuid)
+      let staffData = [];
+      if (staffUsernames.length > 0) {
+        staffData = await Staff.find(
+          { username: { $in: staffUsernames } },
+          { username: 1, assignedMinecraftUuid: 1, _id: 0 }
+        );
+      }
+      
+      // Create a lookup map for staff UUIDs
+      const staffUuidMap = new Map();
+      staffData.forEach((staff: any) => {
+        if (staff.assignedMinecraftUuid) {
+          staffUuidMap.set(staff.username, staff.assignedMinecraftUuid);
+        }
+      });
+      
+      // Enhance each message with staff UUID if available
+      for (const message of ticket.replies) {
+        const enhancedMessage = { ...message };
+        
+        if ((message.staff === true || message.senderType === 'staff') && (message.name || message.sender)) {
+          const staffUsername = message.name || message.sender;
+          const minecraftUuid = staffUuidMap.get(staffUsername);
+          if (minecraftUuid) {
+            enhancedMessage.staffMinecraftUuid = minecraftUuid;
+          }
+        }
+        
+        enhancedMessages.push(enhancedMessage);
+      }
     }
     
     // Return full ticket data for public access
@@ -411,8 +454,8 @@ router.get('/tickets/:id', async (req: Request, res: Response) => {
       date: ticket.created, // Alias for compatibility
       category: ticket.type, // Use type as category for compatibility
       locked: ticket.locked || false,
-      replies: ticket.replies || [],
-      messages: ticket.replies || [], // Alias for compatibility
+      replies: enhancedMessages,
+      messages: enhancedMessages, // Alias for compatibility
       notes: ticket.notes || [],
       tags: ticket.tags || [],
       data: ticket.data || new Map(),

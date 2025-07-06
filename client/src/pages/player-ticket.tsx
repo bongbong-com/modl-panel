@@ -130,8 +130,36 @@ const MessageAvatar = ({ message, creatorUuid }: { message: TicketMessage, creat
     );
   }
 
-  // For staff messages - we don't have staff data in player tickets, so use a fallback
+  // For staff messages - use staff Minecraft UUID if available
   if (message.senderType === 'staff' || message.staff) {
+    const staffMinecraftUuid = (message as any).staffMinecraftUuid;
+    
+    if (staffMinecraftUuid && !avatarError) {
+      return (
+        <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img 
+            src={`https://crafatar.com/avatars/${staffMinecraftUuid}?size=32&default=MHF_Steve&overlay`}
+            alt={`${message.sender} Avatar`}
+            className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
+            onError={() => {
+              setAvatarError(true);
+              setAvatarLoading(false);
+            }}
+            onLoad={() => {
+              setAvatarError(false);
+              setAvatarLoading(false);
+            }}
+          />
+          {avatarLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-bold text-primary">{message.sender?.substring(0, 2) || 'S'}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Fallback for staff without assigned Minecraft UUID
     return (
       <div className="h-8 w-8 bg-green-100 rounded-md flex items-center justify-center flex-shrink-0">
         <span className="text-xs font-bold text-green-600">{message.sender?.substring(0, 2) || 'S'}</span>
