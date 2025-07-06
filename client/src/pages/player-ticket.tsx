@@ -240,9 +240,9 @@ const PlayerTicket = () => {
       // Process messages and ensure valid timestamps
       const processedMessages = (ticketData.replies || ticketData.messages || []).map((message: any) => ({
         id: message.id || message._id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        sender: message.name || message.sender || 'Unknown',
-        senderType: message.type === 'staff' ? 'staff' : message.type === 'system' ? 'system' : 'user',
-        content: message.content || message.message || '',
+        sender: message.sender || message.name || 'Unknown',
+        senderType: message.senderType || (message.type === 'staff' ? 'staff' : message.type === 'system' ? 'system' : 'user'),
+        content: message.content || '',
         timestamp: message.timestamp || message.created || new Date().toISOString(),
         staff: message.staff,
         attachments: message.attachments,
@@ -951,7 +951,7 @@ const PlayerTicket = () => {
                           )}
                         </div>
                         <div className="text-sm">
-                          <MarkdownRenderer content={message.content || ''} />
+                          <MarkdownRenderer content={message.content} />
                         </div>
                         {message.attachments && message.attachments.length > 0 && (
                           <div className="mt-2 space-y-1">

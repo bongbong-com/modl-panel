@@ -424,9 +424,16 @@ router.get('/tickets/:id', async (req: Request, res: Response) => {
         }
       });
       
-      // Enhance each message with staff UUID if available
+      // Enhance each message with staff UUID and normalize field structure
       for (const message of ticket.replies) {
         const enhancedMessage = { ...message };
+        
+        // Normalize message fields for compatibility
+        enhancedMessage.name = message.name || message.sender || 'Unknown';
+        enhancedMessage.sender = message.sender || message.name || 'Unknown';
+        enhancedMessage.content = message.content || message.message || '';
+        enhancedMessage.senderType = message.senderType || (message.staff ? 'staff' : 'user');
+        enhancedMessage.timestamp = message.timestamp || message.created || new Date().toISOString();
         
         if ((message.staff === true || message.senderType === 'staff') && (message.name || message.sender)) {
           const staffUsername = message.name || message.sender;

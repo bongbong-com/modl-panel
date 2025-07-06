@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload, Key, Eye, EyeOff, RefreshCw, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload, Key, Eye, EyeOff, RefreshCw, ChevronDown, ChevronRight, Layers, GripVertical, Edit3 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Card, CardContent } from 'modl-shared-web/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -29,6 +29,8 @@ import BillingSettings from '@/components/settings/BillingSettings';
 import DomainSettings from '@/components/settings/DomainSettings';
 import KnowledgebaseSettings from '@/components/settings/KnowledgebaseSettings';
 import HomepageCardSettings from '@/components/settings/HomepageCardSettings';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 
 // Type definitions for appeal form fields
 interface AppealFormField {
@@ -170,6 +172,216 @@ interface AvailablePunishmentType {
   ordinal: number;
 }
 
+// DraggableSectionCard Component
+interface DraggableSectionCardProps {
+  section: TicketFormSection;
+  index: number;
+  moveSection: (dragIndex: number, hoverIndex: number) => void;
+  selectedTicketFormType: string;
+  ticketForms: TicketFormsConfiguration;
+  onEditSection: (section: TicketFormSection) => void;
+  onDeleteSection: (sectionId: string) => void;
+  onEditField: (field: TicketFormField) => void;
+  onDeleteField: (fieldId: string) => void;
+  onAddField: () => void;
+  moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
+}
+
+const DraggableSectionCard = ({ 
+  section, 
+  index, 
+  moveSection, 
+  selectedTicketFormType,
+  ticketForms,
+  onEditSection,
+  onDeleteSection,
+  onEditField,
+  onDeleteField,
+  onAddField,
+  moveField
+}: DraggableSectionCardProps) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'section',
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: 'section',
+    hover: (item: { index: number }) => {
+      if (item.index !== index) {
+        moveSection(item.index, index);
+        item.index = index;
+      }
+    },
+  });
+
+  // Get fields for this section
+  const sectionFields = ticketForms[selectedTicketFormType]?.fields
+    ?.filter(field => field.sectionId === section.id)
+    ?.sort((a, b) => a.order - b.order) || [];
+
+  return (
+    <div
+      ref={(node) => drag(drop(node))}
+      className={`border rounded-lg p-4 bg-card space-y-3 ${
+        isDragging ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+          <div>
+            <h6 className="font-medium">{section.title}</h6>
+            {section.description && (
+              <p className="text-sm text-muted-foreground">{section.description}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onEditSection(section)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onDeleteSection(section.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Fields in this section */}
+      <div className="space-y-2">
+        {sectionFields.map((field, fieldIndex) => (
+          <DraggableFieldCard
+            key={field.id}
+            field={field}
+            index={fieldIndex}
+            sectionId={section.id}
+            moveField={moveField}
+            onEditField={onEditField}
+            onDeleteField={onDeleteField}
+          />
+        ))}
+        
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onAddField}
+          className="w-full"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Field
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// DraggableFieldCard Component
+interface DraggableFieldCardProps {
+  field: TicketFormField;
+  index: number;
+  sectionId: string;
+  moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
+  onEditField: (field: TicketFormField) => void;
+  onDeleteField: (fieldId: string) => void;
+}
+
+const DraggableFieldCard = ({ 
+  field, 
+  index, 
+  sectionId, 
+  moveField, 
+  onEditField, 
+  onDeleteField 
+}: DraggableFieldCardProps) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'field',
+    item: { index, sectionId },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: 'field',
+    hover: (item: { index: number; sectionId: string }) => {
+      if (item.sectionId === sectionId && item.index !== index) {
+        moveField(item.index, index, sectionId);
+        item.index = index;
+      }
+    },
+  });
+
+  const getFieldTypeLabel = (type: string) => {
+    switch (type) {
+      case 'text': return 'Text';
+      case 'textarea': return 'Textarea';
+      case 'dropdown': return 'Dropdown';
+      case 'multiple_choice': return 'Multiple Choice';
+      case 'checkbox': return 'Checkbox';
+      case 'file_upload': return 'File Upload';
+      case 'checkboxes': return 'Checkboxes';
+      default: return type;
+    }
+  };
+
+  return (
+    <div
+      ref={(node) => drag(drop(node))}
+      className={`border rounded p-3 bg-muted/50 ${
+        isDragging ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GripVertical className="h-3 w-3 text-muted-foreground cursor-move" />
+          <div>
+            <p className="text-sm font-medium">{field.label}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline" className="text-xs">
+                {getFieldTypeLabel(field.type)}
+              </Badge>
+              {field.required && (
+                <Badge variant="destructive" className="text-xs">
+                  Required
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onEditField(field)}
+            className="h-6 w-6 p-0"
+          >
+            <Edit3 className="h-3 w-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDeleteField(field.id)}
+            className="h-6 w-6 p-0"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Settings = () => {
   const { } = useSidebar();
   const [, navigateWouter] = useLocation();
@@ -284,6 +496,7 @@ const Settings = () => {
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
   const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
+  const [newTicketFormFieldGoToSection, setNewTicketFormFieldGoToSection] = useState('');
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
   
   // Section builder states
@@ -1444,6 +1657,7 @@ const Settings = () => {
       options: (newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') ? newTicketFormFieldOptions : undefined,
       order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
       sectionId: newTicketFormFieldSectionId && newTicketFormFieldSectionId !== "__none__" ? newTicketFormFieldSectionId : undefined,
+      goToSection: newTicketFormFieldGoToSection || undefined,
     };
 
     if (selectedTicketFormField) {
@@ -1473,6 +1687,7 @@ const Settings = () => {
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
     setNewTicketFormFieldSectionId('__none__');
+    setNewTicketFormFieldGoToSection('');
     setSelectedTicketFormField(null);
     setIsAddTicketFormFieldDialogOpen(false);
   };
@@ -1576,6 +1791,54 @@ const Settings = () => {
       return lastSaved.toLocaleTimeString();
     }
   };
+
+  // Drag and drop handlers for sections
+  const moveSectionInForm = useCallback((dragIndex: number, hoverIndex: number) => {
+    setTicketFormsState(prev => {
+      const sections = [...(prev[selectedTicketFormType]?.sections || [])];
+      const dragSection = sections[dragIndex];
+      sections.splice(dragIndex, 1);
+      sections.splice(hoverIndex, 0, dragSection);
+      
+      // Update order values
+      const updatedSections = sections.map((section, index) => ({
+        ...section,
+        order: index
+      }));
+
+      return {
+        ...prev,
+        [selectedTicketFormType]: {
+          ...prev[selectedTicketFormType],
+          sections: updatedSections
+        }
+      };
+    });
+  }, [selectedTicketFormType]);
+
+  // Drag and drop handlers for fields within sections
+  const moveFieldInForm = useCallback((dragIndex: number, hoverIndex: number) => {
+    setTicketFormsState(prev => {
+      const fields = [...(prev[selectedTicketFormType]?.fields || [])];
+      const dragField = fields[dragIndex];
+      fields.splice(dragIndex, 1);
+      fields.splice(hoverIndex, 0, dragField);
+      
+      // Update order values
+      const updatedFields = fields.map((field, index) => ({
+        ...field,
+        order: index
+      }));
+
+      return {
+        ...prev,
+        [selectedTicketFormType]: {
+          ...prev[selectedTicketFormType],
+          fields: updatedFields
+        }
+      };
+    });
+  }, [selectedTicketFormType]);
 
   return (
     <PageContainer>
@@ -2809,218 +3072,119 @@ const Settings = () => {
                   <Separator />
 
                   {/* Ticket Form Builder Section */}
-                  <div className="space-y-4">
-                    <h4 className="text-base font-medium">Ticket Form Configuration</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Configure custom forms for bug reports, support requests, and applications. These forms will be used when players submit tickets.
-                    </p>
-
-                    {/* Form Type Selector */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Form Type</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          variant={selectedTicketFormType === 'bug' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedTicketFormType('bug')}
-                        >
-                          Bug Report
-                        </Button>
-                        <Button
-                          variant={selectedTicketFormType === 'support' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedTicketFormType('support')}
-                        >
-                          Support Request
-                        </Button>
-                        <Button
-                          variant={selectedTicketFormType === 'application' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedTicketFormType('application')}
-                        >
-                          Application
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Form Fields for Selected Type */}
+                  <DndProvider backend={HTML5Backend}>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h5 className="text-sm font-medium">
-                          {selectedTicketFormType === 'bug' && 'Bug Report Form Fields'}
-                          {selectedTicketFormType === 'support' && 'Support Request Form Fields'}
-                          {selectedTicketFormType === 'application' && 'Application Form Fields'}
-                        </h5>
-                        <Button
-                          size="sm"
-                          onClick={() => setIsAddTicketFormFieldDialogOpen(true)}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Field
-                        </Button>
+                      <h4 className="text-base font-medium">Ticket Form Configuration</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Configure custom forms for bug reports, support requests, and applications. These forms will be used when players submit tickets.
+                      </p>
+
+                      {/* Form Type Selector */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">Form Type</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={selectedTicketFormType === 'bug' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedTicketFormType('bug')}
+                          >
+                            Bug Report
+                          </Button>
+                          <Button
+                            variant={selectedTicketFormType === 'support' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedTicketFormType('support')}
+                          >
+                            Support Request
+                          </Button>
+                          <Button
+                            variant={selectedTicketFormType === 'application' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setSelectedTicketFormType('application')}
+                          >
+                            Application
+                          </Button>
+                        </div>
                       </div>
 
-                      {/* Field List */}
-                      <div className="space-y-2">
-                        {ticketForms[selectedTicketFormType]?.fields
-                          ?.sort((a, b) => a.order - b.order)
-                          .map((field) => (
-                            <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {field.type}
-                                  </Badge>
-                                  <span className="font-medium">{field.label}</span>
-                                  {field.required && (
-                                    <Badge variant="secondary" className="text-xs">Required</Badge>
-                                  )}
-                                  {field.sectionId && (
-                                    <Badge variant="outline" className="text-xs bg-blue-50">
-                                      Section
-                                    </Badge>
-                                  )}
-                                </div>
-                                {field.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
-                                )}
-                                {field.options && field.options.length > 0 && (
-                                  <div className="flex gap-1 mt-2">
-                                    {field.options.map((option, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {option}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                                {field.sectionId && (
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    Belongs to section: {ticketForms[selectedTicketFormType]?.sections?.find(s => s.id === field.sectionId)?.title || 'Unknown'}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedTicketFormField(field);
-                                    setNewTicketFormFieldLabel(field.label);
-                                    setNewTicketFormFieldType(field.type);
-                                    setNewTicketFormFieldDescription(field.description || '');
-                                    setNewTicketFormFieldRequired(field.required);
-                                    setNewTicketFormFieldOptions(field.options || []);
-                                    setNewTicketFormFieldSectionId(field.sectionId || '__none__');
-                                    setIsAddTicketFormFieldDialogOpen(true);
-                                  }}
-                                  className="text-xs px-2 h-7"
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeTicketFormField(field.id)}
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
+                      {/* Form Sections */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-medium">
+                            {selectedTicketFormType === 'bug' && 'Bug Report Form Structure'}
+                            {selectedTicketFormType === 'support' && 'Support Request Form Structure'}
+                            {selectedTicketFormType === 'application' && 'Application Form Structure'}
+                          </h5>
+                          <Button
+                            size="sm"
+                            onClick={() => setIsAddTicketFormSectionDialogOpen(true)}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Section
+                          </Button>
+                        </div>
 
-                        {(!ticketForms[selectedTicketFormType]?.fields || ticketForms[selectedTicketFormType]?.fields?.length === 0) && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No custom fields configured</p>
-                            <p className="text-xs mt-1">Players will see a default form</p>
-                          </div>
-                        )}
+                        {/* Section List with nested fields */}
+                        <div className="space-y-3">
+                          {ticketForms[selectedTicketFormType]?.sections
+                            ?.sort((a, b) => a.order - b.order)
+                            .map((section, sectionIndex) => (
+                              <DraggableSectionCard
+                                key={section.id}
+                                section={section}
+                                index={sectionIndex}
+                                moveSection={moveSectionInForm}
+                                selectedTicketFormType={selectedTicketFormType}
+                                ticketForms={ticketForms}
+                                onEditSection={(section) => {
+                                  setSelectedTicketFormSection(section);
+                                  setNewTicketFormSectionTitle(section.title);
+                                  setNewTicketFormSectionDescription(section.description || '');
+                                  setNewTicketFormSectionShowIfFieldId(section.showIfFieldId || '__none__');
+                                  setNewTicketFormSectionShowIfValue(section.showIfValue || '');
+                                  setNewTicketFormSectionShowIfValues(section.showIfValues || []);
+                                  setIsAddTicketFormSectionDialogOpen(true);
+                                }}
+                                onDeleteSection={removeTicketFormSection}
+                                onEditField={(field) => {
+                                  setSelectedTicketFormField(field);
+                                  setNewTicketFormFieldLabel(field.label);
+                                  setNewTicketFormFieldType(field.type);
+                                  setNewTicketFormFieldDescription(field.description || '');
+                                  setNewTicketFormFieldRequired(field.required);
+                                  setNewTicketFormFieldOptions(field.options || []);
+                                  setNewTicketFormFieldSectionId(field.sectionId || '__none__');
+                                  setNewTicketFormFieldGoToSection(field.goToSection || '');
+                                  setIsAddTicketFormFieldDialogOpen(true);
+                                }}
+                                onDeleteField={removeTicketFormField}
+                                onAddField={() => {
+                                  setNewTicketFormFieldSectionId(section.id);
+                                  setIsAddTicketFormFieldDialogOpen(true);
+                                }}
+                                moveField={moveFieldInForm}
+                              />
+                            ))}
+
+                          {(!ticketForms[selectedTicketFormType]?.sections || ticketForms[selectedTicketFormType]?.sections?.length === 0) && (
+                            <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-muted rounded-lg">
+                              <Layers className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                              <p className="text-sm font-medium">No sections configured</p>
+                              <p className="text-xs mt-1 mb-3">Create sections to organize your form fields</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setIsAddTicketFormSectionDialogOpen(true)}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create First Section
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-
-                    {/* Form Sections for Selected Type */}
-                    <div className="space-y-4 mt-8">
-                      <div className="flex items-center justify-between">
-                        <h5 className="text-sm font-medium">
-                          Form Sections
-                        </h5>
-                        <Button
-                          size="sm"
-                          onClick={() => setIsAddTicketFormSectionDialogOpen(true)}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Section
-                        </Button>
-                      </div>
-
-                      {/* Section List */}
-                      <div className="space-y-2">
-                        {ticketForms[selectedTicketFormType]?.sections
-                          ?.sort((a, b) => a.order - b.order)
-                          .map((section) => (
-                            <div key={section.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    Section
-                                  </Badge>
-                                  <span className="font-medium">{section.title}</span>
-                                  {section.showIfFieldId && (
-                                    <Badge variant="outline" className="text-xs bg-green-50">
-                                      Conditional
-                                    </Badge>
-                                  )}
-                                </div>
-                                {section.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
-                                )}
-                                {section.showIfFieldId && (
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    Shows when "{ticketForms[selectedTicketFormType]?.fields?.find(f => f.id === section.showIfFieldId)?.label || section.showIfFieldId}" 
-                                    {section.showIfValues ? ` is one of: ${section.showIfValues.join(', ')}` : ` = ${section.showIfValue}`}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedTicketFormSection(section);
-                                    setNewTicketFormSectionTitle(section.title);
-                                    setNewTicketFormSectionDescription(section.description || '');
-                                    setNewTicketFormSectionShowIfFieldId(section.showIfFieldId || '__none__');
-                                    setNewTicketFormSectionShowIfValue(section.showIfValue || '');
-                                    setNewTicketFormSectionShowIfValues(section.showIfValues || []);
-                                    setIsAddTicketFormSectionDialogOpen(true);
-                                  }}
-                                  className="text-xs px-2 h-7"
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeTicketFormSection(section.id)}
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-
-                        {(!ticketForms[selectedTicketFormType]?.sections || ticketForms[selectedTicketFormType]?.sections?.length === 0) && (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No sections configured</p>
-                            <p className="text-xs mt-1">All fields will appear in the main form</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  </DndProvider>
 
                   <Separator />
 
@@ -4464,6 +4628,29 @@ const Settings = () => {
                   <Label htmlFor="field-required">Required Field</Label>
                 </div>
 
+                {/* Section Assignment */}
+                <div className="space-y-2">
+                  <Label htmlFor="field-section">Section</Label>
+                  <Select
+                    value={newTicketFormFieldSectionId}
+                    onValueChange={setNewTicketFormFieldSectionId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No section</SelectItem>
+                      {ticketForms[selectedTicketFormType]?.sections
+                        ?.sort((a, b) => a.order - b.order)
+                        .map(section => (
+                          <SelectItem key={section.id} value={section.id}>
+                            {section.title}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Dropdown/Multiple Choice Options */}
                 {(newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') && (
                   <div className="space-y-2">
@@ -4506,6 +4693,45 @@ const Settings = () => {
                   </div>
                 )}
 
+                {/* Conditional Section Display for Dropdown/Multiple Choice Fields */}
+                {(newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="h-4 w-4" />
+                      <Label className="text-sm font-medium">Section Navigation (Optional)</Label>
+                    </div>
+                    <div className="pl-6 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Show different sections based on the selected option. Leave empty for no navigation.
+                      </p>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Default "Go to Section"</Label>
+                        <Select
+                          value={newTicketFormFieldGoToSection || '__none__'}
+                          onValueChange={(value) => setNewTicketFormFieldGoToSection(value === '__none__' ? '' : value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select section" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">No navigation</SelectItem>
+                            {ticketForms[selectedTicketFormType]?.sections
+                              ?.sort((a, b) => a.order - b.order)
+                              .map(section => (
+                                <SelectItem key={section.id} value={section.id}>
+                                  {section.title}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          This section will be shown when any option is selected (unless overridden below)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               <DialogFooter>
@@ -4520,6 +4746,7 @@ const Settings = () => {
                     setNewTicketFormFieldRequired(false);
                     setNewTicketFormFieldOptions([]);
                     setNewTicketFormFieldSectionId('__none__');
+                    setNewTicketFormFieldGoToSection('');
                   }}
                 >
                   Cancel
@@ -4567,6 +4794,58 @@ const Settings = () => {
                     value={newTicketFormSectionDescription}
                     onChange={(e) => setNewTicketFormSectionDescription(e.target.value)}
                   />
+                </div>
+
+                {/* Conditional Display Settings */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="h-4 w-4" />
+                    <Label className="text-sm font-medium">Conditional Display (Optional)</Label>
+                  </div>
+                  <div className="pl-6 space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Show this section only when a specific field has certain values. Leave empty to always show.
+                    </p>
+                    
+                    {/* Show If Field ID */}
+                    <div className="space-y-2">
+                      <Label htmlFor="show-if-field">Show when field:</Label>
+                      <Select
+                        value={newTicketFormSectionShowIfFieldId}
+                        onValueChange={setNewTicketFormSectionShowIfFieldId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select field" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Always show (no condition)</SelectItem>
+                          {ticketForms[selectedTicketFormType]?.fields
+                            ?.filter(field => ['dropdown', 'multiple_choice', 'checkboxes'].includes(field.type))
+                            .map(field => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Show If Value */}
+                    {newTicketFormSectionShowIfFieldId !== '__none__' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="show-if-value">Has value:</Label>
+                        <Input
+                          id="show-if-value"
+                          placeholder="Enter value that triggers this section"
+                          value={newTicketFormSectionShowIfValue}
+                          onChange={(e) => setNewTicketFormSectionShowIfValue(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          For multiple choice/checkboxes, enter the exact option text
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
