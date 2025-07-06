@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from 'modl-shared-web/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
+import { Input } from 'modl-shared-web/components/ui/input';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { useAvailablePlayers, useAssignMinecraftPlayer } from '@/hooks/use-data';
-import { Loader2, User, X } from 'lucide-react';
+import { Loader2, User, X, Search } from 'lucide-react';
 
 interface StaffMember {
   _id: string;
@@ -28,12 +28,25 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
   staffMember
 }) => {
   const [selectedPlayerUuid, setSelectedPlayerUuid] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const { toast } = useToast();
   
   const { data: playersData, isLoading: playersLoading } = useAvailablePlayers();
   const assignPlayerMutation = useAssignMinecraftPlayer();
 
   const availablePlayers = playersData?.players || [];
+
+  // Filter players based on search query
+  const filteredPlayers = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return availablePlayers.slice(0, 10); // Show first 10 if no search
+    }
+    
+    return availablePlayers.filter((player: any) =>
+      player.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      player.uuid?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [availablePlayers, searchQuery]);
 
   const handleAssign = async () => {
     if (!staffMember) return;
@@ -100,6 +113,7 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
 
   const handleClose = () => {
     setSelectedPlayerUuid('');
+    setSearchQuery('');
     onClose();
   };
 
@@ -107,7 +121,7 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Assign Minecraft Player</DialogTitle>
           <DialogDescription>
@@ -115,7 +129,7 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 overflow-y-auto">
           {/* Current Assignment */}
           {staffMember.assignedMinecraftUuid && (
             <div className="p-3 bg-muted rounded-lg">
@@ -142,34 +156,69 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
             </div>
           )}
 
-          {/* Player Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Select Minecraft Player</label>
+          {/* Player Search */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Search and Select Minecraft Player</label>
+            
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by username or UUID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                autoFocus
+              />
+            </div>
+
+            {/* Results */}
             {playersLoading ? (
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading available players...</span>
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">Loading available players...</span>
               </div>
             ) : availablePlayers.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-center py-8 text-sm text-muted-foreground">
                 No available players found. All players may already be assigned to staff members.
               </div>
             ) : (
-              <Select value={selectedPlayerUuid} onValueChange={setSelectedPlayerUuid}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a player..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePlayers.map((player: any) => (
-                    <SelectItem key={player.uuid} value={player.uuid}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-green-500 rounded-sm" />
-                        {player.username}
+              <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                {filteredPlayers.length > 0 ? (
+                  <div className="p-2">
+                    {!searchQuery && (
+                      <div className="px-2 py-1 text-xs text-muted-foreground mb-2">
+                        {availablePlayers.length > 10 ? `Showing first 10 of ${availablePlayers.length} players` : `${availablePlayers.length} available players`}
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    )}
+                    {filteredPlayers.map((player: any) => (
+                      <Button
+                        key={player.uuid}
+                        variant={selectedPlayerUuid === player.uuid ? "secondary" : "ghost"}
+                        className="w-full justify-start text-left h-auto py-3 px-3 mb-1"
+                        onClick={() => setSelectedPlayerUuid(player.uuid)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-md flex items-center justify-center flex-shrink-0">
+                            <User className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="flex flex-col items-start min-w-0 flex-1">
+                            <span className="font-medium text-sm truncate w-full">{player.username}</span>
+                            <span className="text-xs text-muted-foreground truncate w-full">{player.uuid}</span>
+                          </div>
+                          {selectedPlayerUuid === player.uuid && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
+                          )}
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    No players found matching "{searchQuery}"
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

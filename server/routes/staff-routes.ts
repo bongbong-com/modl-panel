@@ -529,12 +529,13 @@ router.get('/available-players', checkRole(['Super Admin']), async (req: Request
     const assignedUuids = await Staff.find({ assignedMinecraftUuid: { $exists: true, $ne: null } })
       .distinct('assignedMinecraftUuid');
 
-    // Get players not assigned to staff
+    // Get players not assigned to staff, sorted by most recent username
     const availablePlayers = await Player.find({
       minecraftUuid: { $nin: assignedUuids }
     })
     .select('minecraftUuid usernames')
-    .limit(50)
+    .sort({ 'usernames.date': -1 })
+    .limit(100)
     .lean();
 
     const formattedPlayers = availablePlayers.map(player => ({
