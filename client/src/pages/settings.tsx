@@ -524,6 +524,36 @@ const Settings = () => {
   const [isServerIconsExpanded, setIsServerIconsExpanded] = useState(false);
   const [isApiKeyExpanded, setIsApiKeyExpanded] = useState(false);
   const [isDomainExpanded, setIsDomainExpanded] = useState(false);
+  const [isTicketSettingsExpanded, setIsTicketSettingsExpanded] = useState(false);
+
+  // Quick responses state for each ticket category
+  const [quickResponsesState, setQuickResponsesState] = useState<Record<string, Record<string, string>>>({
+    'Player Report': {
+      'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+      'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+      'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
+    },
+    'Chat Report': {
+      'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+      'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+      'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
+    },
+    'Bug Report': {
+      'Completed': 'Thank you for reporting this bug. We have fixed the issue and it will be included in our next update.',
+      'Stale': 'This bug report has been marked as stale due to inactivity or lack of information.',
+      'Duplicate': 'This bug has been identified as a duplicate of an existing issue.',
+      'Close': 'This bug report has been closed. Thank you for your contribution to improving our game.'
+    },
+    'Punishment Appeal': {
+      'Pardon': 'After reviewing your appeal, we have decided to remove the punishment completely.',
+      'Reduce': 'We have reviewed your appeal and decided to reduce the duration of your punishment.',
+      'Reject': 'After careful consideration of your appeal, we have decided to uphold the original punishment.',
+      'Close': 'This appeal has been closed. If you have additional information, please create a new appeal.'
+    },
+    'Other': {
+      'Close': 'This ticket has been closed. Thank you for your message.'
+    }
+  });
 
   // Tags state for each ticket category
   const [bugReportTagsState, setBugReportTagsState] = useState<string[]>([
@@ -1136,7 +1166,7 @@ const Settings = () => {
       panelIconUrl,
     };
     initialSettingsRef.current = currentSettingsSnapshot;
-  }, [punishmentTypes, statusThresholds, bugReportTags, playerReportTags, appealTags, ticketForms, mongodbUri, has2FA, hasPasskey, serverDisplayName, homepageIconUrl, panelIconUrl]);
+  }, [punishmentTypes, statusThresholds, bugReportTags, playerReportTags, appealTags, ticketForms, quickResponsesState, mongodbUri, has2FA, hasPasskey, serverDisplayName, homepageIconUrl, panelIconUrl]);
 
   // Helper to apply a settings object to all state variables without triggering auto-save
   const applySettingsObjectToState = useCallback((settingsObject: any) => {
@@ -1165,6 +1195,10 @@ const Settings = () => {
     if (settingsObject.ticketForms) {
       const tf = settingsObject.ticketForms;
       setTicketFormsState(typeof tf === 'string' ? JSON.parse(tf) : JSON.parse(JSON.stringify(tf)));
+    }
+    if (settingsObject.quickResponses) {
+      const qr = settingsObject.quickResponses;
+      setQuickResponsesState(typeof qr === 'string' ? JSON.parse(qr) : JSON.parse(JSON.stringify(qr)));
     }
     if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
     if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
@@ -1207,6 +1241,7 @@ const Settings = () => {
         playerReportTags,
         appealTags,
         ticketForms,
+        quickResponses: quickResponsesState,
         mongodbUri,
         has2FA,
         hasPasskey,
@@ -1249,7 +1284,7 @@ const Settings = () => {
     }
   }, [
     punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
-    bugReportTags, playerReportTags, appealTags, ticketForms, mongodbUri, has2FA, hasPasskey, toast
+    bugReportTags, playerReportTags, appealTags, ticketForms, quickResponsesState, mongodbUri, has2FA, hasPasskey, toast
   ]);
 
   // Effect: Load settings from React Query into local component state
@@ -1315,7 +1350,7 @@ const Settings = () => {
       }
     };  }, [
     punishmentTypes, statusThresholds, serverDisplayName, homepageIconUrl, panelIconUrl,
-    bugReportTags, playerReportTags, appealTags, ticketForms, mongodbUri, has2FA, hasPasskey, 
+    bugReportTags, playerReportTags, appealTags, ticketForms, quickResponsesState, mongodbUri, has2FA, hasPasskey, 
     profileUsername, // Add profile settings to auto-save
     isLoadingSettings, isFetchingSettings, saveSettings
   ]);
@@ -3045,10 +3080,70 @@ const Settings = () => {
 
             <TabsContent value="tags" className="space-y-6 p-6">
               <div>
-                <h3 className="text-lg font-medium mb-4">Ticket Tag Management</h3>
+                <h3 className="text-lg font-medium mb-4">Ticket Settings</h3>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Customize tags for different ticket categories. These tags will appear as options when staff respond to tickets.
+                  Configure ticket tags, quick responses, and form settings.
                 </p>
+
+                {/* Ticket Settings Section */}
+                <Collapsible open={isTicketSettingsExpanded} onOpenChange={setIsTicketSettingsExpanded}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="flex items-center justify-between w-full p-0 h-auto">
+                      <div className="flex items-center gap-2">
+                        {isTicketSettingsExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                        <span className="font-medium">Ticket Configuration</span>
+                      </div>
+                    </Button>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent className="space-y-8 mt-4">
+                    {/* Quick Responses Section */}
+                    <div className="border rounded-lg p-4">
+                      <h4 className="text-base font-medium mb-3">Quick Responses</h4>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Configure pre-written responses for different ticket categories and actions.
+                      </p>
+                      
+                      <div className="space-y-6">
+                        {Object.entries(quickResponsesState).map(([category, responses]) => (
+                          <div key={category} className="space-y-3">
+                            <h5 className="font-medium text-sm text-muted-foreground">{category}</h5>
+                            <div className="space-y-3">
+                              {Object.entries(responses).map(([action, response]) => (
+                                <div key={`${category}-${action}`} className="space-y-2">
+                                  <Label className="text-xs font-medium">{action}</Label>
+                                  <textarea
+                                    className="w-full min-h-[80px] px-3 py-2 text-sm border border-border rounded-md bg-background resize-none"
+                                    value={response}
+                                    onChange={(e) => {
+                                      setQuickResponsesState(prev => ({
+                                        ...prev,
+                                        [category]: {
+                                          ...prev[category],
+                                          [action]: e.target.value
+                                        }
+                                      }));
+                                    }}
+                                    placeholder={`Default ${action.toLowerCase()} response for ${category.toLowerCase()} tickets...`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tag Management Section */}
+                    <div className="border rounded-lg p-4">
+                      <h4 className="text-base font-medium mb-3">Tag Management</h4>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Customize tags for different ticket categories. These tags will appear as options when staff respond to tickets.
+                      </p>
 
                 <div className="space-y-8">
                   {/* Bug Report Tags */}
@@ -3320,6 +3415,8 @@ const Settings = () => {
                       </div>
                     </div>
                   </DndProvider>
+                </div>
+                    </div>
 
                   <Separator />
 
@@ -3518,7 +3615,8 @@ const Settings = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                </CollapsibleContent>
+              </Collapsible>
               </div>
             </TabsContent>
 
