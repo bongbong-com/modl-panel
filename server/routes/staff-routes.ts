@@ -527,7 +527,7 @@ router.get('/available-players', checkRole(['Super Admin']), async (req: Request
     
     // Get all staff assignments
     const assignedUuids = await Staff.find({ 
-      assignedMinecraftUuid: { $exists: true, $ne: null, $ne: '' } 
+      assignedMinecraftUuid: { $exists: true, $nin: [null, ''] } 
     }).distinct('assignedMinecraftUuid');
 
     // Get players not assigned to staff, sorted by most recent username
