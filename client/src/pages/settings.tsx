@@ -1414,7 +1414,7 @@ const Settings = () => {
       description: newTicketFormFieldDescription || undefined,
       required: newTicketFormFieldRequired,
       options: newTicketFormFieldType === 'dropdown' ? newTicketFormFieldOptions : undefined,
-      order: ticketForms[selectedTicketFormType].fields.length,
+      order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
       showIfFieldId: newTicketFormFieldShowIfFieldId || undefined,
       showIfValue: newTicketFormFieldShowIfValue || undefined,
       hideIfValue: newTicketFormFieldHideIfValue || undefined,
@@ -1425,7 +1425,7 @@ const Settings = () => {
       setTicketFormsState(prev => ({
         ...prev,
         [selectedTicketFormType]: {
-          fields: prev[selectedTicketFormType].fields.map(field =>
+          fields: (prev[selectedTicketFormType]?.fields || []).map(field =>
             field.id === selectedTicketFormField.id ? { ...newField, id: selectedTicketFormField.id } : field
           )
         }
@@ -1435,7 +1435,7 @@ const Settings = () => {
       setTicketFormsState(prev => ({
         ...prev,
         [selectedTicketFormType]: {
-          fields: [...prev[selectedTicketFormType].fields, newField]
+          fields: [...(prev[selectedTicketFormType]?.fields || []), newField]
         }
       }));
     }
@@ -1457,7 +1457,7 @@ const Settings = () => {
     setTicketFormsState(prev => ({
       ...prev,
       [selectedTicketFormType]: {
-        fields: prev[selectedTicketFormType].fields
+        fields: (prev[selectedTicketFormType]?.fields || [])
           .filter(f => f.id !== fieldId)
           .map((field, index) => ({ ...field, order: index }))
       }
@@ -2777,8 +2777,8 @@ const Settings = () => {
 
                       {/* Field List */}
                       <div className="space-y-2">
-                        {ticketForms[selectedTicketFormType].fields
-                          .sort((a, b) => a.order - b.order)
+                        {ticketForms[selectedTicketFormType]?.fields
+                          ?.sort((a, b) => a.order - b.order)
                           .map((field) => (
                             <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
                               <div className="flex-1">
@@ -2846,7 +2846,7 @@ const Settings = () => {
                             </div>
                           ))}
 
-                        {ticketForms[selectedTicketFormType].fields.length === 0 && (
+                        {(!ticketForms[selectedTicketFormType]?.fields || ticketForms[selectedTicketFormType]?.fields?.length === 0) && (
                           <div className="text-center py-8 text-muted-foreground">
                             <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">No custom fields configured</p>
@@ -4354,8 +4354,8 @@ const Settings = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">None</SelectItem>
-                        {ticketForms[selectedTicketFormType].fields
-                          .filter(f => f.id !== selectedTicketFormField?.id)
+                        {ticketForms[selectedTicketFormType]?.fields
+                          ?.filter(f => f.id !== selectedTicketFormField?.id)
                           .map(field => (
                             <SelectItem key={field.id} value={field.id}>
                               {field.label}
