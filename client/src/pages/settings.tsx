@@ -260,7 +260,7 @@ const Settings = () => {
   const [newTicketFormFieldDescription, setNewTicketFormFieldDescription] = useState('');
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
-  const [newTicketFormFieldShowIfFieldId, setNewTicketFormFieldShowIfFieldId] = useState('');
+  const [newTicketFormFieldShowIfFieldId, setNewTicketFormFieldShowIfFieldId] = useState('__none__');
   const [newTicketFormFieldShowIfValue, setNewTicketFormFieldShowIfValue] = useState<string | boolean>('');
   const [newTicketFormFieldHideIfValue, setNewTicketFormFieldHideIfValue] = useState<string | boolean>('');
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
@@ -1415,7 +1415,7 @@ const Settings = () => {
       required: newTicketFormFieldRequired,
       options: newTicketFormFieldType === 'dropdown' ? newTicketFormFieldOptions : undefined,
       order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
-      showIfFieldId: newTicketFormFieldShowIfFieldId || undefined,
+      showIfFieldId: newTicketFormFieldShowIfFieldId && newTicketFormFieldShowIfFieldId !== "__none__" ? newTicketFormFieldShowIfFieldId : undefined,
       showIfValue: newTicketFormFieldShowIfValue || undefined,
       hideIfValue: newTicketFormFieldHideIfValue || undefined,
     };
@@ -1446,7 +1446,7 @@ const Settings = () => {
     setNewTicketFormFieldDescription('');
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
-    setNewTicketFormFieldShowIfFieldId('');
+    setNewTicketFormFieldShowIfFieldId('__none__');
     setNewTicketFormFieldShowIfValue('');
     setNewTicketFormFieldHideIfValue('');
     setSelectedTicketFormField(null);
@@ -2825,7 +2825,7 @@ const Settings = () => {
                                     setNewTicketFormFieldDescription(field.description || '');
                                     setNewTicketFormFieldRequired(field.required);
                                     setNewTicketFormFieldOptions(field.options || []);
-                                    setNewTicketFormFieldShowIfFieldId(field.showIfFieldId || '');
+                                    setNewTicketFormFieldShowIfFieldId(field.showIfFieldId || '__none__');
                                     setNewTicketFormFieldShowIfValue(field.showIfValue || '');
                                     setNewTicketFormFieldHideIfValue(field.hideIfValue || '');
                                     setIsAddTicketFormFieldDialogOpen(true);
@@ -4353,7 +4353,7 @@ const Settings = () => {
                         <SelectValue placeholder="Select field (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {ticketForms[selectedTicketFormType]?.fields
                           ?.filter(f => f.id !== selectedTicketFormField?.id)
                           .map(field => (
@@ -4365,7 +4365,7 @@ const Settings = () => {
                     </Select>
                   </div>
 
-                  {newTicketFormFieldShowIfFieldId && (
+                  {newTicketFormFieldShowIfFieldId && newTicketFormFieldShowIfFieldId !== '__none__' && (
                     <div className="space-y-2">
                       <Label htmlFor="show-if-value">Equals Value</Label>
                       <Input
@@ -4390,7 +4390,7 @@ const Settings = () => {
                     setNewTicketFormFieldDescription('');
                     setNewTicketFormFieldRequired(false);
                     setNewTicketFormFieldOptions([]);
-                    setNewTicketFormFieldShowIfFieldId('');
+                    setNewTicketFormFieldShowIfFieldId('__none__');
                     setNewTicketFormFieldShowIfValue('');
                     setNewTicketFormFieldHideIfValue('');
                   }}
