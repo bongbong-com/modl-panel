@@ -524,7 +524,11 @@ const Settings = () => {
   const [isServerIconsExpanded, setIsServerIconsExpanded] = useState(false);
   const [isApiKeyExpanded, setIsApiKeyExpanded] = useState(false);
   const [isDomainExpanded, setIsDomainExpanded] = useState(false);
-  const [isTicketSettingsExpanded, setIsTicketSettingsExpanded] = useState(false);
+  // Individual section expanded states for tickets
+  const [isQuickResponsesExpanded, setIsQuickResponsesExpanded] = useState(false);
+  const [isTagManagementExpanded, setIsTagManagementExpanded] = useState(false);
+  const [isTicketFormsExpanded, setIsTicketFormsExpanded] = useState(false);
+  const [isAIModerationExpanded, setIsAIModerationExpanded] = useState(false);
 
   // Quick responses state for each ticket category
   const [quickResponsesState, setQuickResponsesState] = useState<Record<string, Record<string, string>>>({
@@ -3085,25 +3089,30 @@ const Settings = () => {
                   Configure ticket tags, quick responses, and form settings.
                 </p>
 
-                {/* Ticket Settings Section */}
-                <Collapsible open={isTicketSettingsExpanded} onOpenChange={setIsTicketSettingsExpanded}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" className="flex items-center justify-between w-full p-0 h-auto">
-                      <div className="flex items-center gap-2">
-                        {isTicketSettingsExpanded ? (
+                <div className="space-y-6">
+                  {/* Quick Responses Section */}
+                  <Collapsible open={isQuickResponsesExpanded} onOpenChange={setIsQuickResponsesExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                      <div className="flex items-center">
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        <h4 className="text-base font-medium">Quick Responses</h4>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {!isQuickResponsesExpanded && (
+                          <span className="text-sm text-muted-foreground">
+                            {Object.keys(quickResponsesState).length} categories configured
+                          </span>
+                        )}
+                        {isQuickResponsesExpanded ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
                           <ChevronRight className="h-4 w-4" />
                         )}
-                        <span className="font-medium">Ticket Configuration</span>
                       </div>
-                    </Button>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent className="space-y-8 mt-4">
-                    {/* Quick Responses Section */}
-                    <div className="border rounded-lg p-4">
-                      <h4 className="text-base font-medium mb-3">Quick Responses</h4>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent className="pt-4">
+                      <div className="border rounded-lg p-4">
                       <p className="text-sm text-muted-foreground mb-6">
                         Configure pre-written responses for different ticket categories and actions.
                       </p>
@@ -3135,12 +3144,34 @@ const Settings = () => {
                             </div>
                           </div>
                         ))}
+                        </div>
                       </div>
-                    </div>
+                    </CollapsibleContent>
+                  </Collapsible>
 
-                    {/* Tag Management Section */}
-                    <div className="border rounded-lg p-4">
-                      <h4 className="text-base font-medium mb-3">Tag Management</h4>
+                  {/* Tag Management Section */}
+                  <Collapsible open={isTagManagementExpanded} onOpenChange={setIsTagManagementExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                      <div className="flex items-center">
+                        <Tag className="h-4 w-4 mr-2" />
+                        <h4 className="text-base font-medium">Tag Management</h4>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {!isTagManagementExpanded && (
+                          <span className="text-sm text-muted-foreground">
+                            {bugReportTags.length + playerReportTags.length + appealTags.length} tags configured
+                          </span>
+                        )}
+                        {isTagManagementExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </div>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent className="pt-4">
+                      <div className="border rounded-lg p-4">
                       <p className="text-sm text-muted-foreground mb-6">
                         Customize tags for different ticket categories. These tags will appear as options when staff respond to tickets.
                       </p>
@@ -3298,14 +3329,36 @@ const Settings = () => {
                         Add Tag
                       </Button>
                     </div>
-                  </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
 
-                  <Separator />
-
-                  {/* Ticket Form Builder Section */}
-                  <DndProvider backend={HTML5Backend}>
-                    <div className="space-y-4">
-                      <h4 className="text-base font-medium">Ticket Form Configuration</h4>
+                  {/* Ticket Form Configuration Section */}
+                  <Collapsible open={isTicketFormsExpanded} onOpenChange={setIsTicketFormsExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                      <div className="flex items-center">
+                        <Layers className="h-4 w-4 mr-2" />
+                        <h4 className="text-base font-medium">Ticket Form Configuration</h4>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {!isTicketFormsExpanded && (
+                          <span className="text-sm text-muted-foreground">
+                            {Object.entries(ticketForms).reduce((acc, [, form]) => acc + (form?.sections?.length || 0), 0)} sections across {Object.keys(ticketForms).length} forms
+                          </span>
+                        )}
+                        {isTicketFormsExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </div>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent className="pt-4">
+                      <div className="border rounded-lg p-4">
+                        <DndProvider backend={HTML5Backend}>
+                          <div className="space-y-4">
                       <p className="text-sm text-muted-foreground">
                         Configure custom forms for bug reports, support requests, and applications. These forms will be used when players submit tickets.
                       </p>
@@ -3414,15 +3467,35 @@ const Settings = () => {
                         </div>
                       </div>
                     </div>
-                  </DndProvider>
-                </div>
-                    </div>
-
-                  <Separator />
+                          </DndProvider>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
 
                   {/* AI Moderation Settings Section */}
-                  <div className="space-y-4">
-                    <h4 className="text-base font-medium">AI Moderation Settings</h4>
+                  <Collapsible open={isAIModerationExpanded} onOpenChange={setIsAIModerationExpanded}>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+                      <div className="flex items-center">
+                        <Shield className="h-4 w-4 mr-2" />
+                        <h4 className="text-base font-medium">AI Moderation Settings</h4>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {!isAIModerationExpanded && (
+                          <span className="text-sm text-muted-foreground">
+                            {aiModerationSettings.enableAutomatedActions ? 'Automated' : 'Manual'} • {aiModerationSettings.strictnessLevel}
+                          </span>
+                        )}
+                        {isAIModerationExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </div>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent className="pt-4">
+                      <div className="border rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">
                       Configure how the AI analyzes and moderates chat reports. AI suggestions can help staff make faster, more consistent decisions.
                     </p>
@@ -3615,8 +3688,10 @@ const Settings = () => {
                       )}
                     </div>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
               </div>
             </TabsContent>
 
