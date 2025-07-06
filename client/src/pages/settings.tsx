@@ -1665,6 +1665,7 @@ const Settings = () => {
       setTicketFormsState(prev => ({
         ...prev,
         [selectedTicketFormType]: {
+          ...prev[selectedTicketFormType],
           fields: (prev[selectedTicketFormType]?.fields || []).map(field =>
             field.id === selectedTicketFormField.id ? { ...newField, id: selectedTicketFormField.id } : field
           )
@@ -1675,6 +1676,7 @@ const Settings = () => {
       setTicketFormsState(prev => ({
         ...prev,
         [selectedTicketFormType]: {
+          ...prev[selectedTicketFormType],
           fields: [...(prev[selectedTicketFormType]?.fields || []), newField]
         }
       }));
@@ -1696,6 +1698,7 @@ const Settings = () => {
     setTicketFormsState(prev => ({
       ...prev,
       [selectedTicketFormType]: {
+        ...prev[selectedTicketFormType],
         fields: (prev[selectedTicketFormType]?.fields || [])
           .filter(f => f.id !== fieldId)
           .map((field, index) => ({ ...field, order: index }))
