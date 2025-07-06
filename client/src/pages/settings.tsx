@@ -3172,15 +3172,15 @@ const Settings = () => {
                     
                     <CollapsibleContent className="pt-4">
                       <div className="border rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground mb-6">
-                        Customize tags for different ticket categories. These tags will appear as options when staff respond to tickets.
-                      </p>
+                        <p className="text-sm text-muted-foreground mb-6">
+                          Customize tags for different ticket categories. These tags will appear as options when staff respond to tickets.
+                        </p>
 
-                <div className="space-y-8">
-                  {/* Bug Report Tags */}
-                  <div className="space-y-3">
-                    <h4 className="text-base font-medium">Bug Report Tags</h4>
-                    <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="space-y-8">
+                          {/* Bug Report Tags */}
+                          <div className="space-y-3">
+                            <h4 className="text-base font-medium">Bug Report Tags</h4>
+                            <div className="flex flex-wrap gap-2 mb-4">
                       {bugReportTags.map((tag, index) => (
                         <Badge key={index} variant="outline" className="py-1.5 pl-3 pr-2 flex items-center gap-1 bg-background">
                           {tag}
@@ -3329,6 +3329,7 @@ const Settings = () => {
                         Add Tag
                       </Button>
                     </div>
+                          </div>
                         </div>
                       </div>
                     </CollapsibleContent>
@@ -3466,9 +3467,8 @@ const Settings = () => {
                           )}
                         </div>
                       </div>
-                    </div>
-                          </DndProvider>
-                        </div>
+                          </div>
+                        </DndProvider>
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
@@ -3688,9 +3688,8 @@ const Settings = () => {
                       )}
                     </div>
                   </div>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                  </CollapsibleContent>
+                </Collapsible>
                 </div>
               </div>
             </TabsContent>
