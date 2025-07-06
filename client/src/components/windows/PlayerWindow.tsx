@@ -863,6 +863,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         
         const calculatedStatus = calculatePlayerStatus(player.punishments || [], allPunishmentTypes, statusThresholds);
         
+        // Sort warnings by date (most recent first)
+        warnings.sort((a, b) => {
+          const dateA = new Date(a.date || a.issued || 0).getTime();
+          const dateB = new Date(b.date || b.issued || 0).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
         setPlayerInfo(prev => ({
           ...prev,
           username: currentUsername,

@@ -276,7 +276,8 @@ const PlayerDetailPage = () => {
           type: 'Warning',
           reason: note.text,
           date: new Date(note.date).toLocaleDateString(),
-          by: note.issuerName
+          by: note.issuerName,
+          originalDate: note.date // Store original date for sorting
         })) : [];
         
         // Add punishments to warnings
@@ -286,10 +287,18 @@ const PlayerDetailPage = () => {
               type: punishment.type,
               reason: punishment.reason,
               date: new Date(punishment.date).toLocaleDateString(),
-              by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : '')
+              by: punishment.issuerName + (punishment.expires ? ` (until ${new Date(punishment.expires).toLocaleDateString()})` : ''),
+              originalDate: punishment.date // Store original date for sorting
             });
           });
         }
+        
+        // Sort warnings by date (most recent first)
+        warnings.sort((a, b) => {
+          const dateA = new Date(a.originalDate || a.date || 0).getTime();
+          const dateB = new Date(b.originalDate || b.date || 0).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        });
         
         // Extract notes
         const notes = player.notes 

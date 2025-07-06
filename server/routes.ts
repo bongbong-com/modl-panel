@@ -253,10 +253,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ]
       });
       
-      // Get open tickets from yesterday for comparison
-      const ticketsYesterday = await Ticket.countDocuments({
+      // Get tickets created yesterday that are still open for comparison
+      // This provides a meaningful day-over-day comparison of new ticket creation
+      const newTicketsYesterday = await Ticket.countDocuments({
         $and: [
           { createdAt: { $gte: startOfYesterday, $lt: startOfToday } },
+          {
+            $or: [
+              { 'data.status': { $ne: 'Closed' } },
+              { status: { $ne: 'Closed' } },
+              { 'data.status': { $exists: false } }
+            ]
+          }
+        ]
+      });
+      
+      // Get tickets created today for a proper comparison
+      const newTicketsToday = await Ticket.countDocuments({
+        $and: [
+          { createdAt: { $gte: startOfToday } },
           {
             $or: [
               { 'data.status': { $ne: 'Closed' } },
@@ -330,11 +345,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         changes: {
           onlinePlayers: 0, // Real-time data, so no comparison
           uniqueLogins: calculateChange(uniqueLoginsToday, uniqueLoginsYesterday),
-          openTickets: calculateChange(openTicketsToday, ticketsYesterday)
+          openTickets: calculateChange(newTicketsToday, newTicketsYesterday)
         }
       };
       
-      console.log('Stats response:', response);
+      console.log('Stats calculated:', {
+        totalOpenTickets: openTicketsToday,
+        newTicketsToday: newTicketsToday,
+        newTicketsYesterday: newTicketsYesterday,
+        changePercent: calculateChange(newTicketsToday, newTicketsYesterday)
+      });
       res.json(response);
     } catch (error) {
       console.error('Error fetching stats:', error);

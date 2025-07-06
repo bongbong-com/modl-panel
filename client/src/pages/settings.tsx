@@ -4870,6 +4870,7 @@ const Settings = () => {
                                 <SelectContent>
                                   <SelectItem value="__none__">No navigation</SelectItem>
                                   {ticketForms[selectedTicketFormType]?.sections
+                                    ?.filter(section => section.id !== newTicketFormFieldSectionId || newTicketFormFieldSectionId === '__none__')
                                     ?.sort((a, b) => a.order - b.order)
                                     .map(section => (
                                       <SelectItem key={section.id} value={section.id}>
