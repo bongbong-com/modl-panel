@@ -317,11 +317,49 @@ const Lookup = () => {
   const [isPlayerWindowOpen, setIsPlayerWindowOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { data: players, isLoading: isLoadingPlayers } = usePlayers();
+  const [recentLookups, setRecentLookups] = useState<any[]>([]);
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
   
   const [isSearching, setIsSearching] = useState(false);
+
+  // Load recent lookups from localStorage on component mount
+  useEffect(() => {
+    const savedLookups = localStorage.getItem('recentPlayerLookups');
+    if (savedLookups) {
+      try {
+        const parsed = JSON.parse(savedLookups);
+        if (Array.isArray(parsed)) {
+          setRecentLookups(parsed.slice(0, 5)); // Keep only the most recent 5
+        }
+      } catch (e) {
+        console.error('Failed to parse recent lookups:', e);
+      }
+    }
+  }, []);
+
+  // Function to add a player to recent lookups
+  const addToRecentLookups = (playerData: any) => {
+    const lookupEntry = {
+      username: playerData.username,
+      uuid: playerData.uuid,
+      status: playerData.status || 'Unknown',
+      timestamp: new Date().toISOString()
+    };
+
+    setRecentLookups(prev => {
+      // Remove if already exists to avoid duplicates
+      const filtered = prev.filter(lookup => lookup.uuid !== playerData.uuid);
+      // Add to beginning and keep only 5 most recent
+      const newLookups = [lookupEntry, ...filtered].slice(0, 5);
+      
+      // Save to localStorage
+      localStorage.setItem('recentPlayerLookups', JSON.stringify(newLookups));
+      
+      return newLookups;
+    });
+  };
 
   // Function to handle player search
   const handlePlayerSearch = async (e: React.FormEvent) => {
@@ -336,6 +374,8 @@ const Lookup = () => {
           const playerData = await response.json();
           // Search response received
           if (playerData && playerData.uuid) {
+            // Add to recent lookups before redirecting
+            addToRecentLookups(playerData);
             // Redirect to the player lookup window with the UUID
             // Player found
             window.location.href = `/lookup?id=${playerData.uuid}`;
@@ -369,6 +409,17 @@ const Lookup = () => {
       setIsPlayerWindowOpen(true);
     }
   }, [playerId]);
+
+  // Add player to recent lookups when viewing via URL
+  const { data: currentPlayer } = usePlayer(playerId || '');
+  useEffect(() => {
+    if (currentPlayer && playerId) {
+      // Only add if we have the player data and it's not already the most recent
+      if (recentLookups.length === 0 || recentLookups[0]?.uuid !== currentPlayer.uuid) {
+        addToRecentLookups(currentPlayer);
+      }
+    }
+  }, [currentPlayer, playerId]);
 
   return (
     <section className={`min-h-screen p-6 md:p-8 transition-all duration-300 ${mainContentClass}`}>
@@ -407,12 +458,27 @@ const Lookup = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-md font-medium">Recent Players</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-md font-medium">Recent Lookups</CardTitle>
+              {recentLookups.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setRecentLookups([]);
+                    localStorage.removeItem('recentPlayerLookups');
+                  }}
+                  className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  Clear All
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            {isLoadingPlayers ? (
-              <div className="py-4 flex justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            {recentLookups.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                No recent lookups. Search for a player to see them here.
               </div>
             ) : (
               <Table>
@@ -425,58 +491,42 @@ const Lookup = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!players || players.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                        No players found. Try searching for a specific username.
+                  {recentLookups.map((lookup: any, index: number) => (
+                    <TableRow key={index} className="border-b border-border">
+                      <TableCell className="font-medium">{lookup.username || 'Unknown'}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs font-mono">{lookup.uuid}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={`
+                            ${lookup.status === 'Active' ? 'bg-success/10 text-success border-success/20' : 
+                              lookup.status === 'Warned' ? 'bg-warning/10 text-warning border-warning/20' : 
+                              'bg-destructive/10 text-destructive border-destructive/20'
+                            }
+                          `}
+                        >
+                          {lookup.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-primary" 
+                            title="View Details"
+                            onClick={() => {
+                              // Add to recent lookups again to update timestamp
+                              addToRecentLookups(lookup);
+                              window.location.href = `/lookup?id=${lookup.uuid}`;
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    players.map((player: any, index: number) => (
-                      <TableRow key={index} className="border-b border-border">
-                        <TableCell className="font-medium">{player.username || 'Unknown'}</TableCell>
-                        <TableCell className="text-muted-foreground">{player.uuid}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={`
-                              ${player.status === 'Active' ? 'bg-success/10 text-success border-success/20' : 
-                                player.status === 'Warned' ? 'bg-warning/10 text-warning border-warning/20' : 
-                                'bg-destructive/10 text-destructive border-destructive/20'
-                              }
-                            `}
-                          >
-                            {player.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-primary" 
-                              title="View Details"
-                              onClick={() => window.location.href = `/lookup?id=${player.uuid}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" title="View Warnings">
-                              <TriangleAlert className="h-4 w-4" />
-                            </Button>
-                            {player.status === 'Banned' ? (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-success" title="Unban">
-                                <Ban className="h-4 w-4" />
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Ban">
-                                <Ban className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             )}
