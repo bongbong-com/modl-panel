@@ -299,6 +299,11 @@ interface UpdateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
+interface AssignPlayerBody {
+  minecraftUuid?: string;
+  minecraftUsername?: string;
+}
+
 // Route to update general staff information
 router.patch('/:username', async (req: Request<{ username: string }, {}, UpdateStaffBody>, res: Response) => {
   try {
@@ -430,6 +435,118 @@ router.patch('/:id/role', checkRole(['Super Admin', 'Admin']), async (req: Reque
 
   } catch (error) {
     console.error('Error changing staff role:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Route to assign/unassign Minecraft player to staff member
+router.patch('/:username/minecraft-player', checkRole(['Super Admin']), async (req: Request<{ username: string }, {}, AssignPlayerBody>, res: Response) => {
+  try {
+    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
+    const Player = req.serverDbConnection!.model('Player');
+    const { minecraftUuid, minecraftUsername } = req.body;
+    
+    const staffMember = await Staff.findOne({ username: req.params.username });
+    if (!staffMember) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+
+    // If clearing assignment
+    if (!minecraftUuid && !minecraftUsername) {
+      staffMember.assignedMinecraftUuid = undefined;
+      staffMember.assignedMinecraftUsername = undefined;
+      await staffMember.save();
+      
+      return res.json({ 
+        message: 'Minecraft player assignment cleared successfully',
+        staffMember: {
+          ...staffMember.toObject(),
+          assignedMinecraftUuid: null,
+          assignedMinecraftUsername: null
+        }
+      });
+    }
+
+    // Validate player exists
+    let playerQuery: any = {};
+    if (minecraftUuid) {
+      playerQuery.minecraftUuid = minecraftUuid;
+    } else if (minecraftUsername) {
+      playerQuery['usernames.username'] = { $regex: new RegExp(`^${minecraftUsername}$`, 'i') };
+    } else {
+      return res.status(400).json({ error: 'Either minecraftUuid or minecraftUsername must be provided' });
+    }
+
+    const player = await Player.findOne(playerQuery);
+    if (!player) {
+      return res.status(404).json({ error: 'Minecraft player not found' });
+    }
+
+    // Check if player is already assigned to another staff member
+    const existingAssignment = await Staff.findOne({ 
+      assignedMinecraftUuid: player.minecraftUuid,
+      _id: { $ne: staffMember._id }
+    });
+    
+    if (existingAssignment) {
+      return res.status(409).json({ 
+        error: 'This Minecraft player is already assigned to another staff member',
+        assignedTo: existingAssignment.username
+      });
+    }
+
+    // Get current username
+    const currentUsername = player.usernames && player.usernames.length > 0
+      ? player.usernames[player.usernames.length - 1].username
+      : 'Unknown';
+
+    // Assign player to staff member
+    staffMember.assignedMinecraftUuid = player.minecraftUuid;
+    staffMember.assignedMinecraftUsername = currentUsername;
+    await staffMember.save();
+
+    res.json({ 
+      message: 'Minecraft player assigned successfully',
+      staffMember: {
+        ...staffMember.toObject(),
+        assignedMinecraftUuid: player.minecraftUuid,
+        assignedMinecraftUsername: currentUsername
+      }
+    });
+  } catch (error) {
+    console.error('Error assigning Minecraft player to staff:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Route to get available Minecraft players for assignment
+router.get('/available-players', checkRole(['Super Admin']), async (req: Request, res: Response) => {
+  try {
+    const Player = req.serverDbConnection!.model('Player');
+    const Staff = req.serverDbConnection!.model<IStaff>('Staff');
+    
+    // Get all staff assignments
+    const assignedUuids = await Staff.find({ assignedMinecraftUuid: { $exists: true, $ne: null } })
+      .distinct('assignedMinecraftUuid');
+
+    // Get players not assigned to staff
+    const availablePlayers = await Player.find({
+      minecraftUuid: { $nin: assignedUuids }
+    })
+    .select('minecraftUuid usernames')
+    .limit(50)
+    .lean();
+
+    const formattedPlayers = availablePlayers.map(player => ({
+      uuid: player.minecraftUuid,
+      username: player.usernames && player.usernames.length > 0
+        ? player.usernames[player.usernames.length - 1].username
+        : 'Unknown'
+    }));
+
+    res.json({ players: formattedPlayers });
+  } catch (error) {
+    console.error('Error fetching available players:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -5,6 +5,71 @@ import { createSystemLog } from './log-routes'; // Import createSystemLog
 import { verifyMinecraftApiKey } from '../middleware/api-auth';
 import { IIPAddress, IModification, INote, IPunishment, IPlayer, ITicket, IUsername } from 'modl-shared-web/types';
 
+// Import getUserPermissions from permission middleware
+async function getUserPermissions(req: Request, userRole: string): Promise<string[]> {
+  if (!req.serverDbConnection) {
+    throw new Error('Database connection not available');
+  }
+
+  // Define default role permissions
+  const defaultPermissions: Record<string, string[]> = {
+    'Super Admin': [
+      'admin.settings.view', 'admin.settings.modify', 'admin.staff.manage', 'admin.analytics.view',
+      'ticket.view.all', 'ticket.reply.all', 'ticket.close.all', 'ticket.delete.all'
+    ],
+    'Admin': [
+      'admin.settings.view', 'admin.staff.manage', 'admin.analytics.view',
+      'ticket.view.all', 'ticket.reply.all', 'ticket.close.all'
+    ],
+    'Moderator': [
+      'ticket.view.all', 'ticket.reply.all', 'ticket.close.all'
+    ],
+    'Helper': [
+      'ticket.view.all', 'ticket.reply.all'
+    ]
+  };
+
+  // Get punishment permissions from settings
+  try {
+    const Settings = req.serverDbConnection.model('Settings');
+    const settingsDoc = await Settings.findOne({});
+    const punishmentTypes = settingsDoc?.settings?.get('punishmentTypes') || [];
+    
+    const punishmentPermissions = punishmentTypes.map((type: any) => 
+      `punishment.apply.${type.name.toLowerCase().replace(/\s+/g, '-')}`
+    );
+
+    // Add punishment permissions to appropriate roles
+    if (userRole === 'Super Admin' || userRole === 'Admin') {
+      defaultPermissions[userRole] = [...defaultPermissions[userRole], ...punishmentPermissions];
+    } else if (userRole === 'Moderator') {
+      // Moderators get all punishment permissions except the most severe ones
+      const moderatorPunishmentPerms = punishmentPermissions.filter((p: string) => 
+        !p.includes('blacklist') && !p.includes('security-ban')
+      );
+      defaultPermissions[userRole] = [...defaultPermissions[userRole], ...moderatorPunishmentPerms];
+    }
+  } catch (error) {
+    console.error('Error fetching punishment permissions:', error);
+  }
+
+  // Check if user has a custom role
+  try {
+    const StaffRoles = req.serverDbConnection.model('StaffRole');
+    const customRole = await StaffRoles.findOne({ name: userRole });
+    
+    if (customRole) {
+      return customRole.permissions || [];
+    }
+  } catch (error) {
+    // Custom role model might not exist, fall back to default permissions
+    console.log('Custom role model not found, using default permissions');
+  }
+
+  // Return default permissions for the role
+  return defaultPermissions[userRole] || [];
+}
+
 /**
  * Utility function to safely get data from punishment.data (handles both Map and plain object)
  */
@@ -1555,6 +1620,46 @@ export function setupMinecraftRoutes(app: Express): void {
         }
       }
 
+      // 6. Get active staff members among online players with their permissions
+      const activeStaffMembers: any[] = [];
+      
+      if (onlineUuids.length > 0) {
+        const Staff = serverDbConnection.model('Staff');
+        
+        // Find staff members whose assigned Minecraft players are online
+        const staffWithOnlinePlayers = await Staff.find({
+          assignedMinecraftUuid: { $in: onlineUuids }
+        }).lean();
+
+        // Get permissions for each staff member
+        for (const staffMember of staffWithOnlinePlayers) {
+          try {
+            // Get user permissions based on their role
+            const userPermissions = await getUserPermissions(req, staffMember.role);
+            
+            activeStaffMembers.push({
+              minecraftUuid: staffMember.assignedMinecraftUuid,
+              minecraftUsername: staffMember.assignedMinecraftUsername,
+              staffUsername: staffMember.username,
+              staffRole: staffMember.role,
+              permissions: userPermissions,
+              email: staffMember.email
+            });
+          } catch (permissionError) {
+            console.error(`Error getting permissions for staff member ${staffMember.username}:`, permissionError);
+            // Include staff member without permissions if permission lookup fails
+            activeStaffMembers.push({
+              minecraftUuid: staffMember.assignedMinecraftUuid,
+              minecraftUsername: staffMember.assignedMinecraftUsername,
+              staffUsername: staffMember.username,
+              staffRole: staffMember.role,
+              permissions: [],
+              email: staffMember.email
+            });
+          }
+        }
+      }
+
       return res.status(200).json({
         status: 200,
         timestamp: now.toISOString(),
@@ -1563,10 +1668,12 @@ export function setupMinecraftRoutes(app: Express): void {
           recentlyStartedPunishments,
           recentlyModifiedPunishments,
           playerNotifications,
+          activeStaffMembers,
           stats,
           serverStatus: {
             lastSync: now.toISOString(),
-            onlinePlayerCount: stats.onlinePlayers
+            onlinePlayerCount: stats.onlinePlayers,
+            activeStaffCount: activeStaffMembers.length
           }
         }
       });
