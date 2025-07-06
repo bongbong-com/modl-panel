@@ -211,18 +211,11 @@ const DraggableSectionCard = ({
   });
 
   const [, drop] = useDrop({
-    accept: ['section', 'field'],
-    hover: (item: { index?: number; sectionId?: string; fieldId?: string }) => {
-      // Handle section drag
-      if (item.index !== undefined && item.index !== index) {
+    accept: 'section',
+    hover: (item: { index: number }) => {
+      if (item.index !== index) {
         moveSection(item.index, index);
         item.index = index;
-      }
-    },
-    drop: (item: { index?: number; sectionId?: string; fieldId?: string }) => {
-      // Handle field drop on section (add to end of section)
-      if (item.fieldId && item.sectionId && item.sectionId !== section.id) {
-        moveFieldBetweenSections(item.fieldId, item.sectionId, section.id);
       }
     },
   });
