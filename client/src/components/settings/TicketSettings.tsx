@@ -194,6 +194,9 @@ const TicketSettings = ({
                                 <div className="flex items-center justify-between mb-2">
                                   <h6 className="font-medium text-sm">{action.name}</h6>
                                   <div className="flex items-center space-x-1">
+                                    {action.closeTicket && (
+                                      <Badge variant="secondary" className="text-xs">Close</Badge>
+                                    )}
                                     {action.issuePunishment && (
                                       <Badge variant="destructive" className="text-xs">Punish</Badge>
                                     )}
@@ -696,12 +699,11 @@ const QuickResponseActionForm = ({
   const [formData, setFormData] = useState<Partial<QuickResponseAction>>({
     name: action?.name || '',
     message: action?.message || '',
+    closeTicket: action?.closeTicket || false,
     issuePunishment: action?.issuePunishment || false,
     punishmentTypeId: action?.punishmentTypeId || undefined,
     punishmentSeverity: action?.punishmentSeverity || 'regular',
-    appealAction: action?.appealAction || 'none',
-    durationReduction: action?.durationReduction || { type: 'percentage', value: 50 },
-    customDuration: action?.customDuration || { value: 1, unit: 'days' }
+    appealAction: action?.appealAction || 'none'
   });
 
   const category = quickResponsesState.categories.find(c => c.id === categoryId);
@@ -759,6 +761,20 @@ const QuickResponseActionForm = ({
             placeholder="Enter the message that will be sent to the user..."
             className="min-h-[100px]"
           />
+        </div>
+
+        <div className="space-y-4">
+          <Separator />
+          <h4 className="font-medium">Action Settings</h4>
+          
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="close-ticket"
+              checked={formData.closeTicket}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, closeTicket: checked }))}
+            />
+            <Label htmlFor="close-ticket">Close ticket when this response is used</Label>
+          </div>
         </div>
 
         {isReportCategory && (
@@ -841,79 +857,10 @@ const QuickResponseActionForm = ({
             </div>
 
             {formData.appealAction === 'reduce' && (
-              <div className="space-y-4 pl-6">
-                <div className="space-y-2">
-                  <Label>Reduction Type</Label>
-                  <Select
-                    value={formData.durationReduction?.type}
-                    onValueChange={(value: 'percentage' | 'fixed') => 
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        durationReduction: { 
-                          ...prev.durationReduction!, 
-                          type: value 
-                        } 
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="percentage">Percentage</SelectItem>
-                      <SelectItem value="fixed">Fixed Duration</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>
-                    {formData.durationReduction?.type === 'percentage' ? 'Percentage Reduction' : 'Fixed Duration'}
-                  </Label>
-                  <Input
-                    type="number"
-                    value={formData.durationReduction?.value}
-                    onChange={(e) => 
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        durationReduction: { 
-                          ...prev.durationReduction!, 
-                          value: parseInt(e.target.value) 
-                        } 
-                      }))
-                    }
-                    placeholder={formData.durationReduction?.type === 'percentage' ? '50' : '1'}
-                  />
-                </div>
-
-                {formData.durationReduction?.type === 'fixed' && (
-                  <div className="space-y-2">
-                    <Label>Time Unit</Label>
-                    <Select
-                      value={formData.durationReduction?.unit}
-                      onValueChange={(value: 'minutes' | 'hours' | 'days' | 'weeks' | 'months') => 
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          durationReduction: { 
-                            ...prev.durationReduction!, 
-                            unit: value 
-                          } 
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="minutes">Minutes</SelectItem>
-                        <SelectItem value="hours">Hours</SelectItem>
-                        <SelectItem value="days">Days</SelectItem>
-                        <SelectItem value="weeks">Weeks</SelectItem>
-                        <SelectItem value="months">Months</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              <div className="space-y-2 pl-6">
+                <p className="text-sm text-muted-foreground">
+                  Duration reduction will be handled through the ticket form when this response is used.
+                </p>
               </div>
             )}
           </div>

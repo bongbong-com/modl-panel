@@ -532,11 +532,6 @@ interface QuickResponseBody {
   punishmentSeverity?: 'low' | 'regular' | 'severe';
   customValues?: any;
   appealAction?: 'pardon' | 'reduce' | 'reject' | 'none';
-  durationReduction?: {
-    type: 'percentage' | 'fixed';
-    value: number;
-    unit?: string;
-  };
 }
 
 router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, QuickResponseBody>, res: Response) => {
@@ -583,8 +578,11 @@ router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (r
 
     ticket.replies.push(responseReply);
 
-    // Handle punishment issuance for report tickets
-    if (action.issuePunishment && ticket.category.toLowerCase().includes('report')) {
+    // Handle punishment issuance for report tickets only (player_report or chat_report)
+    const isReportTicket = ['player_report', 'chat_report'].includes(ticket.category.toLowerCase()) || 
+                          ticket.category.toLowerCase().includes('report');
+    
+    if (action.issuePunishment && isReportTicket) {
       if (req.body.punishmentTypeId && ticket.data.get('reported_player')) {
         try {
           const PunishmentService = (await import('../services/punishment-service')).PunishmentService;
@@ -634,24 +632,14 @@ router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (r
         ticket.notes.push(pardonNote);
         ticket.status = 'Closed';
       } else if (appealAction === 'reduce') {
-        const reduction = req.body.durationReduction || action.durationReduction;
-        if (reduction) {
-          let reductionText = '';
-          if (reduction.type === 'percentage') {
-            reductionText = `${reduction.value}% reduction`;
-          } else {
-            reductionText = `${reduction.value} ${reduction.unit} reduction`;
-          }
-          
-          const reductionNote: INote = {
-            text: `Appeal partially approved - Punishment duration reduced (${reductionText})`,
-            issuerName: req.user?.displayName || 'System',
-            issuerAvatar: req.user?.avatar,
-            date: new Date(),
-          };
-          ticket.notes.push(reductionNote);
-          ticket.status = 'Closed';
-        }
+        const reductionNote: INote = {
+          text: `Appeal partially approved - Punishment duration will be reduced as specified in the ticket form`,
+          issuerName: req.user?.displayName || 'System',
+          issuerAvatar: req.user?.avatar,
+          date: new Date(),
+        };
+        ticket.notes.push(reductionNote);
+        // Don't automatically close for reduction - staff may want to add more details
       } else if (appealAction === 'reject') {
         const rejectionNote: INote = {
           text: `Appeal rejected - Original punishment upheld`,
@@ -664,8 +652,8 @@ router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (r
       }
     }
 
-    // Update ticket status based on action
-    if (action.name.toLowerCase().includes('close') || action.id.includes('close')) {
+    // Update ticket status based on action's closeTicket property
+    if (action.closeTicket) {
       ticket.status = 'Closed';
     }
 
