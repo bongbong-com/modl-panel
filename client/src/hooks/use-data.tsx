@@ -814,3 +814,53 @@ export function useDeleteRole() {
     },
   });
 }
+
+// Staff Minecraft player assignment hooks
+export function useAvailablePlayers() {
+  return useQuery({
+    queryKey: ['/api/panel/staff/available-players'],
+    queryFn: async () => {
+      const res = await fetch('/api/panel/staff/available-players');
+      if (!res.ok) {
+        throw new Error('Failed to fetch available players');
+      }
+      return res.json();
+    },
+    staleTime: 1000 * 30, // 30 seconds
+  });
+}
+
+export function useAssignMinecraftPlayer() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      username, 
+      minecraftUuid, 
+      minecraftUsername 
+    }: { 
+      username: string; 
+      minecraftUuid?: string; 
+      minecraftUsername?: string; 
+    }) => {
+      const res = await fetch(`/api/panel/staff/${username}/minecraft-player`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ minecraftUuid, minecraftUsername }),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to assign Minecraft player: ${res.status} ${res.statusText}`);
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/staff'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/staff/available-players'] });
+    },
+  });
+}

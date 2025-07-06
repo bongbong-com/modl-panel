@@ -7,18 +7,23 @@ import ChangeRoleModal from './ChangeRoleModal'; // Import the new modal
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'modl-shared-web/components/ui/table';
 import { useStaff } from '@/hooks/use-data';
 import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
-import { MoreHorizontal, Plus, PlusIcon, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, Plus, PlusIcon, RefreshCw, User } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from 'modl-shared-web/components/ui/dropdown-menu';
+import { Badge } from 'modl-shared-web/components/ui/badge';
 import InviteStaffModal from './InviteStaffModal';
+import AssignMinecraftPlayerModal from './AssignMinecraftPlayerModal';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from 'modl-shared-web/components/ui/alert-dialog';
 
 interface StaffMember {
   _id: string;
   email: string;
+  username: string;
   role: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
   createdAt: string;
   status: string;
+  assignedMinecraftUuid?: string;
+  assignedMinecraftUsername?: string;
 }
 
 interface User {
@@ -70,6 +75,7 @@ const StaffManagementPanel = () => {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isRemoveAlertOpen, setIsRemoveAlertOpen] = useState(false);
   const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
+  const [isAssignPlayerModalOpen, setIsAssignPlayerModalOpen] = useState(false);
   const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const queryClient = useQueryClient();
@@ -113,6 +119,11 @@ const StaffManagementPanel = () => {
   const openChangeRoleModal = (member: StaffMember) => {
     setSelectedStaffMember(member);
     setIsChangeRoleModalOpen(true);
+  };
+
+  const openAssignPlayerModal = (member: StaffMember) => {
+    setSelectedStaffMember(member);
+    setIsAssignPlayerModalOpen(true);
   };
 
   const handleRemove = async () => {
@@ -208,6 +219,7 @@ const StaffManagementPanel = () => {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Minecraft Player</TableHead>
                   <TableHead>Date Added</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -218,6 +230,16 @@ const StaffManagementPanel = () => {
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.role}</TableCell>
                     <TableCell>{member.status}</TableCell>
+                    <TableCell>
+                      {member.assignedMinecraftUsername ? (
+                        <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                          <User className="h-3 w-3" />
+                          {member.assignedMinecraftUsername}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Not assigned</span>
+                      )}
+                    </TableCell>
                     <TableCell>{member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -239,6 +261,11 @@ const StaffManagementPanel = () => {
                             </>
                           ) : (
                             <>
+                              {currentUser && currentUser.role === 'Super Admin' && (
+                                <DropdownMenuItem onSelect={() => openAssignPlayerModal(member)}>
+                                  {member.assignedMinecraftUsername ? 'Change' : 'Assign'} Minecraft Player
+                                </DropdownMenuItem>
+                              )}
                               {currentUser && canChangeRole(currentUser, member) && (
                                 <DropdownMenuItem onSelect={() => openChangeRoleModal(member)}>
                                   Change Role
@@ -272,6 +299,14 @@ const StaffManagementPanel = () => {
         isOpen={isChangeRoleModalOpen}
         onClose={() => {
           setIsChangeRoleModalOpen(false);
+          setSelectedStaffMember(null);
+        }}
+        staffMember={selectedStaffMember}
+      />
+      <AssignMinecraftPlayerModal
+        isOpen={isAssignPlayerModalOpen}
+        onClose={() => {
+          setIsAssignPlayerModalOpen(false);
           setSelectedStaffMember(null);
         }}
         staffMember={selectedStaffMember}
