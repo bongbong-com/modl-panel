@@ -279,9 +279,9 @@ router.put('/:id', checkRole(['Super Admin']), strictRateLimit, async (req: Requ
     
     const db = req.serverDbConnection!;
     
-    // Cannot update default roles
-    if (id.includes('super-admin') || id.includes('admin') || id.includes('moderator') || id.includes('helper')) {
-      return res.status(403).json({ error: 'Cannot modify default system roles' });
+    // Cannot update Super Admin role
+    if (id.includes('super-admin')) {
+      return res.status(403).json({ error: 'Cannot modify Super Admin role' });
     }
     
     const StaffRoles = db.model('StaffRole');
@@ -325,9 +325,9 @@ router.delete('/:id', checkRole(['Super Admin']), strictRateLimit, async (req: R
     const { id } = req.params;
     const db = req.serverDbConnection!;
     
-    // Cannot delete default roles
-    if (id.includes('super-admin') || id.includes('admin') || id.includes('moderator') || id.includes('helper')) {
-      return res.status(403).json({ error: 'Cannot delete default system roles' });
+    // Cannot delete Super Admin role
+    if (id.includes('super-admin')) {
+      return res.status(403).json({ error: 'Cannot delete Super Admin role' });
     }
     
     const StaffRoles = db.model('StaffRole');

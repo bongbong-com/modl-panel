@@ -120,10 +120,10 @@ export default function StaffRolesCard() {
   };
 
   const handleEditRole = (role: StaffRole) => {
-    if (role.isDefault) {
+    if (role.name === 'Super Admin') {
       toast({
-        title: "Cannot Edit Default Role",
-        description: "Default system roles cannot be modified.",
+        title: "Cannot Edit Super Admin Role",
+        description: "Super Admin role cannot be modified.",
         variant: "destructive"
       });
       return;
@@ -180,10 +180,10 @@ export default function StaffRolesCard() {
   };
 
   const handleDeleteRole = (role: StaffRole) => {
-    if (role.isDefault) {
+    if (role.name === 'Super Admin') {
       toast({
-        title: "Cannot Delete Default Role",
-        description: "Default system roles cannot be deleted.",
+        title: "Cannot Delete Super Admin Role",
+        description: "Super Admin role cannot be deleted.",
         variant: "destructive"
       });
       return;
@@ -271,7 +271,7 @@ export default function StaffRolesCard() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleEditRole(role)}
-                      disabled={role.isDefault}
+                      disabled={role.name === 'Super Admin'}
                     >
                       <Edit className="h-3 w-3" />
                     </Button>
@@ -279,7 +279,7 @@ export default function StaffRolesCard() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleDeleteRole(role)}
-                      disabled={role.isDefault}
+                      disabled={role.name === 'Super Admin'}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3 w-3" />
