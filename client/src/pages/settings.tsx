@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload, Key, Eye, EyeOff, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Scale, Shield, Globe, Tag, Plus, X, Fingerprint, KeyRound, Lock, QrCode, Copy, Check, Mail, Trash2, GamepadIcon, MessageCircle, Save, CheckCircle, User as UserIcon, LogOut, CreditCard, BookOpen, Settings as SettingsIcon, Upload, Key, Eye, EyeOff, RefreshCw, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Card, CardContent } from 'modl-shared-web/components/ui/card';
 import { useSidebar } from '@/hooks/use-sidebar';
@@ -49,13 +49,34 @@ interface AppealFormSettings {
   fields: AppealFormField[];
 }
 
-// Type definitions for configurable ticket forms
-interface TicketFormField extends AppealFormField {
-  // Inherits all properties from AppealFormField including divergent paths
+// Type definitions for configurable ticket forms with sections
+interface TicketFormField {
+  id: string;
+  type: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes';
+  label: string;
+  description?: string;
+  required: boolean;
+  options?: string[]; // For dropdown, multiple_choice, and checkboxes fields
+  order: number;
+  sectionId?: string; // Which section this field belongs to
+  goToSection?: string; // Legacy: Section to show when this field has a value
+  optionSectionMapping?: Record<string, string>; // Maps option values to section IDs
+}
+
+interface TicketFormSection {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  // Conditional display based on field values
+  showIfFieldId?: string; // Field ID to watch for conditions
+  showIfValue?: string; // Value that triggers showing this section
+  showIfValues?: string[]; // Multiple values that can trigger showing this section
 }
 
 interface TicketFormSettings {
   fields: TicketFormField[];
+  sections: TicketFormSection[];
 }
 
 // Configuration for all ticket form types
@@ -246,24 +267,31 @@ const Settings = () => {
   
   // Ticket Forms Configuration State
   const [ticketFormsState, setTicketFormsState] = useState<TicketFormsConfiguration>({
-    bug: { fields: [] },
-    support: { fields: [] },
-    application: { fields: [] }
+    bug: { fields: [], sections: [] },
+    support: { fields: [], sections: [] },
+    application: { fields: [], sections: [] }
   });
   
   // Form builder states for each ticket type
   const [selectedTicketFormType, setSelectedTicketFormType] = useState<'bug' | 'support' | 'application'>('bug');
   const [selectedTicketFormField, setSelectedTicketFormField] = useState<TicketFormField | null>(null);
+  const [selectedTicketFormSection, setSelectedTicketFormSection] = useState<TicketFormSection | null>(null);
   const [isAddTicketFormFieldDialogOpen, setIsAddTicketFormFieldDialogOpen] = useState(false);
+  const [isAddTicketFormSectionDialogOpen, setIsAddTicketFormSectionDialogOpen] = useState(false);
   const [newTicketFormFieldLabel, setNewTicketFormFieldLabel] = useState('');
-  const [newTicketFormFieldType, setNewTicketFormFieldType] = useState<'checkbox' | 'text' | 'textarea' | 'dropdown'>('text');
+  const [newTicketFormFieldType, setNewTicketFormFieldType] = useState<'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload'>('text');
   const [newTicketFormFieldDescription, setNewTicketFormFieldDescription] = useState('');
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
-  const [newTicketFormFieldShowIfFieldId, setNewTicketFormFieldShowIfFieldId] = useState('__none__');
-  const [newTicketFormFieldShowIfValue, setNewTicketFormFieldShowIfValue] = useState<string | boolean>('');
-  const [newTicketFormFieldHideIfValue, setNewTicketFormFieldHideIfValue] = useState<string | boolean>('');
+  const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
+  
+  // Section builder states
+  const [newTicketFormSectionTitle, setNewTicketFormSectionTitle] = useState('');
+  const [newTicketFormSectionDescription, setNewTicketFormSectionDescription] = useState('');
+  const [newTicketFormSectionShowIfFieldId, setNewTicketFormSectionShowIfFieldId] = useState('__none__');
+  const [newTicketFormSectionShowIfValue, setNewTicketFormSectionShowIfValue] = useState('');
+  const [newTicketFormSectionShowIfValues, setNewTicketFormSectionShowIfValues] = useState<string[]>([]);
   
   // Updated AI Punishment Types management state
   const [aiPunishmentTypes, setAiPunishmentTypes] = useState<AIServicePunishmentType[]>([]);
@@ -1413,11 +1441,9 @@ const Settings = () => {
       label: newTicketFormFieldLabel,
       description: newTicketFormFieldDescription || undefined,
       required: newTicketFormFieldRequired,
-      options: newTicketFormFieldType === 'dropdown' ? newTicketFormFieldOptions : undefined,
+      options: (newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') ? newTicketFormFieldOptions : undefined,
       order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
-      showIfFieldId: newTicketFormFieldShowIfFieldId && newTicketFormFieldShowIfFieldId !== "__none__" ? newTicketFormFieldShowIfFieldId : undefined,
-      showIfValue: newTicketFormFieldShowIfValue || undefined,
-      hideIfValue: newTicketFormFieldHideIfValue || undefined,
+      sectionId: newTicketFormFieldSectionId && newTicketFormFieldSectionId !== "__none__" ? newTicketFormFieldSectionId : undefined,
     };
 
     if (selectedTicketFormField) {
@@ -1446,9 +1472,7 @@ const Settings = () => {
     setNewTicketFormFieldDescription('');
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
-    setNewTicketFormFieldShowIfFieldId('__none__');
-    setNewTicketFormFieldShowIfValue('');
-    setNewTicketFormFieldHideIfValue('');
+    setNewTicketFormFieldSectionId('__none__');
     setSelectedTicketFormField(null);
     setIsAddTicketFormFieldDialogOpen(false);
   };
@@ -1473,6 +1497,67 @@ const Settings = () => {
 
   const removeTicketFormFieldOption = (index: number) => {
     setNewTicketFormFieldOptions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Section Management Functions
+  const addTicketFormSection = () => {
+    if (!newTicketFormSectionTitle.trim()) return;
+    
+    const newSection: TicketFormSection = {
+      id: Date.now().toString(),
+      title: newTicketFormSectionTitle,
+      description: newTicketFormSectionDescription || undefined,
+      order: ticketForms[selectedTicketFormType]?.sections?.length || 0,
+      showIfFieldId: newTicketFormSectionShowIfFieldId && newTicketFormSectionShowIfFieldId !== "__none__" ? newTicketFormSectionShowIfFieldId : undefined,
+      showIfValue: newTicketFormSectionShowIfValue || undefined,
+      showIfValues: newTicketFormSectionShowIfValues.length > 0 ? newTicketFormSectionShowIfValues : undefined,
+    };
+
+    if (selectedTicketFormSection) {
+      // Update existing section
+      setTicketFormsState(prev => ({
+        ...prev,
+        [selectedTicketFormType]: {
+          ...prev[selectedTicketFormType],
+          sections: (prev[selectedTicketFormType]?.sections || []).map(section =>
+            section.id === selectedTicketFormSection.id ? { ...newSection, id: selectedTicketFormSection.id } : section
+          )
+        }
+      }));
+    } else {
+      // Add new section
+      setTicketFormsState(prev => ({
+        ...prev,
+        [selectedTicketFormType]: {
+          ...prev[selectedTicketFormType],
+          sections: [...(prev[selectedTicketFormType]?.sections || []), newSection]
+        }
+      }));
+    }
+
+    // Reset form
+    setNewTicketFormSectionTitle('');
+    setNewTicketFormSectionDescription('');
+    setNewTicketFormSectionShowIfFieldId('__none__');
+    setNewTicketFormSectionShowIfValue('');
+    setNewTicketFormSectionShowIfValues([]);
+    setSelectedTicketFormSection(null);
+    setIsAddTicketFormSectionDialogOpen(false);
+  };
+
+  const removeTicketFormSection = (sectionId: string) => {
+    setTicketFormsState(prev => ({
+      ...prev,
+      [selectedTicketFormType]: {
+        ...prev[selectedTicketFormType],
+        sections: (prev[selectedTicketFormType]?.sections || [])
+          .filter(s => s.id !== sectionId)
+          .map((section, index) => ({ ...section, order: index })),
+        // Also remove fields that belong to this section
+        fields: (prev[selectedTicketFormType]?.fields || [])
+          .filter(f => f.sectionId !== sectionId)
+      }
+    }));
   };
 
   // Format the last saved time
@@ -2790,9 +2875,9 @@ const Settings = () => {
                                   {field.required && (
                                     <Badge variant="secondary" className="text-xs">Required</Badge>
                                   )}
-                                  {field.showIfFieldId && (
+                                  {field.sectionId && (
                                     <Badge variant="outline" className="text-xs bg-blue-50">
-                                      Conditional
+                                      Section
                                     </Badge>
                                   )}
                                 </div>
@@ -2808,9 +2893,9 @@ const Settings = () => {
                                     ))}
                                   </div>
                                 )}
-                                {field.showIfFieldId && (
+                                {field.sectionId && (
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    Shows when "{field.showIfFieldId}" = {String(field.showIfValue)}
+                                    Belongs to section: {ticketForms[selectedTicketFormType]?.sections?.find(s => s.id === field.sectionId)?.title || 'Unknown'}
                                   </div>
                                 )}
                               </div>
@@ -2825,9 +2910,7 @@ const Settings = () => {
                                     setNewTicketFormFieldDescription(field.description || '');
                                     setNewTicketFormFieldRequired(field.required);
                                     setNewTicketFormFieldOptions(field.options || []);
-                                    setNewTicketFormFieldShowIfFieldId(field.showIfFieldId || '__none__');
-                                    setNewTicketFormFieldShowIfValue(field.showIfValue || '');
-                                    setNewTicketFormFieldHideIfValue(field.hideIfValue || '');
+                                    setNewTicketFormFieldSectionId(field.sectionId || '__none__');
                                     setIsAddTicketFormFieldDialogOpen(true);
                                   }}
                                   className="text-xs px-2 h-7"
@@ -2851,6 +2934,88 @@ const Settings = () => {
                             <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">No custom fields configured</p>
                             <p className="text-xs mt-1">Players will see a default form</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Form Sections for Selected Type */}
+                    <div className="space-y-4 mt-8">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-medium">
+                          Form Sections
+                        </h5>
+                        <Button
+                          size="sm"
+                          onClick={() => setIsAddTicketFormSectionDialogOpen(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Section
+                        </Button>
+                      </div>
+
+                      {/* Section List */}
+                      <div className="space-y-2">
+                        {ticketForms[selectedTicketFormType]?.sections
+                          ?.sort((a, b) => a.order - b.order)
+                          .map((section) => (
+                            <div key={section.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    Section
+                                  </Badge>
+                                  <span className="font-medium">{section.title}</span>
+                                  {section.showIfFieldId && (
+                                    <Badge variant="outline" className="text-xs bg-green-50">
+                                      Conditional
+                                    </Badge>
+                                  )}
+                                </div>
+                                {section.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
+                                )}
+                                {section.showIfFieldId && (
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    Shows when "{ticketForms[selectedTicketFormType]?.fields?.find(f => f.id === section.showIfFieldId)?.label || section.showIfFieldId}" 
+                                    {section.showIfValues ? ` is one of: ${section.showIfValues.join(', ')}` : ` = ${section.showIfValue}`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedTicketFormSection(section);
+                                    setNewTicketFormSectionTitle(section.title);
+                                    setNewTicketFormSectionDescription(section.description || '');
+                                    setNewTicketFormSectionShowIfFieldId(section.showIfFieldId || '__none__');
+                                    setNewTicketFormSectionShowIfValue(section.showIfValue || '');
+                                    setNewTicketFormSectionShowIfValues(section.showIfValues || []);
+                                    setIsAddTicketFormSectionDialogOpen(true);
+                                  }}
+                                  className="text-xs px-2 h-7"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeTicketFormSection(section.id)}
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+
+                        {(!ticketForms[selectedTicketFormType]?.sections || ticketForms[selectedTicketFormType]?.sections?.length === 0) && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No sections configured</p>
+                            <p className="text-xs mt-1">All fields will appear in the main form</p>
                           </div>
                         )}
                       </div>
@@ -4262,15 +4427,17 @@ const Settings = () => {
                 {/* Field Type */}
                 <div className="space-y-2">
                   <Label htmlFor="field-type">Field Type</Label>
-                  <Select value={newTicketFormFieldType} onValueChange={(value: 'checkbox' | 'text' | 'textarea' | 'dropdown') => setNewTicketFormFieldType(value)}>
+                  <Select value={newTicketFormFieldType} onValueChange={(value: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload') => setNewTicketFormFieldType(value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="text">Text Input</SelectItem>
                       <SelectItem value="textarea">Textarea</SelectItem>
-                      <SelectItem value="checkbox">Checkbox</SelectItem>
                       <SelectItem value="dropdown">Dropdown</SelectItem>
+                      <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                      <SelectItem value="file_upload">File Upload</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -4296,10 +4463,10 @@ const Settings = () => {
                   <Label htmlFor="field-required">Required Field</Label>
                 </div>
 
-                {/* Dropdown Options */}
-                {newTicketFormFieldType === 'dropdown' && (
+                {/* Dropdown/Multiple Choice Options */}
+                {(newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') && (
                   <div className="space-y-2">
-                    <Label>Dropdown Options</Label>
+                    <Label>{newTicketFormFieldType === 'dropdown' ? 'Dropdown' : 'Multiple Choice'} Options</Label>
                     <div className="space-y-2">
                       {newTicketFormFieldOptions.map((option, index) => (
                         <div key={index} className="flex items-center gap-2">

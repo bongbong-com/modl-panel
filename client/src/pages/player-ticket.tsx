@@ -55,10 +55,13 @@ interface TicketDetails {
 interface FormField {
   fieldName: string;
   fieldLabel: string;
-  fieldType: 'text' | 'textarea' | 'select' | 'checkbox' | 'radio';
+  fieldType: 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'multiple_choice' | 'file_upload' | 'checkboxes';
   required: boolean;
   options?: string[];
   helpText?: string;
+  sectionId?: string;
+  goToSection?: string;
+  optionSectionMapping?: Record<string, string>; // Maps option values to section IDs
 }
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -541,10 +544,13 @@ const PlayerTicket = () => {
           fields = template.fields.map((f: any) => ({
             fieldName: f.id,
             fieldLabel: f.label,
-            fieldType: f.type as 'text' | 'textarea' | 'select' | 'checkbox' | 'radio',
+            fieldType: f.type as 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'multiple_choice' | 'file_upload' | 'checkboxes',
             required: f.required,
             options: f.options,
-            helpText: f.helpText
+            helpText: f.helpText,
+            sectionId: f.sectionId,
+            goToSection: f.goToSection,
+            optionSectionMapping: f.optionSectionMapping
           }));
         }
       }
@@ -557,6 +563,210 @@ const PlayerTicket = () => {
       fields = getDefaultFormFields(ticketDetails.type);
       // Using default form template
     }
+    
+    // Group fields by section
+    const sections: { [key: string]: FormField[] } = {};
+    const fieldsWithoutSection: FormField[] = [];
+    
+    fields.forEach((field: FormField) => {
+      if (field.sectionId) {
+        if (!sections[field.sectionId]) {
+          sections[field.sectionId] = [];
+        }
+        sections[field.sectionId].push(field);
+      } else {
+        fieldsWithoutSection.push(field);
+      }
+    });
+
+    // Determine which sections should be visible based on current form values
+    const getVisibleSections = (): Set<string> => {
+      const visibleSections = new Set<string>();
+      
+      // Check all fields to see if they trigger section visibility
+      fields.forEach((field: FormField) => {
+        const fieldValue = formData[field.fieldName];
+        
+        if (field.optionSectionMapping && fieldValue) {
+          if (field.fieldType === 'select') {
+            // For dropdown, check if selected value maps to a section
+            const targetSection = field.optionSectionMapping[fieldValue];
+            if (targetSection) {
+              visibleSections.add(targetSection);
+            }
+          } else if (field.fieldType === 'multiple_choice' || field.fieldType === 'checkboxes') {
+            // For multi-choice, check if any selected values map to sections
+            const selectedValues = fieldValue.split(',').map(v => v.trim()).filter(v => v);
+            selectedValues.forEach(value => {
+              const targetSection = field.optionSectionMapping![value];
+              if (targetSection) {
+                visibleSections.add(targetSection);
+              }
+            });
+          }
+        }
+        
+        // Legacy support for goToSection property
+        if (field.goToSection && fieldValue) {
+          if (field.fieldType === 'select' && fieldValue) {
+            visibleSections.add(field.goToSection);
+          } else if ((field.fieldType === 'multiple_choice' || field.fieldType === 'checkboxes') && fieldValue) {
+            visibleSections.add(field.goToSection);
+          } else if (field.fieldType === 'checkbox' && fieldValue === 'true') {
+            visibleSections.add(field.goToSection);
+          }
+        }
+      });
+      
+      return visibleSections;
+    };
+
+    const visibleSections = getVisibleSections();
+
+    // Check if a field should be visible based on conditional logic
+    const shouldShowField = (field: FormField) => {
+      return true; // All fields are shown by default
+    };
+
+    const renderField = (field: FormField) => (
+      <div key={field.fieldName} className="space-y-1">
+        {field.fieldType !== 'checkbox' ?
+          <Label htmlFor={field.fieldName} className="font-medium">
+            {field.fieldLabel}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </Label> : null
+        }
+        
+        {field.helpText && (
+          <p className="text-sm text-muted-foreground mb-1">{field.helpText}</p>
+        )}
+        
+        {field.fieldType === 'textarea' ? (
+          <Textarea
+            id={field.fieldName}
+            placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
+            value={formData[field.fieldName] || ''}
+            onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
+            className={ticketDetails.type === 'staff' ? 
+              (field.fieldName === 'introduction' || field.fieldName === 'server_perspective' || field.fieldName === 'passion') ? 
+                "min-h-[180px]" : "min-h-[120px]" 
+              : "min-h-[120px]"}
+            required={field.required}
+          />
+        ) : field.fieldType === 'select' ? (
+          <Select
+            value={formData[field.fieldName] || ''}
+            onValueChange={(value) => handleFormFieldChange(field.fieldName, value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options?.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : field.fieldType === 'checkbox' ? (
+          <div className="flex items-start space-x-2 mt-2">
+            <Checkbox 
+              id={field.fieldName}
+              checked={formData[field.fieldName] === "true"}
+              onCheckedChange={(checked: boolean) => handleFormFieldChange(field.fieldName, checked ? "true" : "false")}
+              required={field.required}
+              className="mt-1"
+            />
+            <label 
+              htmlFor={field.fieldName}
+              className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              {field.fieldLabel}
+              {field.required && <span className="text-destructive ml-1">*</span>}
+            </label>
+          </div>
+        ) : field.fieldType === 'multiple_choice' ? (
+          <div className="space-y-2">
+            {field.options?.map((option) => (
+              <div key={option} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`${field.fieldName}-${option}`}
+                  checked={formData[field.fieldName]?.includes(option) || false}
+                  onCheckedChange={(checked: boolean) => {
+                    const currentValues = formData[field.fieldName] ? formData[field.fieldName].split(',') : [];
+                    if (checked) {
+                      const newValues = [...currentValues, option].filter(v => v.trim() !== '');
+                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                    } else {
+                      const newValues = currentValues.filter(v => v !== option);
+                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                    }
+                  }}
+                  className="mt-1"
+                />
+                <label 
+                  htmlFor={`${field.fieldName}-${option}`}
+                  className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {option}
+                </label>
+              </div>
+            ))}
+          </div>
+        ) : field.fieldType === 'checkboxes' ? (
+          <div className="space-y-2">
+            {field.options?.map((option) => (
+              <div key={option} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`${field.fieldName}-${option}`}
+                  checked={formData[field.fieldName]?.includes(option) || false}
+                  onCheckedChange={(checked: boolean) => {
+                    const currentValues = formData[field.fieldName] ? formData[field.fieldName].split(',') : [];
+                    if (checked) {
+                      const newValues = [...currentValues, option].filter(v => v.trim() !== '');
+                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                    } else {
+                      const newValues = currentValues.filter(v => v !== option);
+                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                    }
+                  }}
+                  className="mt-1"
+                />
+                <label 
+                  htmlFor={`${field.fieldName}-${option}`}
+                  className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {option}
+                </label>
+              </div>
+            ))}
+          </div>
+        ) : field.fieldType === 'file_upload' ? (
+          <Input
+            id={field.fieldName}
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFormFieldChange(field.fieldName, file.name);
+              }
+            }}
+            required={field.required}
+            accept="image/*,.pdf,.doc,.docx,.txt"
+          />
+        ) : (
+          <Input
+            id={field.fieldName}
+            type="text"
+            placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
+            value={formData[field.fieldName] || ''}
+            onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        )}
+      </div>
+    );
     
     return (
       <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -576,77 +786,20 @@ const PlayerTicket = () => {
             </div>
           )}
           
-          {fields.map((field: FormField) => (
-            <div key={field.fieldName} className="space-y-1">
-
-              {field.fieldType !== 'checkbox' ?
-                <Label htmlFor={field.fieldName} className="font-medium">
-                  {field.fieldLabel}
-                  {field.required && <span className="text-destructive ml-1">*</span>}
-                </Label> : null
-              }
-              
-              {field.helpText && (
-                <p className="text-sm text-muted-foreground mb-1">{field.helpText}</p>
-              )}
-              
-              {field.fieldType === 'textarea' ? (
-                <Textarea
-                  id={field.fieldName}
-                  placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
-                  value={formData[field.fieldName] || ''}
-                  onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
-                  className={ticketDetails.type === 'staff' ? 
-                    (field.fieldName === 'introduction' || field.fieldName === 'server_perspective' || field.fieldName === 'passion') ? 
-                      "min-h-[180px]" : "min-h-[120px]" 
-                    : "min-h-[120px]"}
-                  required={field.required}
-                />
-              ) : field.fieldType === 'select' ? (
-                <Select
-                  value={formData[field.fieldName] || ''}
-                  onValueChange={(value) => handleFormFieldChange(field.fieldName, value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {field.options?.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : field.fieldType === 'checkbox' ? (
-                <div className="flex items-start space-x-2 mt-2">
-                  <Checkbox 
-                    id={field.fieldName}
-                    checked={formData[field.fieldName] === "true"}
-                    onCheckedChange={(checked: boolean) => handleFormFieldChange(field.fieldName, checked ? "true" : "false")}
-                    required={field.required}
-                    className="mt-1"
-                  />
-                  <label 
-                    htmlFor={field.fieldName}
-                    className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {field.fieldLabel}
-                    {field.required && <span className="text-destructive ml-1">*</span>}
-                  </label>
+          {/* Render fields without sections first */}
+          {fieldsWithoutSection.filter(shouldShowField).map((field: FormField) => renderField(field))}
+          
+          {/* Render sections - only show visible sections */}
+          {Object.entries(sections)
+            .filter(([sectionId]) => visibleSections.has(sectionId))
+            .map(([sectionId, sectionFields]) => (
+              <div key={sectionId} className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                <div className="border-b pb-2">
+                  <h3 className="font-medium text-lg">{sectionId}</h3>
                 </div>
-              ) : (
-                <Input
-                  id={field.fieldName}
-                  type="text"
-                  placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
-                  value={formData[field.fieldName] || ''}
-                  onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
-                  required={field.required}
-                />
-              )}
-            </div>
-          ))}
+                {sectionFields.filter(shouldShowField).map((field: FormField) => renderField(field))}
+              </div>
+            ))}
         </div>
         
         <div className="flex justify-end">
@@ -751,137 +904,132 @@ const PlayerTicket = () => {
                     </Badge>
                   </div>
                 </div>
-                <div className="flex gap-4 mt-3 text-sm text-muted-foreground">
+                <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <User className="h-3.5 w-3.5" />
-                    <span>Created by {ticketDetails.reportedBy}</span>
+                    <User className="h-4 w-4" />
+                    <span>Reported by {ticketDetails.reportedBy}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5" />
+                    <Calendar className="h-4 w-4" />
                     <span>{formatDate(ticketDetails.date)}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span>{ticketDetails.messages.length} messages</span>
                   </div>
                 </div>
               </div>
-
-              {/* Messages section */}
-              <div className="p-4 max-h-[600px] overflow-y-auto">
-                {ticketDetails.messages.length > 0 ? (
-                  <div className="flex flex-col space-y-6">
-                    {ticketDetails.messages.map((message) => (
-                      <div 
-                        key={message.id} 
-                        className={`${message.senderType === 'user' ? 'ml-0' : 'bg-muted/20 p-4 rounded-lg ml-0'}`}
-                      >
-                        <div className="flex gap-3">
-                          <MessageAvatar message={message} creatorUuid={ticketData?.creatorUuid} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="font-medium text-sm flex items-center gap-2">
-                                <span className="text-foreground">
-                                  {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
-                                </span>
-                                {(message.senderType === 'staff' || message.staff) && (
-                                  <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
-                                    Staff
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground flex-shrink-0">
-                                {formatDate(message.timestamp) || formatDate(new Date().toISOString())}
-                              </span>
-                            </div>
-                          
-                            {/* If this message has a closedAs status, show the ticket closing info */}
-                            {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
-                              <>
-                                <div className="text-sm mb-2 flex items-center">
-                                  <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
-                                </div>
-                                <div className="message-content">
-                                  <MarkdownRenderer 
-                                    content={message.content} 
-                                    className="text-sm leading-relaxed"
-                                  />
-                                </div>
-                              </>
-                            ) : (
-                              <div className="message-content">
-                                <MarkdownRenderer 
-                                  content={message.content} 
-                                  className="text-sm leading-relaxed"
-                                />
-                              </div>
-                            )}
-
-                            {/* Show attachments if any */}
-                            {message.attachments && message.attachments.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {message.attachments.map((attachment, idx) => (
-                                  <div key={idx} className="border rounded-md p-1 flex items-center gap-1.5 text-xs bg-muted/30">
-                                    <Link2 className="h-3 w-3" />
-                                    <span className="text-blue-600">{attachment}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+              <div className="divide-y">
+                {ticketDetails.messages.map((message, index) => (
+                  <div key={message.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <MessageAvatar message={message} creatorUuid={ticketData?.creatorUuid} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{message.sender}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(message.timestamp)}
+                          </span>
+                          {message.senderType === 'staff' && (
+                            <Badge variant="secondary" className="text-xs">
+                              Staff
+                            </Badge>
+                          )}
+                          {message.senderType === 'system' && (
+                            <Badge variant="outline" className="text-xs">
+                              System
+                            </Badge>
+                          )}
+                          {message.closedAs && (
+                            <Badge variant="outline" className="text-xs">
+                              {message.closedAs}
+                            </Badge>
+                          )}
                         </div>
+                        <div className="text-sm">
+                          <MarkdownRenderer content={message.content} />
+                        </div>
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {message.attachments.map((attachment, i) => (
+                              <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Link2 className="h-4 w-4" />
+                                <span>{attachment}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No messages yet.
-                  </div>
-                )}
+                ))}
               </div>
             </div>
 
-            {/* Reply section - only show for non-unfinished tickets */}
-            {ticketDetails.status !== 'Closed' && !ticketDetails.locked ? (
-              <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-                <div className="p-4">
-                  <div className="mb-2">
-                    <MarkdownHelp />
+            {/* Reply section - only show if ticket is Open and not locked */}
+            {ticketDetails.status === 'Open' && !ticketDetails.locked && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Reply to Ticket</CardTitle>
+                  <CardDescription>
+                    Add a reply to this ticket. You can use markdown formatting.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="playerName">Your Name</Label>
+                      <Input
+                        id="playerName"
+                        value={playerName}
+                        onChange={(e) => setPlayerName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="reply">Reply</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7">
+                              <MessageSquare className="h-3 w-3 mr-1" />
+                              Formatting Help
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80">
+                            <MarkdownHelp />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <Textarea
+                        id="reply"
+                        value={newReply}
+                        onChange={(e) => setNewReply(e.target.value)}
+                        placeholder="Type your reply here..."
+                        className="min-h-[100px]"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleSendReply}
+                        disabled={!newReply.trim() || !playerName.trim() || isSubmitting}
+                        className="flex items-center"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 h-4 w-4" />
+                            Send Reply
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="mb-4">
-                    <Textarea
-                      placeholder="Type your reply here..."
-                      className="min-h-[120px]"
-                      value={newReply}
-                      onChange={(e) => setNewReply(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleSendReply} 
-                      disabled={!newReply.trim() || !playerName.trim() || isSubmitting}
-                      className="flex items-center"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 h-4 w-4" />
-                          Send Reply
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-muted/30 rounded-lg p-4 text-center text-muted-foreground border border-border">
-                <p>This ticket is locked and no further replies can be sent.</p>
-              </div>
+                </CardContent>
+              </Card>
             )}
           </>
         )}
