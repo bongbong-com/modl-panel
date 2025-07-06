@@ -388,43 +388,436 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       }
     });
 
+    // Default Ticket Forms Configuration
+    const defaultTicketForms = {
+      bug: {
+        fields: [
+          {
+            id: 'bug_title',
+            type: 'text',
+            label: 'Bug Title',
+            description: 'Brief description of the bug',
+            required: true,
+            order: 1
+          },
+          {
+            id: 'bug_description',
+            type: 'textarea',
+            label: 'Detailed Description',
+            description: 'Provide a detailed description of the bug you encountered',
+            required: true,
+            order: 2
+          },
+          {
+            id: 'steps_to_reproduce',
+            type: 'textarea',
+            label: 'Steps to Reproduce',
+            description: 'List the exact steps to reproduce this bug',
+            required: true,
+            order: 3
+          },
+          {
+            id: 'expected_behavior',
+            type: 'textarea',
+            label: 'Expected Behavior',
+            description: 'What did you expect to happen?',
+            required: true,
+            order: 4
+          },
+          {
+            id: 'actual_behavior',
+            type: 'textarea',
+            label: 'Actual Behavior',
+            description: 'What actually happened?',
+            required: true,
+            order: 5
+          },
+          {
+            id: 'game_mode',
+            type: 'dropdown',
+            label: 'Game Mode',
+            description: 'Which game mode were you playing?',
+            required: true,
+            options: ['Survival', 'Creative', 'Adventure', 'Spectator', 'Other'],
+            order: 6
+          },
+          {
+            id: 'server_version',
+            type: 'text',
+            label: 'Server Version',
+            description: 'What version of the server were you on? (if known)',
+            required: false,
+            order: 7
+          },
+          {
+            id: 'screenshot_evidence',
+            type: 'file_upload',
+            label: 'Screenshots/Evidence',
+            description: 'Upload any screenshots or evidence of the bug',
+            required: false,
+            order: 8
+          }
+        ],
+        sections: []
+      },
+      support: {
+        fields: [
+          {
+            id: 'support_category',
+            type: 'dropdown',
+            label: 'Support Category',
+            description: 'What type of support do you need?',
+            required: true,
+            options: ['Account Issues', 'Payment/Billing', 'Technical Issues', 'Gameplay Help', 'Other'],
+            order: 1
+          },
+          {
+            id: 'issue_description',
+            type: 'textarea',
+            label: 'Issue Description',
+            description: 'Describe your issue in detail',
+            required: true,
+            order: 2
+          },
+          {
+            id: 'previous_attempts',
+            type: 'textarea',
+            label: 'Previous Attempts',
+            description: 'What have you already tried to resolve this issue?',
+            required: false,
+            order: 3
+          },
+          {
+            id: 'urgency_level',
+            type: 'dropdown',
+            label: 'Urgency Level',
+            description: 'How urgent is this request?',
+            required: true,
+            options: ['Low', 'Medium', 'High', 'Critical'],
+            order: 4
+          },
+          {
+            id: 'additional_info',
+            type: 'textarea',
+            label: 'Additional Information',
+            description: 'Any other relevant information',
+            required: false,
+            order: 5
+          }
+        ],
+        sections: []
+      },
+      application: {
+        fields: [
+          {
+            id: 'position_type',
+            type: 'dropdown',
+            label: 'Position Applying For',
+            description: 'Which staff position are you applying for?',
+            required: true,
+            options: ['Builder', 'Helper', 'Developer'],
+            order: 1,
+            optionSectionMapping: {
+              'Builder': 'builder_section',
+              'Helper': 'helper_section',
+              'Developer': 'developer_section'
+            }
+          },
+          {
+            id: 'real_name',
+            type: 'text',
+            label: 'Real Name (First Name)',
+            description: 'Your real first name',
+            required: true,
+            order: 2
+          },
+          {
+            id: 'age',
+            type: 'text',
+            label: 'Age',
+            description: 'Your age',
+            required: true,
+            order: 3
+          },
+          {
+            id: 'timezone',
+            type: 'text',
+            label: 'Timezone',
+            description: 'Your timezone (e.g., EST, PST, GMT)',
+            required: true,
+            order: 4
+          },
+          {
+            id: 'availability',
+            type: 'textarea',
+            label: 'Availability',
+            description: 'When are you typically available? Include days and hours.',
+            required: true,
+            order: 5
+          },
+          {
+            id: 'why_apply',
+            type: 'textarea',
+            label: 'Why are you applying?',
+            description: 'Tell us why you want to join our staff team',
+            required: true,
+            order: 6
+          },
+          {
+            id: 'previous_experience',
+            type: 'textarea',
+            label: 'Previous Experience',
+            description: 'Any relevant previous experience (gaming, moderation, development, etc.)',
+            required: true,
+            order: 7
+          },
+          // Builder-specific fields
+          {
+            id: 'builder_experience',
+            type: 'textarea',
+            label: 'Building Experience',
+            description: 'Describe your building experience and skills',
+            required: true,
+            order: 8,
+            sectionId: 'builder_section'
+          },
+          {
+            id: 'building_style',
+            type: 'text',
+            label: 'Building Style',
+            description: 'What style of building do you specialize in?',
+            required: true,
+            order: 9,
+            sectionId: 'builder_section'
+          },
+          {
+            id: 'portfolio_link',
+            type: 'text',
+            label: 'Portfolio Link',
+            description: 'Link to your building portfolio (optional)',
+            required: false,
+            order: 10,
+            sectionId: 'builder_section'
+          },
+          // Helper-specific fields
+          {
+            id: 'moderation_experience',
+            type: 'textarea',
+            label: 'Moderation Experience',
+            description: 'Describe any moderation or community management experience',
+            required: true,
+            order: 8,
+            sectionId: 'helper_section'
+          },
+          {
+            id: 'conflict_resolution',
+            type: 'textarea',
+            label: 'Conflict Resolution',
+            description: 'How would you handle conflicts between players?',
+            required: true,
+            order: 9,
+            sectionId: 'helper_section'
+          },
+          {
+            id: 'player_help_scenario',
+            type: 'textarea',
+            label: 'Player Help Scenario',
+            description: 'A new player asks for help understanding the rules. How would you assist them?',
+            required: true,
+            order: 10,
+            sectionId: 'helper_section'
+          },
+          // Developer-specific fields
+          {
+            id: 'programming_languages',
+            type: 'text',
+            label: 'Programming Languages',
+            description: 'What programming languages are you familiar with?',
+            required: true,
+            order: 8,
+            sectionId: 'developer_section'
+          },
+          {
+            id: 'minecraft_dev_experience',
+            type: 'textarea',
+            label: 'Minecraft Development Experience',
+            description: 'Describe your experience with Minecraft plugin/mod development',
+            required: true,
+            order: 9,
+            sectionId: 'developer_section'
+          },
+          {
+            id: 'github_profile',
+            type: 'text',
+            label: 'GitHub Profile',
+            description: 'Link to your GitHub profile (optional)',
+            required: false,
+            order: 10,
+            sectionId: 'developer_section'
+          },
+          {
+            id: 'dev_project_examples',
+            type: 'textarea',
+            label: 'Project Examples',
+            description: 'Describe some projects you have worked on',
+            required: true,
+            order: 11,
+            sectionId: 'developer_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'builder_section',
+            title: 'Builder Application',
+            description: 'Additional questions for Builder applicants',
+            order: 1,
+            showIfFieldId: 'position_type',
+            showIfValue: 'Builder'
+          },
+          {
+            id: 'helper_section',
+            title: 'Helper Application',
+            description: 'Additional questions for Helper applicants',
+            order: 2,
+            showIfFieldId: 'position_type',
+            showIfValue: 'Helper'
+          },
+          {
+            id: 'developer_section',
+            title: 'Developer Application',
+            description: 'Additional questions for Developer applicants',
+            order: 3,
+            showIfFieldId: 'position_type',
+            showIfValue: 'Developer'
+          }
+        ]
+      }
+    };
+    defaultSettingsMap.set('ticketForms', defaultTicketForms);
+
     // Default Quick Responses Configuration
     const defaultQuickResponsesConfig = {
       categories: [
         {
-          id: 'report_actions',
-          name: 'Report Actions',
-          ticketTypes: ['player_report', 'chat_report'],
+          id: 'chat_report_actions',
+          name: 'Chat Report Actions',
+          ticketTypes: ['chat_report'],
           order: 1,
           actions: [
             {
-              id: 'accept_with_punishment',
-              name: 'Accept & Punish',
-              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
+              id: 'accept_chat_abuse',
+              name: 'Accept - Chat Abuse',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Chat Abuse.',
               order: 1,
               issuePunishment: true,
+              punishmentTypeId: 8, // CHAT_ABUSE
+              punishmentSeverity: 'regular',
               closeTicket: true,
             },
             {
-              id: 'accept_warning',
-              name: 'Accept & Warn',
-              message: 'Thank you for creating this report. We have accepted this report and issued a warning to the reported player.',
+              id: 'accept_anti_social',
+              name: 'Accept - Anti Social',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Anti Social behavior.',
               order: 2,
-              issuePunishment: false,
+              issuePunishment: true,
+              punishmentTypeId: 9, // ANTI_SOCIAL
+              punishmentSeverity: 'regular',
               closeTicket: true,
             },
             {
-              id: 'reject_insufficient',
+              id: 'reject_insufficient_chat',
               name: 'Reject - Insufficient Evidence',
-              message: 'Thank you for submitting this report. After reviewing the evidence provided, we need additional evidence to proceed with action.',
+              message: 'Thank you for submitting this chat report. After reviewing the evidence provided, we need additional evidence to proceed with action.',
               order: 3,
               closeTicket: false,
             },
             {
-              id: 'reject_no_violation',
+              id: 'reject_no_violation_chat',
               name: 'Reject - No Violation',
-              message: 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+              message: 'Thank you for submitting this chat report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
               order: 4,
+              closeTicket: true,
+            }
+          ]
+        },
+        {
+          id: 'player_report_actions',
+          name: 'Player Report Actions',
+          ticketTypes: ['player_report'],
+          order: 2,
+          actions: [
+            {
+              id: 'accept_team_abuse',
+              name: 'Accept - Team Abuse',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Team Abuse.',
+              order: 1,
+              issuePunishment: true,
+              punishmentTypeId: 12, // TEAM_ABUSE
+              punishmentSeverity: 'regular',
+              closeTicket: true,
+            },
+            {
+              id: 'accept_game_abuse',
+              name: 'Accept - Game Abuse',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Game Abuse.',
+              order: 2,
+              issuePunishment: true,
+              punishmentTypeId: 13, // GAME_ABUSE
+              punishmentSeverity: 'regular',
+              closeTicket: true,
+            },
+            {
+              id: 'accept_cheating',
+              name: 'Accept - Cheating',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Cheating.',
+              order: 3,
+              issuePunishment: true,
+              punishmentTypeId: 14, // CHEATING
+              punishmentSeverity: 'severe',
+              closeTicket: true,
+            },
+            {
+              id: 'accept_game_trading',
+              name: 'Accept - Game Trading',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Game Trading.',
+              order: 4,
+              issuePunishment: true,
+              punishmentTypeId: 15, // GAME_TRADING
+              punishmentSeverity: 'regular',
+              closeTicket: true,
+            },
+            {
+              id: 'accept_account_abuse',
+              name: 'Accept - Account Abuse',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Account Abuse.',
+              order: 5,
+              issuePunishment: true,
+              punishmentTypeId: 16, // ACCOUNT_ABUSE
+              punishmentSeverity: 'regular',
+              closeTicket: true,
+            },
+            {
+              id: 'accept_systems_abuse',
+              name: 'Accept - Systems Abuse',
+              message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Systems Abuse.',
+              order: 6,
+              issuePunishment: true,
+              punishmentTypeId: 17, // SYSTEMS_ABUSE
+              punishmentSeverity: 'regular',
+              closeTicket: true,
+            },
+            {
+              id: 'reject_insufficient_player',
+              name: 'Reject - Insufficient Evidence',
+              message: 'Thank you for submitting this player report. After reviewing the evidence provided, we need additional evidence to proceed with action.',
+              order: 7,
+              closeTicket: false,
+            },
+            {
+              id: 'reject_no_violation_player',
+              name: 'Reject - No Violation',
+              message: 'Thank you for submitting this player report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
+              order: 8,
               closeTicket: true,
             }
           ]
@@ -470,36 +863,57 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         },
         {
           id: 'application_actions',
-          name: 'Application Actions',
+          name: 'Staff Application Actions',
           ticketTypes: ['application'],
           order: 3,
           actions: [
             {
-              id: 'accept_application',
-              name: 'Accept Application',
-              message: 'Congratulations! Your application has been accepted. Welcome to the team! You will receive further instructions shortly.',
+              id: 'accept_builder',
+              name: 'Accept - Builder',
+              message: 'Congratulations! Your Builder application has been accepted. Welcome to the Builder team! You will receive further instructions and permissions shortly.',
               order: 1,
+              closeTicket: true,
+            },
+            {
+              id: 'accept_helper',
+              name: 'Accept - Helper',
+              message: 'Congratulations! Your Helper application has been accepted. Welcome to the Helper team! You will receive further instructions and permissions shortly.',
+              order: 2,
+              closeTicket: true,
+            },
+            {
+              id: 'accept_developer',
+              name: 'Accept - Developer',
+              message: 'Congratulations! Your Developer application has been accepted. Welcome to the Developer team! You will receive further instructions and permissions shortly.',
+              order: 3,
               closeTicket: true,
             },
             {
               id: 'reject_application',
               name: 'Reject Application',
-              message: 'Thank you for your interest in joining our team. Unfortunately, we have decided not to move forward with your application at this time.',
-              order: 2,
+              message: 'Thank you for your interest in joining our team. Unfortunately, we have decided not to move forward with your application at this time. You may reapply in the future.',
+              order: 4,
               closeTicket: true,
             },
             {
               id: 'pending_review',
               name: 'Pending Review',
               message: 'Thank you for your application. We are currently reviewing it and will get back to you soon.',
-              order: 3,
+              order: 5,
               closeTicket: false,
             },
             {
               id: 'interview_scheduled',
               name: 'Interview Scheduled',
               message: 'Your application has progressed to the interview stage. Please check your email for interview details.',
-              order: 4,
+              order: 6,
+              closeTicket: false,
+            },
+            {
+              id: 'need_more_info_app',
+              name: 'Need More Information',
+              message: 'We need additional information about your application. Please provide more details about your experience and qualifications.',
+              order: 7,
               closeTicket: false,
             }
           ]

@@ -605,10 +605,57 @@ const TicketSettings = ({
                       Select which punishment types the AI can recommend or automatically apply.
                     </p>
 
-                    {availablePunishmentTypes.length === 0 && (
+                    <div className="space-y-4">
+                      {punishmentTypesState?.filter(pt => pt.isCustomizable).map(punishmentType => (
+                        <div key={punishmentType.id} className="space-y-3 p-4 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h6 className="font-medium">{punishmentType.name}</h6>
+                              <p className="text-sm text-muted-foreground">{punishmentType.category}</p>
+                            </div>
+                            <Switch
+                              checked={!!aiPunishmentConfigs[punishmentType.id]?.enabled}
+                              onCheckedChange={(checked) => {
+                                setAiPunishmentConfigs(prev => ({
+                                  ...prev,
+                                  [punishmentType.id]: {
+                                    ...prev[punishmentType.id],
+                                    enabled: checked,
+                                    aiDescription: prev[punishmentType.id]?.aiDescription || ''
+                                  }
+                                }));
+                              }}
+                            />
+                          </div>
+                          
+                          {aiPunishmentConfigs[punishmentType.id]?.enabled && (
+                            <div className="space-y-2">
+                              <Label className="text-sm">AI Description</Label>
+                              <Textarea
+                                value={aiPunishmentConfigs[punishmentType.id]?.aiDescription || ''}
+                                onChange={(e) => {
+                                  setAiPunishmentConfigs(prev => ({
+                                    ...prev,
+                                    [punishmentType.id]: {
+                                      ...prev[punishmentType.id],
+                                      enabled: true,
+                                      aiDescription: e.target.value
+                                    }
+                                  }));
+                                }}
+                                placeholder={`Describe when AI should recommend ${punishmentType.name} punishment...`}
+                                className="min-h-[60px]"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {(!punishmentTypesState || punishmentTypesState.filter(pt => pt.isCustomizable).length === 0) && (
                       <div className="text-center py-4 text-muted-foreground">
-                        <p className="text-sm">All customizable punishment types are already enabled for AI.</p>
-                        <p className="text-xs">Create new punishment types in the Punishment Types section to add more.</p>
+                        <p className="text-sm">No customizable punishment types found.</p>
+                        <p className="text-xs">Create punishment types in the Punishment Types section first.</p>
                       </div>
                     )}
                   </div>
