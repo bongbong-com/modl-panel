@@ -174,9 +174,11 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
         thresholds
       );      // Calculate latest IP data with proxy/non-proxy priority
       let latestIPData = null;
-      if (player.ipAddresses && player.ipAddresses.length > 0) {
+      const ipList = player.ipList || player.ipAddresses || []; // Support both field names
+      console.log(`[Player API] Processing IP data for ${player.minecraftUuid}: ${ipList.length} IPs found`);
+      if (ipList && ipList.length > 0) {
         // Sort IPs by recency first
-        const sortedIPs = player.ipAddresses.sort((a, b) => {
+        const sortedIPs = ipList.sort((a, b) => {
           const aLatest = a.logins && a.logins.length > 0 ? 
             Math.max(...a.logins.map(login => new Date(login).getTime())) : 
             new Date(a.firstLogin).getTime();
@@ -199,6 +201,12 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
             hosting: latestIP.hosting || false,
             asn: latestIP.asn
           };
+          console.log(`[Player API] Latest IP data for ${player.minecraftUuid}:`, {
+            country: latestIP.country,
+            region: latestIP.region,
+            proxy: latestIP.proxy,
+            hosting: latestIP.hosting
+          });
         }
       }
 
@@ -260,9 +268,10 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
       
       // Calculate latest IP data with proxy/non-proxy priority (same as above)
       let latestIPData = null;
-      if (player.ipAddresses && player.ipAddresses.length > 0) {
+      const ipList = player.ipList || player.ipAddresses || []; // Support both field names
+      if (ipList && ipList.length > 0) {
         // Sort IPs by recency first
-        const sortedIPs = player.ipAddresses.sort((a, b) => {
+        const sortedIPs = ipList.sort((a, b) => {
           const aLatest = a.logins && a.logins.length > 0 ? 
             Math.max(...a.logins.map(login => new Date(login).getTime())) : 
             new Date(a.firstLogin).getTime();
@@ -285,6 +294,12 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
             hosting: latestIP.hosting || false,
             asn: latestIP.asn
           };
+          console.log(`[Player API] Latest IP data for ${player.minecraftUuid}:`, {
+            country: latestIP.country,
+            region: latestIP.region,
+            proxy: latestIP.proxy,
+            hosting: latestIP.hosting
+          });
         }
       }
       

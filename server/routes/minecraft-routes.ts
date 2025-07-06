@@ -748,10 +748,11 @@ export function setupMinecraftRoutes(app: Express): void {
         } else if (ipInfo) { // Only add if ipInfo is available
           player.ipList.push({
             ipAddress,
-            country: ipInfo.countryCode,
-            region: `${ipInfo.regionName}, ${ipInfo.city}`,
-            asn: ipInfo.as,
-            proxy: ipInfo.proxy || ipInfo.hosting, // Assuming proxy/hosting indicates VPN/proxy
+            country: ipInfo.countryCode || 'Unknown',
+            region: ipInfo.regionName && ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : (ipInfo.regionName || ipInfo.city || 'Unknown'),
+            asn: ipInfo.as || 'Unknown',
+            proxy: ipInfo.proxy || ipInfo.hosting || false, // Assuming proxy/hosting indicates VPN/proxy
+            hosting: ipInfo.hosting || false,
             firstLogin: new Date(),
             logins: [new Date()]
           });
@@ -803,10 +804,11 @@ export function setupMinecraftRoutes(app: Express): void {
           notes: [] as INote[],
           ipList: ipInfo ? [{ // Only add IP if ipInfo is available
             ipAddress,
-            country: ipInfo.countryCode,
-            region: `${ipInfo.regionName}, ${ipInfo.city}`,
-            asn: ipInfo.as,
-            proxy: ipInfo.proxy || ipInfo.hosting,
+            country: ipInfo.countryCode || 'Unknown',
+            region: ipInfo.regionName && ipInfo.city ? `${ipInfo.regionName}, ${ipInfo.city}` : (ipInfo.regionName || ipInfo.city || 'Unknown'),
+            asn: ipInfo.as || 'Unknown',
+            proxy: ipInfo.proxy || ipInfo.hosting || false,
+            hosting: ipInfo.hosting || false,
             firstLogin: new Date(),
             logins: [new Date()]
           } as IIPAddress] : [] as IIPAddress[],
