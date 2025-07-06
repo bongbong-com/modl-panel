@@ -44,15 +44,9 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
     const users = await UserModel.find({});
     const invitations = await InvitationModel.find({ status: 'pending' });
 
-    // Filter out Super Admin entries that match the server admin email
-    const adminEmail = req.modlServer?.adminEmail?.toLowerCase();
-    const filteredUsers = users.filter(user => {
-      // If this is a Super Admin with the same email as the server admin, exclude it
-      if (user.role === 'Super Admin' && adminEmail && user.email.toLowerCase() === adminEmail) {
-        return false;
-      }
-      return true;
-    });
+    // Show all staff members, including Super Admins
+    // Note: Previously filtered out the server admin, but now showing all for better visibility
+    const filteredUsers = users;
 
     const staff = filteredUsers.map(user => ({
       ...user.toObject(),

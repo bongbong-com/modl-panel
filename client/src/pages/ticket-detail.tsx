@@ -258,7 +258,7 @@ const TicketDetail = () => {
       const creatorUuid = ticketData?.creatorUuid;
       if (creatorUuid && !avatarError) {
         return (
-          <div className="relative h-8 w-8 bg-muted rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+          <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
             <img 
               src={`https://crafatar.com/avatars/${creatorUuid}?size=32&default=MHF_Steve&overlay`}
               alt={`${message.sender} Avatar`}
@@ -282,7 +282,7 @@ const TicketDetail = () => {
       }
       // Fallback for player without UUID
       return (
-        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <div className="h-8 w-8 bg-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
           <span className="text-xs font-bold text-blue-600">{message.sender?.substring(0, 2) || 'U'}</span>
         </div>
       );
@@ -295,7 +295,7 @@ const TicketDetail = () => {
       
       if (minecraftUuid && !avatarError) {
         return (
-          <div className="relative h-8 w-8 bg-muted rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+          <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
             <img 
               src={`https://crafatar.com/avatars/${minecraftUuid}?size=32&default=MHF_Steve&overlay`}
               alt={`${message.sender} Avatar`}
@@ -320,7 +320,7 @@ const TicketDetail = () => {
       
       // Fallback for staff without assigned Minecraft account
       return (
-        <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <div className="h-8 w-8 bg-green-100 rounded-md flex items-center justify-center flex-shrink-0">
           <span className="text-xs font-bold text-green-600">{message.sender?.substring(0, 2) || 'S'}</span>
         </div>
       );
@@ -328,7 +328,7 @@ const TicketDetail = () => {
 
     // System messages
     return (
-      <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+      <div className="h-8 w-8 bg-gray-100 rounded-md flex items-center justify-center flex-shrink-0">
         <span className="text-xs font-bold text-gray-600">SY</span>
       </div>
     );
