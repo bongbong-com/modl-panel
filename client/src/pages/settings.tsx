@@ -497,6 +497,7 @@ const Settings = () => {
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
   const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
   const [newTicketFormFieldGoToSection, setNewTicketFormFieldGoToSection] = useState('');
+  const [newTicketFormFieldOptionSectionMapping, setNewTicketFormFieldOptionSectionMapping] = useState<Record<string, string>>({});
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
   
   // Section builder states
@@ -1657,7 +1658,9 @@ const Settings = () => {
       options: (newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') ? newTicketFormFieldOptions : undefined,
       order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
       sectionId: newTicketFormFieldSectionId && newTicketFormFieldSectionId !== "__none__" ? newTicketFormFieldSectionId : undefined,
-      goToSection: newTicketFormFieldGoToSection || undefined,
+      optionSectionMapping: Object.keys(newTicketFormFieldOptionSectionMapping).length > 0 ? 
+        Object.fromEntries(Object.entries(newTicketFormFieldOptionSectionMapping).filter(([, value]) => value !== '')) : 
+        undefined,
     };
 
     if (selectedTicketFormField) {
@@ -1690,6 +1693,7 @@ const Settings = () => {
     setNewTicketFormFieldOptions([]);
     setNewTicketFormFieldSectionId('__none__');
     setNewTicketFormFieldGoToSection('');
+    setNewTicketFormFieldOptionSectionMapping({});
     setSelectedTicketFormField(null);
     setIsAddTicketFormFieldDialogOpen(false);
   };
@@ -1726,9 +1730,6 @@ const Settings = () => {
       title: newTicketFormSectionTitle,
       description: newTicketFormSectionDescription || undefined,
       order: ticketForms[selectedTicketFormType]?.sections?.length || 0,
-      showIfFieldId: newTicketFormSectionShowIfFieldId && newTicketFormSectionShowIfFieldId !== "__none__" ? newTicketFormSectionShowIfFieldId : undefined,
-      showIfValue: newTicketFormSectionShowIfValue || undefined,
-      showIfValues: newTicketFormSectionShowIfValues.length > 0 ? newTicketFormSectionShowIfValues : undefined,
     };
 
     if (selectedTicketFormSection) {
@@ -1756,9 +1757,6 @@ const Settings = () => {
     // Reset form
     setNewTicketFormSectionTitle('');
     setNewTicketFormSectionDescription('');
-    setNewTicketFormSectionShowIfFieldId('__none__');
-    setNewTicketFormSectionShowIfValue('');
-    setNewTicketFormSectionShowIfValues([]);
     setSelectedTicketFormSection(null);
     setIsAddTicketFormSectionDialogOpen(false);
   };
@@ -3143,9 +3141,6 @@ const Settings = () => {
                                   setSelectedTicketFormSection(section);
                                   setNewTicketFormSectionTitle(section.title);
                                   setNewTicketFormSectionDescription(section.description || '');
-                                  setNewTicketFormSectionShowIfFieldId(section.showIfFieldId || '__none__');
-                                  setNewTicketFormSectionShowIfValue(section.showIfValue || '');
-                                  setNewTicketFormSectionShowIfValues(section.showIfValues || []);
                                   setIsAddTicketFormSectionDialogOpen(true);
                                 }}
                                 onDeleteSection={removeTicketFormSection}
@@ -3158,6 +3153,7 @@ const Settings = () => {
                                   setNewTicketFormFieldOptions(field.options || []);
                                   setNewTicketFormFieldSectionId(field.sectionId || '__none__');
                                   setNewTicketFormFieldGoToSection(field.goToSection || '');
+                                  setNewTicketFormFieldOptionSectionMapping(field.optionSectionMapping || {});
                                   setIsAddTicketFormFieldDialogOpen(true);
                                 }}
                                 onDeleteField={removeTicketFormField}
@@ -4696,41 +4692,49 @@ const Settings = () => {
                   </div>
                 )}
 
-                {/* Conditional Section Display for Dropdown/Multiple Choice Fields */}
-                {(newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') && (
+                {/* Per-Option Section Navigation for Dropdown/Multiple Choice Fields */}
+                {(newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') && newTicketFormFieldOptions.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <ChevronRight className="h-4 w-4" />
-                      <Label className="text-sm font-medium">Section Navigation (Optional)</Label>
+                      <Label className="text-sm font-medium">Option Navigation (Optional)</Label>
                     </div>
-                    <div className="pl-6 space-y-2">
+                    <div className="pl-6 space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        Show different sections based on the selected option. Leave empty for no navigation.
+                        Configure which section to show when each option is selected.
                       </p>
-                      <div className="space-y-2">
-                        <Label className="text-sm">Default "Go to Section"</Label>
-                        <Select
-                          value={newTicketFormFieldGoToSection || '__none__'}
-                          onValueChange={(value) => setNewTicketFormFieldGoToSection(value === '__none__' ? '' : value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select section" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">No navigation</SelectItem>
-                            {ticketForms[selectedTicketFormType]?.sections
-                              ?.sort((a, b) => a.order - b.order)
-                              .map(section => (
-                                <SelectItem key={section.id} value={section.id}>
-                                  {section.title}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          This section will be shown when any option is selected (unless overridden below)
-                        </p>
-                      </div>
+                      {newTicketFormFieldOptions.map((option, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <Label className="text-sm font-medium">{option}</Label>
+                          </div>
+                          <div className="flex-1">
+                            <Select
+                              value={newTicketFormFieldOptionSectionMapping[option] || '__none__'}
+                              onValueChange={(value) => 
+                                setNewTicketFormFieldOptionSectionMapping(prev => ({
+                                  ...prev,
+                                  [option]: value === '__none__' ? '' : value
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="No navigation" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">No navigation</SelectItem>
+                                {ticketForms[selectedTicketFormType]?.sections
+                                  ?.sort((a, b) => a.order - b.order)
+                                  .map(section => (
+                                    <SelectItem key={section.id} value={section.id}>
+                                      {section.title}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -4750,6 +4754,7 @@ const Settings = () => {
                     setNewTicketFormFieldOptions([]);
                     setNewTicketFormFieldSectionId('__none__');
                     setNewTicketFormFieldGoToSection('');
+                    setNewTicketFormFieldOptionSectionMapping({});
                   }}
                 >
                   Cancel
@@ -4798,58 +4803,6 @@ const Settings = () => {
                     onChange={(e) => setNewTicketFormSectionDescription(e.target.value)}
                   />
                 </div>
-
-                {/* Conditional Display Settings */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <ChevronDown className="h-4 w-4" />
-                    <Label className="text-sm font-medium">Conditional Display (Optional)</Label>
-                  </div>
-                  <div className="pl-6 space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Show this section only when a specific field has certain values. Leave empty to always show.
-                    </p>
-                    
-                    {/* Show If Field ID */}
-                    <div className="space-y-2">
-                      <Label htmlFor="show-if-field">Show when field:</Label>
-                      <Select
-                        value={newTicketFormSectionShowIfFieldId}
-                        onValueChange={setNewTicketFormSectionShowIfFieldId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Always show (no condition)</SelectItem>
-                          {ticketForms[selectedTicketFormType]?.fields
-                            ?.filter(field => ['dropdown', 'multiple_choice', 'checkboxes'].includes(field.type))
-                            .map(field => (
-                              <SelectItem key={field.id} value={field.id}>
-                                {field.label}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Show If Value */}
-                    {newTicketFormSectionShowIfFieldId !== '__none__' && (
-                      <div className="space-y-2">
-                        <Label htmlFor="show-if-value">Has value:</Label>
-                        <Input
-                          id="show-if-value"
-                          placeholder="Enter value that triggers this section"
-                          value={newTicketFormSectionShowIfValue}
-                          onChange={(e) => setNewTicketFormSectionShowIfValue(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          For multiple choice/checkboxes, enter the exact option text
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <DialogFooter>
@@ -4860,9 +4813,6 @@ const Settings = () => {
                     setSelectedTicketFormSection(null);
                     setNewTicketFormSectionTitle('');
                     setNewTicketFormSectionDescription('');
-                    setNewTicketFormSectionShowIfFieldId('__none__');
-                    setNewTicketFormSectionShowIfValue('');
-                    setNewTicketFormSectionShowIfValues([]);
                   }}
                 >
                   Cancel
