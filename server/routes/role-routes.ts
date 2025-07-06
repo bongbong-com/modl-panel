@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { Connection } from 'mongoose';
+import { Connection, Schema } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware';
 import { strictRateLimit } from '../middleware/rate-limiter';
@@ -100,13 +100,13 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
   try {
     const db = req.serverDbConnection!;
     
-    // Try to get custom roles from the database
+    // Try to get all roles from the database
     let StaffRoles;
     try {
       StaffRoles = db.model('StaffRole');
     } catch {
-      // If model doesn't exist, create it
-      const StaffRoleSchema = new db.base.Schema({
+      // If model doesn't exist, create it and return empty roles array
+      const StaffRoleSchema = new Schema({
         id: { type: String, required: true, unique: true },
         name: { type: String, required: true },
         description: { type: String, required: true },
@@ -117,59 +117,7 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
       StaffRoles = db.model('StaffRole', StaffRoleSchema);
     }
     
-    const customRoles = await StaffRoles.find({});
-    
-    // Default system roles
-    const defaultRoles: StaffRole[] = [
-      {
-        id: 'super-admin',
-        name: 'Super Admin',
-        description: 'Full access to all features and settings',
-        permissions: [
-          'admin.settings.view', 'admin.settings.modify', 'admin.staff.manage', 'admin.analytics.view',
-          'ticket.view.all', 'ticket.reply.all', 'ticket.close.all', 'ticket.delete.all'
-        ],
-        isDefault: true,
-      },
-      {
-        id: 'admin',
-        name: 'Admin',
-        description: 'Administrative access with some restrictions',
-        permissions: [
-          'admin.settings.view', 'admin.staff.manage', 'admin.analytics.view',
-          'ticket.view.all', 'ticket.reply.all', 'ticket.close.all'
-        ],
-        isDefault: true,
-      },
-      {
-        id: 'moderator',
-        name: 'Moderator',
-        description: 'Moderation permissions for punishments and tickets',
-        permissions: ['ticket.view.all', 'ticket.reply.all', 'ticket.close.all'],
-        isDefault: true,
-      },
-      {
-        id: 'helper',
-        name: 'Helper',
-        description: 'Basic support permissions',
-        permissions: ['ticket.view.all', 'ticket.reply.all'],
-        isDefault: true,
-      },
-    ];
-
-    // Add punishment permissions to default roles
-    const punishmentPermissions = await getPunishmentPermissions(db);
-    const allPunishmentPerms = punishmentPermissions.map(p => p.id);
-    
-    // Super Admin and Admin get all punishment permissions
-    defaultRoles[0].permissions.push(...allPunishmentPerms);
-    defaultRoles[1].permissions.push(...allPunishmentPerms);
-    
-    // Moderator gets all punishment permissions except the most severe ones
-    const moderatorPunishmentPerms = allPunishmentPerms.filter(p => 
-      !p.includes('blacklist') && !p.includes('security-ban')
-    );
-    defaultRoles[2].permissions.push(...moderatorPunishmentPerms);
+    const allRoles = await StaffRoles.find({});
 
     // Get staff counts for each role
     const Staff = db.model('Staff');
@@ -183,20 +131,50 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
     }, {} as Record<string, number>);
 
     // Add user counts to roles
-    const rolesWithCounts = [
-      ...defaultRoles.map(role => ({
-        ...role,
-        userCount: roleCountMap[role.name] || 0
-      })),
-      ...customRoles.map((role: any) => ({
-        ...role.toObject(),
-        userCount: roleCountMap[role.name] || 0
-      }))
-    ];
+    const rolesWithCounts = allRoles.map((role: any) => ({
+      ...role.toObject(),
+      userCount: roleCountMap[role.name] || 0
+    }));
     
     res.json({ roles: rolesWithCounts });
   } catch (error) {
     console.error('Error fetching roles:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/panel/roles/:id - Get a specific role by ID
+router.get('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const db = req.serverDbConnection!;
+    
+    // Try to get role from database
+    let StaffRoles;
+    try {
+      StaffRoles = db.model('StaffRole');
+    } catch {
+      // If model doesn't exist, role doesn't exist
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    const role = await StaffRoles.findOne({ id });
+    if (!role) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    // Get staff count for this role
+    const Staff = db.model('Staff');
+    const staffCount = await Staff.countDocuments({ role: role.name });
+    
+    res.json({ 
+      role: {
+        ...role.toObject(),
+        userCount: staffCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching role:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -217,7 +195,7 @@ router.post('/', checkRole(['Super Admin']), strictRateLimit, async (req: Reques
     try {
       StaffRoles = db.model('StaffRole');
     } catch {
-      const StaffRoleSchema = new db.base.Schema({
+      const StaffRoleSchema = new Schema({
         id: { type: String, required: true, unique: true },
         name: { type: String, required: true },
         description: { type: String, required: true },
@@ -354,5 +332,92 @@ router.delete('/:id', checkRole(['Super Admin']), strictRateLimit, async (req: R
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+/**
+ * Create default staff roles in the database
+ * Called during server provisioning
+ */
+export async function createDefaultRoles(dbConnection: Connection): Promise<void> {
+  try {
+    // Create StaffRole model if it doesn't exist
+    let StaffRoles;
+    try {
+      StaffRoles = dbConnection.model('StaffRole');
+    } catch {
+      const StaffRoleSchema = new Schema({
+        id: { type: String, required: true, unique: true },
+        name: { type: String, required: true },
+        description: { type: String, required: true },
+        permissions: [{ type: String }],
+        isDefault: { type: Boolean, default: false }
+      }, { timestamps: true });
+      
+      StaffRoles = dbConnection.model('StaffRole', StaffRoleSchema);
+    }
+
+    // Get punishment permissions for default roles
+    const punishmentPermissions = await getPunishmentPermissions(dbConnection);
+    const allPunishmentPerms = punishmentPermissions.map(p => p.id);
+
+    // Define default roles
+    const defaultRoles = [
+      {
+        id: 'super-admin',
+        name: 'Super Admin',
+        description: 'Full access to all features and settings',
+        permissions: [
+          'admin.settings.view', 'admin.settings.modify', 'admin.staff.manage', 'admin.analytics.view',
+          'ticket.view.all', 'ticket.reply.all', 'ticket.close.all', 'ticket.delete.all',
+          ...allPunishmentPerms
+        ],
+        isDefault: true,
+      },
+      {
+        id: 'admin',
+        name: 'Admin',
+        description: 'Administrative access with some restrictions',
+        permissions: [
+          'admin.settings.view', 'admin.staff.manage', 'admin.analytics.view',
+          'ticket.view.all', 'ticket.reply.all', 'ticket.close.all',
+          ...allPunishmentPerms
+        ],
+        isDefault: true,
+      },
+      {
+        id: 'moderator',
+        name: 'Moderator',
+        description: 'Moderation permissions for punishments and tickets',
+        permissions: [
+          'ticket.view.all', 'ticket.reply.all', 'ticket.close.all',
+          // Moderator gets all punishment permissions except the most severe ones
+          ...allPunishmentPerms.filter(p => !p.includes('blacklist') && !p.includes('security-ban'))
+        ],
+        isDefault: true,
+      },
+      {
+        id: 'helper',
+        name: 'Helper',
+        description: 'Basic support permissions',
+        permissions: ['ticket.view.all', 'ticket.reply.all'],
+        isDefault: true,
+      },
+    ];
+
+    // Create or update each default role
+    for (const roleData of defaultRoles) {
+      await StaffRoles.findOneAndUpdate(
+        { id: roleData.id },
+        roleData,
+        { upsert: true, new: true }
+      );
+      console.log(`Created/updated default role: ${roleData.name}`);
+    }
+
+    console.log('Default staff roles created successfully');
+  } catch (error) {
+    console.error('Error creating default roles:', error);
+    throw error;
+  }
+}
 
 export default router;

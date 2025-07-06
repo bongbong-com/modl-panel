@@ -13,6 +13,7 @@ import {
 import { seedDefaultHomepageCards } from '../db/seed-data';
 import { strictRateLimit } from '../middleware/rate-limiter';
 import { createDefaultSettings, addDefaultPunishmentTypes } from './settings-routes';
+import { createDefaultRoles } from './role-routes';
 
 interface IModlServer extends Document {
   serverName: string;
@@ -45,6 +46,9 @@ export async function provisionNewServerInstance(
   
   // Add default Social and Gameplay punishment types
   await addDefaultPunishmentTypes(dbConnection);
+
+  // Create default staff roles
+  await createDefaultRoles(dbConnection);
 
   // Seed default homepage cards
   await seedDefaultHomepageCards(dbConnection);
