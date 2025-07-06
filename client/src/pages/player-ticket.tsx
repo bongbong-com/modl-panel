@@ -38,6 +38,7 @@ export interface TicketMessage {
   staff?: boolean;
   attachments?: string[];
   closedAs?: string;
+  staffMinecraftUuid?: string; // For staff avatar display
 }
 
 interface TicketDetails {
@@ -135,7 +136,7 @@ const MessageAvatar = ({ message, creatorUuid }: { message: TicketMessage, creat
 
   // For staff messages - use staff Minecraft UUID if available
   if (message.senderType === 'staff' || message.staff) {
-    const staffMinecraftUuid = (message as any).staffMinecraftUuid;
+    const staffMinecraftUuid = message.staffMinecraftUuid;
     
     if (staffMinecraftUuid && !avatarError) {
       return (
@@ -246,7 +247,8 @@ const PlayerTicket = () => {
         timestamp: message.timestamp || message.created || new Date().toISOString(),
         staff: message.staff,
         attachments: message.attachments,
-        closedAs: (message.action === "Comment" || message.action === "Reopen") ? undefined : message.action
+        closedAs: (message.action === "Comment" || message.action === "Reopen") ? undefined : message.action,
+        staffMinecraftUuid: message.staffMinecraftUuid // Preserve staff Minecraft UUID for avatars
       }));
           
       setTicketDetails({
