@@ -271,9 +271,12 @@ const PlayerTicket = () => {
   }, [ticketData, playerName]);
 
   const handleSendReply = async () => {
-    if (!newReply.trim() || !playerName.trim()) return;
+    if (!newReply.trim()) return;
     
     setIsSubmitting(true);
+    
+    // Use ticket creator name or a default name
+    const senderName = ticketDetails.reportedBy || playerName || 'Anonymous';
     
     // Generate a temporary ID for optimistic UI
     const tempId = Date.now().toString();
@@ -282,7 +285,7 @@ const PlayerTicket = () => {
     // Create new message for immediate display
     const newMessage: TicketMessage = {
       id: tempId,
-      sender: playerName,
+      sender: senderName,
       senderType: 'user',
       content: newReply.trim(),
       timestamp: new Date().toISOString(),
@@ -297,7 +300,7 @@ const PlayerTicket = () => {
     
     // Format the new reply for the API
     const reply = {
-      name: playerName,
+      name: senderName,
       type: 'user',
       content: newReply.trim(),
       created: timestamp,
@@ -306,9 +309,6 @@ const PlayerTicket = () => {
     
     // Clear the reply field
     setNewReply('');
-    
-    // Save player name to localStorage for future use
-    localStorage.setItem('playerName', playerName);
       try {
       // Send the update to the API using the new public reply endpoint
       await addReplyMutation.mutateAsync({
@@ -320,8 +320,16 @@ const PlayerTicket = () => {
       queryClient.invalidateQueries({ queryKey: ['/api/public/tickets', ticketDetails.id] });
     } catch (error) {
       console.error('Error sending reply:', error);
-      // If there was an error, we could show a toast message here
-      // and potentially remove the optimistic update
+      toast({
+        title: "Failed to send reply",
+        description: "There was an error sending your reply. Please try again.",
+        variant: "destructive"
+      });
+      // Remove the optimistic update since it failed
+      setTicketDetails(prev => ({
+        ...prev,
+        messages: prev.messages.filter(msg => msg.id !== tempId)
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -943,7 +951,7 @@ const PlayerTicket = () => {
                           )}
                         </div>
                         <div className="text-sm">
-                          <MarkdownRenderer content={message.content} />
+                          <MarkdownRenderer content={message.content || 'No content'} />
                         </div>
                         {message.attachments && message.attachments.length > 0 && (
                           <div className="mt-2 space-y-1">
@@ -974,17 +982,6 @@ const PlayerTicket = () => {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="playerName">Your Name</Label>
-                      <Input
-                        id="playerName"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="w-full"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="reply">Reply</Label>
                         <Popover>
@@ -1011,7 +1008,7 @@ const PlayerTicket = () => {
                     <div className="flex justify-end">
                       <Button
                         onClick={handleSendReply}
-                        disabled={!newReply.trim() || !playerName.trim() || isSubmitting}
+                        disabled={!newReply.trim() || isSubmitting}
                         className="flex items-center"
                       >
                         {isSubmitting ? (

@@ -279,11 +279,13 @@ const Settings = () => {
   const [isAddTicketFormFieldDialogOpen, setIsAddTicketFormFieldDialogOpen] = useState(false);
   const [isAddTicketFormSectionDialogOpen, setIsAddTicketFormSectionDialogOpen] = useState(false);
   const [newTicketFormFieldLabel, setNewTicketFormFieldLabel] = useState('');
-  const [newTicketFormFieldType, setNewTicketFormFieldType] = useState<'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload'>('text');
+  const [newTicketFormFieldType, setNewTicketFormFieldType] = useState<'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes'>('text');
   const [newTicketFormFieldDescription, setNewTicketFormFieldDescription] = useState('');
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
   const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
+  const [newTicketFormFieldShowIfFieldId, setNewTicketFormFieldShowIfFieldId] = useState('__none__');
+  const [newTicketFormFieldShowIfValue, setNewTicketFormFieldShowIfValue] = useState('');
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
   
   // Section builder states
@@ -1473,6 +1475,8 @@ const Settings = () => {
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
     setNewTicketFormFieldSectionId('__none__');
+    setNewTicketFormFieldShowIfFieldId('__none__');
+    setNewTicketFormFieldShowIfValue('');
     setSelectedTicketFormField(null);
     setIsAddTicketFormFieldDialogOpen(false);
   };
@@ -4427,7 +4431,7 @@ const Settings = () => {
                 {/* Field Type */}
                 <div className="space-y-2">
                   <Label htmlFor="field-type">Field Type</Label>
-                  <Select value={newTicketFormFieldType} onValueChange={(value: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload') => setNewTicketFormFieldType(value)}>
+                  <Select value={newTicketFormFieldType} onValueChange={(value: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes') => setNewTicketFormFieldType(value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -4437,6 +4441,7 @@ const Settings = () => {
                       <SelectItem value="dropdown">Dropdown</SelectItem>
                       <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                       <SelectItem value="checkbox">Checkbox</SelectItem>
+                      <SelectItem value="checkboxes">Checkboxes</SelectItem>
                       <SelectItem value="file_upload">File Upload</SelectItem>
                     </SelectContent>
                   </Select>
