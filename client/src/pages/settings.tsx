@@ -284,8 +284,6 @@ const Settings = () => {
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
   const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
-  const [newTicketFormFieldShowIfFieldId, setNewTicketFormFieldShowIfFieldId] = useState('__none__');
-  const [newTicketFormFieldShowIfValue, setNewTicketFormFieldShowIfValue] = useState('');
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
   
   // Section builder states
@@ -1475,8 +1473,6 @@ const Settings = () => {
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
     setNewTicketFormFieldSectionId('__none__');
-    setNewTicketFormFieldShowIfFieldId('__none__');
-    setNewTicketFormFieldShowIfValue('');
     setSelectedTicketFormField(null);
     setIsAddTicketFormFieldDialogOpen(false);
   };
@@ -4510,45 +4506,6 @@ const Settings = () => {
                   </div>
                 )}
 
-                {/* Conditional Display Settings */}
-                <div className="space-y-4 border-t pt-4">
-                  <h4 className="text-sm font-medium">Conditional Display (Optional)</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Show or hide this field based on another field's value.
-                  </p>
-                  
-                  {/* Show If Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="show-if-field">Show When Field</Label>
-                    <Select value={newTicketFormFieldShowIfFieldId} onValueChange={setNewTicketFormFieldShowIfFieldId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select field (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
-                        {ticketForms[selectedTicketFormType]?.fields
-                          ?.filter(f => f.id !== selectedTicketFormField?.id)
-                          .map(field => (
-                            <SelectItem key={field.id} value={field.id}>
-                              {field.label}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {newTicketFormFieldShowIfFieldId && newTicketFormFieldShowIfFieldId !== '__none__' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="show-if-value">Equals Value</Label>
-                      <Input
-                        id="show-if-value"
-                        placeholder="Enter value to match"
-                        value={String(newTicketFormFieldShowIfValue)}
-                        onChange={(e) => setNewTicketFormFieldShowIfValue(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
               </div>
 
               <DialogFooter>
@@ -4562,9 +4519,7 @@ const Settings = () => {
                     setNewTicketFormFieldDescription('');
                     setNewTicketFormFieldRequired(false);
                     setNewTicketFormFieldOptions([]);
-                    setNewTicketFormFieldShowIfFieldId('__none__');
-                    setNewTicketFormFieldShowIfValue('');
-                    setNewTicketFormFieldHideIfValue('');
+                    setNewTicketFormFieldSectionId('__none__');
                   }}
                 >
                   Cancel
@@ -4574,6 +4529,67 @@ const Settings = () => {
                   disabled={!newTicketFormFieldLabel.trim()}
                 >
                   {selectedTicketFormField ? 'Update Field' : 'Add Field'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Add Section Dialog */}
+        {isAddTicketFormSectionDialogOpen && (
+          <Dialog open={isAddTicketFormSectionDialogOpen} onOpenChange={setIsAddTicketFormSectionDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{selectedTicketFormSection ? 'Edit Section' : 'Add Section'}</DialogTitle>
+                <DialogDescription>
+                  {selectedTicketFormSection ? 'Update the section details below.' : 'Create a new section for organizing form fields.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Section Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="section-title">Section Title</Label>
+                  <Input
+                    id="section-title"
+                    placeholder="Enter section title"
+                    value={newTicketFormSectionTitle}
+                    onChange={(e) => setNewTicketFormSectionTitle(e.target.value)}
+                  />
+                </div>
+
+                {/* Section Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="section-description">Description (Optional)</Label>
+                  <Input
+                    id="section-description"
+                    placeholder="Enter section description"
+                    value={newTicketFormSectionDescription}
+                    onChange={(e) => setNewTicketFormSectionDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddTicketFormSectionDialogOpen(false);
+                    setSelectedTicketFormSection(null);
+                    setNewTicketFormSectionTitle('');
+                    setNewTicketFormSectionDescription('');
+                    setNewTicketFormSectionShowIfFieldId('__none__');
+                    setNewTicketFormSectionShowIfValue('');
+                    setNewTicketFormSectionShowIfValues([]);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={addTicketFormSection}
+                  disabled={!newTicketFormSectionTitle.trim()}
+                >
+                  {selectedTicketFormSection ? 'Update Section' : 'Add Section'}
                 </Button>
               </DialogFooter>
             </DialogContent>
