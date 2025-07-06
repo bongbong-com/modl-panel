@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
-import { useAvailablePlayers, useAssignMinecraftPlayer } from '@/hooks/use-data';
+import { usePlayers, useAssignMinecraftPlayer, useStaff } from '@/hooks/use-data';
 import { Loader2, User, X, Search } from 'lucide-react';
 
 interface StaffMember {
@@ -31,12 +31,25 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { toast } = useToast();
   
-  const { data: playersData, isLoading: playersLoading } = useAvailablePlayers();
+  const { data: allPlayers, isLoading: playersLoading } = usePlayers();
+  const { data: staff } = useStaff();
   const assignPlayerMutation = useAssignMinecraftPlayer();
 
-  const availablePlayers = playersData?.players || [];
+  // Get assigned UUIDs from staff members
+  const assignedUuids = useMemo(() => {
+    if (!staff) return [];
+    return staff
+      .filter((member: any) => member.assignedMinecraftUuid)
+      .map((member: any) => member.assignedMinecraftUuid);
+  }, [staff]);
 
-  // Filter players based on search query
+  // Filter out already assigned players
+  const availablePlayers = useMemo(() => {
+    if (!allPlayers) return [];
+    return allPlayers.filter((player: any) => !assignedUuids.includes(player.uuid));
+  }, [allPlayers, assignedUuids]);
+
+  // Filter players based on search query (matching sidebar pattern)
   const filteredPlayers = useMemo(() => {
     if (!searchQuery.trim()) {
       return availablePlayers.slice(0, 10); // Show first 10 if no search
@@ -203,7 +216,7 @@ const AssignMinecraftPlayerModal: React.FC<AssignMinecraftPlayerModalProps> = ({
                             <User className="h-4 w-4 text-white" />
                           </div>
                           <div className="flex flex-col items-start min-w-0 flex-1">
-                            <span className="font-medium text-sm truncate w-full">{player.username}</span>
+                            <span className="font-medium text-sm truncate w-full">{player.username || 'Unknown'}</span>
                             <span className="text-xs text-muted-foreground truncate w-full">{player.uuid}</span>
                           </div>
                           {selectedPlayerUuid === player.uuid && (
