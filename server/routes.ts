@@ -12,6 +12,7 @@ import appealRoutes from './routes/appeal-routes';
 import playerRoutes from './routes/player-routes';
 import settingsRoutes from './routes/settings-routes';
 import staffRoutes from './routes/staff-routes';
+import roleRoutes from './routes/role-routes';
 import ticketRoutes from './routes/ticket-routes';
 import logRoutes from './routes/log-routes';
 import authRoutes from './routes/auth-routes';
@@ -148,6 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/players', playerRoutes); // Assuming player management is panel-specific
   panelRouter.use('/settings', settingsRoutes);
   panelRouter.use('/staff', staffRoutes);
+  panelRouter.use('/roles', roleRoutes);
   panelRouter.use('/tickets', ticketRoutes);
   panelRouter.use('/logs', logRoutes);
   panelRouter.use('/billing', billingRoutes); // Billing management for the panel

@@ -22,6 +22,7 @@ import { useLocation } from "wouter"; // For wouter navigation
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "modl-shared-web/components/ui/tooltip";
 import { useAuth } from '@/hooks/use-auth';
 import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
+import StaffRolesCard from '@/components/settings/StaffRolesCard';
 import BillingSettings from '@/components/settings/BillingSettings';
 import DomainSettings from '@/components/settings/DomainSettings';
 import KnowledgebaseSettings from '@/components/settings/KnowledgebaseSettings';
@@ -2683,7 +2684,26 @@ const Settings = () => {
 
             <TabsContent value="staff" className="p-6">
               {(user?.role === 'Super Admin' || user?.role === 'Admin') ? (
-                <StaffManagementPanel />
+                <Tabs defaultValue="staff-management" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="staff-management" className="flex items-center gap-2">
+                      <UserIcon className="h-4 w-4" />
+                      Staff Management
+                    </TabsTrigger>
+                    <TabsTrigger value="roles-permissions" className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Roles & Permissions
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="staff-management" className="mt-6">
+                    <StaffManagementPanel />
+                  </TabsContent>
+                  
+                  <TabsContent value="roles-permissions" className="mt-6">
+                    <StaffRolesCard />
+                  </TabsContent>
+                </Tabs>
               ) : (
                 <div className="flex items-center justify-center h-64 border-2 border-dashed border-muted rounded-lg">
                   <p className="text-muted-foreground">You do not have permission to view this page.</p>

@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
+import { checkPermission } from '../middleware/permission-middleware';
 import AIModerationService from '../services/ai-moderation-service';
 import { IReply, ITicket } from 'modl-shared-web/types';
 
@@ -127,7 +128,7 @@ function getCategoryFromType(type: string): string {
   }
 }
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model('Ticket');
     const tickets = await Ticket.find({ status: { $ne: 'Unfinished' } }).lean();
@@ -284,7 +285,7 @@ interface AddReplyBody {
   avatar?: string;
 }
 
-router.post('/:id/replies', async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
+router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -393,7 +394,7 @@ interface UpdateTicketBody {
 }
 
 // General PATCH route for ticket updates
-router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, res: Response) => {
+router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ id: string }, {}, UpdateTicketBody>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);

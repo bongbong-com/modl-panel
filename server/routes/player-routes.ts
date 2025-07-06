@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Connection, Document } from 'mongoose';
 import { createSystemLog } from './log-routes';
 import { calculatePlayerStatus, updatePunishmentDataStructure } from '../utils/player-status-calculator';
+import { checkPermission } from '../middleware/permission-middleware';
 
 // Local type definitions (temporary replacement for missing shared types)
 interface IIPAddress {
@@ -593,6 +594,7 @@ interface AddPunishmentBody {
     data?: Record<string, any>; // For Map conversion
 }
 router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response): Promise<void> => {
+  // Permission checking is handled dynamically based on punishment type
   const Player = req.serverDbConnection!.model<IPlayer>('Player');  try {
     const {
       issuerName, 
@@ -607,6 +609,36 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
 
     if (!issuerName || type_ordinal === undefined) {
         return res.status(400).json({ error: 'issuerName and type_ordinal are required for punishments' });
+    }
+
+    // Check permission based on punishment type
+    try {
+      const Settings = req.serverDbConnection!.model('Settings');
+      const settingsDoc = await Settings.findOne({});
+      let punishmentTypeName = 'Unknown';
+      
+      if (settingsDoc?.settings?.get('punishmentTypes')) {
+        const punishmentTypes = settingsDoc.settings.get('punishmentTypes');
+        const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === type_ordinal);
+        if (punishmentType) {
+          punishmentTypeName = punishmentType.name;
+        }
+      }
+
+      const requiredPermission = `punishment.apply.${punishmentTypeName.toLowerCase().replace(/\s+/g, '-')}`;
+      const { hasPermission } = await import('../middleware/permission-middleware');
+      const hasRequiredPermission = await hasPermission(req, requiredPermission);
+      
+      if (!hasRequiredPermission) {
+        return res.status(403).json({ 
+          error: 'Forbidden: You do not have permission to apply this punishment type',
+          required: requiredPermission,
+          punishmentType: punishmentTypeName
+        });
+      }
+    } catch (permissionError) {
+      console.error('Error checking punishment permission:', permissionError);
+      return res.status(500).json({ error: 'Internal server error while checking permissions' });
     }
     
     const player = await Player.findOne({ minecraftUuid: req.params.uuid });

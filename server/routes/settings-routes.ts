@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
+import { checkPermission } from '../middleware/permission-middleware';
 import domainRoutes from './domain-routes';
 import PunishmentService from '../services/punishment-service';
 import multer from 'multer';
@@ -443,7 +444,7 @@ async function cleanupOrphanedAIPunishmentConfigs(dbConnection: Connection): Pro
   }
 }
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
@@ -460,7 +461,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/', async (req: Request, res: Response) => {
+router.patch('/', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
@@ -1439,7 +1440,7 @@ router.get('/:key', async (req: Request<{ key: string }>, res: Response) => {
   }
 });
 
-router.put('/:key', async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
+router.put('/:key', checkPermission('admin.settings.modify'), async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});

@@ -713,3 +713,104 @@ export function useAddPunishmentNote() {
     }
   });
 }
+
+// Role and Permission hooks
+export function useRoles() {
+  return useQuery({
+    queryKey: ['/api/panel/roles'],
+    queryFn: async () => {
+      const res = await fetch('/api/panel/roles');
+      if (!res.ok) {
+        throw new Error('Failed to fetch roles');
+      }
+      return res.json();
+    }
+  });
+}
+
+export function usePermissions() {
+  return useQuery({
+    queryKey: ['/api/panel/roles/permissions'],
+    queryFn: async () => {
+      const res = await fetch('/api/panel/roles/permissions');
+      if (!res.ok) {
+        throw new Error('Failed to fetch permissions');
+      }
+      return res.json();
+    }
+  });
+}
+
+export function useCreateRole() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (roleData: { name: string; description: string; permissions: string[] }) => {
+      const res = await fetch('/api/panel/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(roleData),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to create role: ${res.status} ${res.statusText}`);
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/roles'] });
+    },
+  });
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, ...roleData }: { id: string; name: string; description: string; permissions: string[] }) => {
+      const res = await fetch(`/api/panel/roles/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(roleData),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to update role: ${res.status} ${res.statusText}`);
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/roles'] });
+    },
+  });
+}
+
+export function useDeleteRole() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (roleId: string) => {
+      const res = await fetch(`/api/panel/roles/${roleId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to delete role: ${res.status} ${res.statusText}`);
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/roles'] });
+    },
+  });
+}
