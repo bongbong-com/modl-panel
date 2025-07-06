@@ -185,6 +185,7 @@ interface DraggableSectionCardProps {
   onDeleteField: (fieldId: string) => void;
   onAddField: () => void;
   moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
+  moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
 }
 
 const DraggableSectionCard = ({ 
@@ -198,7 +199,8 @@ const DraggableSectionCard = ({
   onEditField,
   onDeleteField,
   onAddField,
-  moveField
+  moveField,
+  moveFieldBetweenSections
 }: DraggableSectionCardProps) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'section',
@@ -209,11 +211,18 @@ const DraggableSectionCard = ({
   });
 
   const [, drop] = useDrop({
-    accept: 'section',
-    hover: (item: { index: number }) => {
-      if (item.index !== index) {
+    accept: ['section', 'field'],
+    hover: (item: { index?: number; sectionId?: string; fieldId?: string }) => {
+      // Handle section drag
+      if (item.index !== undefined && item.index !== index) {
         moveSection(item.index, index);
         item.index = index;
+      }
+    },
+    drop: (item: { index?: number; sectionId?: string; fieldId?: string }) => {
+      // Handle field drop on section (add to end of section)
+      if (item.fieldId && item.sectionId && item.sectionId !== section.id) {
+        moveFieldBetweenSections(item.fieldId, item.sectionId, section.id);
       }
     },
   });
@@ -267,6 +276,7 @@ const DraggableSectionCard = ({
             index={fieldIndex}
             sectionId={section.id}
             moveField={moveField}
+            moveFieldBetweenSections={moveFieldBetweenSections}
             onEditField={onEditField}
             onDeleteField={onDeleteField}
           />
@@ -292,6 +302,7 @@ interface DraggableFieldCardProps {
   index: number;
   sectionId: string;
   moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
+  moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
   onEditField: (field: TicketFormField) => void;
   onDeleteField: (fieldId: string) => void;
 }
@@ -301,12 +312,13 @@ const DraggableFieldCard = ({
   index, 
   sectionId, 
   moveField, 
+  moveFieldBetweenSections,
   onEditField, 
   onDeleteField 
 }: DraggableFieldCardProps) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'field',
-    item: { index, sectionId },
+    item: { index, sectionId, fieldId: field.id },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -314,10 +326,17 @@ const DraggableFieldCard = ({
 
   const [, drop] = useDrop({
     accept: 'field',
-    hover: (item: { index: number; sectionId: string }) => {
+    hover: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Allow movement within the same section
       if (item.sectionId === sectionId && item.index !== index) {
         moveField(item.index, index, sectionId);
         item.index = index;
+      }
+    },
+    drop: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Handle cross-section movement
+      if (item.sectionId !== sectionId) {
+        moveFieldBetweenSections(item.fieldId, item.sectionId, sectionId, index);
       }
     },
   });
@@ -1818,18 +1837,28 @@ const Settings = () => {
   }, [selectedTicketFormType]);
 
   // Drag and drop handlers for fields within sections
-  const moveFieldInForm = useCallback((dragIndex: number, hoverIndex: number) => {
+  const moveFieldInForm = useCallback((dragIndex: number, hoverIndex: number, sectionId: string) => {
     setTicketFormsState(prev => {
-      const fields = [...(prev[selectedTicketFormType]?.fields || [])];
-      const dragField = fields[dragIndex];
-      fields.splice(dragIndex, 1);
-      fields.splice(hoverIndex, 0, dragField);
+      const allFields = [...(prev[selectedTicketFormType]?.fields || [])];
       
-      // Update order values
-      const updatedFields = fields.map((field, index) => ({
-        ...field,
-        order: index
-      }));
+      // Get fields for the specific section
+      const sectionFields = allFields.filter(f => f.sectionId === sectionId);
+      
+      // Get the actual field objects using the indices
+      const dragField = sectionFields[dragIndex];
+      const hoverField = sectionFields[hoverIndex];
+      
+      if (!dragField || !hoverField) return prev;
+      
+      // Update the order values for the two fields being swapped
+      const updatedFields = allFields.map(field => {
+        if (field.id === dragField.id) {
+          return { ...field, order: hoverField.order };
+        } else if (field.id === hoverField.id) {
+          return { ...field, order: dragField.order };
+        }
+        return field;
+      });
 
       return {
         ...prev,
@@ -1838,6 +1867,64 @@ const Settings = () => {
           fields: updatedFields
         }
       };
+    });
+  }, [selectedTicketFormType]);
+
+  // Function to move fields between sections
+  const moveFieldBetweenSections = useCallback((fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => {
+    setTicketFormsState(prev => {
+      const allFields = [...(prev[selectedTicketFormType]?.fields || [])];
+      
+      // Find the field to move
+      const fieldToMove = allFields.find(f => f.id === fieldId);
+      if (!fieldToMove) return prev;
+      
+      // Get fields in the target section
+      const targetSectionFields = allFields.filter(f => f.sectionId === toSectionId);
+      
+      // Calculate the new order for the moved field
+      let newOrder: number;
+      if (targetIndex !== undefined && targetIndex < targetSectionFields.length) {
+        // Insert at specific position
+        const targetField = targetSectionFields[targetIndex];
+        newOrder = targetField.order;
+        
+        // Update orders of fields in target section that come after the insertion point
+        const updatedFields = allFields.map(field => {
+          if (field.id === fieldId) {
+            return { ...field, sectionId: toSectionId, order: newOrder };
+          } else if (field.sectionId === toSectionId && field.order >= newOrder) {
+            return { ...field, order: field.order + 1 };
+          }
+          return field;
+        });
+        
+        return {
+          ...prev,
+          [selectedTicketFormType]: {
+            ...prev[selectedTicketFormType],
+            fields: updatedFields
+          }
+        };
+      } else {
+        // Add to the end of the target section
+        newOrder = targetSectionFields.length > 0 ? Math.max(...targetSectionFields.map(f => f.order)) + 1 : 0;
+        
+        const updatedFields = allFields.map(field => {
+          if (field.id === fieldId) {
+            return { ...field, sectionId: toSectionId, order: newOrder };
+          }
+          return field;
+        });
+        
+        return {
+          ...prev,
+          [selectedTicketFormType]: {
+            ...prev[selectedTicketFormType],
+            fields: updatedFields
+          }
+        };
+      }
     });
   }, [selectedTicketFormType]);
 
@@ -3162,6 +3249,7 @@ const Settings = () => {
                                   setIsAddTicketFormFieldDialogOpen(true);
                                 }}
                                 moveField={moveFieldInForm}
+                                moveFieldBetweenSections={moveFieldBetweenSections}
                               />
                             ))}
 
