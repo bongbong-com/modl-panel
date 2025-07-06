@@ -103,7 +103,7 @@ const TicketSettings = ({
 
   // Initialize quick responses with defaults if empty
   useEffect(() => {
-    if (!quickResponsesState || quickResponsesState.categories.length === 0) {
+    if (!quickResponsesState || !quickResponsesState.categories || quickResponsesState.categories.length === 0) {
       setQuickResponsesState(defaultQuickResponsesConfig);
     }
   }, [quickResponsesState, setQuickResponsesState]);
@@ -150,7 +150,7 @@ const TicketSettings = ({
                 </p>
                 
                 <div className="space-y-6">
-                  {quickResponsesState?.categories?.map((category) => (
+                  {quickResponsesState?.categories?.length > 0 ? quickResponsesState.categories.map((category) => (
                     <Card key={category.id} className="border-l-4 border-l-blue-500">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
@@ -262,7 +262,11 @@ const TicketSettings = ({
                         )}
                       </CardContent>
                     </Card>
-                  ))}
+                  )) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="text-sm">Loading quick response configuration...</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CollapsibleContent>

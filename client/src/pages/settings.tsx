@@ -35,6 +35,7 @@ import PunishmentSettings from '@/components/settings/PunishmentSettings';
 import TicketSettings from '@/components/settings/TicketSettings';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { QuickResponsesConfiguration, defaultQuickResponsesConfig } from '@/types/quickResponses';
 
 // Type definitions for appeal form fields
 interface AppealFormField {
@@ -535,33 +536,7 @@ const Settings = () => {
   const [isAIModerationExpanded, setIsAIModerationExpanded] = useState(false);
 
   // Quick responses state for each ticket category
-  const [quickResponsesState, setQuickResponsesState] = useState<Record<string, Record<string, string>>>({
-    'Player Report': {
-      'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
-      'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
-      'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
-    },
-    'Chat Report': {
-      'Accepted': 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment.',
-      'Rejected': 'Thank you for submitting this report. After reviewing the evidence provided, we have determined that this does not violate our community guidelines.',
-      'Close': 'This ticket has been closed. Please feel free to open a new report if you encounter any other issues.'
-    },
-    'Bug Report': {
-      'Completed': 'Thank you for reporting this bug. We have fixed the issue and it will be included in our next update.',
-      'Stale': 'This bug report has been marked as stale due to inactivity or lack of information.',
-      'Duplicate': 'This bug has been identified as a duplicate of an existing issue.',
-      'Close': 'This bug report has been closed. Thank you for your contribution to improving our game.'
-    },
-    'Punishment Appeal': {
-      'Pardon': 'After reviewing your appeal, we have decided to remove the punishment completely.',
-      'Reduce': 'We have reviewed your appeal and decided to reduce the duration of your punishment.',
-      'Reject': 'After careful consideration of your appeal, we have decided to uphold the original punishment.',
-      'Close': 'This appeal has been closed. If you have additional information, please create a new appeal.'
-    },
-    'Other': {
-      'Close': 'This ticket has been closed. Thank you for your message.'
-    }
-  });
+  const [quickResponsesState, setQuickResponsesState] = useState<QuickResponsesConfiguration>(defaultQuickResponsesConfig);
 
   // Tags state for each ticket category
   const [bugReportTagsState, setBugReportTagsState] = useState<string[]>([
@@ -1206,7 +1181,39 @@ const Settings = () => {
     }
     if (settingsObject.quickResponses) {
       const qr = settingsObject.quickResponses;
-      setQuickResponsesState(typeof qr === 'string' ? JSON.parse(qr) : JSON.parse(JSON.stringify(qr)));
+      const parsedQr = typeof qr === 'string' ? JSON.parse(qr) : JSON.parse(JSON.stringify(qr));
+      
+      // Check if it's the old format (Record<string, Record<string, string>>) and migrate to new format
+      if (parsedQr && !parsedQr.categories && typeof parsedQr === 'object') {
+        // Convert old format to new format
+        const categories = Object.entries(parsedQr).map(([categoryName, responses], index) => ({
+          id: categoryName.toLowerCase().replace(/\s+/g, '_'),
+          name: categoryName,
+          ticketTypes: categoryName.toLowerCase().includes('report') ? 
+            (categoryName.toLowerCase().includes('chat') ? ['chat_report'] : ['player_report']) :
+            categoryName.toLowerCase().includes('appeal') ? ['appeal'] :
+            categoryName.toLowerCase().includes('bug') ? ['bug_report'] : ['other'],
+          order: index + 1,
+          actions: Object.entries(responses as Record<string, string>).map(([actionName, message], actionIndex) => ({
+            id: `${categoryName.toLowerCase().replace(/\s+/g, '_')}_${actionName.toLowerCase()}`,
+            name: actionName,
+            message: message,
+            order: actionIndex + 1,
+            // Add default properties based on category
+            ...(categoryName.toLowerCase().includes('report') && actionName.toLowerCase().includes('accept') ? { issuePunishment: false } : {}),
+            ...(categoryName.toLowerCase().includes('appeal') ? { 
+              appealAction: actionName.toLowerCase().includes('pardon') ? 'pardon' : 
+                           actionName.toLowerCase().includes('reduce') ? 'reduce' : 
+                           actionName.toLowerCase().includes('reject') ? 'reject' : 'none'
+            } : {})
+          }))
+        }));
+        
+        setQuickResponsesState({ categories });
+      } else {
+        // It's already in the new format or use default
+        setQuickResponsesState(parsedQr.categories ? parsedQr : defaultQuickResponsesConfig);
+      }
     }
     if (settingsObject.mongodbUri !== undefined) setMongodbUri(settingsObject.mongodbUri);
     if (settingsObject.has2FA !== undefined) setHas2FAState(settingsObject.has2FA);
