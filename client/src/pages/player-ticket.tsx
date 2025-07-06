@@ -91,6 +91,62 @@ const formatDate = (dateString: string): string => {
   }
 };
 
+// Avatar component for messages
+const MessageAvatar = ({ message, creatorUuid }: { message: TicketMessage, creatorUuid?: string }) => {
+  const [avatarError, setAvatarError] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(true);
+
+  // For player messages, use the ticket creator's UUID if available
+  if (message.senderType === 'user') {
+    if (creatorUuid && !avatarError) {
+      return (
+        <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img 
+            src={`https://crafatar.com/avatars/${creatorUuid}?size=32&default=MHF_Steve&overlay`}
+            alt={`${message.sender} Avatar`}
+            className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
+            onError={() => {
+              setAvatarError(true);
+              setAvatarLoading(false);
+            }}
+            onLoad={() => {
+              setAvatarError(false);
+              setAvatarLoading(false);
+            }}
+          />
+          {avatarLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-bold text-primary">{message.sender?.substring(0, 2) || 'U'}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    // Fallback for player without UUID
+    return (
+      <div className="h-8 w-8 bg-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
+        <span className="text-xs font-bold text-blue-600">{message.sender?.substring(0, 2) || 'U'}</span>
+      </div>
+    );
+  }
+
+  // For staff messages - we don't have staff data in player tickets, so use a fallback
+  if (message.senderType === 'staff' || message.staff) {
+    return (
+      <div className="h-8 w-8 bg-green-100 rounded-md flex items-center justify-center flex-shrink-0">
+        <span className="text-xs font-bold text-green-600">{message.sender?.substring(0, 2) || 'S'}</span>
+      </div>
+    );
+  }
+
+  // System messages
+  return (
+    <div className="h-8 w-8 bg-gray-100 rounded-md flex items-center justify-center flex-shrink-0">
+      <span className="text-xs font-bold text-gray-600">SY</span>
+    </div>
+  );
+};
+
 const PlayerTicket = () => {
   const { id } = useParams();
   const [playerName, setPlayerName] = useState('');
@@ -688,41 +744,62 @@ const PlayerTicket = () => {
                 {ticketDetails.messages.length > 0 ? (
                   <div className="flex flex-col space-y-6">
                     {ticketDetails.messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex gap-3 ${
-                          message.senderType === 'staff' || message.staff
-                            ? 'bg-primary/5 p-4 rounded-lg'
-                            : message.senderType === 'system'
-                            ? 'bg-muted/20 p-4 rounded-lg italic text-muted-foreground'
-                            : ''
-                        }`}
+                      <div 
+                        key={message.id} 
+                        className={`${message.senderType === 'user' ? 'ml-0' : 'bg-muted/20 p-4 rounded-lg ml-0'}`}
                       >
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="font-medium flex items-center gap-2 flex-shrink-0">
-                              {message.sender}
-                              {(message.senderType === 'staff' || message.staff) && (
-                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px] py-0 h-4">
-                                  Staff
-                                </Badge>
-                              )}
-                              {message.closedAs && (
-                                <Badge variant="outline" className="bg-muted text-muted-foreground border-muted/50 text-[10px] py-0 h-4">
-                                  {message.closedAs}
-                                </Badge>
-                              )}
+                        <div className="flex gap-3">
+                          <MessageAvatar message={message} creatorUuid={ticketData?.creatorUuid} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="font-medium text-sm flex items-center gap-2">
+                                <span className="text-foreground">
+                                  {message.sender && message.sender !== 'user' ? message.sender : (message.senderType === 'staff' ? 'Staff' : message.senderType === 'system' ? 'System' : 'User')}
+                                </span>
+                                {(message.senderType === 'staff' || message.staff) && (
+                                  <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
+                                    Staff
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                {formatDate(message.timestamp) || formatDate(new Date().toISOString())}
+                              </span>
                             </div>
-                            <div className="text-xs text-muted-foreground flex items-center">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {formatDate(message.timestamp)}
-                            </div>
-                          </div>
-                          <div className="text-sm">
-                            <MarkdownRenderer 
-                              content={message.content} 
-                              className="text-sm leading-relaxed"
-                            />
+                          
+                            {/* If this message has a closedAs status, show the ticket closing info */}
+                            {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") ? (
+                              <>
+                                <div className="text-sm mb-2 flex items-center">
+                                  <span className="font-medium text-muted-foreground">Ticket closed as {message.closedAs}</span>
+                                </div>
+                                <div className="message-content">
+                                  <MarkdownRenderer 
+                                    content={message.content} 
+                                    className="text-sm leading-relaxed"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="message-content">
+                                <MarkdownRenderer 
+                                  content={message.content} 
+                                  className="text-sm leading-relaxed"
+                                />
+                              </div>
+                            )}
+
+                            {/* Show attachments if any */}
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {message.attachments.map((attachment, idx) => (
+                                  <div key={idx} className="border rounded-md p-1 flex items-center gap-1.5 text-xs bg-muted/30">
+                                    <Link2 className="h-3 w-3" />
+                                    <span className="text-blue-600">{attachment}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
