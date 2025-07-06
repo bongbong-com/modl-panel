@@ -564,6 +564,7 @@ const Settings = () => {
   const [newTicketFormFieldGoToSection, setNewTicketFormFieldGoToSection] = useState('');
   const [newTicketFormFieldOptionSectionMapping, setNewTicketFormFieldOptionSectionMapping] = useState<Record<string, string>>({});
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
+  const [isOptionNavigationExpanded, setIsOptionNavigationExpanded] = useState(false);
   
   // Section builder states
   const [newTicketFormSectionTitle, setNewTicketFormSectionTitle] = useState('');
@@ -1759,6 +1760,7 @@ const Settings = () => {
     setNewTicketFormFieldSectionId('__none__');
     setNewTicketFormFieldGoToSection('');
     setNewTicketFormFieldOptionSectionMapping({});
+    setIsOptionNavigationExpanded(false);
     setSelectedTicketFormField(null);
     setIsAddTicketFormFieldDialogOpen(false);
   };
@@ -4829,47 +4831,58 @@ const Settings = () => {
                 {/* Per-Option Section Navigation for Dropdown/Multiple Choice Fields */}
                 {(newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') && newTicketFormFieldOptions.length > 0 && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <ChevronRight className="h-4 w-4" />
-                      <Label className="text-sm font-medium">Option Navigation (Optional)</Label>
-                    </div>
-                    <div className="pl-6 space-y-3">
-                      <p className="text-xs text-muted-foreground">
-                        Configure which section to show when each option is selected.
-                      </p>
-                      {newTicketFormFieldOptions.map((option, index) => (
-                        <div key={index} className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <Label className="text-sm font-medium">{option}</Label>
+                    <button
+                      type="button"
+                      onClick={() => setIsOptionNavigationExpanded(!isOptionNavigationExpanded)}
+                      className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded -ml-1 transition-colors"
+                    >
+                      {isOptionNavigationExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                      <Label className="text-sm font-medium cursor-pointer">Option Navigation (Optional)</Label>
+                    </button>
+                    
+                    {isOptionNavigationExpanded && (
+                      <div className="pl-6 space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                          Configure which section to show when each option is selected.
+                        </p>
+                        {newTicketFormFieldOptions.map((option, index) => (
+                          <div key={index} className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <Label className="text-sm font-medium">{option}</Label>
+                            </div>
+                            <div className="flex-1">
+                              <Select
+                                value={newTicketFormFieldOptionSectionMapping[option] || '__none__'}
+                                onValueChange={(value) => 
+                                  setNewTicketFormFieldOptionSectionMapping(prev => ({
+                                    ...prev,
+                                    [option]: value === '__none__' ? '' : value
+                                  }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="No navigation" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">No navigation</SelectItem>
+                                  {ticketForms[selectedTicketFormType]?.sections
+                                    ?.sort((a, b) => a.order - b.order)
+                                    .map(section => (
+                                      <SelectItem key={section.id} value={section.id}>
+                                        {section.title}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <Select
-                              value={newTicketFormFieldOptionSectionMapping[option] || '__none__'}
-                              onValueChange={(value) => 
-                                setNewTicketFormFieldOptionSectionMapping(prev => ({
-                                  ...prev,
-                                  [option]: value === '__none__' ? '' : value
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="No navigation" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__none__">No navigation</SelectItem>
-                                {ticketForms[selectedTicketFormType]?.sections
-                                  ?.sort((a, b) => a.order - b.order)
-                                  .map(section => (
-                                    <SelectItem key={section.id} value={section.id}>
-                                      {section.title}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -4889,6 +4902,7 @@ const Settings = () => {
                     setNewTicketFormFieldSectionId('__none__');
                     setNewTicketFormFieldGoToSection('');
                     setNewTicketFormFieldOptionSectionMapping({});
+                    setIsOptionNavigationExpanded(false);
                   }}
                 >
                   Cancel
