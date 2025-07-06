@@ -2019,6 +2019,37 @@ const Settings = () => {
     });
   }, [selectedTicketFormType]);
 
+  // Missing function implementations for ticket form management
+  const onEditSection = useCallback((section: TicketFormSection) => {
+    // Placeholder implementation - could open a dialog to edit section
+    console.log('Edit section:', section);
+  }, []);
+
+  const onDeleteSection = useCallback((sectionId: string) => {
+    // Placeholder implementation - remove section from form
+    console.log('Delete section:', sectionId);
+  }, []);
+
+  const onEditField = useCallback((field: TicketFormField) => {
+    // Placeholder implementation - could open a dialog to edit field
+    console.log('Edit field:', field);
+  }, []);
+
+  const onDeleteField = useCallback((fieldId: string) => {
+    // Placeholder implementation - remove field from form
+    console.log('Delete field:', fieldId);
+  }, []);
+
+  const onAddField = useCallback(() => {
+    // Placeholder implementation - could open a dialog to add new field
+    console.log('Add field');
+  }, []);
+
+  const moveField = useCallback((dragIndex: number, hoverIndex: number, sectionId: string) => {
+    // Use the existing moveFieldInForm function
+    moveFieldInForm(dragIndex, hoverIndex, sectionId);
+  }, [moveFieldInForm]);
+
   return (
     <PageContainer>
       <div className="flex flex-col space-y-6 pb-10">
