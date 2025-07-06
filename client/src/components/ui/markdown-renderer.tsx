@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import { cn } from 'modl-shared-web/lib/utils';
+import { ClickablePlayer } from './clickable-player';
 
 interface MarkdownRendererProps {
   content: string;
@@ -7,7 +8,20 @@ interface MarkdownRendererProps {
   allowHtml?: boolean;
 }
 
+// Function to process chat message lines and make usernames clickable
+const processMarkdownContent = (content: string): string => {
+  // Look for chat message pattern: `[timestamp]` **username**: message
+  const chatMessagePattern = /(`\[.*?\]`\s+\*\*([^*]+)\*\*:\s+.*)/g;
+  
+  return content.replace(chatMessagePattern, (match, fullLine, username) => {
+    // Replace the username with a special marker that we can process in the component
+    return fullLine.replace(`**${username}**`, `**[PLAYER:${username}]**`);
+  });
+};
+
 const MarkdownRenderer = ({ content, className, allowHtml = false }: MarkdownRendererProps) => {
+  const processedContent = processMarkdownContent(content);
+  
   return (
     <div className={cn(
       "prose prose-sm max-w-none",
@@ -23,6 +37,24 @@ const MarkdownRenderer = ({ content, className, allowHtml = false }: MarkdownRen
       <ReactMarkdown
         skipHtml={!allowHtml}
         components={{
+          // Custom strong (bold) renderer to handle player links
+          strong: ({ children, ...props }) => {
+            const text = children?.toString() || '';
+            const playerMatch = text.match(/^\[PLAYER:(.*)\]$/);
+            
+            if (playerMatch) {
+              const username = playerMatch[1];
+              return (
+                <ClickablePlayer playerText={username} variant="text" showIcon={false}>
+                  <strong className="text-primary cursor-pointer hover:underline">
+                    {username}
+                  </strong>
+                </ClickablePlayer>
+              );
+            }
+            
+            return <strong {...props}>{children}</strong>;
+          },
           // Custom link renderer to ensure external links open in new tab
           a: ({ href, children, ...props }) => (
             <a 
@@ -77,7 +109,7 @@ const MarkdownRenderer = ({ content, className, allowHtml = false }: MarkdownRen
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

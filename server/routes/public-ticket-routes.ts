@@ -107,8 +107,32 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
       contentString += `Description: ${description}\n\n`;
     }
     
+    // Special handling for chat reports
+    if (type === 'chat' && chatMessages && chatMessages.length > 0) {
+      contentString += `**Chat Messages:**\n`;
+      try {
+        const messages = Array.isArray(chatMessages) ? chatMessages : [];
+        messages.forEach((msg: any) => {
+          if (typeof msg === 'object' && msg.username && msg.message) {
+            const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
+            const username = msg.username;
+            const message = msg.message;
+            contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+          } else if (typeof msg === 'string') {
+            contentString += `${msg}\n`;
+          }
+        });
+      } catch (error) {
+        // Fallback to basic format if parsing fails
+        contentString += `${chatMessages.join('\n')}\n`;
+      }
+      contentString += `\n`;
+    }
+    
     if (formData && Object.keys(formData).length > 0) {
       Object.entries(formData).forEach(([key, value]) => {
+        // Skip chatlog for chat reports as it's already handled above
+        if (type === 'chat' && key === 'chatlog') return;
         contentString += `${key}: ${value}\n\n`;
       });
     }
@@ -254,8 +278,32 @@ router.post('/tickets/unfinished', async (req: Request, res: Response) => {
       contentString += `Description: ${description}\n\n`;
     }
     
+    // Special handling for chat reports
+    if (type === 'chat' && chatMessages && chatMessages.length > 0) {
+      contentString += `**Chat Messages:**\n`;
+      try {
+        const messages = Array.isArray(chatMessages) ? chatMessages : [];
+        messages.forEach((msg: any) => {
+          if (typeof msg === 'object' && msg.username && msg.message) {
+            const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
+            const username = msg.username;
+            const message = msg.message;
+            contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+          } else if (typeof msg === 'string') {
+            contentString += `${msg}\n`;
+          }
+        });
+      } catch (error) {
+        // Fallback to basic format if parsing fails
+        contentString += `${chatMessages.join('\n')}\n`;
+      }
+      contentString += `\n`;
+    }
+    
     if (formData && Object.keys(formData).length > 0) {
       Object.entries(formData).forEach(([key, value]) => {
+        // Skip chatlog for chat reports as it's already handled above
+        if (type === 'chat' && key === 'chatlog') return;
         contentString += `${key}: ${value}\n\n`;
       });
     }
@@ -598,9 +646,39 @@ router.post('/tickets/:id/submit', async (req: Request, res: Response) => {
       let contentString = '';
       Object.entries(formData).forEach(([key, value]) => {
         if (value && value.toString().trim()) {
-          // Format field names to be more readable
-          const fieldLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
-          contentString += `**${fieldLabel}:**\n${value}\n\n`;
+          // Special handling for chat reports
+          if (ticket.type === 'chat' && key === 'chatlog' && ticket.chatMessages && ticket.chatMessages.length > 0) {
+            // Format chat messages with timestamps and player links
+            contentString += `**Chat Messages:**\n`;
+            try {
+              // Try to parse the chatMessages if they're stored as objects
+              const chatMessages = Array.isArray(ticket.chatMessages) ? ticket.chatMessages : [];
+              if (chatMessages.length > 0) {
+                chatMessages.forEach((msg: any) => {
+                  if (typeof msg === 'object' && msg.username && msg.message) {
+                    const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
+                    const username = msg.username;
+                    const message = msg.message;
+                    contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+                  } else if (typeof msg === 'string') {
+                    // Handle string format chat messages
+                    contentString += `${msg}\n`;
+                  }
+                });
+              } else {
+                // Fallback to original chatlog field if chatMessages is empty
+                contentString += `${value}\n`;
+              }
+            } catch (error) {
+              // Fallback to original chatlog field if parsing fails
+              contentString += `${value}\n`;
+            }
+            contentString += `\n`;
+          } else {
+            // Format field names to be more readable for non-chat fields
+            const fieldLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+            contentString += `**${fieldLabel}:**\n${value}\n\n`;
+          }
         }
       });
       
