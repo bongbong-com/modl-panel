@@ -146,6 +146,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [activeTab, setActiveTab] = useState('history');
   const [banSearchResults, setBanSearchResults] = useState<{id: string; player: string}[]>([]);
   const [showBanSearchResults, setShowBanSearchResults] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(true);
   const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
   const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());    // Get current authenticated user
   const { user } = useAuth();
@@ -892,6 +894,12 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         }));
       }
     }  }, [player, isOpen, punishmentTypesByCategory, settingsData, linkedAccountsData]);
+
+  // Reset avatar state when playerId changes
+  useEffect(() => {
+    setAvatarError(false);
+    setAvatarLoading(true);
+  }, [playerId]);
   
   // Show loading state
   if (isLoading) {
@@ -1227,8 +1235,31 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         <div className="pt-2">
           <div className="bg-background-lighter p-4 rounded-lg">
             <div className="flex items-start gap-4">
-              <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary">{playerInfo.username?.substring(0, 2) || '??'}</span>
+              <div className="relative h-16 w-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                {playerId && !avatarError ? (
+                  <>
+                    <img 
+                      src={`https://crafatar.com/avatars/${playerId}?size=64&default=MHF_Steve&overlay`}
+                      alt={`${playerInfo.username || 'Player'} Avatar`}
+                      className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
+                      onError={() => {
+                        setAvatarError(true);
+                        setAvatarLoading(false);
+                      }}
+                      onLoad={() => {
+                        setAvatarError(false);
+                        setAvatarLoading(false);
+                      }}
+                    />
+                    {avatarLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-bold text-primary">{playerInfo.username?.substring(0, 2) || '??'}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-2xl font-bold text-primary">{playerInfo.username?.substring(0, 2) || '??'}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h5 className="text-lg font-medium">{playerInfo.username || 'Unknown'}</h5>
