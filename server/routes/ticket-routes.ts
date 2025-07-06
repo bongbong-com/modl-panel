@@ -524,4 +524,164 @@ router.get('/creator/:uuid', async (req: Request<{ uuid: string }>, res: Respons
   }
 });
 
+// Quick Response endpoint
+interface QuickResponseBody {
+  actionId: string;
+  categoryId: string;
+  punishmentTypeId?: number;
+  punishmentSeverity?: 'low' | 'regular' | 'severe';
+  customValues?: any;
+  appealAction?: 'pardon' | 'reduce' | 'reject' | 'none';
+  durationReduction?: {
+    type: 'percentage' | 'fixed';
+    value: number;
+    unit?: string;
+  };
+}
+
+router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, QuickResponseBody>, res: Response) => {
+  try {
+    const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
+    const Settings = req.serverDbConnection!.model('Settings');
+    
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    // Get quick responses configuration from settings
+    const settingsDoc = await Settings.findOne();
+    if (!settingsDoc || !settingsDoc.settings) {
+      return res.status(500).json({ error: 'Settings not found' });
+    }
+
+    const quickResponsesConfig = settingsDoc.settings.get('quickResponses');
+    if (!quickResponsesConfig) {
+      return res.status(500).json({ error: 'Quick responses configuration not found' });
+    }
+
+    // Find the specific action
+    const category = quickResponsesConfig.categories.find((cat: any) => cat.id === req.body.categoryId);
+    if (!category) {
+      return res.status(400).json({ error: 'Category not found' });
+    }
+
+    const action = category.actions.find((act: any) => act.id === req.body.actionId);
+    if (!action) {
+      return res.status(400).json({ error: 'Action not found' });
+    }
+
+    // Add the response message as a reply
+    const responseReply: IReply = {
+      name: req.user?.displayName || 'System',
+      avatar: req.user?.avatar,
+      content: action.message,
+      type: 'public',
+      created: new Date(),
+      staff: true,
+    };
+
+    ticket.replies.push(responseReply);
+
+    // Handle punishment issuance for report tickets
+    if (action.issuePunishment && ticket.category.toLowerCase().includes('report')) {
+      if (req.body.punishmentTypeId && ticket.data.get('reported_player')) {
+        try {
+          const PunishmentService = (await import('../services/punishment-service')).PunishmentService;
+          const punishmentService = new PunishmentService(req.serverDbConnection!);
+          
+          const reportedPlayer = ticket.data.get('reported_player');
+          const severity = req.body.punishmentSeverity || 'regular';
+          const reason = `Report accepted: ${ticket._id}`;
+          
+          await punishmentService.applyPunishment(
+            reportedPlayer,
+            req.body.punishmentTypeId,
+            severity,
+            reason,
+            ticket._id,
+            req.user?.displayName || 'System'
+          );
+
+          // Add a note about the punishment
+          const punishmentNote: INote = {
+            text: `Punishment applied to ${reportedPlayer} (${severity} severity)`,
+            issuerName: req.user?.displayName || 'System',
+            issuerAvatar: req.user?.avatar,
+            date: new Date(),
+          };
+          ticket.notes.push(punishmentNote);
+          
+        } catch (punishmentError) {
+          console.error('Failed to apply punishment:', punishmentError);
+          // Don't fail the entire request if punishment fails
+        }
+      }
+    }
+
+    // Handle appeal actions
+    if (action.appealAction && ticket.category.toLowerCase().includes('appeal')) {
+      const appealAction = req.body.appealAction || action.appealAction;
+      
+      if (appealAction === 'pardon') {
+        // Add logic to pardon the player (would need integration with punishment system)
+        const pardonNote: INote = {
+          text: `Appeal approved - Full pardon granted`,
+          issuerName: req.user?.displayName || 'System',
+          issuerAvatar: req.user?.avatar,
+          date: new Date(),
+        };
+        ticket.notes.push(pardonNote);
+        ticket.status = 'Closed';
+      } else if (appealAction === 'reduce') {
+        const reduction = req.body.durationReduction || action.durationReduction;
+        if (reduction) {
+          let reductionText = '';
+          if (reduction.type === 'percentage') {
+            reductionText = `${reduction.value}% reduction`;
+          } else {
+            reductionText = `${reduction.value} ${reduction.unit} reduction`;
+          }
+          
+          const reductionNote: INote = {
+            text: `Appeal partially approved - Punishment duration reduced (${reductionText})`,
+            issuerName: req.user?.displayName || 'System',
+            issuerAvatar: req.user?.avatar,
+            date: new Date(),
+          };
+          ticket.notes.push(reductionNote);
+          ticket.status = 'Closed';
+        }
+      } else if (appealAction === 'reject') {
+        const rejectionNote: INote = {
+          text: `Appeal rejected - Original punishment upheld`,
+          issuerName: req.user?.displayName || 'System',
+          issuerAvatar: req.user?.avatar,
+          date: new Date(),
+        };
+        ticket.notes.push(rejectionNote);
+        ticket.status = 'Closed';
+      }
+    }
+
+    // Update ticket status based on action
+    if (action.name.toLowerCase().includes('close') || action.id.includes('close')) {
+      ticket.status = 'Closed';
+    }
+
+    await ticket.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Quick response applied successfully',
+      ticket: ticket,
+      actionApplied: action.name
+    });
+    
+  } catch (error: any) {
+    console.error('Quick response error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 export default router;

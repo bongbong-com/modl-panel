@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
-import { MessageCircle, Tag, Plus, X, ChevronDown, ChevronRight, Layers, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageCircle, Tag, Plus, X, ChevronDown, ChevronRight, Layers, Shield, Edit3, Trash2, GripVertical, Save, CheckCircle, Settings } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Input } from 'modl-shared-web/components/ui/input';
+import { Textarea } from 'modl-shared-web/components/ui/textarea';
 import { Label } from 'modl-shared-web/components/ui/label';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Switch } from 'modl-shared-web/components/ui/switch';
 import { Slider } from 'modl-shared-web/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'modl-shared-web/components/ui/collapsible';
-import { DndProvider } from 'react-dnd';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
+import { Separator } from 'modl-shared-web/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from 'modl-shared-web/components/ui/dialog';
+import { QuickResponseAction, QuickResponseCategory, QuickResponsesConfiguration, defaultQuickResponsesConfig } from '@/types/quickResponses';
 
 interface TicketSettingsProps {
   // Quick Responses State
-  quickResponsesState: any;
-  setQuickResponsesState: (value: any) => void;
+  quickResponsesState: QuickResponsesConfiguration;
+  setQuickResponsesState: (value: QuickResponsesConfiguration) => void;
   
   // Tag Management State
   bugReportTags: string[];
@@ -89,6 +94,20 @@ const TicketSettings = ({
   const [isTicketFormsExpanded, setIsTicketFormsExpanded] = useState(false);
   const [isAIModerationExpanded, setIsAIModerationExpanded] = useState(false);
 
+  // Quick Response editing states
+  const [editingAction, setEditingAction] = useState<QuickResponseAction | null>(null);
+  const [editingCategory, setEditingCategory] = useState<QuickResponseCategory | null>(null);
+  const [showActionDialog, setShowActionDialog] = useState(false);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  // Initialize quick responses with defaults if empty
+  useEffect(() => {
+    if (!quickResponsesState || quickResponsesState.categories.length === 0) {
+      setQuickResponsesState(defaultQuickResponsesConfig);
+    }
+  }, [quickResponsesState, setQuickResponsesState]);
+
   // AI Moderation computed values
   const availablePunishmentTypes = punishmentTypesState?.filter(pt => 
     pt.isCustomizable && (!aiPunishmentConfigs[pt.id] || !aiPunishmentConfigs[pt.id].enabled)
@@ -113,7 +132,7 @@ const TicketSettings = ({
               <div className="flex items-center space-x-2">
                 {!isQuickResponsesExpanded && (
                   <span className="text-sm text-muted-foreground">
-                    {Object.keys(quickResponsesState).length} categories configured
+                    {quickResponsesState?.categories?.length || 0} categories configured
                   </span>
                 )}
                 {isQuickResponsesExpanded ? (
@@ -131,31 +150,118 @@ const TicketSettings = ({
                 </p>
                 
                 <div className="space-y-6">
-                  {Object.entries(quickResponsesState).map(([category, responses]) => (
-                    <div key={category} className="space-y-3">
-                      <h5 className="font-medium text-sm text-muted-foreground">{category}</h5>
-                      <div className="space-y-3">
-                        {Object.entries(responses as any).map(([action, response]) => (
-                          <div key={`${category}-${action}`} className="space-y-2">
-                            <Label className="text-xs font-medium">{action}</Label>
-                            <textarea
-                              className="w-full min-h-[80px] px-3 py-2 text-sm border border-border rounded-md bg-background resize-none"
-                              value={response as string}
-                              onChange={(e) => {
-                                setQuickResponsesState((prev: any) => ({
-                                  ...prev,
-                                  [category]: {
-                                    ...prev[category],
-                                    [action]: e.target.value
-                                  }
-                                }));
+                  {quickResponsesState?.categories?.map((category) => (
+                    <Card key={category.id} className="border-l-4 border-l-blue-500">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-base">{category.name}</CardTitle>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {category.ticketTypes.join(', ')} • {category.actions.length} actions
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setEditingCategory(category);
+                                setShowCategoryDialog(true);
                               }}
-                              placeholder={`Enter ${action} response for ${category} tickets...`}
-                            />
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCategoryId(category.id);
+                                setEditingAction(null);
+                                setShowActionDialog(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {category.actions.map((action) => (
+                          <div key={action.id} className="group relative">
+                            <div className="flex items-start space-x-3 p-3 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors">
+                              <GripVertical className="h-4 w-4 text-muted-foreground mt-1 cursor-move" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h6 className="font-medium text-sm">{action.name}</h6>
+                                  <div className="flex items-center space-x-1">
+                                    {action.issuePunishment && (
+                                      <Badge variant="destructive" className="text-xs">Punish</Badge>
+                                    )}
+                                    {action.appealAction === 'pardon' && (
+                                      <Badge variant="secondary" className="text-xs">Pardon</Badge>
+                                    )}
+                                    {action.appealAction === 'reduce' && (
+                                      <Badge variant="outline" className="text-xs">Reduce</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {action.message}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingAction(action);
+                                    setSelectedCategoryId(category.id);
+                                    setShowActionDialog(true);
+                                  }}
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    const updatedConfig = {
+                                      ...quickResponsesState,
+                                      categories: quickResponsesState.categories.map(cat => 
+                                        cat.id === category.id
+                                          ? { ...cat, actions: cat.actions.filter(a => a.id !== action.id) }
+                                          : cat
+                                      )
+                                    };
+                                    setQuickResponsesState(updatedConfig);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         ))}
-                      </div>
-                    </div>
+                        {category.actions.length === 0 && (
+                          <div className="text-center py-6 text-muted-foreground">
+                            <p className="text-sm">No quick responses configured</p>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-2"
+                              onClick={() => {
+                                setSelectedCategoryId(category.id);
+                                setEditingAction(null);
+                                setShowActionDialog(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add First Response
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -351,7 +457,7 @@ const TicketSettings = ({
               <div className="flex items-center space-x-2">
                 {!isTicketFormsExpanded && (
                   <span className="text-sm text-muted-foreground">
-                    {Object.entries(ticketForms).reduce((acc, [, form]) => acc + (form && form.sections ? form.sections.length : 0), 0)} sections across {Object.keys(ticketForms).length} forms
+                    {Object.entries(ticketForms || {}).reduce((acc, [, form]) => acc + (form && typeof form === 'object' && 'sections' in form && Array.isArray(form.sections) ? form.sections.length : 0), 0)} sections across {Object.keys(ticketForms || {}).length} forms
                   </span>
                 )}
                 {isTicketFormsExpanded ? (
@@ -505,6 +611,415 @@ const TicketSettings = ({
           </Collapsible>
         </div>
       </div>
+
+      {/* Quick Response Action Dialog */}
+      <Dialog open={showActionDialog} onOpenChange={setShowActionDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAction ? 'Edit Quick Response' : 'Add Quick Response'}
+            </DialogTitle>
+            <DialogDescription>
+              Configure a quick response action with optional punishment or appeal handling.
+            </DialogDescription>
+          </DialogHeader>
+          <QuickResponseActionForm 
+            action={editingAction}
+            categoryId={selectedCategoryId}
+            quickResponsesState={quickResponsesState}
+            setQuickResponsesState={setQuickResponsesState}
+            punishmentTypes={punishmentTypesState}
+            onSave={() => {
+              setShowActionDialog(false);
+              setEditingAction(null);
+            }}
+            onCancel={() => {
+              setShowActionDialog(false);
+              setEditingAction(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Response Category Dialog */}
+      <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingCategory ? 'Edit Category' : 'Add Category'}
+            </DialogTitle>
+            <DialogDescription>
+              Configure category settings and ticket type associations.
+            </DialogDescription>
+          </DialogHeader>
+          <QuickResponseCategoryForm 
+            category={editingCategory}
+            quickResponsesState={quickResponsesState}
+            setQuickResponsesState={setQuickResponsesState}
+            onSave={() => {
+              setShowCategoryDialog(false);
+              setEditingCategory(null);
+            }}
+            onCancel={() => {
+              setShowCategoryDialog(false);
+              setEditingCategory(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// Quick Response Action Form Component
+const QuickResponseActionForm = ({ 
+  action, 
+  categoryId, 
+  quickResponsesState, 
+  setQuickResponsesState, 
+  punishmentTypes, 
+  onSave, 
+  onCancel 
+}: {
+  action: QuickResponseAction | null;
+  categoryId: string | null;
+  quickResponsesState: QuickResponsesConfiguration;
+  setQuickResponsesState: (value: QuickResponsesConfiguration) => void;
+  punishmentTypes: any[];
+  onSave: () => void;
+  onCancel: () => void;
+}) => {
+  const [formData, setFormData] = useState<Partial<QuickResponseAction>>({
+    name: action?.name || '',
+    message: action?.message || '',
+    issuePunishment: action?.issuePunishment || false,
+    punishmentTypeId: action?.punishmentTypeId || undefined,
+    punishmentSeverity: action?.punishmentSeverity || 'regular',
+    appealAction: action?.appealAction || 'none',
+    durationReduction: action?.durationReduction || { type: 'percentage', value: 50 },
+    customDuration: action?.customDuration || { value: 1, unit: 'days' }
+  });
+
+  const category = quickResponsesState.categories.find(c => c.id === categoryId);
+  const isReportCategory = category?.ticketTypes.some(type => type.includes('report'));
+  const isAppealCategory = category?.ticketTypes.includes('appeal');
+
+  const handleSave = () => {
+    if (!formData.name || !formData.message || !categoryId) return;
+
+    const newAction: QuickResponseAction = {
+      id: action?.id || `action_${Date.now()}`,
+      name: formData.name,
+      message: formData.message,
+      order: action?.order || category?.actions.length || 0,
+      ...formData
+    };
+
+    const updatedConfig = {
+      ...quickResponsesState,
+      categories: quickResponsesState.categories.map(cat => 
+        cat.id === categoryId
+          ? {
+              ...cat,
+              actions: action
+                ? cat.actions.map(a => a.id === action.id ? newAction : a)
+                : [...cat.actions, newAction]
+            }
+          : cat
+      )
+    };
+
+    setQuickResponsesState(updatedConfig);
+    onSave();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="action-name">Action Name</Label>
+          <Input
+            id="action-name"
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g., Accept & Punish"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="action-message">Response Message</Label>
+          <Textarea
+            id="action-message"
+            value={formData.message}
+            onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+            placeholder="Enter the message that will be sent to the user..."
+            className="min-h-[100px]"
+          />
+        </div>
+
+        {isReportCategory && (
+          <div className="space-y-4">
+            <Separator />
+            <h4 className="font-medium">Punishment Settings</h4>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="issue-punishment"
+                checked={formData.issuePunishment}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, issuePunishment: checked }))}
+              />
+              <Label htmlFor="issue-punishment">Issue punishment when this response is used</Label>
+            </div>
+
+            {formData.issuePunishment && (
+              <div className="space-y-4 pl-6">
+                <div className="space-y-2">
+                  <Label>Punishment Type</Label>
+                  <Select
+                    value={formData.punishmentTypeId?.toString()}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, punishmentTypeId: parseInt(value) }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select punishment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {punishmentTypes?.map(type => (
+                        <SelectItem key={type.id} value={type.id.toString()}>
+                          {type.name} ({type.category})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Severity Level</Label>
+                  <Select
+                    value={formData.punishmentSeverity}
+                    onValueChange={(value: 'low' | 'regular' | 'severe') => setFormData(prev => ({ ...prev, punishmentSeverity: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="regular">Regular</SelectItem>
+                      <SelectItem value="severe">Severe</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isAppealCategory && (
+          <div className="space-y-4">
+            <Separator />
+            <h4 className="font-medium">Appeal Action</h4>
+            
+            <div className="space-y-2">
+              <Label>Appeal Decision</Label>
+              <Select
+                value={formData.appealAction}
+                onValueChange={(value: 'pardon' | 'reduce' | 'reject' | 'none') => setFormData(prev => ({ ...prev, appealAction: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No automatic action</SelectItem>
+                  <SelectItem value="pardon">Pardon (remove punishment)</SelectItem>
+                  <SelectItem value="reduce">Reduce punishment duration</SelectItem>
+                  <SelectItem value="reject">Reject appeal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.appealAction === 'reduce' && (
+              <div className="space-y-4 pl-6">
+                <div className="space-y-2">
+                  <Label>Reduction Type</Label>
+                  <Select
+                    value={formData.durationReduction?.type}
+                    onValueChange={(value: 'percentage' | 'fixed') => 
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        durationReduction: { 
+                          ...prev.durationReduction!, 
+                          type: value 
+                        } 
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percentage">Percentage</SelectItem>
+                      <SelectItem value="fixed">Fixed Duration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>
+                    {formData.durationReduction?.type === 'percentage' ? 'Percentage Reduction' : 'Fixed Duration'}
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.durationReduction?.value}
+                    onChange={(e) => 
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        durationReduction: { 
+                          ...prev.durationReduction!, 
+                          value: parseInt(e.target.value) 
+                        } 
+                      }))
+                    }
+                    placeholder={formData.durationReduction?.type === 'percentage' ? '50' : '1'}
+                  />
+                </div>
+
+                {formData.durationReduction?.type === 'fixed' && (
+                  <div className="space-y-2">
+                    <Label>Time Unit</Label>
+                    <Select
+                      value={formData.durationReduction?.unit}
+                      onValueChange={(value: 'minutes' | 'hours' | 'days' | 'weeks' | 'months') => 
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          durationReduction: { 
+                            ...prev.durationReduction!, 
+                            unit: value 
+                          } 
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="minutes">Minutes</SelectItem>
+                        <SelectItem value="hours">Hours</SelectItem>
+                        <SelectItem value="days">Days</SelectItem>
+                        <SelectItem value="weeks">Weeks</SelectItem>
+                        <SelectItem value="months">Months</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={!formData.name || !formData.message}>
+          <Save className="h-4 w-4 mr-2" />
+          Save Response
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+};
+
+// Quick Response Category Form Component
+const QuickResponseCategoryForm = ({ 
+  category, 
+  quickResponsesState, 
+  setQuickResponsesState, 
+  onSave, 
+  onCancel 
+}: {
+  category: QuickResponseCategory | null;
+  quickResponsesState: QuickResponsesConfiguration;
+  setQuickResponsesState: (value: QuickResponsesConfiguration) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) => {
+  const [formData, setFormData] = useState({
+    name: category?.name || '',
+    ticketTypes: category?.ticketTypes || []
+  });
+
+  const availableTicketTypes = ['player_report', 'chat_report', 'bug_report', 'appeal', 'support', 'other'];
+
+  const handleSave = () => {
+    if (!formData.name || formData.ticketTypes.length === 0) return;
+
+    const newCategory: QuickResponseCategory = {
+      id: category?.id || `category_${Date.now()}`,
+      name: formData.name,
+      ticketTypes: formData.ticketTypes,
+      order: category?.order || quickResponsesState.categories.length,
+      actions: category?.actions || []
+    };
+
+    const updatedConfig = {
+      ...quickResponsesState,
+      categories: category
+        ? quickResponsesState.categories.map(cat => cat.id === category.id ? newCategory : cat)
+        : [...quickResponsesState.categories, newCategory]
+    };
+
+    setQuickResponsesState(updatedConfig);
+    onSave();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="category-name">Category Name</Label>
+          <Input
+            id="category-name"
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g., Report Actions"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Ticket Types</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {availableTicketTypes.map(type => (
+              <div key={type} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={type}
+                  checked={formData.ticketTypes.includes(type)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setFormData(prev => ({ ...prev, ticketTypes: [...prev.ticketTypes, type] }));
+                    } else {
+                      setFormData(prev => ({ ...prev, ticketTypes: prev.ticketTypes.filter(t => t !== type) }));
+                    }
+                  }}
+                />
+                <Label htmlFor={type} className="capitalize">
+                  {type.replace('_', ' ')}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={!formData.name || formData.ticketTypes.length === 0}>
+          <Save className="h-4 w-4 mr-2" />
+          Save Category
+        </Button>
+      </DialogFooter>
     </div>
   );
 };
