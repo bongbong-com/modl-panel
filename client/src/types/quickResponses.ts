@@ -5,7 +5,8 @@ export interface QuickResponseAction {
   order: number;
   closeTicket?: boolean; // Whether this action should close the ticket
   
-  // Note: Punishment is now handled via the new "Punish" checkbox interface in ticket details
+  // Punishment flag - determines if punishment interface should be shown for this response
+  showPunishment?: boolean;
   
   // For appeal actions (simplified - no duration reduction settings here)
   appealAction?: 'pardon' | 'reduce' | 'reject' | 'none';
@@ -38,6 +39,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Chat Abuse.',
           order: 1,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'accept_anti_social',
@@ -45,6 +47,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Anti Social behavior.',
           order: 2,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'reject_insufficient_chat',
@@ -74,6 +77,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Team Abuse.',
           order: 1,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'accept_game_abuse',
@@ -81,6 +85,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Game Abuse.',
           order: 2,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'accept_cheating',
@@ -88,6 +93,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Cheating.',
           order: 3,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'accept_game_trading',
@@ -95,6 +101,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Game Trading.',
           order: 4,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'accept_account_abuse',
@@ -102,6 +109,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Account Abuse.',
           order: 5,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'accept_systems_abuse',
@@ -109,6 +117,7 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Systems Abuse.',
           order: 6,
           closeTicket: true,
+          showPunishment: true,
         },
         {
           id: 'reject_insufficient_player',

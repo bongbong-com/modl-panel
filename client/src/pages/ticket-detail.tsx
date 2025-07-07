@@ -34,6 +34,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { useTicket, usePanelTicket, useUpdateTicket, useSettings, useStaff } from '@/hooks/use-data';
+import { QuickResponsesConfiguration, defaultQuickResponsesConfig } from '@/types/quickResponses';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from 'modl-shared-web/components/ui/card';
@@ -201,6 +202,42 @@ const TicketDetail = () => {
       default:
         return [];
     }
+  };
+
+  // Function to check if selected action should show punishment interface
+  const shouldShowPunishmentForAction = (actionName: string, category: TicketCategory): boolean => {
+    if (!settingsData?.settings) return false;
+    
+    // Get quick responses from settings (fallback to default config)
+    const quickResponses: QuickResponsesConfiguration = 
+      settingsData.settings.get('quickResponses') || defaultQuickResponsesConfig;
+    
+    // Find the category for this ticket type
+    let ticketType = '';
+    switch(category) {
+      case 'Player Report':
+        ticketType = 'player_report';
+        break;
+      case 'Chat Report':
+        ticketType = 'chat_report';
+        break;
+      default:
+        return false; // Only Player and Chat Reports support punishment
+    }
+    
+    // Find the category that handles this ticket type
+    const responseCategory = quickResponses.categories?.find(cat => 
+      cat.ticketTypes.includes(ticketType)
+    );
+    
+    if (!responseCategory) return false;
+    
+    // Find the action by name
+    const action = responseCategory.actions?.find(act => 
+      act.name === actionName || actionName.includes(act.name.split(' - ')[0])
+    );
+    
+    return action?.showPunishment === true;
   };
 
   const [ticketDetails, setTicketDetails] = useState<TicketDetails>({
@@ -1375,7 +1412,7 @@ const TicketDetail = () => {
                       
                       {/* Punishment checkbox for Player and Chat Reports */}
                       {(ticketDetails.category === 'Player Report' || ticketDetails.category === 'Chat Report') && 
-                       (ticketDetails.selectedAction === 'Accepted' || ticketDetails.selectedAction === 'Comment') && (
+                       ticketDetails.selectedAction && shouldShowPunishmentForAction(ticketDetails.selectedAction, ticketDetails.category) && (
                         <div className="mb-4 p-3 border rounded-md bg-muted/10">
                           <div className="flex items-center space-x-2 mb-3">
                             <Checkbox

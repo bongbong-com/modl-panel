@@ -470,6 +470,9 @@ const TicketSettings = ({
                                     {action.closeTicket && (
                                       <Badge variant="secondary" className="text-xs">Close</Badge>
                                     )}
+                                    {action.showPunishment && (
+                                      <Badge variant="destructive" className="text-xs">Punish</Badge>
+                                    )}
                                     {action.appealAction === 'pardon' && (
                                       <Badge variant="secondary" className="text-xs">Pardon</Badge>
                                     )}
@@ -1362,6 +1365,7 @@ const QuickResponseActionForm = ({
     name: action?.name || '',
     message: action?.message || '',
     closeTicket: action?.closeTicket || false,
+    showPunishment: action?.showPunishment || false,
     appealAction: action?.appealAction || 'none'
   });
 
@@ -1436,6 +1440,26 @@ const QuickResponseActionForm = ({
           </div>
         </div>
 
+        {/* Punishment Settings - Only for Player/Chat Reports */}
+        {isReportCategory && (
+          <div className="space-y-4">
+            <Separator />
+            <h4 className="font-medium">Punishment Settings</h4>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="show-punishment"
+                checked={formData.showPunishment || false}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, showPunishment: checked }))}
+              />
+              <Label htmlFor="show-punishment">Show punishment interface when this response is used</Label>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">
+              When enabled, staff will see the punishment interface when using this response, allowing them to apply punishments with full flexibility.
+            </p>
+          </div>
+        )}
 
         {isAppealCategory && (
           <div className="space-y-4">
