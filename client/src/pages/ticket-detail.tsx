@@ -1485,6 +1485,7 @@ const TicketDetail = () => {
                           <PlayerPunishment
                             playerId={ticketDetails.relatedPlayerId}
                             playerName={ticketDetails.relatedPlayer}
+                            playerStatus="Offline" // Default to offline for ticket context
                             data={ticketDetails.punishmentData || {
                               selectedPunishmentCategory: undefined,
                               selectedSeverity: undefined,
@@ -1518,7 +1519,8 @@ const TicketDetail = () => {
                               });
                             }}
                             punishmentTypesByCategory={punishmentTypesByCategory}
-                            compact={true}
+                            isLoading={false}
+                            compact={false}
                           />
                         </div>
                       )}
