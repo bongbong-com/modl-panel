@@ -43,7 +43,7 @@ import { useAddTicketReply } from '@/hooks/use-add-ticket-reply';
 import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import MarkdownHelp from '@/components/ui/markdown-help';
 import { ClickablePlayer } from '@/components/ui/clickable-player';
-import PunishmentInterface, { PunishmentData } from '@/components/ui/punishment-interface';
+import PlayerPunishment, { PlayerPunishmentData } from '@/components/ui/player-punishment';
 
 export interface TicketMessage {
   id: string;
@@ -132,7 +132,7 @@ export interface TicketDetails {
   tags?: string[];
   newTag?: string;
   aiAnalysis?: AIAnalysis;
-  punishmentData?: PunishmentData; // New field for punishment interface data
+  punishmentData?: PlayerPunishmentData; // New field for punishment interface data
 }
 
 const TicketDetail = () => {
@@ -262,9 +262,9 @@ const TicketDetail = () => {
     notes: [],
     locked: false,
     punishmentData: {
-      selectedPunishmentCategory: '',
-      selectedSeverity: 'regular',
-      selectedOffenseLevel: 'first',
+      selectedPunishmentCategory: undefined,
+      selectedSeverity: undefined,
+      selectedOffenseLevel: undefined,
       duration: { value: 1, unit: 'days' },
       isPermanent: false,
       reason: '',
@@ -1373,13 +1373,13 @@ const TicketDetail = () => {
                             </p>
                           </div>
                           
-                          <PunishmentInterface
+                          <PlayerPunishment
                             playerId={ticketDetails.relatedPlayerId}
                             playerName={ticketDetails.relatedPlayer}
                             data={ticketDetails.punishmentData || {
-                              selectedPunishmentCategory: '',
-                              selectedSeverity: 'regular',
-                              selectedOffenseLevel: 'first',
+                              selectedPunishmentCategory: undefined,
+                              selectedSeverity: undefined,
+                              selectedOffenseLevel: undefined,
                               duration: { value: 1, unit: 'days' },
                               isPermanent: false,
                               reason: '',
@@ -1399,7 +1399,7 @@ const TicketDetail = () => {
                                 punishmentData: data
                               }));
                             }}
-                            onApply={(data) => {
+                            onApply={async (data) => {
                               // Handle punishment application
                               console.log('Applying punishment:', data);
                               // You can integrate with the existing punishment API here
@@ -1408,7 +1408,8 @@ const TicketDetail = () => {
                                 description: `${data.selectedPunishmentCategory} applied to ${ticketDetails.relatedPlayer}`,
                               });
                             }}
-                            compact={false}
+                            punishmentTypes={[]} // TODO: Get punishment types from settings
+                            compact={true}
                           />
                         </div>
                       )}
