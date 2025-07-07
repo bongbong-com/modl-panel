@@ -248,11 +248,38 @@ const AppealsPage = () => {
         };
         setAppealInfo(appealInfo);
         setShowAppealForm(false);
-      } else {        // Show appeal form if no existing appeal and punishment is active and appealable
-        const canAppeal = banInfo.status === 'Active' && 
-                          banInfo.isAppealable !== false;
-        setShowAppealForm(canAppeal);
-        setAppealInfo(null);
+        
+        // Show toast for existing appeal
+        toast({
+          title: "Appeal Already Exists",
+          description: `You have already submitted an appeal for this punishment. Status: ${punishment.existingAppeal.status}`,
+          variant: "default"
+        });
+      } else {        
+        // Check if punishment is not appealable
+        if (banInfo.isAppealable === false) {
+          toast({
+            title: "Cannot Appeal This Punishment",
+            description: "This punishment type is not eligible for appeals. Contact support if you believe this is an error.",
+            variant: "destructive"
+          });
+          setShowAppealForm(false);
+          setAppealInfo(null);
+        } else if (banInfo.status !== 'Active') {
+          // Punishment is not active (expired/pardoned)
+          toast({
+            title: "Cannot Appeal Inactive Punishment",
+            description: "Only active punishments can be appealed. This punishment is no longer active.",
+            variant: "destructive"
+          });
+          setShowAppealForm(false);
+          setAppealInfo(null);
+        } else {
+          // Show appeal form if no existing appeal and punishment is active and appealable
+          const canAppeal = banInfo.status === 'Active' && banInfo.isAppealable !== false;
+          setShowAppealForm(canAppeal);
+          setAppealInfo(null);
+        }
       }
 
       // Prefill form with punishment ID
