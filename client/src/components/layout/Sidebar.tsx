@@ -411,7 +411,15 @@ const Sidebar = () => {
                   <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                     Recent Players
                   </div>
-                  {players.slice(0, 5).map((player: Player, index: number) => (
+                  {players
+                    .sort((a: Player, b: Player) => {
+                      // Sort by lastOnline, most recent first
+                      const aTime = a.lastOnline ? new Date(a.lastOnline).getTime() : 0;
+                      const bTime = b.lastOnline ? new Date(b.lastOnline).getTime() : 0;
+                      return bTime - aTime;
+                    })
+                    .slice(0, 5)
+                    .map((player: Player, index: number) => (
                     <Button
                       key={index}
                       variant="ghost"
