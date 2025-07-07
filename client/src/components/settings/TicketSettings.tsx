@@ -470,9 +470,6 @@ const TicketSettings = ({
                                     {action.closeTicket && (
                                       <Badge variant="secondary" className="text-xs">Close</Badge>
                                     )}
-                                    {action.issuePunishment && (
-                                      <Badge variant="destructive" className="text-xs">Punish</Badge>
-                                    )}
                                     {action.appealAction === 'pardon' && (
                                       <Badge variant="secondary" className="text-xs">Pardon</Badge>
                                     )}
@@ -1365,9 +1362,6 @@ const QuickResponseActionForm = ({
     name: action?.name || '',
     message: action?.message || '',
     closeTicket: action?.closeTicket || false,
-    issuePunishment: action?.issuePunishment || false,
-    punishmentTypeId: action?.punishmentTypeId || undefined,
-    punishmentSeverity: action?.punishmentSeverity || 'regular',
     appealAction: action?.appealAction || 'none'
   });
 
@@ -1442,61 +1436,6 @@ const QuickResponseActionForm = ({
           </div>
         </div>
 
-        {isReportCategory && (
-          <div className="space-y-4">
-            <Separator />
-            <h4 className="font-medium">Punishment Settings</h4>
-            
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="issue-punishment"
-                checked={formData.issuePunishment}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, issuePunishment: checked }))}
-              />
-              <Label htmlFor="issue-punishment">Issue punishment when this response is used</Label>
-            </div>
-
-            {formData.issuePunishment && (
-              <div className="space-y-4 pl-6">
-                <div className="space-y-2">
-                  <Label>Punishment Type</Label>
-                  <Select
-                    value={formData.punishmentTypeId?.toString()}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, punishmentTypeId: parseInt(value) }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select punishment type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {punishmentTypes?.map(type => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          {type.name} ({type.category})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Severity Level</Label>
-                  <Select
-                    value={formData.punishmentSeverity}
-                    onValueChange={(value: 'low' | 'regular' | 'severe') => setFormData(prev => ({ ...prev, punishmentSeverity: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="regular">Regular</SelectItem>
-                      <SelectItem value="severe">Severe</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {isAppealCategory && (
           <div className="space-y-4">

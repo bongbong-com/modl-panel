@@ -5,10 +5,7 @@ export interface QuickResponseAction {
   order: number;
   closeTicket?: boolean; // Whether this action should close the ticket
   
-  // For punishment-related actions (Player/Chat Reports only)
-  issuePunishment?: boolean;
-  punishmentTypeId?: number;
-  punishmentSeverity?: 'low' | 'regular' | 'severe';
+  // Note: Punishment is now handled via the new "Punish" checkbox interface in ticket details
   
   // For appeal actions (simplified - no duration reduction settings here)
   appealAction?: 'pardon' | 'reduce' | 'reject' | 'none';
@@ -40,9 +37,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Chat Abuse',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Chat Abuse.',
           order: 1,
-          issuePunishment: true,
-          punishmentTypeId: 8, // CHAT_ABUSE
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
@@ -50,9 +44,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Anti Social',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Anti Social behavior.',
           order: 2,
-          issuePunishment: true,
-          punishmentTypeId: 9, // ANTI_SOCIAL
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
@@ -82,9 +73,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Team Abuse',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Team Abuse.',
           order: 1,
-          issuePunishment: true,
-          punishmentTypeId: 12, // TEAM_ABUSE
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
@@ -92,9 +80,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Game Abuse',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Game Abuse.',
           order: 2,
-          issuePunishment: true,
-          punishmentTypeId: 13, // GAME_ABUSE
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
@@ -102,9 +87,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Cheating',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Cheating.',
           order: 3,
-          issuePunishment: true,
-          punishmentTypeId: 14, // CHEATING
-          punishmentSeverity: 'severe',
           closeTicket: true,
         },
         {
@@ -112,9 +94,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Game Trading',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Game Trading.',
           order: 4,
-          issuePunishment: true,
-          punishmentTypeId: 15, // GAME_TRADING
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
@@ -122,9 +101,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Account Abuse',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Account Abuse.',
           order: 5,
-          issuePunishment: true,
-          punishmentTypeId: 16, // ACCOUNT_ABUSE
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
@@ -132,9 +108,6 @@ export const defaultQuickResponsesConfig: QuickResponsesConfiguration = {
           name: 'Accept - Systems Abuse',
           message: 'Thank you for creating this report. After careful review, we have accepted this and the reported player will be receiving a punishment for Systems Abuse.',
           order: 6,
-          issuePunishment: true,
-          punishmentTypeId: 17, // SYSTEMS_ABUSE
-          punishmentSeverity: 'regular',
           closeTicket: true,
         },
         {
