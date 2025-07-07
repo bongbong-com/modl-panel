@@ -20,10 +20,34 @@ import { useTheme } from 'next-themes';
 import { useRecentActivity, useStats, ClientActivity } from '@/hooks/use-data';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
+import { useLocation } from 'wouter';
+import { usePlayerWindow } from '@/contexts/PlayerWindowContext';
 
 type Activity = ClientActivity;
 
 const ActivityItem = ({ activity }: { activity: Activity }) => {
+  const [, setLocation] = useLocation();
+  const { openPlayerWindow } = usePlayerWindow();
+
+  const handleActionClick = (action: any) => {
+    if (!action.link) return;
+
+    // Handle ticket navigation
+    if (action.link.startsWith('/panel/tickets/')) {
+      // Extract ticket ID from link
+      const ticketId = action.link.replace('/panel/tickets/', '');
+      // Navigate to ticket detail page
+      setLocation(`/panel/tickets/${ticketId}`);
+    }
+    // Handle player navigation
+    else if (action.link.startsWith('/panel/players/')) {
+      // Extract player UUID from link
+      const playerUuid = action.link.replace('/panel/players/', '');
+      // Open player window
+      openPlayerWindow(playerUuid);
+    }
+  };
+
   return (
     <div className="p-4 hover:bg-muted/50 flex items-start ease-in duration-200">
       <div className={`h-10 w-10 rounded-full bg-${activity.color}-500/20 flex items-center justify-center mr-4 flex-shrink-0`}>
@@ -48,6 +72,7 @@ const ActivityItem = ({ activity }: { activity: Activity }) => {
                 `bg-${activity.color}-500/20 hover:bg-${activity.color}-500/30 text-${activity.color}-500 border-0` : 
                 "bg-muted/50 text-muted-foreground hover:bg-muted"
               }
+              onClick={() => handleActionClick(action)}
             >
               {action.label}
             </Button>
