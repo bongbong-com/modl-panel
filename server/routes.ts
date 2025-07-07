@@ -163,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const days = parseInt(req.query.days as string) || 7;
-      const staffUsername = req.session?.user?.username;
+      const staffUsername = req.session?.username;
 
       if (!staffUsername) {
         return res.status(401).json({ error: 'Not authenticated' });
