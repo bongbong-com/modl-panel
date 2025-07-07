@@ -873,7 +873,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         setPlayerInfo(prev => ({
           ...prev,
           username: currentUsername,
-          status: status === 'Active' ? 'Online' : status,
+          status: getPlayerData(player, 'isOnline') ? 'Online' : (status === 'Active' ? 'Offline' : status),
           region: player.latestIPData?.region || player.region || 'Unknown',
           country: player.latestIPData?.country || player.country || 'Unknown',
           firstJoined: firstJoined,

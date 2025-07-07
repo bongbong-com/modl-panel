@@ -42,6 +42,7 @@ import { useAddTicketReply } from '@/hooks/use-add-ticket-reply';
 import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import MarkdownHelp from '@/components/ui/markdown-help';
 import { ClickablePlayer } from '@/components/ui/clickable-player';
+import PunishmentInterface, { PunishmentData } from '@/components/ui/punishment-interface';
 
 export interface TicketMessage {
   id: string;
@@ -130,6 +131,8 @@ export interface TicketDetails {
   tags?: string[];
   newTag?: string;
   aiAnalysis?: AIAnalysis;
+  showPunishment?: boolean; // New field for punishment checkbox
+  punishmentData?: PunishmentData; // New field for punishment interface data
 }
 
 const TicketDetail = () => {
@@ -212,7 +215,25 @@ const TicketDetail = () => {
     tags: [],
     messages: [],
     notes: [],
-    locked: false
+    locked: false,
+    showPunishment: false,
+    punishmentData: {
+      selectedPunishmentCategory: '',
+      selectedSeverity: 'regular',
+      selectedOffenseLevel: 'first',
+      duration: { value: 1, unit: 'days' },
+      isPermanent: false,
+      reason: '',
+      evidence: [],
+      staffNotes: '',
+      altBlocking: false,
+      statWiping: false,
+      silentPunishment: false,
+      kickSameIP: false,
+      attachReports: [],
+      banToLink: '',
+      banLinkedAccounts: false
+    }
   });
 
   // Simplified status colors - just Open and Closed
@@ -1348,6 +1369,52 @@ const TicketDetail = () => {
                                 </select>
                               </div>
                             </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Punishment checkbox for Player and Chat Reports */}
+                      {(ticketDetails.category === 'Player Report' || ticketDetails.category === 'Chat Report') && 
+                       (ticketDetails.selectedAction === 'Accepted' || ticketDetails.selectedAction === 'Comment') && (
+                        <div className="mb-4 p-3 border rounded-md bg-muted/10">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Checkbox
+                              id="punish"
+                              checked={ticketDetails.showPunishment}
+                              onCheckedChange={(checked) => {
+                                setTicketDetails(prev => ({
+                                  ...prev,
+                                  showPunishment: checked === true
+                                }));
+                              }}
+                            />
+                            <label htmlFor="punish" className="text-sm font-medium">
+                              Punish {ticketDetails.relatedPlayer || 'reported player'}
+                            </label>
+                          </div>
+                          
+                          {ticketDetails.showPunishment && ticketDetails.punishmentData && (
+                            <PunishmentInterface
+                              playerId={ticketDetails.relatedPlayerId}
+                              playerName={ticketDetails.relatedPlayer}
+                              data={ticketDetails.punishmentData}
+                              onChange={(data) => {
+                                setTicketDetails(prev => ({
+                                  ...prev,
+                                  punishmentData: data
+                                }));
+                              }}
+                              onApply={(data) => {
+                                // Handle punishment application
+                                console.log('Applying punishment:', data);
+                                // You can integrate with the existing punishment API here
+                                toast({
+                                  title: "Punishment Applied",
+                                  description: `${data.selectedPunishmentCategory} applied to ${ticketDetails.relatedPlayer}`,
+                                });
+                              }}
+                              compact={true}
+                            />
                           )}
                         </div>
                       )}
