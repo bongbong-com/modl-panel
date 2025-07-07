@@ -180,18 +180,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get ticket activities (created, replied to, status changes)
       try {
         const Ticket = req.serverDbConnection.model('Ticket');
-        const tickets = await Ticket.find({
+        
+        // First, find tickets where the staff member has participated
+        const participatedTickets = await Ticket.find({
           $or: [
             { creator: staffUsername },
             { assignedTo: staffUsername },
             { 'messages.sender': staffUsername }
-          ],
-          created: { $gte: cutoffDate }
+          ]
+        });
+
+        // Get IDs of tickets where staff member has participated
+        const participatedTicketIds = participatedTickets.map(t => t._id);
+
+        // Now find all recent activity in those tickets
+        const tickets = await Ticket.find({
+          _id: { $in: participatedTicketIds },
+          $or: [
+            { created: { $gte: cutoffDate } },
+            { 'messages.timestamp': { $gte: cutoffDate } }
+          ]
         }).sort({ created: -1 });
 
         for (const ticket of tickets) {
-          // Ticket creation activity
-          if (ticket.creator === staffUsername) {
+          // Ticket creation activity (only if staff member created it)
+          if (ticket.creator === staffUsername && new Date(ticket.created) >= cutoffDate) {
             activities.push({
               id: `ticket-created-${ticket._id}`,
               type: 'new_ticket',
@@ -205,21 +218,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
 
-          // Ticket replies
+          // All ticket replies in tickets where staff member has participated
           if (ticket.messages) {
-            const staffMessages = ticket.messages.filter((msg: any) => 
-              msg.sender === staffUsername && 
+            const recentMessages = ticket.messages.filter((msg: any) => 
               new Date(msg.timestamp) >= cutoffDate
             );
             
-            for (const message of staffMessages) {
+            for (const message of recentMessages) {
+              const isStaffMessage = message.sender === staffUsername;
+              const actionType = isStaffMessage ? 'My reply' : 'New reply';
+              const color = isStaffMessage ? 'green' : 'blue';
+              
               activities.push({
                 id: `ticket-reply-${ticket._id}-${message.timestamp}`,
                 type: 'mod_action',
-                color: 'green',
-                title: `Replied to ticket: ${ticket.subject}`,
+                color: color,
+                title: `${actionType} on ticket: ${ticket.subject}`,
                 time: new Date(message.timestamp).toISOString(),
-                description: `Added reply to ${ticket.category || 'Other'} ticket`,
+                description: isStaffMessage 
+                  ? `You replied to ${ticket.category || 'Other'} ticket` 
+                  : `${message.sender} replied to ${ticket.category || 'Other'} ticket`,
                 actions: [
                   { label: 'View Ticket', link: `/panel/tickets/${ticket._id}`, primary: true }
                 ]
@@ -258,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               time: new Date(punishment.issued).toISOString(),
               description: `Applied punishment (Type: ${punishment.type_ordinal})`,
               actions: [
-                { label: 'View Player', link: `/panel/lookup?player=${player.minecraftUuid}`, primary: true }
+                { label: 'View Player', link: `/panel?player=${player.minecraftUuid}`, primary: true }
               ]
             });
           }

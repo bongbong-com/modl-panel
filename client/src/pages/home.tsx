@@ -230,13 +230,6 @@ const Home = () => {
             ))}
         </div>
         
-        <Separator />
-        
-        <div className="p-3 text-center">
-          <Button variant="link" className="text-sm text-primary hover:text-primary/80">
-            View All Activity →
-          </Button>
-        </div>
       </Card>
     </PageContainer>
   );
