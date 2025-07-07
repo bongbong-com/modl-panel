@@ -159,9 +159,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/knowledgebase', knowledgebaseRoutes); // Add knowledgebase routes to panel
   panelRouter.use('/', homepageCardRoutes); // Add homepage card routes to panel
 
-  panelRouter.get('/activity/recent', async (req, res) => {
-    // TODO: Implement logic to fetch recent activity
-    res.json([]);
+  panelRouter.get('/activity/recent', async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const days = parseInt(req.query.days as string) || 7;
+      const staffUsername = req.session?.user?.username;
+
+      if (!staffUsername) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      if (!req.serverDbConnection) {
+        return res.status(503).json({ error: 'Database connection not available' });
+      }
+
+      const activities: any[] = [];
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+
+      // Get ticket activities (created, replied to, status changes)
+      try {
+        const Ticket = req.serverDbConnection.model('Ticket');
+        const tickets = await Ticket.find({
+          $or: [
+            { creator: staffUsername },
+            { assignedTo: staffUsername },
+            { 'messages.sender': staffUsername }
+          ],
+          created: { $gte: cutoffDate }
+        }).sort({ created: -1 });
+
+        for (const ticket of tickets) {
+          // Ticket creation activity
+          if (ticket.creator === staffUsername) {
+            activities.push({
+              id: `ticket-created-${ticket._id}`,
+              type: 'new_ticket',
+              color: 'blue',
+              title: `Created ticket: ${ticket.subject}`,
+              time: new Date(ticket.created).toISOString(),
+              description: `Created ${ticket.category || 'Other'} ticket`,
+              actions: [
+                { label: 'View Ticket', link: `/panel/tickets/${ticket._id}`, primary: true }
+              ]
+            });
+          }
+
+          // Ticket replies
+          if (ticket.messages) {
+            const staffMessages = ticket.messages.filter((msg: any) => 
+              msg.sender === staffUsername && 
+              new Date(msg.timestamp) >= cutoffDate
+            );
+            
+            for (const message of staffMessages) {
+              activities.push({
+                id: `ticket-reply-${ticket._id}-${message.timestamp}`,
+                type: 'mod_action',
+                color: 'green',
+                title: `Replied to ticket: ${ticket.subject}`,
+                time: new Date(message.timestamp).toISOString(),
+                description: `Added reply to ${ticket.category || 'Other'} ticket`,
+                actions: [
+                  { label: 'View Ticket', link: `/panel/tickets/${ticket._id}`, primary: true }
+                ]
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching ticket activities:', error);
+      }
+
+      // Get punishment activities
+      try {
+        const Player = req.serverDbConnection.model('Player');
+        const players = await Player.find({
+          'punishments.issuerName': staffUsername,
+          'punishments.issued': { $gte: cutoffDate }
+        });
+
+        for (const player of players) {
+          const staffPunishments = player.punishments.filter((p: any) => 
+            p.issuerName === staffUsername && 
+            new Date(p.issued) >= cutoffDate
+          );
+
+          for (const punishment of staffPunishments) {
+            const username = player.usernames?.length > 0 
+              ? player.usernames[player.usernames.length - 1].username 
+              : 'Unknown';
+
+            activities.push({
+              id: `punishment-${punishment.id}`,
+              type: 'new_punishment',
+              color: 'red',
+              title: `Applied punishment to ${username}`,
+              time: new Date(punishment.issued).toISOString(),
+              description: `Applied punishment (Type: ${punishment.type_ordinal})`,
+              actions: [
+                { label: 'View Player', link: `/panel/lookup?player=${player.minecraftUuid}`, primary: true }
+              ]
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching punishment activities:', error);
+      }
+
+      // Get system log activities (if staff actions are logged)
+      try {
+        const Log = req.serverDbConnection.model('Log');
+        const logs = await Log.find({
+          source: staffUsername,
+          level: 'moderation',
+          timestamp: { $gte: cutoffDate }
+        }).sort({ timestamp: -1 });
+
+        for (const log of logs) {
+          activities.push({
+            id: `log-${log._id}`,
+            type: 'system_log',
+            color: 'purple',
+            title: 'Moderation Action',
+            time: new Date(log.timestamp).toISOString(),
+            description: log.description || 'Performed moderation action',
+            actions: []
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching log activities:', error);
+      }
+
+      // Sort all activities by time (most recent first) and limit
+      const sortedActivities = activities
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, limit)
+        .map(activity => ({
+          ...activity,
+          time: new Date(activity.time).toLocaleString() // Format time for display
+        }));
+
+      res.json(sortedActivities);
+    } catch (error) {
+      console.error('Error fetching recent activity:', error);
+      res.status(500).json({ error: 'Failed to fetch recent activity' });
+    }
   });
 
   panelRouter.get('/provisioning-status', async (req, res) => {

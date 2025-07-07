@@ -203,7 +203,10 @@ const Home = () => {
       
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-md font-medium">Recent Activity</CardTitle>
+          <div>
+            <CardTitle className="text-md font-medium">My Recent Activity</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Your ticket responses and punishment actions</p>
+          </div>
           <Select defaultValue="all" onValueChange={setActivityFilter}>
             <SelectTrigger className="w-[180px] bg-background border border-border text-sm">
               <SelectValue placeholder="All Activities" />
