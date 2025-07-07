@@ -318,7 +318,18 @@ export function useSettings() {
         if (res.ok) {
           const responseText = await res.text();
           const data = JSON.parse(responseText);
-          return data;
+          
+          // Transform to Map structure for consistency
+          const settingsMap = new Map();
+          if (data.settings) {
+            Object.entries(data.settings).forEach(([key, value]) => {
+              settingsMap.set(key, value);
+            });
+          }
+          
+          return {
+            settings: settingsMap
+          };
         }
 
         // If we get a 401 (unauthorized), try the public endpoint
@@ -327,14 +338,17 @@ export function useSettings() {
           
           if (publicRes.ok) {
             const publicData = await publicRes.json();
-            // Transform public data to match expected format
+            // Transform public data to match expected format with Map methods
+            const settingsMap = new Map();
+            settingsMap.set('general', {
+              serverDisplayName: publicData.serverDisplayName,
+              panelIconUrl: publicData.panelIconUrl,
+              homepageIconUrl: publicData.homepageIconUrl
+            });
+            settingsMap.set('ticketForms', publicData.ticketForms || {});
+            
             return {
-              settings: {
-                general: {
-                  serverDisplayName: publicData.serverDisplayName,
-                  panelIconUrl: publicData.panelIconUrl
-                }
-              }
+              settings: settingsMap
             };
           }
         }
