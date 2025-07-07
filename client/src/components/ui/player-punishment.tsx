@@ -166,8 +166,11 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       statWiping: false
     };
 
-    // For single-severity punishments, automatically set default offense level
-    if (type.singleSeverityPunishment) {
+    // Administrative punishments don't use automatic offense level setting
+    const administrativePunishments = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
+    
+    // For single-severity punishments (non-administrative), automatically set default offense level
+    if (type.singleSeverityPunishment && !administrativePunishments.includes(type.name)) {
       newData.selectedOffenseLevel = 'first' as const;
     }
 
@@ -200,7 +203,14 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
   const renderSeveritySelection = () => {
     const punishmentType = getCurrentPunishmentType();
-    if (!punishmentType || punishmentType.singleSeverityPunishment) return null;
+    if (!punishmentType) return null;
+    
+    // Administrative punishments don't show severity selection - they have their own logic
+    const administrativePunishments = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
+    if (administrativePunishments.includes(punishmentType.name)) return null;
+    
+    // Single severity punishments show offense level instead of severity
+    if (punishmentType.singleSeverityPunishment) return null;
 
     return (
       <div className="space-y-2">
@@ -223,7 +233,14 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
   const renderOffenseSelection = () => {
     const punishmentType = getCurrentPunishmentType();
-    if (!punishmentType || !punishmentType.singleSeverityPunishment) return null;
+    if (!punishmentType) return null;
+    
+    // Administrative punishments don't show offense selection - they have their own logic
+    const administrativePunishments = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
+    if (administrativePunishments.includes(punishmentType.name)) return null;
+    
+    // Only show offense selection for single severity punishments
+    if (!punishmentType.singleSeverityPunishment) return null;
 
     return (
       <div className="space-y-2">
