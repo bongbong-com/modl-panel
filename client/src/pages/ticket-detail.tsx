@@ -132,7 +132,6 @@ export interface TicketDetails {
   tags?: string[];
   newTag?: string;
   aiAnalysis?: AIAnalysis;
-  showPunishment?: boolean; // New field for punishment checkbox
   punishmentData?: PunishmentData; // New field for punishment interface data
 }
 
@@ -262,7 +261,6 @@ const TicketDetail = () => {
     messages: [],
     notes: [],
     locked: false,
-    showPunishment: false,
     punishmentData: {
       selectedPunishmentCategory: '',
       selectedSeverity: 'regular',
@@ -1236,8 +1234,8 @@ const TicketDetail = () => {
                   {/* Reply section - only shown if ticket is not locked */}
                   {!ticketDetails.locked ? (
                     <div className="border rounded-md p-3">
-                      <div className="flex justify-between mb-3">
-                        <div className="flex gap-2">
+                      <div className="mb-3">
+                        <div className="flex flex-wrap gap-2">
                           <Button 
                             variant={ticketDetails.selectedAction === 'Comment' ? 'default' : 'outline'} 
                             size="sm"
@@ -1362,27 +1360,20 @@ const TicketDetail = () => {
                         </div>
                       )}
                       
-                      {/* Punishment checkbox for Player and Chat Reports */}
+                      {/* Punishment interface for Player and Chat Reports */}
                       {(ticketDetails.category === 'Player Report' || ticketDetails.category === 'Chat Report') && 
                        ticketDetails.selectedAction && shouldShowPunishmentForAction(ticketDetails.selectedAction, ticketDetails.category) && (
-                        <div className="mb-4 p-3 border rounded-md bg-muted/10">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <Checkbox
-                              id="punish"
-                              checked={ticketDetails.showPunishment}
-                              onCheckedChange={(checked) => {
-                                setTicketDetails(prev => ({
-                                  ...prev,
-                                  showPunishment: checked === true
-                                }));
-                              }}
-                            />
-                            <label htmlFor="punish" className="text-sm font-medium">
+                        <div className="mb-4">
+                          <div className="mb-3">
+                            <h4 className="text-sm font-medium text-foreground">
                               Punish {ticketDetails.relatedPlayer || 'reported player'}
-                            </label>
+                            </h4>
+                            <p className="text-xs text-muted-foreground">
+                              Apply punishment as part of this response
+                            </p>
                           </div>
                           
-                          {ticketDetails.showPunishment && ticketDetails.punishmentData && (
+                          {ticketDetails.punishmentData && (
                             <PunishmentInterface
                               playerId={ticketDetails.relatedPlayerId}
                               playerName={ticketDetails.relatedPlayer}
