@@ -34,16 +34,12 @@ const ActivityItem = ({ activity }: { activity: Activity }) => {
 
     // Handle ticket navigation
     if (action.link.startsWith('/panel/tickets/')) {
-      // Extract ticket ID from link
       const ticketId = action.link.replace('/panel/tickets/', '');
-      // Navigate to ticket detail page
       setLocation(`/panel/tickets/${ticketId}`);
     }
     // Handle player navigation
     else if (action.link.startsWith('/panel/players/')) {
-      // Extract player UUID from link
       const playerUuid = action.link.replace('/panel/players/', '');
-      // Open player window
       openPlayerWindow(playerUuid);
     }
   };

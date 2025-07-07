@@ -276,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               time: new Date(punishment.issued).toISOString(),
               description: `Applied punishment (Type: ${punishment.type_ordinal})`,
               actions: [
-                { label: 'View Player', link: `/panel?player=${player.minecraftUuid}`, primary: true }
+                { label: 'View Player', link: `/panel/players/${player.minecraftUuid}`, primary: true }
               ]
             });
           }
