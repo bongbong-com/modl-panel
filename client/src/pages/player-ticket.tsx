@@ -48,21 +48,32 @@ interface TicketDetails {
   reportedBy: string;
   date: string;
   category: string;
-  type: 'bug' | 'player' | 'chat' | 'appeal' | 'staff' | 'support';
+  type: 'bug' | 'player' | 'chat' | 'appeal' | 'staff' | 'support' | 'application';
   messages: TicketMessage[];
   locked?: boolean;
 }
 
 interface FormField {
-  fieldName: string;
-  fieldLabel: string;
-  fieldType: 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'multiple_choice' | 'file_upload' | 'checkboxes';
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes';
+  description?: string;
   required: boolean;
   options?: string[];
-  helpText?: string;
+  order: number;
   sectionId?: string;
   goToSection?: string;
   optionSectionMapping?: Record<string, string>; // Maps option values to section IDs
+}
+
+interface FormSection {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  showIfFieldId?: string;
+  showIfValue?: string;
+  showIfValues?: string[];
 }
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -363,13 +374,13 @@ const PlayerTicket = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // For staff applications, auto-generate the subject
-    const finalSubject = ticketDetails.type === 'staff' 
+    // For staff/application forms, auto-generate the subject
+    const finalSubject = (ticketDetails.type === 'staff' || ticketDetails.type === 'application')
       ? `${playerName || ticketDetails.reportedBy}'s Staff Application` 
       : formSubject.trim();
     
-    // Check if subject is required for non-staff applications
-    if (ticketDetails.type !== 'staff' && !finalSubject) {
+    // Check if subject is required for non-application tickets
+    if (ticketDetails.type !== 'staff' && ticketDetails.type !== 'application' && !finalSubject) {
       toast({
         title: "Subject Required",
         description: "Please provide a subject for your ticket.",
@@ -378,47 +389,35 @@ const PlayerTicket = () => {
       return;
     }
     
-    // Check if any required fields are missing
-    let missingRequired = false;
-    const fields = [];
+    // Get form configuration from settings
+    let formConfig = null;
     
     try {
-      // Try to get fields from settings (if available)
       if (settingsData?.settings) {
-        const formTemplates = settingsData.settings.get('ticketForms');
-        if (formTemplates && formTemplates[ticketDetails.type]) {
-          fields.push(...formTemplates[ticketDetails.type]);
-        }
-      }
-      
-      // If formTemplates processing fails or returns empty fields, check formTemplates array
-      if (fields.length === 0 && settingsData?.formTemplates) {
-        const template = settingsData.formTemplates.find((t: any) => t.ticketType === ticketDetails.type);
-        if (template && template.fields) {
-          fields.push(...template.fields.map((f: any) => ({
-            fieldName: f.id,
-            fieldLabel: f.label,
-            fieldType: f.type,
-            required: f.required,
-            options: f.options
-          })));
+        const ticketForms = settingsData.settings.get('ticketForms');
+        if (ticketForms && ticketForms[ticketDetails.type]) {
+          formConfig = ticketForms[ticketDetails.type];
         }
       }
     } catch (error) {
       console.error('Error processing form templates:', error);
     }
     
-    // If no fields found in settings, use defaults
-    if (fields.length === 0) {
-      fields.push(...getDefaultFormFields(ticketDetails.type));
+    // If no form config found, use defaults
+    if (!formConfig) {
+      const defaultFields = getDefaultFormFields(ticketDetails.type);
+      formConfig = {
+        fields: defaultFields,
+        sections: []
+      };
     }
     
     // Check required fields
-    for (const field of fields) {
-      if (field.required && (!formData[field.fieldName] || formData[field.fieldName].trim() === '')) {
+    for (const field of formConfig.fields) {
+      if (field.required && (!formData[field.id] || formData[field.id].trim() === '')) {
         toast({
           title: "Required Field Missing",
-          description: `Please complete the "${field.fieldLabel}" field.`,
+          description: `Please complete the "${field.label}" field.`,
           variant: "destructive"
         });
         return;
@@ -468,58 +467,52 @@ const PlayerTicket = () => {
     }));
   };
   
-  // Define default form templates based on ticket type
+  // Define default form templates based on ticket type (fallback only)
   const getDefaultFormFields = (type: string): FormField[] => {
     const defaultTemplates: Record<string, FormField[]> = {
       'bug': [
-        { fieldName: 'description', fieldLabel: 'Bug Description', fieldType: 'textarea', required: true },
-        { fieldName: 'steps', fieldLabel: 'Steps to Reproduce', fieldType: 'textarea', required: true },
-        { fieldName: 'expected', fieldLabel: 'Expected Behavior', fieldType: 'textarea', required: true },
-        { fieldName: 'actual', fieldLabel: 'Actual Behavior', fieldType: 'textarea', required: true },
-        { fieldName: 'server', fieldLabel: 'Server', fieldType: 'text', required: true },
-        { fieldName: 'version', fieldLabel: 'Game Version', fieldType: 'text', required: false }
+        { id: 'description', label: 'Bug Description', type: 'textarea', required: true, order: 1 },
+        { id: 'steps', label: 'Steps to Reproduce', type: 'textarea', required: true, order: 2 },
+        { id: 'expected', label: 'Expected Behavior', type: 'textarea', required: true, order: 3 },
+        { id: 'actual', label: 'Actual Behavior', type: 'textarea', required: true, order: 4 },
+        { id: 'server', label: 'Server', type: 'text', required: true, order: 5 },
+        { id: 'version', label: 'Game Version', type: 'text', required: false, order: 6 }
       ],
       'player': [
-        { fieldName: 'description', fieldLabel: 'Describe the Incident', fieldType: 'textarea', required: true },
-        { fieldName: 'serverName', fieldLabel: 'Server Name', fieldType: 'text', required: true },
-        { fieldName: 'when', fieldLabel: 'When did this happen?', fieldType: 'text', required: true },
-        { fieldName: 'evidence', fieldLabel: 'Evidence (screenshots, videos, etc.)', fieldType: 'textarea', required: false }
+        { id: 'description', label: 'Describe the Incident', type: 'textarea', required: true, order: 1 },
+        { id: 'serverName', label: 'Server Name', type: 'text', required: true, order: 2 },
+        { id: 'when', label: 'When did this happen?', type: 'text', required: true, order: 3 },
+        { id: 'evidence', label: 'Evidence (screenshots, videos, etc.)', type: 'textarea', required: false, order: 4 }
       ],
       'chat': [
-        { fieldName: 'description', fieldLabel: 'Describe the Issue', fieldType: 'textarea', required: true },
-        { fieldName: 'serverName', fieldLabel: 'Server Name', fieldType: 'text', required: true },
-        { fieldName: 'when', fieldLabel: 'When did this happen?', fieldType: 'text', required: true },
-        { fieldName: 'chatlog', fieldLabel: 'Copy & Paste Chat Log', fieldType: 'textarea', required: true }
+        { id: 'description', label: 'Describe the Issue', type: 'textarea', required: true, order: 1 },
+        { id: 'serverName', label: 'Server Name', type: 'text', required: true, order: 2 },
+        { id: 'when', label: 'When did this happen?', type: 'text', required: true, order: 3 },
+        { id: 'chatlog', label: 'Copy & Paste Chat Log', type: 'textarea', required: true, order: 4 }
       ],
-      'staff': [
-        { fieldName: 'email', fieldLabel: 'Your email', fieldType: 'text', required: true,
-          helpText: 'Please monitor this as replies will be sent here.' },
-        { fieldName: 'introduction', fieldLabel: 'Introduce yourself.', fieldType: 'textarea', required: true,
-          helpText: 'Who are you? Tell us about your hobbies, education, environment, schedule, and world view' },
-        { fieldName: 'server_perspective', fieldLabel: 'Introduce the server.', fieldType: 'textarea', required: true,
-          helpText: 'From your point of view, what is the server about and why do you enjoy it?' },
-        { fieldName: 'passion', fieldLabel: 'Describe in detail something you are passionate about.', fieldType: 'textarea', required: true,
-          helpText: 'This does not have to be about the server and could be about literally anything, we want to hear it!' },
-        { fieldName: 'additional', fieldLabel: 'Anything else?', fieldType: 'textarea', required: false,
-          helpText: 'Use this space to reflect/explain on any punishments on the server, talk about past experience, or disclose other information relevant to your application.' },
-        { fieldName: 'age_check', fieldLabel: 'I am 16 years of age or older', fieldType: 'checkbox', required: true },
-        { fieldName: 'microphone_check', fieldLabel: 'I have a working microphone and am able to use recording software', fieldType: 'checkbox', required: true },
-        { fieldName: 'english_check', fieldLabel: 'I can speak english fluently', fieldType: 'checkbox', required: true },
-        { fieldName: 'interview_check', fieldLabel: 'I am willing to participate in a voice-call interview if I am chosen to move forward in the process', fieldType: 'checkbox', required: true },
-        { fieldName: 'wait_check', fieldLabel: 'I understand that it may take several weeks to process this application and I agree to not open additional tickets regarding the status of my application', fieldType: 'checkbox', required: true }
+      'application': [
+        { id: 'email', label: 'Your email', type: 'text', required: true, order: 1, description: 'Please monitor this as replies will be sent here.' },
+        { id: 'introduction', label: 'Introduce yourself.', type: 'textarea', required: true, order: 2, description: 'Who are you? Tell us about your hobbies, education, environment, schedule, and world view' },
+        { id: 'server_perspective', label: 'Introduce the server.', type: 'textarea', required: true, order: 3, description: 'From your point of view, what is the server about and why do you enjoy it?' },
+        { id: 'passion', label: 'Describe in detail something you are passionate about.', type: 'textarea', required: true, order: 4, description: 'This does not have to be about the server and could be about literally anything, we want to hear it!' },
+        { id: 'additional', label: 'Anything else?', type: 'textarea', required: false, order: 5, description: 'Use this space to reflect/explain on any punishments on the server, talk about past experience, or disclose other information relevant to your application.' },
+        { id: 'age_check', label: 'I am 16 years of age or older', type: 'checkbox', required: true, order: 6 },
+        { id: 'microphone_check', label: 'I have a working microphone and am able to use recording software', type: 'checkbox', required: true, order: 7 },
+        { id: 'english_check', label: 'I can speak english fluently', type: 'checkbox', required: true, order: 8 },
+        { id: 'interview_check', label: 'I am willing to participate in a voice-call interview if I am chosen to move forward in the process', type: 'checkbox', required: true, order: 9 },
+        { id: 'wait_check', label: 'I understand that it may take several weeks to process this application and I agree to not open additional tickets regarding the status of my application', type: 'checkbox', required: true, order: 10 }
       ],
       'support': [
-        { fieldName: 'description', fieldLabel: 'How can we help you?', fieldType: 'textarea', required: true },
-        { fieldName: 'category', fieldLabel: 'Support Category', fieldType: 'select', 
-          options: ['Account Issues', 'Technical Help', 'Purchases', 'Other'],
-          required: true 
-        },
-        { fieldName: 'priority', fieldLabel: 'Priority', fieldType: 'select', 
-          options: ['Low', 'Medium', 'High'],
-          required: true 
-        }
+        { id: 'description', label: 'How can we help you?', type: 'textarea', required: true, order: 1 },
+        { id: 'category', label: 'Support Category', type: 'dropdown', options: ['Account Issues', 'Technical Help', 'Purchases', 'Other'], required: true, order: 2 },
+        { id: 'priority', label: 'Priority', type: 'dropdown', options: ['Low', 'Medium', 'High'], required: true, order: 3 }
       ]
     };
+    
+    // Map staff to application for backward compatibility
+    if (type === 'staff') {
+      return defaultTemplates['application'] || [];
+    }
     
     return defaultTemplates[type] || [];
   };
@@ -535,76 +528,91 @@ const PlayerTicket = () => {
       );
     }
     
-    // Get form fields - attempt to fetch from settings, but fall back to defaults
-    let fields = [];
+    // Get form configuration from settings
+    let formConfig = null;
     
     try {
-      // Try to get fields from settings (if available)
       if (settingsData?.settings) {
-        const formTemplates = settingsData.settings.get('ticketForms');
-        if (formTemplates && formTemplates[ticketDetails.type]) {
-          fields = formTemplates[ticketDetails.type];
-        }
-      }
-      
-      // If formTemplates processing fails or returns empty fields, check formTemplates array
-      if (fields.length === 0 && settingsData?.formTemplates) {
-        const template = settingsData.formTemplates.find((t: any) => t.ticketType === ticketDetails.type);
-        if (template && template.fields) {
-          fields = template.fields.map((f: any) => ({
-            fieldName: f.id,
-            fieldLabel: f.label,
-            fieldType: f.type as 'text' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'multiple_choice' | 'file_upload' | 'checkboxes',
-            required: f.required,
-            options: f.options,
-            helpText: f.helpText,
-            sectionId: f.sectionId,
-            goToSection: f.goToSection,
-            optionSectionMapping: f.optionSectionMapping
-          }));
+        const ticketForms = settingsData.settings.get('ticketForms');
+        if (ticketForms && ticketForms[ticketDetails.type]) {
+          formConfig = ticketForms[ticketDetails.type];
         }
       }
     } catch (error) {
       console.error('Error processing form templates:', error);
     }
     
-    // If no fields found in settings, use defaults
-    if (fields.length === 0) {
-      fields = getDefaultFormFields(ticketDetails.type);
-      // Using default form template
+    // If no form config found, use defaults
+    if (!formConfig) {
+      const defaultFields = getDefaultFormFields(ticketDetails.type);
+      formConfig = {
+        fields: defaultFields,
+        sections: []
+      };
     }
     
+    const fields = formConfig.fields || [];
+    const sectionDefinitions = formConfig.sections || [];
+    
     // Group fields by section
-    const sections: { [key: string]: FormField[] } = {};
+    const fieldsBySection: { [key: string]: FormField[] } = {};
     const fieldsWithoutSection: FormField[] = [];
     
     fields.forEach((field: FormField) => {
       if (field.sectionId) {
-        if (!sections[field.sectionId]) {
-          sections[field.sectionId] = [];
+        if (!fieldsBySection[field.sectionId]) {
+          fieldsBySection[field.sectionId] = [];
         }
-        sections[field.sectionId].push(field);
+        fieldsBySection[field.sectionId].push(field);
       } else {
         fieldsWithoutSection.push(field);
       }
     });
+    
+    // Sort fields within each section by order
+    Object.keys(fieldsBySection).forEach(sectionId => {
+      fieldsBySection[sectionId].sort((a, b) => a.order - b.order);
+    });
+    
+    // Sort fields without section by order
+    fieldsWithoutSection.sort((a, b) => a.order - b.order);
 
-    // Determine which sections should be visible based on current form values
+    // Determine which sections should be visible based on current form values and section definitions
     const getVisibleSections = (): Set<string> => {
       const visibleSections = new Set<string>();
       
-      // Check all fields to see if they trigger section visibility
+      // First, add all sections that don't have conditional logic
+      sectionDefinitions.forEach((section: FormSection) => {
+        if (!section.showIfFieldId) {
+          visibleSections.add(section.id);
+        }
+      });
+      
+      // Check conditional sections
+      sectionDefinitions.forEach((section: FormSection) => {
+        if (section.showIfFieldId) {
+          const triggerFieldValue = formData[section.showIfFieldId];
+          
+          if (section.showIfValue && triggerFieldValue === section.showIfValue) {
+            visibleSections.add(section.id);
+          } else if (section.showIfValues && section.showIfValues.includes(triggerFieldValue)) {
+            visibleSections.add(section.id);
+          }
+        }
+      });
+      
+      // Also check field-level navigation (legacy support and optionSectionMapping)
       fields.forEach((field: FormField) => {
-        const fieldValue = formData[field.fieldName];
+        const fieldValue = formData[field.id];
         
         if (field.optionSectionMapping && fieldValue) {
-          if (field.fieldType === 'select') {
+          if (field.type === 'dropdown') {
             // For dropdown, check if selected value maps to a section
             const targetSection = field.optionSectionMapping[fieldValue];
             if (targetSection) {
               visibleSections.add(targetSection);
             }
-          } else if (field.fieldType === 'multiple_choice' || field.fieldType === 'checkboxes') {
+          } else if (field.type === 'multiple_choice' || field.type === 'checkboxes') {
             // For multi-choice, check if any selected values map to sections
             const selectedValues = fieldValue.split(',').map(v => v.trim()).filter(v => v);
             selectedValues.forEach(value => {
@@ -613,17 +621,6 @@ const PlayerTicket = () => {
                 visibleSections.add(targetSection);
               }
             });
-          }
-        }
-        
-        // Legacy support for goToSection property
-        if (field.goToSection && fieldValue) {
-          if (field.fieldType === 'select' && fieldValue) {
-            visibleSections.add(field.goToSection);
-          } else if ((field.fieldType === 'multiple_choice' || field.fieldType === 'checkboxes') && fieldValue) {
-            visibleSections.add(field.goToSection);
-          } else if (field.fieldType === 'checkbox' && fieldValue === 'true') {
-            visibleSections.add(field.goToSection);
           }
         }
       });
@@ -639,37 +636,37 @@ const PlayerTicket = () => {
     };
 
     const renderField = (field: FormField) => (
-      <div key={field.fieldName} className="space-y-1">
-        {field.fieldType !== 'checkbox' ?
-          <Label htmlFor={field.fieldName} className="font-medium">
-            {field.fieldLabel}
+      <div key={field.id} className="space-y-1">
+        {field.type !== 'checkbox' ?
+          <Label htmlFor={field.id} className="font-medium">
+            {field.label}
             {field.required && <span className="text-destructive ml-1">*</span>}
           </Label> : null
         }
         
-        {field.helpText && (
-          <p className="text-sm text-muted-foreground mb-1">{field.helpText}</p>
+        {field.description && (
+          <p className="text-sm text-muted-foreground mb-1">{field.description}</p>
         )}
         
-        {field.fieldType === 'textarea' ? (
+        {field.type === 'textarea' ? (
           <Textarea
-            id={field.fieldName}
-            placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
-            value={formData[field.fieldName] || ''}
-            onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
-            className={ticketDetails.type === 'staff' ? 
-              (field.fieldName === 'introduction' || field.fieldName === 'server_perspective' || field.fieldName === 'passion') ? 
+            id={field.id}
+            placeholder={`Enter ${field.label.toLowerCase()}`}
+            value={formData[field.id] || ''}
+            onChange={(e) => handleFormFieldChange(field.id, e.target.value)}
+            className={ticketDetails.type === 'application' || ticketDetails.type === 'staff' ? 
+              (field.id === 'introduction' || field.id === 'server_perspective' || field.id === 'passion') ? 
                 "min-h-[180px]" : "min-h-[120px]" 
               : "min-h-[120px]"}
             required={field.required}
           />
-        ) : field.fieldType === 'select' ? (
+        ) : field.type === 'dropdown' ? (
           <Select
-            value={formData[field.fieldName] || ''}
-            onValueChange={(value) => handleFormFieldChange(field.fieldName, value)}
+            value={formData[field.id] || ''}
+            onValueChange={(value) => handleFormFieldChange(field.id, value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
+              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
               {field.options?.map((option) => (
@@ -679,44 +676,44 @@ const PlayerTicket = () => {
               ))}
             </SelectContent>
           </Select>
-        ) : field.fieldType === 'checkbox' ? (
+        ) : field.type === 'checkbox' ? (
           <div className="flex items-start space-x-2 mt-2">
             <Checkbox 
-              id={field.fieldName}
-              checked={formData[field.fieldName] === "true"}
-              onCheckedChange={(checked: boolean) => handleFormFieldChange(field.fieldName, checked ? "true" : "false")}
+              id={field.id}
+              checked={formData[field.id] === "true"}
+              onCheckedChange={(checked: boolean) => handleFormFieldChange(field.id, checked ? "true" : "false")}
               required={field.required}
               className="mt-1"
             />
             <label 
-              htmlFor={field.fieldName}
+              htmlFor={field.id}
               className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              {field.fieldLabel}
+              {field.label}
               {field.required && <span className="text-destructive ml-1">*</span>}
             </label>
           </div>
-        ) : field.fieldType === 'multiple_choice' ? (
+        ) : field.type === 'multiple_choice' ? (
           <div className="space-y-2">
             {field.options?.map((option) => (
               <div key={option} className="flex items-center space-x-2">
                 <Checkbox 
-                  id={`${field.fieldName}-${option}`}
-                  checked={formData[field.fieldName]?.includes(option) || false}
+                  id={`${field.id}-${option}`}
+                  checked={formData[field.id]?.includes(option) || false}
                   onCheckedChange={(checked: boolean) => {
-                    const currentValues = formData[field.fieldName] ? formData[field.fieldName].split(',') : [];
+                    const currentValues = formData[field.id] ? formData[field.id].split(',') : [];
                     if (checked) {
                       const newValues = [...currentValues, option].filter(v => v.trim() !== '');
-                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                      handleFormFieldChange(field.id, newValues.join(','));
                     } else {
                       const newValues = currentValues.filter(v => v !== option);
-                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                      handleFormFieldChange(field.id, newValues.join(','));
                     }
                   }}
                   className="mt-1"
                 />
                 <label 
-                  htmlFor={`${field.fieldName}-${option}`}
+                  htmlFor={`${field.id}-${option}`}
                   className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   {option}
@@ -724,27 +721,27 @@ const PlayerTicket = () => {
               </div>
             ))}
           </div>
-        ) : field.fieldType === 'checkboxes' ? (
+        ) : field.type === 'checkboxes' ? (
           <div className="space-y-2">
             {field.options?.map((option) => (
               <div key={option} className="flex items-center space-x-2">
                 <Checkbox 
-                  id={`${field.fieldName}-${option}`}
-                  checked={formData[field.fieldName]?.includes(option) || false}
+                  id={`${field.id}-${option}`}
+                  checked={formData[field.id]?.includes(option) || false}
                   onCheckedChange={(checked: boolean) => {
-                    const currentValues = formData[field.fieldName] ? formData[field.fieldName].split(',') : [];
+                    const currentValues = formData[field.id] ? formData[field.id].split(',') : [];
                     if (checked) {
                       const newValues = [...currentValues, option].filter(v => v.trim() !== '');
-                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                      handleFormFieldChange(field.id, newValues.join(','));
                     } else {
                       const newValues = currentValues.filter(v => v !== option);
-                      handleFormFieldChange(field.fieldName, newValues.join(','));
+                      handleFormFieldChange(field.id, newValues.join(','));
                     }
                   }}
                   className="mt-1"
                 />
                 <label 
-                  htmlFor={`${field.fieldName}-${option}`}
+                  htmlFor={`${field.id}-${option}`}
                   className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   {option}
@@ -752,14 +749,14 @@ const PlayerTicket = () => {
               </div>
             ))}
           </div>
-        ) : field.fieldType === 'file_upload' ? (
+        ) : field.type === 'file_upload' ? (
           <Input
-            id={field.fieldName}
+            id={field.id}
             type="file"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) {
-                handleFormFieldChange(field.fieldName, file.name);
+                handleFormFieldChange(field.id, file.name);
               }
             }}
             required={field.required}
@@ -767,11 +764,11 @@ const PlayerTicket = () => {
           />
         ) : (
           <Input
-            id={field.fieldName}
+            id={field.id}
             type="text"
-            placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
-            value={formData[field.fieldName] || ''}
-            onChange={(e) => handleFormFieldChange(field.fieldName, e.target.value)}
+            placeholder={`Enter ${field.label.toLowerCase()}`}
+            value={formData[field.id] || ''}
+            onChange={(e) => handleFormFieldChange(field.id, e.target.value)}
             required={field.required}
           />
         )}
@@ -781,7 +778,7 @@ const PlayerTicket = () => {
     return (
       <form onSubmit={handleFormSubmit} className="space-y-6">
         <div className="space-y-4">
-          {ticketDetails.type !== 'staff' && (
+          {ticketDetails.type !== 'staff' && ticketDetails.type !== 'application' && (
             <div>
               <Label htmlFor="subject" className="font-medium">Ticket Subject</Label>
               <Input
@@ -799,17 +796,26 @@ const PlayerTicket = () => {
           {/* Render fields without sections first */}
           {fieldsWithoutSection.filter(shouldShowField).map((field: FormField) => renderField(field))}
           
-          {/* Render sections - only show visible sections */}
-          {Object.entries(sections)
-            .filter(([sectionId]) => visibleSections.has(sectionId))
-            .map(([sectionId, sectionFields]) => (
-              <div key={sectionId} className="border rounded-lg p-4 space-y-4 bg-muted/20">
-                <div className="border-b pb-2">
-                  <h3 className="font-medium text-lg">{sectionId}</h3>
+          {/* Render sections in order - only show visible sections */}
+          {sectionDefinitions
+            .filter(section => visibleSections.has(section.id))
+            .sort((a, b) => a.order - b.order)
+            .map((section) => {
+              const sectionFields = fieldsBySection[section.id] || [];
+              if (sectionFields.length === 0) return null;
+              
+              return (
+                <div key={section.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                  <div className="border-b pb-2">
+                    <h3 className="font-medium text-lg">{section.title}</h3>
+                    {section.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
+                    )}
+                  </div>
+                  {sectionFields.filter(shouldShowField).map((field: FormField) => renderField(field))}
                 </div>
-                {sectionFields.filter(shouldShowField).map((field: FormField) => renderField(field))}
-              </div>
-            ))}
+              );
+            })}
         </div>
         
         <div className="flex justify-end">
@@ -859,7 +865,7 @@ const PlayerTicket = () => {
         {ticketDetails.status === 'Unfinished' ? (
           <Card className="mb-6">
             <CardHeader>
-              {ticketDetails.type === 'staff' ? (
+              {(ticketDetails.type === 'staff' || ticketDetails.type === 'application') ? (
                 <>
                   <CardTitle>Staff Application</CardTitle>
                   <CardDescription className="mt-2">
