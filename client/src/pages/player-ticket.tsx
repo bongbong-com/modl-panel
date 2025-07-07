@@ -389,27 +389,32 @@ const PlayerTicket = () => {
       return;
     }
     
-    // Get form configuration from settings
+    // Get form configuration from settings - REQUIRED
     let formConfig = null;
     
     try {
       if (settingsData?.settings) {
         const ticketForms = settingsData.settings.get('ticketForms');
+        
+        // Try the ticket type first, then try 'application' for 'staff' tickets (legacy support)
         if (ticketForms && ticketForms[ticketDetails.type]) {
           formConfig = ticketForms[ticketDetails.type];
+        } else if (ticketDetails.type === 'staff' && ticketForms && ticketForms['application']) {
+          formConfig = ticketForms['application'];
         }
       }
     } catch (error) {
       console.error('Error processing form templates:', error);
     }
     
-    // If no form config found, use defaults
-    if (!formConfig) {
-      const defaultFields = getDefaultFormFields(ticketDetails.type);
-      formConfig = {
-        fields: defaultFields,
-        sections: []
-      };
+    // If no form config found, show error - no fallback
+    if (!formConfig || !formConfig.fields) {
+      toast({
+        title: "Form Configuration Missing",
+        description: `No form configuration found for ${ticketDetails.type} tickets. Please contact support.`,
+        variant: "destructive"
+      });
+      return;
     }
     
     // Check required fields
@@ -467,55 +472,7 @@ const PlayerTicket = () => {
     }));
   };
   
-  // Define default form templates based on ticket type (fallback only)
-  const getDefaultFormFields = (type: string): FormField[] => {
-    const defaultTemplates: Record<string, FormField[]> = {
-      'bug': [
-        { id: 'description', label: 'Bug Description', type: 'textarea', required: true, order: 1 },
-        { id: 'steps', label: 'Steps to Reproduce', type: 'textarea', required: true, order: 2 },
-        { id: 'expected', label: 'Expected Behavior', type: 'textarea', required: true, order: 3 },
-        { id: 'actual', label: 'Actual Behavior', type: 'textarea', required: true, order: 4 },
-        { id: 'server', label: 'Server', type: 'text', required: true, order: 5 },
-        { id: 'version', label: 'Game Version', type: 'text', required: false, order: 6 }
-      ],
-      'player': [
-        { id: 'description', label: 'Describe the Incident', type: 'textarea', required: true, order: 1 },
-        { id: 'serverName', label: 'Server Name', type: 'text', required: true, order: 2 },
-        { id: 'when', label: 'When did this happen?', type: 'text', required: true, order: 3 },
-        { id: 'evidence', label: 'Evidence (screenshots, videos, etc.)', type: 'textarea', required: false, order: 4 }
-      ],
-      'chat': [
-        { id: 'description', label: 'Describe the Issue', type: 'textarea', required: true, order: 1 },
-        { id: 'serverName', label: 'Server Name', type: 'text', required: true, order: 2 },
-        { id: 'when', label: 'When did this happen?', type: 'text', required: true, order: 3 },
-        { id: 'chatlog', label: 'Copy & Paste Chat Log', type: 'textarea', required: true, order: 4 }
-      ],
-      'application': [
-        { id: 'email', label: 'Your email', type: 'text', required: true, order: 1, description: 'Please monitor this as replies will be sent here.' },
-        { id: 'introduction', label: 'Introduce yourself.', type: 'textarea', required: true, order: 2, description: 'Who are you? Tell us about your hobbies, education, environment, schedule, and world view' },
-        { id: 'server_perspective', label: 'Introduce the server.', type: 'textarea', required: true, order: 3, description: 'From your point of view, what is the server about and why do you enjoy it?' },
-        { id: 'passion', label: 'Describe in detail something you are passionate about.', type: 'textarea', required: true, order: 4, description: 'This does not have to be about the server and could be about literally anything, we want to hear it!' },
-        { id: 'additional', label: 'Anything else?', type: 'textarea', required: false, order: 5, description: 'Use this space to reflect/explain on any punishments on the server, talk about past experience, or disclose other information relevant to your application.' },
-        { id: 'age_check', label: 'I am 16 years of age or older', type: 'checkbox', required: true, order: 6 },
-        { id: 'microphone_check', label: 'I have a working microphone and am able to use recording software', type: 'checkbox', required: true, order: 7 },
-        { id: 'english_check', label: 'I can speak english fluently', type: 'checkbox', required: true, order: 8 },
-        { id: 'interview_check', label: 'I am willing to participate in a voice-call interview if I am chosen to move forward in the process', type: 'checkbox', required: true, order: 9 },
-        { id: 'wait_check', label: 'I understand that it may take several weeks to process this application and I agree to not open additional tickets regarding the status of my application', type: 'checkbox', required: true, order: 10 }
-      ],
-      'support': [
-        { id: 'description', label: 'How can we help you?', type: 'textarea', required: true, order: 1 },
-        { id: 'category', label: 'Support Category', type: 'dropdown', options: ['Account Issues', 'Technical Help', 'Purchases', 'Other'], required: true, order: 2 },
-        { id: 'priority', label: 'Priority', type: 'dropdown', options: ['Low', 'Medium', 'High'], required: true, order: 3 }
-      ]
-    };
-    
-    // Map staff to application for backward compatibility
-    if (type === 'staff') {
-      return defaultTemplates['application'] || [];
-    }
-    
-    return defaultTemplates[type] || [];
-  };
+  // No fallback forms - only use configured forms
 
   // Render form based on ticket type
   const renderTicketForm = () => {
@@ -523,36 +480,71 @@ const PlayerTicket = () => {
       return (
         <div className="text-center py-8">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading form...</p>
+          <p className="text-muted-foreground">Loading form configuration...</p>
         </div>
       );
     }
     
-    // Get form configuration from settings
+    // Get form configuration from settings - REQUIRED
     let formConfig = null;
     
     try {
       if (settingsData?.settings) {
         const ticketForms = settingsData.settings.get('ticketForms');
+        
+        // Try the ticket type first, then try 'application' for 'staff' tickets (legacy support)
         if (ticketForms && ticketForms[ticketDetails.type]) {
           formConfig = ticketForms[ticketDetails.type];
+        } else if (ticketDetails.type === 'staff' && ticketForms && ticketForms['application']) {
+          formConfig = ticketForms['application'];
         }
       }
     } catch (error) {
       console.error('Error processing form templates:', error);
     }
     
-    // If no form config found, use defaults
-    if (!formConfig) {
-      const defaultFields = getDefaultFormFields(ticketDetails.type);
-      formConfig = {
-        fields: defaultFields,
-        sections: []
-      };
+    // If no form config found, show error - no fallback
+    if (!formConfig || !formConfig.fields) {
+      return (
+        <div className="text-center py-8 border-2 border-dashed border-red-200 bg-red-50 rounded-lg">
+          <div className="text-red-600 mb-4">
+            <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-red-800 mb-2">Form Not Configured</h3>
+          <p className="text-red-700 mb-4">
+            No form configuration found for {ticketDetails.type} tickets.
+          </p>
+          <p className="text-sm text-red-600">
+            Please contact server administration to configure this ticket form.
+          </p>
+        </div>
+      );
     }
     
     const fields = formConfig.fields || [];
     const sectionDefinitions = formConfig.sections || [];
+    
+    // Ensure we have fields to render
+    if (fields.length === 0) {
+      return (
+        <div className="text-center py-8 border-2 border-dashed border-yellow-200 bg-yellow-50 rounded-lg">
+          <div className="text-yellow-600 mb-4">
+            <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-yellow-800 mb-2">Empty Form Configuration</h3>
+          <p className="text-yellow-700 mb-4">
+            The {ticketDetails.type} ticket form has no fields configured.
+          </p>
+          <p className="text-sm text-yellow-600">
+            Please contact server administration to add fields to this ticket form.
+          </p>
+        </div>
+      );
+    }
     
     // Group fields by section
     const fieldsBySection: { [key: string]: FormField[] } = {};
