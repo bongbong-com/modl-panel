@@ -1373,29 +1373,43 @@ const TicketDetail = () => {
                             </p>
                           </div>
                           
-                          {ticketDetails.punishmentData && (
-                            <PunishmentInterface
-                              playerId={ticketDetails.relatedPlayerId}
-                              playerName={ticketDetails.relatedPlayer}
-                              data={ticketDetails.punishmentData}
-                              onChange={(data) => {
-                                setTicketDetails(prev => ({
-                                  ...prev,
-                                  punishmentData: data
-                                }));
-                              }}
-                              onApply={(data) => {
-                                // Handle punishment application
-                                console.log('Applying punishment:', data);
-                                // You can integrate with the existing punishment API here
-                                toast({
-                                  title: "Punishment Applied",
-                                  description: `${data.selectedPunishmentCategory} applied to ${ticketDetails.relatedPlayer}`,
-                                });
-                              }}
-                              compact={true}
-                            />
-                          )}
+                          <PunishmentInterface
+                            playerId={ticketDetails.relatedPlayerId}
+                            playerName={ticketDetails.relatedPlayer}
+                            data={ticketDetails.punishmentData || {
+                              selectedPunishmentCategory: '',
+                              selectedSeverity: 'regular',
+                              selectedOffenseLevel: 'first',
+                              duration: { value: 1, unit: 'days' },
+                              isPermanent: false,
+                              reason: '',
+                              evidence: [],
+                              staffNotes: '',
+                              altBlocking: false,
+                              statWiping: false,
+                              silentPunishment: false,
+                              kickSameIP: false,
+                              attachReports: [],
+                              banToLink: '',
+                              banLinkedAccounts: false
+                            }}
+                            onChange={(data) => {
+                              setTicketDetails(prev => ({
+                                ...prev,
+                                punishmentData: data
+                              }));
+                            }}
+                            onApply={(data) => {
+                              // Handle punishment application
+                              console.log('Applying punishment:', data);
+                              // You can integrate with the existing punishment API here
+                              toast({
+                                title: "Punishment Applied",
+                                description: `${data.selectedPunishmentCategory} applied to ${ticketDetails.relatedPlayer}`,
+                              });
+                            }}
+                            compact={false}
+                          />
                         </div>
                       )}
                       
