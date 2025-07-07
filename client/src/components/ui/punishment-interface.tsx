@@ -7,7 +7,7 @@ import {
   MessageSquare, 
   Shield, 
   User, 
-  GameController2, 
+  Gamepad2, 
   Settings,
   Clock,
   Upload
@@ -171,7 +171,7 @@ const PunishmentInterface: React.FC<PunishmentInterfaceProps> = ({
             {renderCategoryGrid(
               punishmentCategories.gameAccount,
               "Game & Account",
-              <GameController2 className="h-4 w-4" />
+              <Gamepad2 className="h-4 w-4" />
             )}
           </div>
         </CardContent>
