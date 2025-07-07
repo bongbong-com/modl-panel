@@ -204,9 +204,9 @@ const TicketDetail = () => {
     }
   };
 
-  // Function to check if selected action should show punishment interface
-  const shouldShowPunishmentForAction = (actionName: string, category: TicketCategory): boolean => {
-    if (!settingsData?.settings) return false;
+  // Function to get available quick responses for current ticket category
+  const getQuickResponsesForTicket = (category: TicketCategory) => {
+    if (!settingsData?.settings) return defaultQuickResponsesConfig.categories;
     
     // Get quick responses from settings (fallback to default config)
     const quickResponses: QuickResponsesConfiguration = 
@@ -221,8 +221,17 @@ const TicketDetail = () => {
       case 'Chat Report':
         ticketType = 'chat_report';
         break;
+      case 'Bug Report':
+        ticketType = 'bug_report';
+        break;
+      case 'Punishment Appeal':
+        ticketType = 'appeal';
+        break;
+      case 'Other':
+        ticketType = 'other';
+        break;
       default:
-        return false; // Only Player and Chat Reports support punishment
+        ticketType = 'other';
     }
     
     // Find the category that handles this ticket type
@@ -230,13 +239,13 @@ const TicketDetail = () => {
       cat.ticketTypes.includes(ticketType)
     );
     
-    if (!responseCategory) return false;
-    
-    // Find the action by name
-    const action = responseCategory.actions?.find(act => 
-      act.name === actionName || actionName.includes(act.name.split(' - ')[0])
-    );
-    
+    return responseCategory?.actions || [];
+  };
+
+  // Function to check if selected action should show punishment interface
+  const shouldShowPunishmentForAction = (actionName: string, category: TicketCategory): boolean => {
+    const actions = getQuickResponsesForTicket(category);
+    const action = actions.find(act => act.name === actionName);
     return action?.showPunishment === true;
   };
 
@@ -583,15 +592,29 @@ const TicketDetail = () => {
 
   // Get placeholder text based on selected action
   const getPlaceholderText = () => {
-    if (ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && 
-        defaultReplies[ticketDetails.category] && 
-        defaultReplies[ticketDetails.category][ticketDetails.selectedAction]) {
-      // Replace any placeholders in the default text
-      let text = defaultReplies[ticketDetails.category][ticketDetails.selectedAction];
-      if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
-        text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
+    if (ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
+      // Get quick response message for this action
+      const actions = getQuickResponsesForTicket(ticketDetails.category);
+      const action = actions.find(act => act.name === ticketDetails.selectedAction);
+      
+      if (action?.message) {
+        // Replace any placeholders in the message
+        let text = action.message;
+        if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
+          text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
+        }
+        return text;
       }
-      return text;
+      
+      // Fallback to default replies if quick response not found
+      if (defaultReplies[ticketDetails.category] && 
+          defaultReplies[ticketDetails.category][ticketDetails.selectedAction]) {
+        let text = defaultReplies[ticketDetails.category][ticketDetails.selectedAction];
+        if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
+          text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
+        }
+        return text;
+      }
     }
     return "Type your reply here...";
   };
@@ -761,69 +784,49 @@ const TicketDetail = () => {
     }));
     
     let newStatus: 'Open' | 'Closed' = ticketDetails.status;
+    let text = '';
     
-    switch(action) {
-      case 'Accepted':
-      case 'Completed':
-      case 'Pardon':
-      case 'Reduce':
-      case 'Rejected':
-      case 'Stale': 
-      case 'Duplicate':
-      case 'Reject':
-      case 'Close':
-        newStatus = 'Closed';
-        break;
-      case 'Reopen':
-        newStatus = 'Open';
-        break;
-      case 'Comment':
-        break;
-    }
-  
-    if (action === 'Comment') {
+    // Handle special actions
+    if (action === 'Close') {
+      newStatus = 'Closed';
+      text = 'This ticket has been closed. Please create a new ticket if you need further assistance.';
+    } else if (action === 'Reopen') {
+      newStatus = 'Open';
+      text = 'This ticket has been reopened.';
+    } else if (action === 'Comment') {
+      // Clear the reply for comment mode
       setTicketDetails(prev => ({
         ...prev,
         newReply: ''
       }));
-    } else if (action) {
-      let text = '';
+      return;
+    } else {
+      // Get quick response configuration
+      const actions = getQuickResponsesForTicket(ticketDetails.category);
+      const actionConfig = actions.find(act => act.name === action);
       
-      if (action === 'Accepted') {
-        text = `This report has been accepted and the player will be dealt with. Thank you for your report.`;
-      } else if (action === 'Rejected') {
-        text = `After reviewing this report, we have determined that no action is necessary at this time. Thank you for your report.`;
-      } else if (action === 'Completed') {
-        text = `This bug has been fixed and will be included in the next update. Thank you for your report.`;
-      } else if (action === 'Stale') {
-        text = `We haven't been able to reproduce this issue. Please provide more details if this persists.`;
-      } else if (action === 'Duplicate') {
-        text = `This is a duplicate of an existing bug report. We'll keep you updated on the progress.`;
-      } else if (action === 'Pardon') {
-        text = `After reviewing your appeal, we have decided to pardon your punishment. Thank you for your patience.`;
-      } else if (action === 'Reduce') {
-        const duration = ticketDetails.isPermanent 
-          ? 'permanent' 
-          : `${ticketDetails.duration?.value || 14} ${ticketDetails.duration?.unit || 'days'}`;
-        text = `After reviewing your appeal, we have decided to reduce your punishment to ${duration}. Thank you for your patience.`;
-      } else if (action === 'Reject') {
-        text = `After reviewing your appeal, we have decided to uphold the original punishment. Thank you for your understanding.`;
-      } else if (action === 'Close') {
-        text = `This ticket has been closed. Please create a new ticket if you need further assistance.`;
-      } else if (action === 'Reopen') {
-        text = `This ticket has been reopened.`;
+      if (actionConfig) {
+        // Use quick response message
+        text = actionConfig.message;
+        
+        // Replace placeholders
+        if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
+          text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
+        }
+        
+        // Check if this action should close the ticket
+        if (actionConfig.closeTicket) {
+          newStatus = 'Closed';
+        }
       }
-      
-      if (ticketDetails.relatedPlayer && text.includes('{reported-player}')) {
-        text = text.replace('{reported-player}', ticketDetails.relatedPlayer);
-      }
-      
-      if (text) {
-        setTicketDetails(prev => ({
-          ...prev,
-          newReply: text
-        }));
-      }
+    }
+    
+    // Set the reply text if we have one
+    if (text) {
+      setTicketDetails(prev => ({
+        ...prev,
+        newReply: text
+      }));
     }
   };
 
@@ -1244,93 +1247,42 @@ const TicketDetail = () => {
                             Comment
                           </Button>
                           
-                          {/* Actions based on ticket category */}
-                          {ticketDetails.category === 'Player Report' && (
-                            <>
+                          {/* Dynamic quick response actions */}
+                          {getQuickResponsesForTicket(ticketDetails.category).map((action, index) => {
+                            // Get icon based on action type
+                            const getActionIcon = (actionName: string) => {
+                              if (actionName.toLowerCase().includes('accept') || actionName.toLowerCase().includes('completed') || actionName.toLowerCase().includes('fixed')) {
+                                return <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />;
+                              } else if (actionName.toLowerCase().includes('reject') || actionName.toLowerCase().includes('duplicate')) {
+                                return <XCircle className="h-3.5 w-3.5 mr-1.5" />;
+                              } else if (actionName.toLowerCase().includes('pardon')) {
+                                return <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />;
+                              } else if (actionName.toLowerCase().includes('reduce')) {
+                                return <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />;
+                              } else if (actionName.toLowerCase().includes('stale') || actionName.toLowerCase().includes('pending')) {
+                                return <Clock className="h-3.5 w-3.5 mr-1.5" />;
+                              } else if (actionName.toLowerCase().includes('investigating') || actionName.toLowerCase().includes('info')) {
+                                return <AlertCircle className="h-3.5 w-3.5 mr-1.5" />;
+                              } else if (actionName.toLowerCase().includes('escalat')) {
+                                return <ArrowUpRight className="h-3.5 w-3.5 mr-1.5" />;
+                              } else {
+                                return <FileText className="h-3.5 w-3.5 mr-1.5" />;
+                              }
+                            };
+
+                            return (
                               <Button 
-                                variant={ticketDetails.selectedAction === 'Accepted' ? 'default' : 'outline'} 
+                                key={action.id}
+                                variant={ticketDetails.selectedAction === action.name ? 'default' : 'outline'} 
                                 size="sm"
-                                onClick={() => handleTicketAction('Accepted')}
+                                onClick={() => handleTicketAction(action.name)}
                                 className="rounded-md"
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                Accept
+                                {getActionIcon(action.name)}
+                                {action.name.replace(/^(Accept|Reject|Pardon) - /, '')}
                               </Button>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Rejected' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Rejected')}
-                                className="rounded-md"
-                              >
-                                <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          
-                          {ticketDetails.category === 'Bug Report' && (
-                            <>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Completed' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Completed')}
-                                className="rounded-md"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                Completed
-                              </Button>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Stale' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Stale')}
-                                className="rounded-md"
-                              >
-                                <Clock className="h-3.5 w-3.5 mr-1.5" />
-                                Stale
-                              </Button>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Duplicate' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Duplicate')}
-                                className="rounded-md"
-                              >
-                                <FileText className="h-3.5 w-3.5 mr-1.5" />
-                                Duplicate
-                              </Button>
-                            </>
-                          )}
-                          
-                          {ticketDetails.category === 'Punishment Appeal' && (
-                            <>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Pardon' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Pardon')}
-                                className="rounded-md"
-                              >
-                                <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                                Pardon
-                              </Button>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Reduce' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Reduce')}
-                                className="rounded-md"
-                              >
-                                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-                                Reduce
-                              </Button>
-                              <Button 
-                                variant={ticketDetails.selectedAction === 'Reject' ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => handleTicketAction('Reject')}
-                                className="rounded-md"
-                              >
-                                <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
+                            );
+                          })}
                           
                           {/* Close button for all types */}
                           <Button 
