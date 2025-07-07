@@ -74,6 +74,7 @@ async function createSuperAdminUser(dbConnection: Connection, adminEmail: string
       email: adminEmail,
       username: 'SuperAdmin',
       password: hashedPassword,
+      role: 'Super Admin', // Required field from StaffSchema
       admin: true,
       twoFaSecret: crypto.randomBytes(10).toString('hex'),
       tempPassword: tempPassword, // Store temporarily so admin can retrieve it
