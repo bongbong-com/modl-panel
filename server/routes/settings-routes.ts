@@ -389,33 +389,58 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       }
     });
 
-    // Default Ticket Forms Configuration (only 3 types needed)
+    // Default Ticket Forms Configuration (only 3 types needed) with comprehensive sections
     const defaultTicketForms = {
       bug: {
         fields: [
+          // Basic Information Section
           {
             id: 'bug_title',
             type: 'text',
             label: 'Bug Title',
             description: 'Brief description of the bug',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'basic_info'
           },
+          {
+            id: 'bug_severity',
+            type: 'dropdown',
+            label: 'Bug Severity',
+            description: 'How severe is this bug?',
+            required: true,
+            options: ['Low', 'Medium', 'High', 'Critical'],
+            order: 2,
+            sectionId: 'basic_info'
+          },
+          {
+            id: 'bug_category',
+            type: 'dropdown',
+            label: 'Bug Category',
+            description: 'What type of bug is this?',
+            required: true,
+            options: ['Gameplay', 'UI/Interface', 'Performance', 'Audio', 'Visual', 'Other'],
+            order: 3,
+            sectionId: 'basic_info'
+          },
+          // Description Section
           {
             id: 'bug_description',
             type: 'textarea',
             label: 'Detailed Description',
             description: 'Provide a detailed description of the bug you encountered',
             required: true,
-            order: 2
+            order: 4,
+            sectionId: 'description'
           },
           {
             id: 'steps_to_reproduce',
             type: 'textarea',
             label: 'Steps to Reproduce',
-            description: 'List the exact steps to reproduce this bug',
+            description: 'List the exact steps to reproduce this bug (1. First step, 2. Second step, etc.)',
             required: true,
-            order: 3
+            order: 5,
+            sectionId: 'description'
           },
           {
             id: 'expected_behavior',
@@ -423,16 +448,19 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Expected Behavior',
             description: 'What did you expect to happen?',
             required: true,
-            order: 4
+            order: 6,
+            sectionId: 'description'
           },
           {
             id: 'actual_behavior',
             type: 'textarea',
             label: 'Actual Behavior',
-            description: 'What actually happened?',
+            description: 'What actually happened instead?',
             required: true,
-            order: 5
+            order: 7,
+            sectionId: 'description'
           },
+          // Environment Section
           {
             id: 'game_mode',
             type: 'dropdown',
@@ -440,53 +468,95 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             description: 'Which game mode were you playing?',
             required: true,
             options: ['Survival', 'Creative', 'Adventure', 'Spectator', 'Other'],
-            order: 6
+            order: 8,
+            sectionId: 'environment'
           },
           {
-            id: 'server_version',
+            id: 'server_area',
             type: 'text',
-            label: 'Server Version',
-            description: 'What version of the server were you on? (if known)',
+            label: 'Server Area/World',
+            description: 'Which area of the server were you in? (spawn, wilderness, specific world, etc.)',
             required: false,
-            order: 7
+            order: 9,
+            sectionId: 'environment'
           },
+          {
+            id: 'player_count',
+            type: 'text',
+            label: 'Players Online',
+            description: 'Approximately how many players were online when this occurred?',
+            required: false,
+            order: 10,
+            sectionId: 'environment'
+          },
+          // Evidence Section
           {
             id: 'screenshot_evidence',
             type: 'file_upload',
             label: 'Screenshots/Evidence',
-            description: 'Upload any screenshots or evidence of the bug',
+            description: 'Upload any screenshots, videos, or other evidence of the bug',
             required: false,
-            order: 8
+            order: 11,
+            sectionId: 'evidence'
+          },
+          {
+            id: 'error_messages',
+            type: 'textarea',
+            label: 'Error Messages',
+            description: 'Include any error messages you received (copy/paste if possible)',
+            required: false,
+            order: 12,
+            sectionId: 'evidence'
+          },
+          {
+            id: 'additional_context',
+            type: 'textarea',
+            label: 'Additional Context',
+            description: 'Any other relevant information that might help us fix this bug',
+            required: false,
+            order: 13,
+            sectionId: 'evidence'
           }
         ],
-        sections: []
+        sections: [
+          {
+            id: 'basic_info',
+            title: 'Basic Information',
+            description: 'Tell us the basics about this bug',
+            order: 1
+          },
+          {
+            id: 'description',
+            title: 'Bug Description',
+            description: 'Describe the bug in detail',
+            order: 2
+          },
+          {
+            id: 'environment',
+            title: 'Environment Details',
+            description: 'Information about when and where the bug occurred',
+            order: 3
+          },
+          {
+            id: 'evidence',
+            title: 'Evidence & Additional Information',
+            description: 'Any supporting evidence or extra context',
+            order: 4
+          }
+        ]
       },
       support: {
         fields: [
+          // Request Information Section
           {
             id: 'support_category',
             type: 'dropdown',
             label: 'Support Category',
             description: 'What type of support do you need?',
             required: true,
-            options: ['Account Issues', 'Payment/Billing', 'Technical Issues', 'Gameplay Help', 'Other'],
-            order: 1
-          },
-          {
-            id: 'issue_description',
-            type: 'textarea',
-            label: 'Issue Description',
-            description: 'Describe your issue in detail',
-            required: true,
-            order: 2
-          },
-          {
-            id: 'previous_attempts',
-            type: 'textarea',
-            label: 'Previous Attempts',
-            description: 'What have you already tried to resolve this issue?',
-            required: false,
-            order: 3
+            options: ['Account Issues', 'Payment/Billing', 'Technical Issues', 'Gameplay Help', 'Appeal Request', 'Other'],
+            order: 1,
+            sectionId: 'request_info'
           },
           {
             id: 'urgency_level',
@@ -494,22 +564,127 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Urgency Level',
             description: 'How urgent is this request?',
             required: true,
-            options: ['Low', 'Medium', 'High', 'Critical'],
-            order: 4
+            options: ['Low - General inquiry', 'Medium - Affecting gameplay', 'High - Unable to play', 'Critical - Account compromised'],
+            order: 2,
+            sectionId: 'request_info'
+          },
+          {
+            id: 'contact_preference',
+            type: 'dropdown',
+            label: 'Preferred Contact Method',
+            description: 'How would you like us to respond?',
+            required: true,
+            options: ['In-game message', 'Discord DM', 'Email', 'This ticket only'],
+            order: 3,
+            sectionId: 'request_info'
+          },
+          // Issue Details Section
+          {
+            id: 'issue_title',
+            type: 'text',
+            label: 'Issue Summary',
+            description: 'Brief summary of your issue or request',
+            required: true,
+            order: 4,
+            sectionId: 'issue_details'
+          },
+          {
+            id: 'issue_description',
+            type: 'textarea',
+            label: 'Detailed Description',
+            description: 'Describe your issue or request in detail',
+            required: true,
+            order: 5,
+            sectionId: 'issue_details'
+          },
+          {
+            id: 'when_occurred',
+            type: 'text',
+            label: 'When did this occur?',
+            description: 'When did you first notice this issue? (date/time if possible)',
+            required: false,
+            order: 6,
+            sectionId: 'issue_details'
+          },
+          // Troubleshooting Section
+          {
+            id: 'previous_attempts',
+            type: 'textarea',
+            label: 'Previous Attempts',
+            description: 'What have you already tried to resolve this issue?',
+            required: false,
+            order: 7,
+            sectionId: 'troubleshooting'
+          },
+          {
+            id: 'other_affected',
+            type: 'dropdown',
+            label: 'Are others affected?',
+            description: 'Do you know if other players have the same issue?',
+            required: false,
+            options: ['Yes, others have mentioned it', 'No, seems to be just me', 'Not sure', 'N/A'],
+            order: 8,
+            sectionId: 'troubleshooting'
+          },
+          // Additional Information Section
+          {
+            id: 'account_info',
+            type: 'textarea',
+            label: 'Relevant Account Information',
+            description: 'Any relevant account details (rank, join date, recent changes, etc.)',
+            required: false,
+            order: 9,
+            sectionId: 'additional_info'
+          },
+          {
+            id: 'additional_context',
+            type: 'textarea',
+            label: 'Additional Information',
+            description: 'Any other relevant information that might help us assist you',
+            required: false,
+            order: 10,
+            sectionId: 'additional_info'
+          },
+          {
+            id: 'support_files',
+            type: 'file_upload',
+            label: 'Supporting Files',
+            description: 'Upload any screenshots or files that might help',
+            required: false,
+            order: 11,
+            sectionId: 'additional_info'
+          }
+        ],
+        sections: [
+          {
+            id: 'request_info',
+            title: 'Request Information',
+            description: 'Tell us about your support request',
+            order: 1
+          },
+          {
+            id: 'issue_details',
+            title: 'Issue Details',
+            description: 'Describe your issue in detail',
+            order: 2
+          },
+          {
+            id: 'troubleshooting',
+            title: 'Troubleshooting',
+            description: 'Help us understand what you have tried',
+            order: 3
           },
           {
             id: 'additional_info',
-            type: 'textarea',
-            label: 'Additional Information',
-            description: 'Any other relevant information',
-            required: false,
-            order: 5
+            title: 'Additional Information',
+            description: 'Any extra details that might help',
+            order: 4
           }
-        ],
-        sections: []
+        ]
       },
       application: {
         fields: [
+          // Basic Application Info
           {
             id: 'position_type',
             type: 'dropdown',
@@ -518,19 +693,22 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             required: true,
             options: ['Builder', 'Helper', 'Developer'],
             order: 1,
+            sectionId: 'basic_application',
             optionSectionMapping: {
               'Builder': 'builder_section',
               'Helper': 'helper_section',
               'Developer': 'developer_section'
             }
           },
+          // Personal Information
           {
             id: 'real_name',
             type: 'text',
             label: 'Real Name (First Name)',
             description: 'Your real first name',
             required: true,
-            order: 2
+            order: 2,
+            sectionId: 'personal_info'
           },
           {
             id: 'age',
@@ -538,7 +716,8 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Age',
             description: 'Your age',
             required: true,
-            order: 3
+            order: 3,
+            sectionId: 'personal_info'
           },
           {
             id: 'timezone',
@@ -546,7 +725,8 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Timezone',
             description: 'Your timezone (e.g., EST, PST, GMT)',
             required: true,
-            order: 4
+            order: 4,
+            sectionId: 'personal_info'
           },
           {
             id: 'availability',
@@ -554,15 +734,18 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Availability',
             description: 'When are you typically available? Include days and hours.',
             required: true,
-            order: 5
+            order: 5,
+            sectionId: 'personal_info'
           },
+          // General Questions
           {
             id: 'why_apply',
             type: 'textarea',
             label: 'Why are you applying?',
             description: 'Tell us why you want to join our staff team',
             required: true,
-            order: 6
+            order: 6,
+            sectionId: 'general_questions'
           },
           {
             id: 'previous_experience',
@@ -570,7 +753,8 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Previous Experience',
             description: 'Any relevant previous experience (gaming, moderation, development, etc.)',
             required: true,
-            order: 7
+            order: 7,
+            sectionId: 'general_questions'
           },
           // Builder-specific fields
           {
@@ -668,10 +852,28 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
         ],
         sections: [
           {
+            id: 'basic_application',
+            title: 'Application Type',
+            description: 'Select the position you are applying for',
+            order: 1
+          },
+          {
+            id: 'personal_info',
+            title: 'Personal Information',
+            description: 'Tell us about yourself',
+            order: 2
+          },
+          {
+            id: 'general_questions',
+            title: 'General Questions',
+            description: 'Questions for all applicants',
+            order: 3
+          },
+          {
             id: 'builder_section',
             title: 'Builder Application',
             description: 'Additional questions for Builder applicants',
-            order: 1,
+            order: 4,
             showIfFieldId: 'position_type',
             showIfValue: 'Builder'
           },
@@ -679,7 +881,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             id: 'helper_section',
             title: 'Helper Application',
             description: 'Additional questions for Helper applicants',
-            order: 2,
+            order: 5,
             showIfFieldId: 'position_type',
             showIfValue: 'Helper'
           },
@@ -687,7 +889,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             id: 'developer_section',
             title: 'Developer Application',
             description: 'Additional questions for Developer applicants',
-            order: 3,
+            order: 6,
             showIfFieldId: 'position_type',
             showIfValue: 'Developer'
           }
