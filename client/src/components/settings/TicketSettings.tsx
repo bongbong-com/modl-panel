@@ -37,8 +37,8 @@ interface TicketSettingsProps {
   
   // Ticket Forms State
   ticketForms: any;
-  selectedTicketFormType: string;
-  setSelectedTicketFormType: (value: string) => void;
+  selectedTicketFormType: 'bug' | 'support' | 'application';
+  setSelectedTicketFormType: (value: 'bug' | 'support' | 'application') => void;
   
   // AI Moderation State
   aiModerationSettings: any;
@@ -511,10 +511,176 @@ const TicketSettings = ({
                       </div>
                     </div>
 
-                    {/* Ticket Form Sections would go here - placeholder for now */}
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p className="text-sm">Form configuration interface will be implemented here</p>
-                      <p className="text-xs">This includes section management, field configuration, and drag-and-drop functionality</p>
+                    {/* Selected Form Configuration */}
+                    <div className="space-y-4">
+                      {/* Fields without sections */}
+                      {ticketForms[selectedTicketFormType]?.fields
+                        .filter(field => !field.sectionId)
+                        .sort((a, b) => a.order - b.order)
+                        .map((field, index) => (
+                          <div key={field.id} className="border rounded-lg p-4 bg-card">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1 flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <h4 className="font-medium">{field.label}</h4>
+                                  {field.required && (
+                                    <Badge variant="secondary" className="text-xs">Required</Badge>
+                                  )}
+                                  <Badge variant="outline" className="text-xs">{field.type}</Badge>
+                                </div>
+                                {field.description && (
+                                  <p className="text-sm text-muted-foreground">{field.description}</p>
+                                )}
+                                {field.options && field.options.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {field.options.map((option, i) => (
+                                      <Badge key={i} variant="secondary" className="text-xs">
+                                        {option}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-1 ml-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onEditField?.(field)}
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onDeleteField?.(field.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                      {/* Sections with their fields */}
+                      {ticketForms[selectedTicketFormType]?.sections
+                        .sort((a, b) => a.order - b.order)
+                        .map((section) => (
+                          <div key={section.id} className="border rounded-lg bg-muted/30">
+                            <div className="p-4 border-b bg-muted/50">
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                  <h4 className="font-medium">{section.title}</h4>
+                                  {section.description && (
+                                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                                  )}
+                                  {section.showIfFieldId && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Conditional: shows when {section.showIfFieldId} = {section.showIfValue}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onEditSection?.(section)}
+                                  >
+                                    <Edit3 className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onDeleteSection?.(section.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              {ticketForms[selectedTicketFormType]?.fields
+                                .filter(field => field.sectionId === section.id)
+                                .sort((a, b) => a.order - b.order)
+                                .map((field) => (
+                                  <div key={field.id} className="border rounded-lg p-3 bg-card">
+                                    <div className="flex items-start justify-between">
+                                      <div className="space-y-1 flex-1">
+                                        <div className="flex items-center space-x-2">
+                                          <h5 className="text-sm font-medium">{field.label}</h5>
+                                          {field.required && (
+                                            <Badge variant="secondary" className="text-xs">Required</Badge>
+                                          )}
+                                          <Badge variant="outline" className="text-xs">{field.type}</Badge>
+                                        </div>
+                                        {field.description && (
+                                          <p className="text-xs text-muted-foreground">{field.description}</p>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center space-x-1 ml-4">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => onEditField?.(field)}
+                                        >
+                                          <Edit3 className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => onDeleteField?.(field.id)}
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              {ticketForms[selectedTicketFormType]?.fields.filter(f => f.sectionId === section.id).length === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-2">
+                                  No fields in this section
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                      {/* Add Field/Section Buttons */}
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onAddField?.()}
+                          className="flex-1"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Field
+                        </Button>
+                        {selectedTicketFormType === 'application' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Add section logic here if needed
+                              console.log('Add section');
+                            }}
+                            className="flex-1"
+                          >
+                            <Layers className="h-4 w-4 mr-2" />
+                            Add Section
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Empty State */}
+                      {(!ticketForms[selectedTicketFormType]?.fields || 
+                        ticketForms[selectedTicketFormType].fields.length === 0) && 
+                       (!ticketForms[selectedTicketFormType]?.sections || 
+                        ticketForms[selectedTicketFormType].sections.length === 0) && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p className="text-sm">No form fields configured</p>
+                          <p className="text-xs">Add fields to build your {selectedTicketFormType} form</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </DndProvider>

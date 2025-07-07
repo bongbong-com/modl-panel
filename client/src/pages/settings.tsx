@@ -88,12 +88,9 @@ interface TicketFormSettings {
 
 // Configuration for all ticket form types
 interface TicketFormsConfiguration {
-  bug_report: TicketFormSettings;
-  player_report: TicketFormSettings;
-  chat_report: TicketFormSettings;
+  bug: TicketFormSettings;
   support: TicketFormSettings;
   application: TicketFormSettings;
-  appeal: TicketFormSettings;
 }
 
 // Type definitions for punishment types
@@ -560,16 +557,13 @@ const Settings = () => {
   
   // Ticket Forms Configuration State
   const [ticketFormsState, setTicketFormsState] = useState<TicketFormsConfiguration>({
-    bug_report: { fields: [], sections: [] },
-    player_report: { fields: [], sections: [] },
-    chat_report: { fields: [], sections: [] },
+    bug: { fields: [], sections: [] },
     support: { fields: [], sections: [] },
-    application: { fields: [], sections: [] },
-    appeal: { fields: [], sections: [] }
+    application: { fields: [], sections: [] }
   });
   
   // Form builder states for each ticket type
-  const [selectedTicketFormType, setSelectedTicketFormType] = useState<'bug_report' | 'player_report' | 'chat_report' | 'support' | 'application' | 'appeal'>('bug_report');
+  const [selectedTicketFormType, setSelectedTicketFormType] = useState<'bug' | 'support' | 'application'>('bug');
   const [selectedTicketFormField, setSelectedTicketFormField] = useState<TicketFormField | null>(null);
   const [selectedTicketFormSection, setSelectedTicketFormSection] = useState<TicketFormSection | null>(null);
   const [isAddTicketFormFieldDialogOpen, setIsAddTicketFormFieldDialogOpen] = useState(false);
