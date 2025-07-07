@@ -2214,6 +2214,7 @@ const Settings = () => {
                 newAppealTag={newAppealTag}
                 setNewAppealTag={setNewAppealTag}
                 ticketForms={ticketForms}
+                setTicketForms={setTicketFormsState}
                 selectedTicketFormType={selectedTicketFormType}
                 setSelectedTicketFormType={setSelectedTicketFormType}
                 aiModerationSettings={aiModerationSettings}
