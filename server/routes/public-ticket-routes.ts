@@ -133,7 +133,35 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
       Object.entries(formData).forEach(([key, value]) => {
         // Skip chatlog for chat reports as it's already handled above
         if (type === 'chat' && key === 'chatlog') return;
-        contentString += `${key}: ${value}\n\n`;
+        
+        // Special formatting for Chat Messages field
+        if (key === 'Chat Messages' && typeof value === 'string') {
+          contentString += `**${key}:**\n`;
+          try {
+            // Try to parse each line as JSON
+            const lines = value.split('\n').filter(line => line.trim());
+            lines.forEach(line => {
+              try {
+                const msg = JSON.parse(line);
+                if (msg.username && msg.message && msg.timestamp) {
+                  const timestamp = new Date(msg.timestamp).toLocaleString();
+                  contentString += `\`[${timestamp}]\` **${msg.username}**: ${msg.message}\n`;
+                } else {
+                  contentString += `${line}\n`;
+                }
+              } catch {
+                // If not valid JSON, just add the line as-is
+                contentString += `${line}\n`;
+              }
+            });
+            contentString += `\n`;
+          } catch (error) {
+            // Fallback to original format if parsing fails
+            contentString += `${value}\n\n`;
+          }
+        } else {
+          contentString += `**${key}:** ${value}\n\n`;
+        }
       });
     }
       // Prepare ticket data
