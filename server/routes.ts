@@ -113,7 +113,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           serverDisplayName: 'modl',
           panelIconUrl: null,
-          homepageIconUrl: null
+          homepageIconUrl: null,
+          ticketForms: {}
         });
       }
 
@@ -122,7 +123,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = {
         serverDisplayName: settings.general?.serverDisplayName || settings.serverDisplayName || 'modl',
         panelIconUrl: settings.general?.panelIconUrl || settings.panelIconUrl || null,
-        homepageIconUrl: settings.general?.homepageIconUrl || settings.homepageIconUrl || null
+        homepageIconUrl: settings.general?.homepageIconUrl || settings.homepageIconUrl || null,
+        ticketForms: settings.ticketForms || {}
       };
       
       res.json(result);
@@ -131,7 +133,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         serverDisplayName: 'modl',
         panelIconUrl: null,
-        homepageIconUrl: null
+        homepageIconUrl: null,
+        ticketForms: {}
       });
     }
   });
