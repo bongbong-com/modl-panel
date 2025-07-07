@@ -32,7 +32,11 @@ interface PlayerPunishmentProps {
   data: PlayerPunishmentData;
   onChange: (data: PlayerPunishmentData) => void;
   onApply: (data: PlayerPunishmentData) => Promise<void>;
-  punishmentTypes?: any[]; // Punishment types from settings
+  punishmentTypesByCategory?: {
+    Administrative: any[];
+    Social: any[];
+    Gameplay: any[];
+  };
   isLoading?: boolean;
   compact?: boolean;
 }
@@ -44,19 +48,23 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
   data,
   onChange,
   onApply,
-  punishmentTypes = [],
+  punishmentTypesByCategory = {
+    Administrative: [
+      { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
+      { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
+      { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
+      { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
+      { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
+      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
+    ],
+    Social: [],
+    Gameplay: []
+  },
   isLoading = false,
   compact = false
 }) => {
   const { toast } = useToast();
   const [isApplying, setIsApplying] = useState(false);
-
-  // Organize punishment types by category
-  const punishmentTypesByCategory = {
-    Administrative: punishmentTypes.filter(type => type.category === 'Administrative'),
-    Social: punishmentTypes.filter(type => type.category === 'Social'),
-    Gameplay: punishmentTypes.filter(type => type.category === 'Gameplay')
-  };
 
   const updateData = (updates: Partial<PlayerPunishmentData>) => {
     onChange({ ...data, ...updates });
@@ -160,7 +168,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
     // For single-severity punishments, automatically set default offense level
     if (type.singleSeverityPunishment) {
-      newData.selectedOffenseLevel = 'first';
+      newData.selectedOffenseLevel = 'first' as const;
     }
 
     updateData(newData);

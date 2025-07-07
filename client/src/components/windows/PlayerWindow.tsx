@@ -582,12 +582,13 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
 
   // Process settings data to extract punishment types by category
   useEffect(() => {
-    if (settingsData?.settings?.punishmentTypes) {
+    const punishmentTypesData = settingsData?.settings?.get?.('punishmentTypes');
+    if (punishmentTypesData) {
       try {
         // Parse punishment types if they're stored as a string
-        const typesData = typeof settingsData.settings.punishmentTypes === 'string' 
-          ? JSON.parse(settingsData.settings.punishmentTypes) 
-          : settingsData.settings.punishmentTypes;
+        const typesData = typeof punishmentTypesData === 'string' 
+          ? JSON.parse(punishmentTypesData) 
+          : punishmentTypesData;
           
         if (Array.isArray(typesData)) {
           // Always ensure administrative punishment types are available
@@ -2296,7 +2297,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 // Use the existing handleApplyPunishment logic
                 return handleApplyPunishment();
               }}
-              punishmentTypes={Object.values(punishmentTypesByCategory).flat()}
+              punishmentTypesByCategory={punishmentTypesByCategory}
               isLoading={isLoadingSettings}
               compact={false}
             />

@@ -45,6 +45,50 @@ import MarkdownHelp from '@/components/ui/markdown-help';
 import { ClickablePlayer } from '@/components/ui/clickable-player';
 import PlayerPunishment, { PlayerPunishmentData } from '@/components/ui/player-punishment';
 
+// Define PunishmentType interface
+interface PunishmentType {
+  id: number;
+  name: string;
+  category: 'Gameplay' | 'Social' | 'Administrative';
+  isCustomizable: boolean;
+  ordinal: number;
+  durations?: {
+    low: { 
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    regular: {
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+    severe: {
+      first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+      habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; banValue?: number; banUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; };
+    };
+  };
+  points?: {
+    low: number;
+    regular: number;
+    severe: number;
+  };
+  customPoints?: number;
+  staffDescription?: string;
+  playerDescription?: string;
+  canBeAltBlocking?: boolean;
+  canBeStatWiping?: boolean;
+  isAppealable?: boolean;
+  singleSeverityPunishment?: boolean;
+  singleSeverityDurations?: {
+    first: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    medium: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+    habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban'; };
+  };
+  singleSeverityPoints?: number;
+}
+
 export interface TicketMessage {
   id: string;
   sender: string;
@@ -280,6 +324,29 @@ const TicketDetail = () => {
     }
   });
 
+  // Parse punishment types from settings
+  const [punishmentTypesByCategory, setPunishmentTypesByCategory] = useState<{
+    Administrative: PunishmentType[], 
+    Social: PunishmentType[], 
+    Gameplay: PunishmentType[]
+  }>({
+    Administrative: [
+      // Administrative punishment types (ordinals 0-5, not customizable) - minimal fallback
+      { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
+      { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
+      { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
+      { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
+      { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
+      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
+    ],
+    Social: [
+      // Social punishment types are loaded from server during provisioning
+    ],
+    Gameplay: [
+      // Gameplay punishment types are loaded from server during provisioning
+    ]
+  });
+
   // Simplified status colors - just Open and Closed
   const statusColors = {
     'Open': 'bg-green-50 text-green-700 border-green-200',
@@ -307,9 +374,51 @@ const TicketDetail = () => {
   // Fetch staff data to get assigned Minecraft accounts
   const { data: staffData } = useStaff();
 
+  // Process settings data to extract punishment types by category
   useEffect(() => {
-    if (settingsData?.settings?.punishmentTypes) {
-      setPunishmentTypes(settingsData.settings.punishmentTypes);
+    const punishmentTypesData = settingsData?.settings?.get?.('punishmentTypes');
+    if (punishmentTypesData) {
+      try {
+        // Parse punishment types if they're stored as a string
+        const typesData = typeof punishmentTypesData === 'string' 
+          ? JSON.parse(punishmentTypesData) 
+          : punishmentTypesData;
+          
+        if (Array.isArray(typesData)) {
+          // Always ensure administrative punishment types are available
+          const defaultAdminTypes: PunishmentType[] = [
+            { id: 0, name: 'Kick', category: 'Administrative' as const, isCustomizable: false, ordinal: 0 },
+            { id: 1, name: 'Manual Mute', category: 'Administrative' as const, isCustomizable: false, ordinal: 1 },
+            { id: 2, name: 'Manual Ban', category: 'Administrative' as const, isCustomizable: false, ordinal: 2 },
+            { id: 3, name: 'Security Ban', category: 'Administrative' as const, isCustomizable: false, ordinal: 3 },
+            { id: 4, name: 'Linked Ban', category: 'Administrative' as const, isCustomizable: false, ordinal: 4 },
+            { id: 5, name: 'Blacklist', category: 'Administrative' as const, isCustomizable: false, ordinal: 5 }
+          ];
+          
+          // Group punishment types by category
+          const adminFromSettings = typesData.filter(pt => pt.category === 'Administrative');
+          
+          // Merge default admin types with any additional admin types from settings
+          // Default types take precedence (to ensure they're always available)
+          const mergedAdminTypes = [...defaultAdminTypes];
+          adminFromSettings.forEach(settingsType => {
+            if (!mergedAdminTypes.find(defaultType => defaultType.name === settingsType.name)) {
+              mergedAdminTypes.push(settingsType);
+            }
+          });
+          
+          const categorized = {
+            Administrative: mergedAdminTypes.sort((a, b) => a.ordinal - b.ordinal),
+            Social: typesData.filter(pt => pt.category === 'Social').sort((a, b) => a.ordinal - b.ordinal),
+            Gameplay: typesData.filter(pt => pt.category === 'Gameplay').sort((a, b) => a.ordinal - b.ordinal)
+          };
+          
+          // Update the state with the loaded punishment types
+          setPunishmentTypesByCategory(categorized);
+        }
+      } catch (error) {
+        console.error("Error parsing punishment types:", error);
+      }
     }
   }, [settingsData]);
 
@@ -1408,7 +1517,7 @@ const TicketDetail = () => {
                                 description: `${data.selectedPunishmentCategory} applied to ${ticketDetails.relatedPlayer}`,
                               });
                             }}
-                            punishmentTypes={[]} // TODO: Get punishment types from settings
+                            punishmentTypesByCategory={punishmentTypesByCategory}
                             compact={true}
                           />
                         </div>
