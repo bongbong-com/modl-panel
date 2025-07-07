@@ -267,59 +267,70 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
   const renderDurationControls = () => {
     const punishmentType = getCurrentPunishmentType();
-    if (!punishmentType || punishmentType.name === 'Kick') return null;
+    if (!punishmentType) return null;
+    
+    // Only Manual Mute and Manual Ban need duration controls
+    const needsDuration = ['Manual Mute', 'Manual Ban'].includes(punishmentType.name);
+    if (!needsDuration) return null;
 
     return (
-      <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="permanent"
-            checked={data.isPermanent || false}
-            onCheckedChange={(checked) => updateData({ isPermanent: checked === true })}
-          />
-          <label htmlFor="permanent" className="text-sm font-medium">
-            Permanent
-          </label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium">Duration</label>
+          <div className="flex items-center">
+            <Checkbox
+              id={`permanent-${punishmentType.name.toLowerCase().replace(' ', '-')}`}
+              checked={data.isPermanent || false}
+              onCheckedChange={(checked) => {
+                updateData({ 
+                  isPermanent: checked === true,
+                  duration: checked ? undefined : { value: 24, unit: 'hours' }
+                });
+              }}
+            />
+            <label 
+              htmlFor={`permanent-${punishmentType.name.toLowerCase().replace(' ', '-')}`} 
+              className="text-sm ml-2"
+            >
+              Permanent
+            </label>
+          </div>
         </div>
 
         {!data.isPermanent && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-muted-foreground">Duration</label>
-              <input
-                type="number"
-                className="w-full mt-1 h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                value={data.duration?.value || ''}
-                onChange={(e) => updateData({
-                  duration: { 
-                    ...data.duration, 
-                    value: parseInt(e.target.value) || 0,
-                    unit: data.duration?.unit || 'days'
-                  }
-                })}
-                min={1}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Unit</label>
-              <select
-                className="w-full mt-1 h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
-                value={data.duration?.unit || 'days'}
-                onChange={(e) => updateData({
-                  duration: { 
-                    ...data.duration,
-                    value: data.duration?.value || 1,
-                    unit: e.target.value as any
-                  }
-                })}
-              >
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-                <option value="days">Days</option>
-                <option value="weeks">Weeks</option>
-                <option value="months">Months</option>
-              </select>
-            </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Duration"
+              className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+              value={data.duration?.value || ''}
+              onChange={(e) => updateData({
+                duration: { 
+                  ...data.duration, 
+                  value: parseInt(e.target.value) || 1,
+                  unit: data.duration?.unit || 'hours'
+                }
+              })}
+              min={1}
+            />
+            <select
+              className="w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+              value={data.duration?.unit || 'hours'}
+              onChange={(e) => updateData({
+                duration: { 
+                  ...data.duration,
+                  value: data.duration?.value || 1,
+                  unit: e.target.value as any
+                }
+              })}
+            >
+              <option value="seconds">Seconds</option>
+              <option value="minutes">Minutes</option>
+              <option value="hours">Hours</option>
+              <option value="days">Days</option>
+              <option value="weeks">Weeks</option>
+              <option value="months">Months</option>
+            </select>
           </div>
         )}
       </div>
@@ -332,7 +343,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
     const options = [];
 
-    // Special options for specific punishment types
+    // Special options for specific administrative punishment types
     if (punishmentType.name === 'Kick') {
       options.push(
         <div key="kickSameIP" className="flex items-center space-x-2">
@@ -346,35 +357,86 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
           </label>
         </div>
       );
+    } else if (punishmentType.name === 'Manual Ban') {
+      // Manual Ban specific options
+      options.push(
+        <div key="banLinkedAccounts" className="flex items-center space-x-2">
+          <Checkbox
+            id="banLinkedAccounts"
+            checked={data.banLinkedAccounts || false}
+            onCheckedChange={(checked) => updateData({ banLinkedAccounts: checked === true })}
+          />
+          <label htmlFor="banLinkedAccounts" className="text-sm">
+            Ban Linked Accounts
+          </label>
+        </div>,
+        <div key="wipeAccount" className="flex items-center space-x-2">
+          <Checkbox
+            id="wipeAccount"
+            checked={data.statWiping || false}
+            onCheckedChange={(checked) => updateData({ statWiping: checked === true })}
+          />
+          <label htmlFor="wipeAccount" className="text-sm">
+            Wipe Account After Expiry
+          </label>
+        </div>
+      );
+    } else if (punishmentType.name === 'Manual Mute') {
+      // Manual Mute has no special options
+      return null;
+    } else if (['Security Ban', 'Linked Ban', 'Blacklist'].includes(punishmentType.name)) {
+      // These administrative punishments have no special options
+      return null;
+    } else {
+      // Non-administrative punishments - check punishment type configuration
+      if (punishmentType.canBeAltBlocking) {
+        options.push(
+          <div key="altBlocking" className="flex items-center space-x-2">
+            <Checkbox
+              id="altBlocking"
+              checked={data.altBlocking || false}
+              onCheckedChange={(checked) => updateData({ altBlocking: checked === true })}
+            />
+            <label htmlFor="altBlocking" className="text-sm">
+              Alt-blocking
+              <span className="text-xs text-muted-foreground ml-2">- Prevents alternative accounts from connecting</span>
+            </label>
+          </div>
+        );
+      }
+      
+      if (punishmentType.canBeStatWiping) {
+        options.push(
+          <div key="statWiping" className="flex items-center space-x-2">
+            <Checkbox
+              id="statWiping"
+              checked={data.statWiping || false}
+              onCheckedChange={(checked) => updateData({ statWiping: checked === true })}
+            />
+            <label htmlFor="statWiping" className="text-sm">
+              Stat-wiping
+              <span className="text-xs text-muted-foreground ml-2">- Resets player statistics and progress</span>
+            </label>
+          </div>
+        );
+      }
     }
 
-    // General options for all punishment types
+    // Silent punishment is available for all punishment types
     options.push(
-      <div key="altBlocking" className="flex items-center space-x-2">
-        <Checkbox
-          id="altBlocking"
-          checked={data.altBlocking || false}
-          onCheckedChange={(checked) => updateData({ altBlocking: checked === true })}
-        />
-        <label htmlFor="altBlocking" className="text-sm">Alt-blocking</label>
-      </div>,
-      <div key="statWiping" className="flex items-center space-x-2">
-        <Checkbox
-          id="statWiping"
-          checked={data.statWiping || false}
-          onCheckedChange={(checked) => updateData({ statWiping: checked === true })}
-        />
-        <label htmlFor="statWiping" className="text-sm">Stat-wiping</label>
-      </div>,
       <div key="silentPunishment" className="flex items-center space-x-2">
         <Checkbox
           id="silentPunishment"
           checked={data.silentPunishment || false}
           onCheckedChange={(checked) => updateData({ silentPunishment: checked === true })}
         />
-        <label htmlFor="silentPunishment" className="text-sm">Silent punishment</label>
+        <label htmlFor="silentPunishment" className="text-sm">
+          Silent punishment
+        </label>
       </div>
     );
+
+    if (options.length === 0) return null;
 
     return (
       <div className="space-y-2">
@@ -386,19 +448,36 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     );
   };
 
-  const renderTextFields = () => (
-    <>
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Reason</label>
-        <textarea
-          className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-          placeholder="Enter punishment reason..."
-          value={data.reason || ''}
-          onChange={(e) => updateData({ reason: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
+  const renderTextFields = () => {
+    const punishmentType = getCurrentPunishmentType();
+    if (!punishmentType) return null;
+    
+    const sections = [];
+    
+    // Reason field - shown for specific punishments
+    const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(punishmentType.name);
+    if (needsReason) {
+      const reasonPlaceholder = punishmentType.name === 'Kick' ? 'Enter reason for kick' :
+                               punishmentType.name === 'Manual Mute' ? 'Enter reason for mute' :
+                               punishmentType.name === 'Manual Ban' ? 'Enter reason for ban' :
+                               'Enter punishment reason...';
+      
+      sections.push(
+        <div key="reason" className="space-y-2">
+          <label className="text-sm font-medium">Reason (shown to player)</label>
+          <textarea
+            className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+            placeholder={reasonPlaceholder}
+            value={data.reason || ''}
+            onChange={(e) => updateData({ reason: e.target.value })}
+          />
+        </div>
+      );
+    }
+    
+    // Evidence field - shown for all punishment types
+    sections.push(
+      <div key="evidence" className="space-y-2">
         <label className="text-sm font-medium">Evidence</label>
         <div className="space-y-2">
           {(data.evidence || []).map((evidence, index) => (
@@ -435,8 +514,11 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
           </Button>
         </div>
       </div>
-
-      <div className="space-y-2">
+    );
+    
+    // Staff Notes - shown for all punishment types
+    sections.push(
+      <div key="staffNotes" className="space-y-2">
         <label className="text-sm font-medium">Staff Notes (Internal)</label>
         <textarea
           className="w-full min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -445,8 +527,10 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
           onChange={(e) => updateData({ staffNotes: e.target.value })}
         />
       </div>
-    </>
-  );
+    );
+    
+    return <>{sections}</>;
+  };
 
   // Stage 1: Category Selection
   if (!data.selectedPunishmentCategory) {
