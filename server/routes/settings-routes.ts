@@ -2680,26 +2680,21 @@ router.delete('/minecraft-api-key', async (req: Request, res: Response) => {
 });
 
 // Get AI punishment types (combines existing punishment types with AI configs)
-router.get('/ai-punishment-types', async (req: Request, res: Response) => {
+router.get('/ai-punishment-types', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
-    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
-    const settingsDoc = await SettingsModel.findOne({});
-
-    if (!settingsDoc) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-
-    const aiSettings = settingsDoc.settings.get('aiModerationSettings') || {
+    const settings = await getMultipleSettingsValues(req.serverDbConnection, ['aiModerationSettings', 'punishmentTypes']);
+    
+    const aiSettings = settings.aiModerationSettings || {
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
     };
 
-    const allPunishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    const allPunishmentTypes = settings.punishmentTypes || [];
     
     const aiPunishmentConfigs = aiSettings.aiPunishmentConfigs || {};
 
@@ -2727,7 +2722,7 @@ router.get('/ai-punishment-types', async (req: Request, res: Response) => {
 });
 
 // Add/Enable AI punishment type
-router.post('/ai-punishment-types', async (req: Request, res: Response) => {
+router.post('/ai-punishment-types', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
@@ -2739,14 +2734,8 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'punishmentTypeId is required' });
     }
 
-    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
-    const settingsDoc = await SettingsModel.findOne({});
-
-    if (!settingsDoc) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-
-    const allPunishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    const settings = await getMultipleSettingsValues(req.serverDbConnection, ['punishmentTypes', 'aiModerationSettings']);
+    const allPunishmentTypes = settings.punishmentTypes || [];
     
     const punishmentType = allPunishmentTypes.find((pt: IPunishmentType) => pt.ordinal === punishmentTypeId);
 
@@ -2758,7 +2747,7 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Only customizable punishment types can be enabled for AI moderation' });
     }
 
-    const aiSettings = settingsDoc.settings.get('aiModerationSettings') || {
+    const aiSettings = settings.aiModerationSettings || {
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
@@ -2780,14 +2769,11 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
       },
     };
 
-    settingsDoc.settings.set('aiModerationSettings', newAiSettings);
-    settingsDoc.markModified('settings');
-    
-    await settingsDoc.save();
+    // Update using the new structure
+    await updateSeparateDocuments(req.serverDbConnection, { aiModerationSettings: newAiSettings });
 
     // Verify the save by re-reading the document
-    const verificationDoc = await SettingsModel.findOne({});
-    const verificationSettings = verificationDoc?.settings.get('aiModerationSettings');
+    const verificationSettings = await getSettingsValue(req.serverDbConnection, 'aiModerationSettings');
 
     const responseData = {
       id: punishmentType.id,
@@ -2976,20 +2962,13 @@ router.get('/available-punishment-types', checkPermission('admin.settings.view')
 });
 
 // Get AI moderation settings
-router.get('/ai-moderation-settings', async (req: Request, res: Response) => {
+router.get('/ai-moderation-settings', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
-    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
-    const settingsDoc = await SettingsModel.findOne({});
-
-    if (!settingsDoc) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-
-    const aiSettings = settingsDoc.settings.get('aiModerationSettings') || {
+    const aiSettings = await getSettingsValue(req.serverDbConnection, 'aiModerationSettings') || {
       enableAutomatedActions: true,
       strictnessLevel: 'standard'
     };
