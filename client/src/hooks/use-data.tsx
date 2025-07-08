@@ -319,13 +319,18 @@ export function useSettings() {
           const responseText = await res.text();
           const data = JSON.parse(responseText);
           
-          // Transform to Map structure for consistency
-          const settingsMap = new Map();
+          // Return the settings directly as an object (new separate documents structure)
           if (data.settings) {
-            Object.entries(data.settings).forEach(([key, value]) => {
-              settingsMap.set(key, value);
-            });
+            return {
+              settings: data.settings
+            };
           }
+          
+          // Fallback: if no settings property, assume legacy Map structure
+          const settingsMap = new Map();
+          Object.entries(data).forEach(([key, value]) => {
+            settingsMap.set(key, value);
+          });
           
           return {
             settings: settingsMap
@@ -338,17 +343,16 @@ export function useSettings() {
           
           if (publicRes.ok) {
             const publicData = await publicRes.json();
-            // Transform public data to match expected format with Map methods
-            const settingsMap = new Map();
-            settingsMap.set('general', {
-              serverDisplayName: publicData.serverDisplayName,
-              panelIconUrl: publicData.panelIconUrl,
-              homepageIconUrl: publicData.homepageIconUrl
-            });
-            settingsMap.set('ticketForms', publicData.ticketForms || {});
-            
+            // Return public data as direct object
             return {
-              settings: settingsMap
+              settings: {
+                general: {
+                  serverDisplayName: publicData.serverDisplayName,
+                  panelIconUrl: publicData.panelIconUrl,
+                  homepageIconUrl: publicData.homepageIconUrl
+                },
+                ticketForms: publicData.ticketForms || {}
+              }
             };
           }
         }

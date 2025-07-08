@@ -66,9 +66,9 @@ async function getUserPermissions(req: Request, userRole: string): Promise<strin
 
   // Get punishment permissions from settings
   try {
-    const Settings = req.serverDbConnection.model('Settings');
-    const settingsDoc = await Settings.findOne({});
-    const punishmentTypes = settingsDoc?.settings?.get('punishmentTypes') || [];
+    // Import helper function dynamically
+    const { getSettingsValue } = await import('../routes/settings-routes');
+    const punishmentTypes = await getSettingsValue(req.serverDbConnection!, 'punishmentTypes') || [];
     
     const punishmentPermissions = punishmentTypes.map((type: any) => 
       `punishment.apply.${type.name.toLowerCase().replace(/\s+/g, '-')}`

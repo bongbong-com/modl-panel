@@ -2926,7 +2926,31 @@ router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) =>
 
 // Debug route to test if settings routes are working
 router.get('/debug', async (req: Request, res: Response) => {
-  res.json({ message: 'Settings routes are working', timestamp: new Date().toISOString() });
+  try {
+    const models = getSettingsModels(req.serverDbConnection!);
+    
+    // Check what documents exist
+    const settingsSectionCount = await models.SettingsSection.countDocuments({});
+    const legacySettingsCount = await models.Settings.countDocuments({});
+    
+    // Get all settings section documents
+    const allSections = await models.SettingsSection.find({});
+    
+    // Get punishment types specifically
+    const punishmentTypesDoc = await models.SettingsSection.findOne({ type: 'punishmentTypes' });
+    
+    res.json({ 
+      message: 'Settings routes are working', 
+      timestamp: new Date().toISOString(),
+      settingsSectionCount,
+      legacySettingsCount,
+      sections: allSections.map(s => ({ type: s.type, dataLength: Array.isArray(s.data) ? s.data.length : Object.keys(s.data || {}).length })),
+      punishmentTypesCount: punishmentTypesDoc?.data?.length || 0,
+      punishmentTypesSample: punishmentTypesDoc?.data?.slice(0, 3) || []
+    });
+  } catch (error) {
+    res.json({ message: 'Debug route error', error: error.message, timestamp: new Date().toISOString() });
+  }
 });
 
 // Get available punishment types for adding to AI (excludes already enabled ones)
