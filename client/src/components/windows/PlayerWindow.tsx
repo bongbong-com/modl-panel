@@ -4,6 +4,7 @@ import {
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2,
   ChevronDown, ChevronRight, Settings
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
@@ -152,6 +153,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
   const [isApplyingPunishment, setIsApplyingPunishment] = useState(false);
   const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());    // Get current authenticated user
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
     // Initialize the applyPunishment mutation hook
   const applyPunishment = useApplyPunishment();
   const modifyPunishment = useModifyPunishment();
@@ -526,6 +528,12 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
       setShowBanSearchResults(results.length > 0);
     }, 300);
   };
+
+  // Function to handle ticket navigation
+  const handleTicketClick = (ticketId: string) => {
+    setLocation(`/panel/tickets/${ticketId}`);
+  };
+
     // Use React Query hook to fetch player data with refetch capability
   const { data: player, isLoading, error, refetch } = usePlayer(playerId);
   
@@ -2200,7 +2208,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                   const isReported = ticket.reportedPlayerUuid === playerId;
                   
                   return (
-                    <div key={ticket._id} className="bg-muted/30 p-3 rounded-lg">
+                    <div 
+                      key={ticket._id} 
+                      className="bg-muted/30 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors duration-200"
+                      onClick={() => handleTicketClick(ticket._id)}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -2247,6 +2259,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               ))}
                             </div>
                           )}
+                        </div>
+                        <div className="ml-2 flex-shrink-0">
+                          <Eye className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
                     </div>
