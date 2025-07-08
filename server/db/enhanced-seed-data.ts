@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { PlayerSchema, StaffSchema, TicketSchema, LogSchema, SettingsSchema } from 'modl-shared-web/schemas/TenantSchemas';
-import { createDefaultSettings, addDefaultPunishmentTypes, createSeparateDefaultSettings } from '../routes/settings-routes';
+import { createDefaultSettings, addDefaultPunishmentTypes } from '../routes/settings-routes';
 import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -82,17 +82,17 @@ export async function seedEnhancedDatabase(dbConnection: Connection) {
     const regions = ['West', 'East', 'North', 'South', 'Central'];
     const asns = ['AS12345', 'AS67890', 'AS54321', 'AS09876', 'AS13579'];
     
-    // Initialize default settings including punishment types using separate documents
-    await createSeparateDefaultSettings(dbConnection);
-    console.log('Initialized default settings with punishment types using separate documents');
+    // Initialize default settings including punishment types
+    await createDefaultSettings(dbConnection);
+    console.log('Initialized default settings with punishment types');
     
     // Get punishment types for realistic punishment generation
-    const SettingsSectionSchema = new mongoose.Schema({ 
+    const SettingsSchema = new mongoose.Schema({ 
       type: { type: String, required: true },
       data: { type: mongoose.Schema.Types.Mixed, required: true }
     });
-    const SettingsSectionModel = dbConnection.models.SettingsSection || dbConnection.model('SettingsSection', SettingsSectionSchema);
-    const punishmentTypesDoc = await SettingsSectionModel.findOne({ type: 'punishmentTypes' });
+    const SettingsModel = dbConnection.models.Settings || dbConnection.model('Settings', SettingsSchema);
+    const punishmentTypesDoc = await SettingsModel.findOne({ type: 'punishmentTypes' });
     const punishmentTypes: Array<{ ordinal: number; name: string; [key: string]: any }> = punishmentTypesDoc?.data || [];
     
     const punishmentReasons = [

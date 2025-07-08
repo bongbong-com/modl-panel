@@ -109,18 +109,13 @@ interface IAIModerationSettings {
 }
 
 // Settings document interface for separate documents in same collection
-interface ISettingsSection extends MongooseDocument {
+interface ISettingsDocument extends MongooseDocument {
   type: string; // 'punishmentTypes', 'statusThresholds', 'systemSettings', etc.
   data: any; // The actual settings data for this section
 }
 
-// Legacy interface for backward compatibility during migration
-interface ISettingsDocument extends MongooseDocument {
-  settings: Map<string, any>;
-}
-
-// Mongoose schema for settings sections (separate documents in same collection)
-const SettingsSectionSchema = new Schema({
+// Mongoose schema for settings (separate documents for each settings section)
+const SettingsSchema = new Schema({
   type: { type: String, required: true }, // 'punishmentTypes', 'statusThresholds', etc.
   data: { type: Schema.Types.Mixed, required: true } // The actual settings data
 });
@@ -145,64 +140,34 @@ router.use('/domain', domainRoutes);
 // Helper function to get settings models
 function getSettingsModels(dbConnection: Connection) {
   return {
-    SettingsSection: dbConnection.models.SettingsSection || dbConnection.model<ISettingsSection>('SettingsSection', SettingsSectionSchema),
-    // Legacy model for backward compatibility  
-    Settings: dbConnection.models.Settings || dbConnection.model<ISettingsDocument>('Settings')
+    Settings: dbConnection.models.Settings || dbConnection.model<ISettingsDocument>('Settings', SettingsSchema)
   };
 }
 
-// Helper function to get settings value from either new or legacy structure
-async function getSettingsValue(dbConnection: Connection, key: string): Promise<any> {
+// Helper function to get settings value
+export async function getSettingsValue(dbConnection: Connection, key: string): Promise<any> {
   const models = getSettingsModels(dbConnection);
   
-  // Check if separate documents exist
-  const settingsSectionCount = await models.SettingsSection.countDocuments({});
-  
-  if (settingsSectionCount > 0) {
-    // Use new separate documents structure
-    const settingsDoc = await models.SettingsSection.findOne({ type: key });
-    return settingsDoc?.data;
-  } else {
-    // Fall back to legacy structure
-    const legacyDoc = await models.Settings.findOne({});
-    return legacyDoc?.settings.get(key);
-  }
+  const settingsDoc = await models.Settings.findOne({ type: key });
+  return settingsDoc?.data;
 }
 
 // Helper function to get multiple settings values
-async function getMultipleSettingsValues(dbConnection: Connection, keys: string[]): Promise<Record<string, any>> {
+export async function getMultipleSettingsValues(dbConnection: Connection, keys: string[]): Promise<Record<string, any>> {
   const models = getSettingsModels(dbConnection);
   
-  // Check if separate documents exist
-  const settingsSectionCount = await models.SettingsSection.countDocuments({});
+  const settingsDocs = await models.Settings.find({ type: { $in: keys } });
+  const result: Record<string, any> = {};
   
-  if (settingsSectionCount > 0) {
-    // Use new separate documents structure
-    const settingsDocs = await models.SettingsSection.find({ type: { $in: keys } });
-    const result: Record<string, any> = {};
-    
-    for (const doc of settingsDocs) {
-      result[doc.type] = doc.data;
-    }
-    
-    return result;
-  } else {
-    // Fall back to legacy structure
-    const legacyDoc = await models.Settings.findOne({});
-    const result: Record<string, any> = {};
-    
-    if (legacyDoc) {
-      for (const key of keys) {
-        result[key] = legacyDoc.settings.get(key);
-      }
-    }
-    
-    return result;
+  for (const doc of settingsDocs) {
+    result[doc.type] = doc.data;
   }
+  
+  return result;
 }
 
 // New function to create separate settings documents
-export async function createSeparateDefaultSettings(dbConnection: Connection, serverName?: string): Promise<void> {
+export async function createDefaultSettings(dbConnection: Connection, serverName?: string): Promise<void> {
   const models = getSettingsModels(dbConnection);
   
   // Only include core Administrative punishment types (ordinals 0-5, not customizable)
@@ -649,7 +614,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
   // Create separate documents in the same Settings collection
   await Promise.all([
     // Punishment Types document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'punishmentTypes' }, 
       { 
         type: 'punishmentTypes',
@@ -659,7 +624,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // Status Thresholds document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'statusThresholds' },
       { 
         type: 'statusThresholds',
@@ -672,7 +637,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // System Settings document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'systemSettings' },
       {
         type: 'systemSettings',
@@ -688,7 +653,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // Ticket Tags document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'ticketTags' },
       {
         type: 'ticketTags',
@@ -701,7 +666,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // General Settings document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'general' },
       {
         type: 'general',
@@ -715,7 +680,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // AI Moderation Settings document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'aiModerationSettings' },
       {
         type: 'aiModerationSettings',
@@ -738,7 +703,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // Appeal Form document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'appealForm' },
       {
         type: 'appealForm',
@@ -775,7 +740,7 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
     ),
     
     // API Keys document
-    models.SettingsSection.findOneAndUpdate(
+    models.Settings.findOneAndUpdate(
       { type: 'apiKeys' },
       {
         type: 'apiKeys',
@@ -787,12 +752,12 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
 }
 
 // Function to retrieve all settings from separate documents
-export async function getAllSettingsFromSeparateDocuments(dbConnection: Connection): Promise<any> {
+export async function getAllSettings(dbConnection: Connection): Promise<any> {
   const models = getSettingsModels(dbConnection);
   
   try {
     // Get all settings documents
-    const settingsDocuments = await models.SettingsSection.find({});
+    const settingsDocuments = await models.Settings.find({});
     
     // Convert to key-value structure
     const settings: any = {};
@@ -847,93 +812,16 @@ export async function getAllSettingsFromSeparateDocuments(dbConnection: Connecti
   }
 }
 
-// Function to migrate from legacy single document to separate documents
-export async function migrateLegacyToSeparateDocuments(dbConnection: Connection, legacyDoc: HydratedDocument<ISettingsDocument>): Promise<void> {
-  const models = getSettingsModels(dbConnection);
-  const settingsMap = legacyDoc.settings;
-  
-  try {
-    await Promise.all([
-      // Migrate Punishment Types
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'punishmentTypes' },
-        { type: 'punishmentTypes', data: settingsMap.get('punishmentTypes') || [] },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate Status Thresholds
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'statusThresholds' },
-        { type: 'statusThresholds', data: settingsMap.get('statusThresholds') || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } } },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate System Settings
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'systemSettings' },
-        { type: 'systemSettings', data: settingsMap.get('system') || {} },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate Ticket Tags
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'ticketTags' },
-        { type: 'ticketTags', data: settingsMap.get('ticketTags') || [] },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate Appeal Form
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'appealForm' },
-        { type: 'appealForm', data: settingsMap.get('appealForm') || { fields: [] } },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate General Settings
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'general' },
-        { type: 'general', data: settingsMap.get('general') || {} },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate AI Moderation Settings
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'aiModerationSettings' },
-        { type: 'aiModerationSettings', data: settingsMap.get('aiModerationSettings') || {} },
-        { upsert: true, new: true }
-      ),
-      
-      // Migrate API Keys
-      models.SettingsSection.findOneAndUpdate(
-        { type: 'apiKeys' },
-        {
-          type: 'apiKeys',
-          data: {
-            api_key: settingsMap.get('api_key'),
-            ticket_api_key: settingsMap.get('ticket_api_key'),
-            minecraft_api_key: settingsMap.get('minecraft_api_key')
-          }
-        },
-        { upsert: true, new: true }
-      )
-    ]);
-    
-    console.log('[Settings Migration] Successfully migrated legacy settings to separate documents');
-  } catch (error) {
-    console.error('[Settings Migration] Error migrating legacy settings:', error);
-    throw error;
-  }
-}
 
 // Function to update separate documents based on request body
-export async function updateSeparateDocuments(dbConnection: Connection, requestBody: any): Promise<void> {
+export async function updateSettings(dbConnection: Connection, requestBody: any): Promise<void> {
   const models = getSettingsModels(dbConnection);
   
   const updates: Promise<any>[] = [];
   
   if (requestBody.punishmentTypes !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'punishmentTypes' },
         { type: 'punishmentTypes', data: requestBody.punishmentTypes },
         { upsert: true, new: true }
@@ -943,7 +831,7 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.statusThresholds !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'statusThresholds' },
         { type: 'statusThresholds', data: requestBody.statusThresholds },
         { upsert: true, new: true }
@@ -953,7 +841,7 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.system !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'systemSettings' },
         { type: 'systemSettings', data: requestBody.system },
         { upsert: true, new: true }
@@ -963,7 +851,7 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.ticketTags !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'ticketTags' },
         { type: 'ticketTags', data: requestBody.ticketTags },
         { upsert: true, new: true }
@@ -973,7 +861,7 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.appealForm !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'appealForm' },
         { type: 'appealForm', data: requestBody.appealForm },
         { upsert: true, new: true }
@@ -983,7 +871,7 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.general !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'general' },
         { type: 'general', data: requestBody.general },
         { upsert: true, new: true }
@@ -993,7 +881,7 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.aiModerationSettings !== undefined) {
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'aiModerationSettings' },
         { type: 'aiModerationSettings', data: requestBody.aiModerationSettings },
         { upsert: true, new: true }
@@ -1015,11 +903,11 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (Object.keys(apiKeyUpdates).length > 0) {
     // Get existing API keys data
-    const existingApiKeysDoc = await models.SettingsSection.findOne({ type: 'apiKeys' });
+    const existingApiKeysDoc = await models.Settings.findOne({ type: 'apiKeys' });
     const currentApiKeys = existingApiKeysDoc?.data || {};
     
     updates.push(
-      models.SettingsSection.findOneAndUpdate(
+      models.Settings.findOneAndUpdate(
         { type: 'apiKeys' },
         { type: 'apiKeys', data: { ...currentApiKeys, ...apiKeyUpdates } },
         { upsert: true, new: true }
@@ -1033,13 +921,13 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
 }
 
 // Function to cleanup orphaned AI punishment configs in separate documents structure
-export async function cleanupOrphanedAIPunishmentConfigsSeparate(dbConnection: Connection): Promise<void> {
+export async function cleanupOrphanedAIPunishmentConfigs(dbConnection: Connection): Promise<void> {
   const models = getSettingsModels(dbConnection);
   
   try {
     const [punishmentTypesDoc, aiModerationDoc] = await Promise.all([
-      models.SettingsSection.findOne({ type: 'punishmentTypes' }),
-      models.SettingsSection.findOne({ type: 'aiModerationSettings' })
+      models.Settings.findOne({ type: 'punishmentTypes' }),
+      models.Settings.findOne({ type: 'aiModerationSettings' })
     ]);
     
     if (!punishmentTypesDoc || !aiModerationDoc) {
@@ -1074,7 +962,7 @@ export async function cleanupOrphanedAIPunishmentConfigsSeparate(dbConnection: C
       });
 
       // Save updated settings
-      await models.SettingsSection.findOneAndUpdate(
+      await models.Settings.findOneAndUpdate(
         { type: 'aiModerationSettings' },
         { type: 'aiModerationSettings', data: aiSettings },
         { upsert: true, new: true }
@@ -2237,28 +2125,18 @@ router.get('/', checkPermission('admin.settings.view'), async (req: Request, res
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
-    // Check if separate documents exist in the SettingsSection collection
-    const settingsSectionCount = await models.SettingsSection.countDocuments({});
+    // Check if settings documents exist
+    const settingsCount = await models.Settings.countDocuments({});
     
-    if (settingsSectionCount > 0) {
-      // Use new separate documents structure
-      const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+    if (settingsCount > 0) {
+      // Get all settings
+      const allSettings = await getAllSettings(req.serverDbConnection!);
       res.json({ settings: allSettings });
     } else {
-      // Fall back to legacy structure or create new separate documents
-      const legacySettingsDoc = await models.Settings.findOne({});
-      
-      if (legacySettingsDoc) {
-        // Migrate from legacy structure to separate documents
-        await migrateLegacyToSeparateDocuments(req.serverDbConnection!, legacySettingsDoc);
-        const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
-        res.json({ settings: allSettings });
-      } else {
-        // Create new separate documents
-        await createSeparateDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
-        const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
-        res.json({ settings: allSettings });
-      }
+      // Create default settings
+      await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+      const allSettings = await getAllSettings(req.serverDbConnection!);
+      res.json({ settings: allSettings });
     }
   } catch (error) {
     console.error('Error in settings GET route:', error);
@@ -2268,52 +2146,16 @@ router.get('/', checkPermission('admin.settings.view'), async (req: Request, res
 
 router.patch('/', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
-    const models = getSettingsModels(req.serverDbConnection!);
+    // Update settings documents
+    await updateSettings(req.serverDbConnection!, req.body);
     
-    // Check if separate documents exist in the SettingsSection collection
-    const settingsSectionCount = await models.SettingsSection.countDocuments({});
-    
-    if (settingsSectionCount > 0) {
-      // Update separate documents
-      await updateSeparateDocuments(req.serverDbConnection!, req.body);
-      
-      // Clean up orphaned AI punishment configs if punishment types were updated
-      if ('punishmentTypes' in req.body) {
-        await cleanupOrphanedAIPunishmentConfigsSeparate(req.serverDbConnection!);
-      }
-      
-      const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
-      res.json({ settings: allSettings });
-    } else {
-      // Fall back to legacy structure
-      const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-      let settingsDoc = await Settings.findOne({});
-      if (!settingsDoc) {
-        settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
-      }
-
-      if (!settingsDoc) {
-        return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
-      }
-      
-      // Check if punishment types are being updated
-      const updatingPunishmentTypes = 'punishmentTypes' in req.body;
-      
-      for (const key in req.body) {
-        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
-          settingsDoc.settings.set(key, req.body[key]);
-        }
-      }
-      await settingsDoc.save();
-      
-      // Clean up orphaned AI punishment configs if punishment types were updated
-      if (updatingPunishmentTypes) {
-        await cleanupOrphanedAIPunishmentConfigs(req.serverDbConnection!);
-      }
-      
-      // Convert Map to object and wrap in a 'settings' key
-      res.json({ settings: Object.fromEntries(settingsDoc.settings) });
+    // Clean up orphaned AI punishment configs if punishment types were updated
+    if ('punishmentTypes' in req.body) {
+      await cleanupOrphanedAIPunishmentConfigs(req.serverDbConnection!);
     }
+    
+    const allSettings = await getAllSettings(req.serverDbConnection!);
+    res.json({ settings: allSettings });
   } catch (error) {
     console.error('Error in settings PATCH route:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -2324,18 +2166,14 @@ router.post('/reset', async (req: Request, res: Response) => {
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
-    // Delete all settings sections and legacy documents
-    await Promise.all([
-      models.SettingsSection.deleteMany({}),
-      // Also delete legacy settings document
-      models.Settings.deleteMany({})
-    ]);
+    // Delete all settings documents
+    await models.Settings.deleteMany({});
     
-    // Create new separate documents with defaults
-    await createSeparateDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+    // Create new default settings documents
+    await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
     
     // Return the new settings
-    const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+    const allSettings = await getAllSettings(req.serverDbConnection!);
     res.json({ settings: allSettings });
   } catch (error) {
     console.error('Error resetting settings:', error);
@@ -2930,20 +2768,18 @@ router.get('/debug', async (req: Request, res: Response) => {
     const models = getSettingsModels(req.serverDbConnection!);
     
     // Check what documents exist
-    const settingsSectionCount = await models.SettingsSection.countDocuments({});
-    const legacySettingsCount = await models.Settings.countDocuments({});
+    const settingsCount = await models.Settings.countDocuments({});
     
-    // Get all settings section documents
-    const allSections = await models.SettingsSection.find({});
+    // Get all settings documents
+    const allSections = await models.Settings.find({});
     
     // Get punishment types specifically
-    const punishmentTypesDoc = await models.SettingsSection.findOne({ type: 'punishmentTypes' });
+    const punishmentTypesDoc = await models.Settings.findOne({ type: 'punishmentTypes' });
     
     res.json({ 
       message: 'Settings routes are working', 
       timestamp: new Date().toISOString(),
-      settingsSectionCount,
-      legacySettingsCount,
+      settingsCount,
       sections: allSections.map(s => ({ type: s.type, dataLength: Array.isArray(s.data) ? s.data.length : Object.keys(s.data || {}).length })),
       punishmentTypesCount: punishmentTypesDoc?.data?.length || 0,
       punishmentTypesSample: punishmentTypesDoc?.data?.slice(0, 3) || []

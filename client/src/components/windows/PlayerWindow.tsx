@@ -590,8 +590,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
 
   // Process settings data to extract punishment types by category
   useEffect(() => {
-    // Check for new object structure first, fallback to Map structure
-    const punishmentTypesData = settingsData?.settings?.punishmentTypes || settingsData?.settings?.get?.('punishmentTypes');
+    const punishmentTypesData = settingsData?.settings?.punishmentTypes;
     if (punishmentTypesData) {
       try {
         // Parse punishment types if they're stored as a string
@@ -859,19 +858,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         
         // Get status thresholds from settings
         let statusThresholds = { social: { medium: 4, habitual: 8 }, gameplay: { medium: 5, habitual: 10 } };
-        if (settingsData?.settings) {
+        if (settingsData?.settings?.statusThresholds) {
           try {
-            // Check for new object structure first
-            if (settingsData.settings.statusThresholds) {
-              statusThresholds = settingsData.settings.statusThresholds;
-            }
-            // Fallback to Map structure if available
-            else if (settingsData.settings.get && settingsData.settings.get('statusThresholds')) {
-              const thresholdsData = settingsData.settings.get('statusThresholds');
-              if (thresholdsData) {
-                statusThresholds = thresholdsData;
-              }
-            }
+            statusThresholds = settingsData.settings.statusThresholds;
           } catch (error) {
             console.error("Error parsing status thresholds:", error);
           }

@@ -319,21 +319,9 @@ export function useSettings() {
           const responseText = await res.text();
           const data = JSON.parse(responseText);
           
-          // Return the settings directly as an object (new separate documents structure)
-          if (data.settings) {
-            return {
-              settings: data.settings
-            };
-          }
-          
-          // Fallback: if no settings property, assume legacy Map structure
-          const settingsMap = new Map();
-          Object.entries(data).forEach(([key, value]) => {
-            settingsMap.set(key, value);
-          });
-          
+          // Return the settings directly as an object
           return {
-            settings: settingsMap
+            settings: data.settings || {}
           };
         }
 
