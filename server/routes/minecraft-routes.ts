@@ -740,6 +740,100 @@ function isPunishmentActive(punishment: IPunishment, typeConfig: Map<number, "BA
   return true;
 }
 
+/**
+ * Check and process auto-unbans for permanent until username/skin change punishments
+ */
+async function checkAndProcessAutoUnbans(
+  player: IPlayer, 
+  hasUsernameChanged: boolean, 
+  hasSkinChanged: boolean, 
+  serverDbConnection: Connection,
+  serverName: string
+): Promise<void> {
+  try {
+    // Load punishment type configuration to identify permanent punishments
+    const Settings = serverDbConnection.model('Settings');
+    let permanentUntilUsernameChangeIds: number[] = [];
+    let permanentUntilSkinChangeIds: number[] = [];
+    
+    try {
+      const settingsDoc = await Settings.findOne({ type: 'punishmentTypes' });
+      if (settingsDoc?.data) {
+        const punishmentTypes = settingsDoc.data;
+        for (const punishmentType of punishmentTypes) {
+          if (punishmentType.permanentUntilUsernameChange) {
+            permanentUntilUsernameChangeIds.push(punishmentType.id);
+          }
+          if (punishmentType.permanentUntilSkinChange) {
+            permanentUntilSkinChangeIds.push(punishmentType.id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading punishment types for auto-unban:', error);
+      return;
+    }
+
+    // Find active punishments that should be auto-unbanned
+    const punishmentsToUnban: IPunishment[] = [];
+    
+    for (const punishment of player.punishments) {
+      // Skip if punishment is already inactive
+      if (getPunishmentData(punishment, 'active') === false) {
+        continue;
+      }
+      
+      // Skip if punishment hasn't been started
+      if (!punishment.started) {
+        continue;
+      }
+      
+      const punishmentTypeId = punishment.type_ordinal;
+      
+      // Check username change unbans
+      if (hasUsernameChanged && permanentUntilUsernameChangeIds.includes(punishmentTypeId)) {
+        punishmentsToUnban.push(punishment);
+      }
+      
+      // Check skin change unbans
+      if (hasSkinChanged && permanentUntilSkinChangeIds.includes(punishmentTypeId)) {
+        punishmentsToUnban.push(punishment);
+      }
+    }
+    
+    // Process unbans
+    if (punishmentsToUnban.length > 0) {
+      for (const punishment of punishmentsToUnban) {
+        // Mark punishment as inactive
+        setPunishmentData(punishment, 'active', false);
+        
+        // Set unban timestamp
+        punishment.unbanned = new Date();
+        
+        // Create a log entry for the auto-unban
+        const punishmentTypeId = punishment.type_ordinal;
+        const isUsernameUnban = permanentUntilUsernameChangeIds.includes(punishmentTypeId);
+        const isSkinUnban = permanentUntilSkinChangeIds.includes(punishmentTypeId);
+        
+        const reason = isUsernameUnban ? 'Username changed - automatic unban' : 'Skin changed - automatic unban';
+        
+        // Log the auto-unban
+        await createSystemLog(
+          serverDbConnection,
+          'info',
+          `Auto-unbanned player ${player.usernames[player.usernames.length - 1]?.username || 'Unknown'} (${player.minecraftUuid}) - ${reason}`,
+          'auto-unban'
+        );
+      }
+      
+      console.log(`[Auto-Unban] Processed ${punishmentsToUnban.length} auto-unbans for player ${player.minecraftUuid}`);
+    }
+    
+  } catch (error) {
+    console.error('Error processing auto-unbans:', error);
+  }
+}
+
 export function setupMinecraftRoutes(app: Express): void {
   // Apply API key verification middleware to all Minecraft routes
   app.use('/api/minecraft', verifyMinecraftApiKey);
@@ -825,17 +919,24 @@ export function setupMinecraftRoutes(app: Express): void {
 
         // Update username list if it's a new username (similar to Java code handling username)
         const existingUsername = player.usernames.find((u: IUsername) => u.username.toLowerCase() === username.toLowerCase());
-        if (!existingUsername) {
+        const hasUsernameChanged = !existingUsername;
+        if (hasUsernameChanged) {
           player.usernames.push({ username, date: new Date() });
         }
 
-        // Don't auto-start punishments on login - they should only be started when server acknowledges
-
-        // Handle restrictions (blockedName, blockedSkin) if present
-        // This implementation is simplified since we don't have the same restriction concepts
+        // Check for skin hash changes
+        const lastSkinHash = player.data.get('lastSkinHash');
+        const hasSkinChanged = lastSkinHash && skinHash && lastSkinHash !== skinHash;
         if (skinHash) {
-            // Placeholder for skin hash checks if needed in the future
+          player.data.set('lastSkinHash', skinHash);
         }
+
+        // Auto-unban logic for permanent until username/skin change punishments
+        if (hasUsernameChanged || hasSkinChanged) {
+          await checkAndProcessAutoUnbans(player, hasUsernameChanged, hasSkinChanged, serverDbConnection, serverName);
+        }
+
+        // Don't auto-start punishments on login - they should only be started when server acknowledges
 
         await player.save();
         

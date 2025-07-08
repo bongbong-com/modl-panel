@@ -2400,6 +2400,7 @@ const Settings = () => {
                               type="checkbox"
                               id="canBeAltBlocking"
                               checked={selectedPunishment.canBeAltBlocking || false}
+                              disabled={selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange}
                               onChange={(e) => {
                                 setSelectedPunishment(prev => prev ? {
                                   ...prev,
@@ -2417,6 +2418,7 @@ const Settings = () => {
                               type="checkbox"
                               id="canBeStatWiping"
                               checked={selectedPunishment.canBeStatWiping || false}
+                              disabled={selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange}
                               onChange={(e) => {
                                 setSelectedPunishment(prev => prev ? {
                                   ...prev,
@@ -2466,7 +2468,10 @@ const Settings = () => {
                                   // Clear single severity if permanent is checked
                                   singleSeverityPunishment: e.target.checked ? false : prev.singleSeverityPunishment,
                                   // Clear skin change if username change is checked
-                                  permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange
+                                  permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange,
+                                  // Clear alt-blocking and stat-wiping if permanent is checked
+                                  canBeAltBlocking: e.target.checked ? false : prev.canBeAltBlocking,
+                                  canBeStatWiping: e.target.checked ? false : prev.canBeStatWiping
                                 } : null);
                               }}
                               className="rounded"
@@ -2487,7 +2492,10 @@ const Settings = () => {
                                   // Clear single severity if permanent is checked
                                   singleSeverityPunishment: e.target.checked ? false : prev.singleSeverityPunishment,
                                   // Clear username change if skin change is checked
-                                  permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange
+                                  permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange,
+                                  // Clear alt-blocking and stat-wiping if permanent is checked
+                                  canBeAltBlocking: e.target.checked ? false : prev.canBeAltBlocking,
+                                  canBeStatWiping: e.target.checked ? false : prev.canBeStatWiping
                                 } : null);
                               }}
                               className="rounded"
