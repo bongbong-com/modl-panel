@@ -1041,7 +1041,7 @@ export async function cleanupOrphanedAIPunishmentConfigs(dbConnection: Connectio
   }
 }
 
-export async function createDefaultSettings(dbConnection: Connection, serverName?: string): Promise<HydratedDocument<ISettingsDocument>> {
+export async function createDefaultSettingsDocument(dbConnection: Connection, serverName?: string): Promise<HydratedDocument<ISettingsDocument>> {
   try {
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const defaultSettingsMap = new Map<string, any>();
@@ -2140,7 +2140,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
 }
 
 // Add this helper function after the createDefaultSettings function
-async function cleanupOrphanedAIPunishmentConfigs(dbConnection: Connection): Promise<void> {
+async function cleanupOrphanedAIPunishmentConfigsHelper(dbConnection: Connection): Promise<void> {
   try {
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const settingsDoc = await SettingsModel.findOne({});
