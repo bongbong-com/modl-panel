@@ -421,6 +421,72 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
           }
         ]
       }
+    },
+    { 
+      id: 18, 
+      name: 'Bad Username', 
+      category: 'Social', 
+      isCustomizable: true, 
+      ordinal: 10,
+      permanentUntilUsernameChange: true,
+      staffDescription: 'Username violates server guidelines (inappropriate, offensive, or misleading).',
+      playerDescription: 'Your username violates our community guidelines. Please change your username to something appropriate to continue playing.',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'username_explanation',
+            type: 'textarea',
+            label: 'Why do you believe your username is appropriate?',
+            description: 'Please explain why you think your username should be allowed',
+            required: true,
+            order: 1
+          },
+          {
+            id: 'new_username',
+            type: 'text',
+            label: 'Proposed new username (optional)',
+            description: 'If you agree to change it, what username would you prefer?',
+            required: false,
+            order: 2
+          }
+        ]
+      }
+    },
+    { 
+      id: 19, 
+      name: 'Bad Skin', 
+      category: 'Social', 
+      isCustomizable: true, 
+      ordinal: 11,
+      permanentUntilSkinChange: true,
+      staffDescription: 'Player skin violates server guidelines (inappropriate, offensive, or misleading).',
+      playerDescription: 'Your Minecraft skin violates our community guidelines. Please change your skin to something appropriate to continue playing.',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'skin_explanation',
+            type: 'textarea',
+            label: 'Why do you believe your skin is appropriate?',
+            description: 'Please explain why you think your skin should be allowed',
+            required: true,
+            order: 1
+          },
+          {
+            id: 'skin_change_confirmation',
+            type: 'checkbox',
+            label: 'I agree to change my skin to something appropriate',
+            description: 'Check this box if you agree to change your skin',
+            required: false,
+            order: 2
+          }
+        ]
+      }
     }
   ];
 
@@ -491,7 +557,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       name: 'Cheating', 
       category: 'Gameplay', 
       isCustomizable: true, 
-      ordinal: 17,
+      ordinal: 14,
       durations: {
         low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
         regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
@@ -521,7 +587,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       name: 'Game Trading', 
       category: 'Gameplay', 
       isCustomizable: true, 
-      ordinal: 16,
+      ordinal: 15,
       durations: {
         low: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
         regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
@@ -551,7 +617,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       name: 'Account Abuse', 
       category: 'Gameplay', 
       isCustomizable: true, 
-      ordinal: 15,
+      ordinal: 16,
       durations: {
         low: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
         regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
@@ -581,7 +647,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       name: 'Systems Abuse', 
       category: 'Gameplay', 
       isCustomizable: true, 
-      ordinal: 14,
+      ordinal: 17,
       durations: {
         low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
         regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } },
