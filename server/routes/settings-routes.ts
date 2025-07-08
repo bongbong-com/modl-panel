@@ -2271,12 +2271,31 @@ router.patch('/', checkPermission('admin.settings.modify'), async (req: Request,
 
 router.post('/reset', async (req: Request, res: Response) => {
   try {
-    const SettingsModel = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    await SettingsModel.deleteOne({});
-    const defaultSettings = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
-    // Convert Map to object and wrap in a 'settings' key
-    res.json({ settings: Object.fromEntries(defaultSettings.settings) });
+    const models = getSettingsModels(req.serverDbConnection!);
+    
+    // Delete all separate documents
+    await Promise.all([
+      models.PunishmentTypes.deleteMany({}),
+      models.StatusThresholds.deleteMany({}),
+      models.SystemSettings.deleteMany({}),
+      models.TicketTags.deleteMany({}),
+      models.AppealForm.deleteMany({}),
+      models.GeneralSettings.deleteMany({}),
+      models.AiModerationSettings.deleteMany({}),
+      models.TicketForms.deleteMany({}),
+      models.ApiKeys.deleteMany({}),
+      // Also delete legacy settings document
+      models.Settings.deleteMany({})
+    ]);
+    
+    // Create new separate documents with defaults
+    await createSeparateDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+    
+    // Return the new settings
+    const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+    res.json({ settings: allSettings });
   } catch (error) {
+    console.error('Error resetting settings:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

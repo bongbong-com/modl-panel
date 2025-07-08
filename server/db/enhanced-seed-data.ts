@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { PlayerSchema, StaffSchema, TicketSchema, LogSchema, SettingsSchema } from 'modl-shared-web/schemas/TenantSchemas';
-import { createDefaultSettings, addDefaultPunishmentTypes } from '../routes/settings-routes';
+import { createDefaultSettings, addDefaultPunishmentTypes, createSeparateDefaultSettings } from '../routes/settings-routes';
 import { Connection } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -82,14 +82,14 @@ export async function seedEnhancedDatabase(dbConnection: Connection) {
     const regions = ['West', 'East', 'North', 'South', 'Central'];
     const asns = ['AS12345', 'AS67890', 'AS54321', 'AS09876', 'AS13579'];
     
-    // Initialize default settings including punishment types
-    await createDefaultSettings(dbConnection);
-    await addDefaultPunishmentTypes(dbConnection);
-    console.log('Initialized default settings with punishment types');
+    // Initialize default settings including punishment types using separate documents
+    await createSeparateDefaultSettings(dbConnection);
+    console.log('Initialized default settings with punishment types using separate documents');
     
     // Get punishment types for realistic punishment generation
-    const settingsDoc = await Settings.findOne({});
-    const punishmentTypes: Array<{ ordinal: number; name: string; [key: string]: any }> = settingsDoc?.settings?.get('punishmentTypes') || [];
+    const PunishmentTypesModel = dbConnection.models.PunishmentTypes || dbConnection.model('PunishmentTypes', new mongoose.Schema({ punishmentTypes: Array }));
+    const punishmentTypesDoc = await PunishmentTypesModel.findOne({});
+    const punishmentTypes: Array<{ ordinal: number; name: string; [key: string]: any }> = punishmentTypesDoc?.punishmentTypes || [];
     
     const punishmentReasons = [
       'Using inappropriate language in chat',

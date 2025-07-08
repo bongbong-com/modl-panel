@@ -13,7 +13,7 @@ import {
 import crypto from 'crypto';
 import { seedDefaultHomepageCards } from '../db/seed-data';
 import { strictRateLimit } from '../middleware/rate-limiter';
-import { createDefaultSettings, addDefaultPunishmentTypes } from './settings-routes';
+import { createDefaultSettings, addDefaultPunishmentTypes, createSeparateDefaultSettings } from './settings-routes';
 import { createDefaultRoles } from './role-routes';
 
 interface IModlServer extends Document {
@@ -125,11 +125,8 @@ export async function provisionNewServerInstance(
     throw new Error(`Server configuration not found for ID: ${serverConfigId}`);
   }
 
-  // Create default settings with core Administrative punishment types
-  await createDefaultSettings(dbConnection, serverName);
-  
-  // Add default Social and Gameplay punishment types
-  await addDefaultPunishmentTypes(dbConnection);
+  // Create default settings with all punishment types using separate documents structure
+  await createSeparateDefaultSettings(dbConnection, serverName);
 
   // Create default staff roles
   await createDefaultRoles(dbConnection);
