@@ -87,10 +87,13 @@ export async function seedEnhancedDatabase(dbConnection: Connection) {
     console.log('Initialized default settings with punishment types using separate documents');
     
     // Get punishment types for realistic punishment generation
-    const PunishmentTypesSchema = new mongoose.Schema({ punishmentTypes: [mongoose.Schema.Types.Mixed] });
-    const PunishmentTypesModel = dbConnection.models.PunishmentTypes || dbConnection.model('PunishmentTypes', PunishmentTypesSchema);
-    const punishmentTypesDoc = await PunishmentTypesModel.findOne({});
-    const punishmentTypes: Array<{ ordinal: number; name: string; [key: string]: any }> = punishmentTypesDoc?.punishmentTypes || [];
+    const SettingsSectionSchema = new mongoose.Schema({ 
+      type: { type: String, required: true },
+      data: { type: mongoose.Schema.Types.Mixed, required: true }
+    });
+    const SettingsSectionModel = dbConnection.models.SettingsSection || dbConnection.model('SettingsSection', SettingsSectionSchema);
+    const punishmentTypesDoc = await SettingsSectionModel.findOne({ type: 'punishmentTypes' });
+    const punishmentTypes: Array<{ ordinal: number; name: string; [key: string]: any }> = punishmentTypesDoc?.data || [];
     
     const punishmentReasons = [
       'Using inappropriate language in chat',

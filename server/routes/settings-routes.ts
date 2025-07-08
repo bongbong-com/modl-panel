@@ -108,51 +108,10 @@ interface IAIModerationSettings {
   aiPunishmentConfigs: Record<number, IAIPunishmentConfig>; // Map punishment type ID to AI config
 }
 
-// Separate document interfaces for each settings section
-interface IPunishmentTypesDocument extends MongooseDocument {
-  punishmentTypes: IPunishmentType[];
-}
-
-interface IStatusThresholdsDocument extends MongooseDocument {
-  statusThresholds: IStatusThresholds;
-}
-
-interface ISystemSettingsDocument extends MongooseDocument {
-  systemSettings: ISystemSettings;
-}
-
-interface ITicketTagsDocument extends MongooseDocument {
-  ticketTags: string[];
-}
-
-interface IAppealFormDocument extends MongooseDocument {
-  appealForm: IAppealFormSettings;
-}
-
-interface IGeneralSettingsDocument extends MongooseDocument {
-  general: {
-    serverDisplayName: string;
-    homepageIconUrl: string;
-    panelIconUrl: string;
-  };
-}
-
-interface IAiModerationSettingsDocument extends MongooseDocument {
-  aiModerationSettings: {
-    enableAutomatedActions: boolean;
-    strictnessLevel: string;
-    aiPunishmentConfigs: Record<string, any>;
-  };
-}
-
-interface ITicketFormsDocument extends MongooseDocument {
-  ticketForms: any;
-}
-
-interface IApiKeysDocument extends MongooseDocument {
-  api_key?: string;
-  ticket_api_key?: string;
-  minecraft_api_key?: string;
+// Settings document interface for separate documents in same collection
+interface ISettingsSection extends MongooseDocument {
+  type: string; // 'punishmentTypes', 'statusThresholds', 'systemSettings', etc.
+  data: any; // The actual settings data for this section
 }
 
 // Legacy interface for backward compatibility during migration
@@ -160,68 +119,10 @@ interface ISettingsDocument extends MongooseDocument {
   settings: Map<string, any>;
 }
 
-// Mongoose schemas for separate settings documents
-const PunishmentTypesSchema = new Schema({
-  punishmentTypes: [Schema.Types.Mixed]
-});
-
-const StatusThresholdsSchema = new Schema({
-  statusThresholds: {
-    gameplay: {
-      medium: Number,
-      habitual: Number
-    },
-    social: {
-      medium: Number,
-      habitual: Number
-    }
-  }
-});
-
-const SystemSettingsSchema = new Schema({
-  systemSettings: {
-    maxLoginAttempts: Number,
-    lockoutDuration: Number,
-    sessionTimeout: Number,
-    requireAdminApproval: Boolean,
-    requireTwoFactor: Boolean
-  }
-});
-
-const TicketTagsSchema = new Schema({
-  ticketTags: [String]
-});
-
-const AppealFormSchema = new Schema({
-  appealForm: {
-    fields: [Schema.Types.Mixed]
-  }
-});
-
-const GeneralSettingsSchema = new Schema({
-  general: {
-    serverDisplayName: String,
-    homepageIconUrl: String,
-    panelIconUrl: String
-  }
-});
-
-const AiModerationSettingsSchema = new Schema({
-  aiModerationSettings: {
-    enableAutomatedActions: Boolean,
-    strictnessLevel: String,
-    aiPunishmentConfigs: Schema.Types.Mixed
-  }
-});
-
-const TicketFormsSchema = new Schema({
-  ticketForms: Schema.Types.Mixed
-});
-
-const ApiKeysSchema = new Schema({
-  api_key: String,
-  ticket_api_key: String,
-  minecraft_api_key: String
+// Mongoose schema for settings sections (separate documents in same collection)
+const SettingsSectionSchema = new Schema({
+  type: { type: String, required: true }, // 'punishmentTypes', 'statusThresholds', etc.
+  data: { type: Schema.Types.Mixed, required: true } // The actual settings data
 });
 
 const router = express.Router();
@@ -241,19 +142,11 @@ router.use(isAuthenticated);
 // Mount domain routes
 router.use('/domain', domainRoutes);
 
-// Helper function to get models for separate settings documents
+// Helper function to get settings models
 function getSettingsModels(dbConnection: Connection) {
   return {
-    PunishmentTypes: dbConnection.models.PunishmentTypes || dbConnection.model<IPunishmentTypesDocument>('PunishmentTypes', PunishmentTypesSchema),
-    StatusThresholds: dbConnection.models.StatusThresholds || dbConnection.model<IStatusThresholdsDocument>('StatusThresholds', StatusThresholdsSchema),
-    SystemSettings: dbConnection.models.SystemSettings || dbConnection.model<ISystemSettingsDocument>('SystemSettings', SystemSettingsSchema),
-    TicketTags: dbConnection.models.TicketTags || dbConnection.model<ITicketTagsDocument>('TicketTags', TicketTagsSchema),
-    AppealForm: dbConnection.models.AppealForm || dbConnection.model<IAppealFormDocument>('AppealForm', AppealFormSchema),
-    GeneralSettings: dbConnection.models.GeneralSettings || dbConnection.model<IGeneralSettingsDocument>('GeneralSettings', GeneralSettingsSchema),
-    AiModerationSettings: dbConnection.models.AiModerationSettings || dbConnection.model<IAiModerationSettingsDocument>('AiModerationSettings', AiModerationSettingsSchema),
-    TicketForms: dbConnection.models.TicketForms || dbConnection.model<ITicketFormsDocument>('TicketForms', TicketFormsSchema),
-    ApiKeys: dbConnection.models.ApiKeys || dbConnection.model<IApiKeysDocument>('ApiKeys', ApiKeysSchema),
-    // Legacy model for backward compatibility
+    SettingsSection: dbConnection.models.SettingsSection || dbConnection.model<ISettingsSection>('SettingsSection', SettingsSectionSchema),
+    // Legacy model for backward compatibility  
     Settings: dbConnection.models.Settings || dbConnection.model<ISettingsDocument>('Settings')
   };
 }
@@ -703,20 +596,24 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
   // Combine all punishment types
   const allPunishmentTypes = [...corePunishmentTypes, ...defaultSocialTypes, ...defaultGameplayTypes];
 
-  // Create separate documents
+  // Create separate documents in the same Settings collection
   await Promise.all([
-    // Punishment Types
-    models.PunishmentTypes.findOneAndUpdate(
-      {}, 
-      { punishmentTypes: allPunishmentTypes }, 
+    // Punishment Types document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'punishmentTypes' }, 
+      { 
+        type: 'punishmentTypes',
+        data: allPunishmentTypes
+      }, 
       { upsert: true, new: true }
     ),
     
-    // Status Thresholds
-    models.StatusThresholds.findOneAndUpdate(
-      {},
+    // Status Thresholds document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'statusThresholds' },
       { 
-        statusThresholds: {
+        type: 'statusThresholds',
+        data: {
           gameplay: { medium: 5, habitual: 10 },
           social: { medium: 4, habitual: 8 }
         }
@@ -724,11 +621,12 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
       { upsert: true, new: true }
     ),
     
-    // System Settings
-    models.SystemSettings.findOneAndUpdate(
-      {},
+    // System Settings document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'systemSettings' },
       {
-        systemSettings: {
+        type: 'systemSettings',
+        data: {
           maxLoginAttempts: 5,
           lockoutDuration: 30 * 60 * 1000, // 30 minutes
           sessionTimeout: 2 * 60 * 60 * 1000, // 2 hours
@@ -739,11 +637,12 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
       { upsert: true, new: true }
     ),
     
-    // Ticket Tags
-    models.TicketTags.findOneAndUpdate(
-      {},
+    // Ticket Tags document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'ticketTags' },
       {
-        ticketTags: [
+        type: 'ticketTags',
+        data: [
           'bug', 'player', 'chat', 'appeal', 'high-priority', 'needs-review',
           'in-progress', 'resolved', 'won\'t-fix', 'duplicate'
         ]
@@ -751,11 +650,12 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
       { upsert: true, new: true }
     ),
     
-    // General Settings
-    models.GeneralSettings.findOneAndUpdate(
-      {},
+    // General Settings document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'general' },
       {
-        general: {
+        type: 'general',
+        data: {
           serverDisplayName: serverName || '',
           homepageIconUrl: '',
           panelIconUrl: ''
@@ -764,11 +664,12 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
       { upsert: true, new: true }
     ),
     
-    // AI Moderation Settings
-    models.AiModerationSettings.findOneAndUpdate(
-      {},
+    // AI Moderation Settings document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'aiModerationSettings' },
       {
-        aiModerationSettings: {
+        type: 'aiModerationSettings',
+        data: {
           enableAutomatedActions: true,
           strictnessLevel: 'standard',
           aiPunishmentConfigs: {
@@ -786,11 +687,12 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
       { upsert: true, new: true }
     ),
     
-    // Appeal Form
-    models.AppealForm.findOneAndUpdate(
-      {},
+    // Appeal Form document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'appealForm' },
       {
-        appealForm: {
+        type: 'appealForm',
+        data: {
           fields: [
             {
               id: 'reason',
@@ -820,6 +722,16 @@ export async function createSeparateDefaultSettings(dbConnection: Connection, se
         }
       },
       { upsert: true, new: true }
+    ),
+    
+    // API Keys document
+    models.SettingsSection.findOneAndUpdate(
+      { type: 'apiKeys' },
+      {
+        type: 'apiKeys',
+        data: {}
+      },
+      { upsert: true, new: true }
     )
   ]);
 }
@@ -829,37 +741,55 @@ export async function getAllSettingsFromSeparateDocuments(dbConnection: Connecti
   const models = getSettingsModels(dbConnection);
   
   try {
-    const [
-      punishmentTypesDoc,
-      statusThresholdsDoc,
-      systemSettingsDoc,
-      ticketTagsDoc,
-      appealFormDoc,
-      generalSettingsDoc,
-      aiModerationSettingsDoc,
-      apiKeysDoc
-    ] = await Promise.all([
-      models.PunishmentTypes.findOne({}),
-      models.StatusThresholds.findOne({}),
-      models.SystemSettings.findOne({}),
-      models.TicketTags.findOne({}),
-      models.AppealForm.findOne({}),
-      models.GeneralSettings.findOne({}),
-      models.AiModerationSettings.findOne({}),
-      models.ApiKeys.findOne({})
-    ]);
+    // Get all settings documents
+    const settingsDocuments = await models.SettingsSection.find({});
+    
+    // Convert to key-value structure
+    const settings: any = {};
+    
+    for (const doc of settingsDocuments) {
+      switch (doc.type) {
+        case 'punishmentTypes':
+          settings.punishmentTypes = doc.data;
+          break;
+        case 'statusThresholds':
+          settings.statusThresholds = doc.data;
+          break;
+        case 'systemSettings':
+          settings.system = doc.data;
+          break;
+        case 'ticketTags':
+          settings.ticketTags = doc.data;
+          break;
+        case 'appealForm':
+          settings.appealForm = doc.data;
+          break;
+        case 'general':
+          settings.general = doc.data;
+          break;
+        case 'aiModerationSettings':
+          settings.aiModerationSettings = doc.data;
+          break;
+        case 'apiKeys':
+          settings.api_key = doc.data.api_key;
+          settings.ticket_api_key = doc.data.ticket_api_key;
+          settings.minecraft_api_key = doc.data.minecraft_api_key;
+          break;
+      }
+    }
 
+    // Provide defaults if documents don't exist
     return {
-      punishmentTypes: punishmentTypesDoc?.punishmentTypes || [],
-      statusThresholds: statusThresholdsDoc?.statusThresholds || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } },
-      system: systemSettingsDoc?.systemSettings || {},
-      ticketTags: ticketTagsDoc?.ticketTags || [],
-      appealForm: appealFormDoc?.appealForm || { fields: [] },
-      general: generalSettingsDoc?.general || {},
-      aiModerationSettings: aiModerationSettingsDoc?.aiModerationSettings || {},
-      api_key: apiKeysDoc?.api_key,
-      ticket_api_key: apiKeysDoc?.ticket_api_key,
-      minecraft_api_key: apiKeysDoc?.minecraft_api_key
+      punishmentTypes: settings.punishmentTypes || [],
+      statusThresholds: settings.statusThresholds || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } },
+      system: settings.system || {},
+      ticketTags: settings.ticketTags || [],
+      appealForm: settings.appealForm || { fields: [] },
+      general: settings.general || {},
+      aiModerationSettings: settings.aiModerationSettings || {},
+      api_key: settings.api_key,
+      ticket_api_key: settings.ticket_api_key,
+      minecraft_api_key: settings.minecraft_api_key
     };
   } catch (error) {
     console.error('Error retrieving settings from separate documents:', error);
@@ -875,61 +805,64 @@ export async function migrateLegacyToSeparateDocuments(dbConnection: Connection,
   try {
     await Promise.all([
       // Migrate Punishment Types
-      models.PunishmentTypes.findOneAndUpdate(
-        {},
-        { punishmentTypes: settingsMap.get('punishmentTypes') || [] },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'punishmentTypes' },
+        { type: 'punishmentTypes', data: settingsMap.get('punishmentTypes') || [] },
         { upsert: true, new: true }
       ),
       
       // Migrate Status Thresholds
-      models.StatusThresholds.findOneAndUpdate(
-        {},
-        { statusThresholds: settingsMap.get('statusThresholds') || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } } },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'statusThresholds' },
+        { type: 'statusThresholds', data: settingsMap.get('statusThresholds') || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } } },
         { upsert: true, new: true }
       ),
       
       // Migrate System Settings
-      models.SystemSettings.findOneAndUpdate(
-        {},
-        { systemSettings: settingsMap.get('system') || {} },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'systemSettings' },
+        { type: 'systemSettings', data: settingsMap.get('system') || {} },
         { upsert: true, new: true }
       ),
       
       // Migrate Ticket Tags
-      models.TicketTags.findOneAndUpdate(
-        {},
-        { ticketTags: settingsMap.get('ticketTags') || [] },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'ticketTags' },
+        { type: 'ticketTags', data: settingsMap.get('ticketTags') || [] },
         { upsert: true, new: true }
       ),
       
       // Migrate Appeal Form
-      models.AppealForm.findOneAndUpdate(
-        {},
-        { appealForm: settingsMap.get('appealForm') || { fields: [] } },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'appealForm' },
+        { type: 'appealForm', data: settingsMap.get('appealForm') || { fields: [] } },
         { upsert: true, new: true }
       ),
       
       // Migrate General Settings
-      models.GeneralSettings.findOneAndUpdate(
-        {},
-        { general: settingsMap.get('general') || {} },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'general' },
+        { type: 'general', data: settingsMap.get('general') || {} },
         { upsert: true, new: true }
       ),
       
       // Migrate AI Moderation Settings
-      models.AiModerationSettings.findOneAndUpdate(
-        {},
-        { aiModerationSettings: settingsMap.get('aiModerationSettings') || {} },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'aiModerationSettings' },
+        { type: 'aiModerationSettings', data: settingsMap.get('aiModerationSettings') || {} },
         { upsert: true, new: true }
       ),
       
       // Migrate API Keys
-      models.ApiKeys.findOneAndUpdate(
-        {},
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'apiKeys' },
         {
-          api_key: settingsMap.get('api_key'),
-          ticket_api_key: settingsMap.get('ticket_api_key'),
-          minecraft_api_key: settingsMap.get('minecraft_api_key')
+          type: 'apiKeys',
+          data: {
+            api_key: settingsMap.get('api_key'),
+            ticket_api_key: settingsMap.get('ticket_api_key'),
+            minecraft_api_key: settingsMap.get('minecraft_api_key')
+          }
         },
         { upsert: true, new: true }
       )
@@ -950,9 +883,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.punishmentTypes !== undefined) {
     updates.push(
-      models.PunishmentTypes.findOneAndUpdate(
-        {},
-        { punishmentTypes: requestBody.punishmentTypes },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'punishmentTypes' },
+        { type: 'punishmentTypes', data: requestBody.punishmentTypes },
         { upsert: true, new: true }
       )
     );
@@ -960,9 +893,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.statusThresholds !== undefined) {
     updates.push(
-      models.StatusThresholds.findOneAndUpdate(
-        {},
-        { statusThresholds: requestBody.statusThresholds },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'statusThresholds' },
+        { type: 'statusThresholds', data: requestBody.statusThresholds },
         { upsert: true, new: true }
       )
     );
@@ -970,9 +903,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.system !== undefined) {
     updates.push(
-      models.SystemSettings.findOneAndUpdate(
-        {},
-        { systemSettings: requestBody.system },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'systemSettings' },
+        { type: 'systemSettings', data: requestBody.system },
         { upsert: true, new: true }
       )
     );
@@ -980,9 +913,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.ticketTags !== undefined) {
     updates.push(
-      models.TicketTags.findOneAndUpdate(
-        {},
-        { ticketTags: requestBody.ticketTags },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'ticketTags' },
+        { type: 'ticketTags', data: requestBody.ticketTags },
         { upsert: true, new: true }
       )
     );
@@ -990,9 +923,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.appealForm !== undefined) {
     updates.push(
-      models.AppealForm.findOneAndUpdate(
-        {},
-        { appealForm: requestBody.appealForm },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'appealForm' },
+        { type: 'appealForm', data: requestBody.appealForm },
         { upsert: true, new: true }
       )
     );
@@ -1000,9 +933,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.general !== undefined) {
     updates.push(
-      models.GeneralSettings.findOneAndUpdate(
-        {},
-        { general: requestBody.general },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'general' },
+        { type: 'general', data: requestBody.general },
         { upsert: true, new: true }
       )
     );
@@ -1010,9 +943,9 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   
   if (requestBody.aiModerationSettings !== undefined) {
     updates.push(
-      models.AiModerationSettings.findOneAndUpdate(
-        {},
-        { aiModerationSettings: requestBody.aiModerationSettings },
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'aiModerationSettings' },
+        { type: 'aiModerationSettings', data: requestBody.aiModerationSettings },
         { upsert: true, new: true }
       )
     );
@@ -1031,10 +964,14 @@ export async function updateSeparateDocuments(dbConnection: Connection, requestB
   }
   
   if (Object.keys(apiKeyUpdates).length > 0) {
+    // Get existing API keys data
+    const existingApiKeysDoc = await models.SettingsSection.findOne({ type: 'apiKeys' });
+    const currentApiKeys = existingApiKeysDoc?.data || {};
+    
     updates.push(
-      models.ApiKeys.findOneAndUpdate(
-        {},
-        apiKeyUpdates,
+      models.SettingsSection.findOneAndUpdate(
+        { type: 'apiKeys' },
+        { type: 'apiKeys', data: { ...currentApiKeys, ...apiKeyUpdates } },
         { upsert: true, new: true }
       )
     );
@@ -1051,16 +988,16 @@ export async function cleanupOrphanedAIPunishmentConfigsSeparate(dbConnection: C
   
   try {
     const [punishmentTypesDoc, aiModerationDoc] = await Promise.all([
-      models.PunishmentTypes.findOne({}),
-      models.AiModerationSettings.findOne({})
+      models.SettingsSection.findOne({ type: 'punishmentTypes' }),
+      models.SettingsSection.findOne({ type: 'aiModerationSettings' })
     ]);
     
     if (!punishmentTypesDoc || !aiModerationDoc) {
       return;
     }
 
-    const allPunishmentTypes = punishmentTypesDoc.punishmentTypes || [];
-    const aiSettings = aiModerationDoc.aiModerationSettings || {
+    const allPunishmentTypes = punishmentTypesDoc.data || [];
+    const aiSettings = aiModerationDoc.data || {
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
@@ -1087,9 +1024,9 @@ export async function cleanupOrphanedAIPunishmentConfigsSeparate(dbConnection: C
       });
 
       // Save updated settings
-      await models.AiModerationSettings.findOneAndUpdate(
-        {},
-        { aiModerationSettings: aiSettings },
+      await models.SettingsSection.findOneAndUpdate(
+        { type: 'aiModerationSettings' },
+        { type: 'aiModerationSettings', data: aiSettings },
         { upsert: true, new: true }
       );
       
@@ -2250,10 +2187,10 @@ router.get('/', checkPermission('admin.settings.view'), async (req: Request, res
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
-    // Check if separate documents exist
-    const punishmentTypesDoc = await models.PunishmentTypes.findOne({});
+    // Check if separate documents exist in the SettingsSection collection
+    const settingsSectionCount = await models.SettingsSection.countDocuments({});
     
-    if (punishmentTypesDoc) {
+    if (settingsSectionCount > 0) {
       // Use new separate documents structure
       const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
       res.json({ settings: allSettings });
@@ -2283,10 +2220,10 @@ router.patch('/', checkPermission('admin.settings.modify'), async (req: Request,
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
-    // Check if separate documents exist
-    const punishmentTypesDoc = await models.PunishmentTypes.findOne({});
+    // Check if separate documents exist in the SettingsSection collection
+    const settingsSectionCount = await models.SettingsSection.countDocuments({});
     
-    if (punishmentTypesDoc) {
+    if (settingsSectionCount > 0) {
       // Update separate documents
       await updateSeparateDocuments(req.serverDbConnection!, req.body);
       
@@ -2337,17 +2274,9 @@ router.post('/reset', async (req: Request, res: Response) => {
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
-    // Delete all separate documents
+    // Delete all settings sections and legacy documents
     await Promise.all([
-      models.PunishmentTypes.deleteMany({}),
-      models.StatusThresholds.deleteMany({}),
-      models.SystemSettings.deleteMany({}),
-      models.TicketTags.deleteMany({}),
-      models.AppealForm.deleteMany({}),
-      models.GeneralSettings.deleteMany({}),
-      models.AiModerationSettings.deleteMany({}),
-      models.TicketForms.deleteMany({}),
-      models.ApiKeys.deleteMany({}),
+      models.SettingsSection.deleteMany({}),
       // Also delete legacy settings document
       models.Settings.deleteMany({})
     ]);
