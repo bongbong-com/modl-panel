@@ -215,6 +215,7 @@ curl -X POST "https://yourserver.modl.dev/minecraft/player/login" \
 ### Response
 
 The login endpoint returns active punishments (if any) for the player:
+- It has not been pardoned or revoked through modifications
 
 ```json
 {

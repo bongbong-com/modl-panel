@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
-import { Connection, Document as MongooseDocument, HydratedDocument } from 'mongoose';
+import { Connection, Document as MongooseDocument, HydratedDocument, Schema } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkPermission } from '../middleware/permission-middleware';
 import domainRoutes from './domain-routes';
@@ -160,6 +160,70 @@ interface ISettingsDocument extends MongooseDocument {
   settings: Map<string, any>;
 }
 
+// Mongoose schemas for separate settings documents
+const PunishmentTypesSchema = new Schema({
+  punishmentTypes: [Schema.Types.Mixed]
+});
+
+const StatusThresholdsSchema = new Schema({
+  statusThresholds: {
+    gameplay: {
+      medium: Number,
+      habitual: Number
+    },
+    social: {
+      medium: Number,
+      habitual: Number
+    }
+  }
+});
+
+const SystemSettingsSchema = new Schema({
+  systemSettings: {
+    maxLoginAttempts: Number,
+    lockoutDuration: Number,
+    sessionTimeout: Number,
+    requireAdminApproval: Boolean,
+    requireTwoFactor: Boolean
+  }
+});
+
+const TicketTagsSchema = new Schema({
+  ticketTags: [String]
+});
+
+const AppealFormSchema = new Schema({
+  appealForm: {
+    fields: [Schema.Types.Mixed]
+  }
+});
+
+const GeneralSettingsSchema = new Schema({
+  general: {
+    serverDisplayName: String,
+    homepageIconUrl: String,
+    panelIconUrl: String
+  }
+});
+
+const AiModerationSettingsSchema = new Schema({
+  aiModerationSettings: {
+    enableAutomatedActions: Boolean,
+    strictnessLevel: String,
+    aiPunishmentConfigs: Schema.Types.Mixed
+  }
+});
+
+const TicketFormsSchema = new Schema({
+  ticketForms: Schema.Types.Mixed
+});
+
+const ApiKeysSchema = new Schema({
+  api_key: String,
+  ticket_api_key: String,
+  minecraft_api_key: String
+});
+
 const router = express.Router();
 
 router.use((req: Request, res: Response, next: NextFunction) => {
@@ -180,17 +244,17 @@ router.use('/domain', domainRoutes);
 // Helper function to get models for separate settings documents
 function getSettingsModels(dbConnection: Connection) {
   return {
-    PunishmentTypes: dbConnection.model<IPunishmentTypesDocument>('PunishmentTypes'),
-    StatusThresholds: dbConnection.model<IStatusThresholdsDocument>('StatusThresholds'),
-    SystemSettings: dbConnection.model<ISystemSettingsDocument>('SystemSettings'),
-    TicketTags: dbConnection.model<ITicketTagsDocument>('TicketTags'),
-    AppealForm: dbConnection.model<IAppealFormDocument>('AppealForm'),
-    GeneralSettings: dbConnection.model<IGeneralSettingsDocument>('GeneralSettings'),
-    AiModerationSettings: dbConnection.model<IAiModerationSettingsDocument>('AiModerationSettings'),
-    TicketForms: dbConnection.model<ITicketFormsDocument>('TicketForms'),
-    ApiKeys: dbConnection.model<IApiKeysDocument>('ApiKeys'),
+    PunishmentTypes: dbConnection.models.PunishmentTypes || dbConnection.model<IPunishmentTypesDocument>('PunishmentTypes', PunishmentTypesSchema),
+    StatusThresholds: dbConnection.models.StatusThresholds || dbConnection.model<IStatusThresholdsDocument>('StatusThresholds', StatusThresholdsSchema),
+    SystemSettings: dbConnection.models.SystemSettings || dbConnection.model<ISystemSettingsDocument>('SystemSettings', SystemSettingsSchema),
+    TicketTags: dbConnection.models.TicketTags || dbConnection.model<ITicketTagsDocument>('TicketTags', TicketTagsSchema),
+    AppealForm: dbConnection.models.AppealForm || dbConnection.model<IAppealFormDocument>('AppealForm', AppealFormSchema),
+    GeneralSettings: dbConnection.models.GeneralSettings || dbConnection.model<IGeneralSettingsDocument>('GeneralSettings', GeneralSettingsSchema),
+    AiModerationSettings: dbConnection.models.AiModerationSettings || dbConnection.model<IAiModerationSettingsDocument>('AiModerationSettings', AiModerationSettingsSchema),
+    TicketForms: dbConnection.models.TicketForms || dbConnection.model<ITicketFormsDocument>('TicketForms', TicketFormsSchema),
+    ApiKeys: dbConnection.models.ApiKeys || dbConnection.model<IApiKeysDocument>('ApiKeys', ApiKeysSchema),
     // Legacy model for backward compatibility
-    Settings: dbConnection.model<ISettingsDocument>('Settings')
+    Settings: dbConnection.models.Settings || dbConnection.model<ISettingsDocument>('Settings')
   };
 }
 
