@@ -530,10 +530,16 @@ router.get('/player/:uuid', async (req: Request<{ uuid: string }>, res: Response
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     
     // Find tickets where the player is either the creator OR the reported player
+    // Exclude unfinished tickets
     const tickets = await Ticket.find({
-      $or: [
-        { creatorUuid: req.params.uuid },
-        { reportedPlayerUuid: req.params.uuid }
+      $and: [
+        {
+          $or: [
+            { creatorUuid: req.params.uuid },
+            { reportedPlayerUuid: req.params.uuid }
+          ]
+        },
+        { status: { $ne: 'Unfinished' } }
       ]
     }).sort({ created: -1 }); // Sort by creation date, newest first
     
