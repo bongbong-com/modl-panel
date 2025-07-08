@@ -917,6 +917,81 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
   }
 });
 
+// Search punishments by ID or player name
+router.get('/punishments/search', async (req: Request, res: Response): Promise<void> => {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');
+  try {
+    const query = req.query.q as string;
+    const activeOnly = req.query.activeOnly === 'true';
+    
+    if (!query || query.trim().length < 2) {
+      return res.json([]);
+    }
+    
+    const searchTerm = query.trim();
+    const results: any[] = [];
+    
+    // Search by punishment ID first (exact match)
+    const playerByPunishmentId = await Player.findOne({ 'punishments.id': searchTerm });
+    if (playerByPunishmentId) {
+      const punishment = playerByPunishmentId.punishments.find((p: any) => p.id === searchTerm);
+      if (punishment) {
+        const isActive = punishment.data?.get ? punishment.data.get('active') !== false : punishment.data?.active !== false;
+        const playerName = playerByPunishmentId.usernames.length > 0 
+          ? playerByPunishmentId.usernames[playerByPunishmentId.usernames.length - 1].username 
+          : 'Unknown';
+        
+        if (!activeOnly || isActive) {
+          results.push({
+            id: punishment.id,
+            playerName,
+            type: punishment.type_ordinal,
+            status: isActive ? 'Active' : 'Inactive',
+            issued: punishment.issued
+          });
+        }
+      }
+    }
+    
+    // Search by player name (if not found by punishment ID or if we want more results)
+    if (results.length < 10) {
+      const playersByName = await Player.find({
+        'usernames.username': { $regex: new RegExp(searchTerm, 'i') }
+      }).limit(10);
+      
+      for (const player of playersByName) {
+        const playerName = player.usernames.length > 0 
+          ? player.usernames[player.usernames.length - 1].username 
+          : 'Unknown';
+        
+        for (const punishment of player.punishments) {
+          const isActive = punishment.data?.get ? punishment.data.get('active') !== false : punishment.data?.active !== false;
+          
+          if (!activeOnly || isActive) {
+            // Avoid duplicates if we already found this punishment by ID
+            if (!results.find(r => r.id === punishment.id)) {
+              results.push({
+                id: punishment.id,
+                playerName,
+                type: punishment.type_ordinal,
+                status: isActive ? 'Active' : 'Inactive',
+                issued: punishment.issued
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    // Sort by issued date (newest first) and limit results
+    results.sort((a, b) => new Date(b.issued).getTime() - new Date(a.issued).getTime());
+    res.json(results.slice(0, 20));
+  } catch (error) {
+    console.error('Error searching punishments:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 interface AddPunishmentNoteBody {
   text: string;
   issuerName: string;

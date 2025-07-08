@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Input } from 'modl-shared-web/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 export interface PlayerPunishmentData {
@@ -65,6 +66,8 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 }) => {
   const { toast } = useToast();
   const [isApplying, setIsApplying] = useState(false);
+  const [linkedBanSearch, setLinkedBanSearch] = useState('');
+  const [linkedBanSearchResults, setLinkedBanSearchResults] = useState<any[]>([]);
 
   const updateData = (updates: Partial<PlayerPunishmentData>) => {
     onChange({ ...data, ...updates });
@@ -175,6 +178,34 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     }
 
     updateData(newData);
+  };
+
+  // Function to search for active punishments by ID or player name
+  const searchLinkedBan = async (query: string) => {
+    if (!query.trim()) {
+      setLinkedBanSearchResults([]);
+      return;
+    }
+
+    try {
+      // Search for punishments by ID or player name
+      const response = await fetch(`/api/panel/punishments/search?q=${encodeURIComponent(query)}&activeOnly=true`);
+      if (response.ok) {
+        const results = await response.json();
+        setLinkedBanSearchResults(results);
+      } else {
+        setLinkedBanSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching for punishments:', error);
+      setLinkedBanSearchResults([]);
+    }
+  };
+
+  const selectLinkedBan = (punishment: any) => {
+    updateData({ banToLink: punishment.id });
+    setLinkedBanSearch(`${punishment.id} - ${punishment.playerName}`);
+    setLinkedBanSearchResults([]);
   };
 
   const renderCategoryGrid = (types: any[], title: string) => (
@@ -384,7 +415,51 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     } else if (punishmentType.name === 'Manual Mute') {
       // Manual Mute has no special options
       return null;
-    } else if (['Security Ban', 'Linked Ban', 'Blacklist'].includes(punishmentType.name)) {
+    } else if (punishmentType.name === 'Linked Ban') {
+      // Linked Ban requires selecting an existing punishment to link to
+      return (
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-medium">Search for Punishment to Link</label>
+            <p className="text-xs text-muted-foreground mb-2">Search by punishment ID or player name</p>
+            <div className="relative">
+              <Input
+                placeholder="Enter punishment ID or player name..."
+                value={linkedBanSearch}
+                onChange={(e) => {
+                  setLinkedBanSearch(e.target.value);
+                  searchLinkedBan(e.target.value);
+                }}
+                className="mb-2"
+              />
+              {linkedBanSearchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-10 bg-background border border-border rounded-md shadow-lg max-h-32 overflow-y-auto">
+                  {linkedBanSearchResults.map((punishment, index) => (
+                    <div
+                      key={index}
+                      className="p-2 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                      onClick={() => selectLinkedBan(punishment)}
+                    >
+                      <div className="text-sm font-medium">{punishment.id}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {punishment.playerName} - {punishment.type} - {punishment.status}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {data.banToLink && (
+              <div className="mt-2">
+                <Badge variant="outline" className="text-xs">
+                  Selected: {data.banToLink}
+                </Badge>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    } else if (['Security Ban', 'Blacklist'].includes(punishmentType.name)) {
       // These administrative punishments have no special options
       return null;
     } else {
