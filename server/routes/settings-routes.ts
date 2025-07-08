@@ -151,6 +151,56 @@ function getSettingsModels(dbConnection: Connection) {
   };
 }
 
+// Helper function to get settings value from either new or legacy structure
+async function getSettingsValue(dbConnection: Connection, key: string): Promise<any> {
+  const models = getSettingsModels(dbConnection);
+  
+  // Check if separate documents exist
+  const settingsSectionCount = await models.SettingsSection.countDocuments({});
+  
+  if (settingsSectionCount > 0) {
+    // Use new separate documents structure
+    const settingsDoc = await models.SettingsSection.findOne({ type: key });
+    return settingsDoc?.data;
+  } else {
+    // Fall back to legacy structure
+    const legacyDoc = await models.Settings.findOne({});
+    return legacyDoc?.settings.get(key);
+  }
+}
+
+// Helper function to get multiple settings values
+async function getMultipleSettingsValues(dbConnection: Connection, keys: string[]): Promise<Record<string, any>> {
+  const models = getSettingsModels(dbConnection);
+  
+  // Check if separate documents exist
+  const settingsSectionCount = await models.SettingsSection.countDocuments({});
+  
+  if (settingsSectionCount > 0) {
+    // Use new separate documents structure
+    const settingsDocs = await models.SettingsSection.find({ type: { $in: keys } });
+    const result: Record<string, any> = {};
+    
+    for (const doc of settingsDocs) {
+      result[doc.type] = doc.data;
+    }
+    
+    return result;
+  } else {
+    // Fall back to legacy structure
+    const legacyDoc = await models.Settings.findOne({});
+    const result: Record<string, any> = {};
+    
+    if (legacyDoc) {
+      for (const key of keys) {
+        result[key] = legacyDoc.settings.get(key);
+      }
+    }
+    
+    return result;
+  }
+}
+
 // New function to create separate settings documents
 export async function createSeparateDefaultSettings(dbConnection: Connection, serverName?: string): Promise<void> {
   const models = getSettingsModels(dbConnection);
@@ -2302,18 +2352,10 @@ router.get('/api-key', async (req: Request, res: Response) => {
     console.log('[Unified API Key GET] Server name:', req.serverName);
     console.log('[Unified API Key GET] DB connection exists:', !!req.serverDbConnection);
     
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
+    const apiKeysData = await getSettingsValue(req.serverDbConnection!, 'apiKeys');
+    const apiKey = apiKeysData?.api_key;
     
-    console.log('[Unified API Key GET] Settings doc found:', !!settingsDoc);
-    console.log('[Unified API Key GET] Settings map exists:', !!settingsDoc?.settings);
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      console.log('[Unified API Key GET] No settings found, returning 404');
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    const apiKey = settingsDoc.settings.get('api_key');
+    console.log('[Unified API Key GET] API key found:', !!apiKey);
     console.log('[Unified API Key GET] API key exists:', !!apiKey);
     console.log('[Unified API Key GET] API key length:', apiKey ? apiKey.length : 0);
     
@@ -2896,22 +2938,22 @@ router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) =>
   }
 });
 
+// Debug route to test if settings routes are working
+router.get('/debug', async (req: Request, res: Response) => {
+  res.json({ message: 'Settings routes are working', timestamp: new Date().toISOString() });
+});
+
 // Get available punishment types for adding to AI (excludes already enabled ones)
-router.get('/available-punishment-types', async (req: Request, res: Response) => {
+router.get('/available-punishment-types', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
-    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
-    const settingsDoc = await SettingsModel.findOne({});
-
-    if (!settingsDoc) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-
-    const allPunishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
-    const aiSettings = settingsDoc.settings.get('aiModerationSettings') || { aiPunishmentConfigs: {} };
+    const settings = await getMultipleSettingsValues(req.serverDbConnection, ['punishmentTypes', 'aiModerationSettings']);
+    
+    const allPunishmentTypes = settings.punishmentTypes || [];
+    const aiSettings = settings.aiModerationSettings || { aiPunishmentConfigs: {} };
     const aiPunishmentConfigs = aiSettings.aiPunishmentConfigs || {};
     
     // Filter out punishment types that are already enabled for AI and only include customizable ones
