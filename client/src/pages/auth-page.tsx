@@ -182,8 +182,15 @@ const AuthPage = () => {
 
         if (success) {
           // Redirect is handled by the auth hook's login on success
+        } else {
+          // On failure, clear the code field to allow retry
+          loginForm.setValue('code', '');
+          // Focus back to the code input for better UX
+          const codeInput = document.querySelector('input[name="code"]') as HTMLInputElement;
+          if (codeInput) {
+            codeInput.focus();
+          }
         }
-        // Failure toast is handled by the login function in useAuth
       } catch (error) { // Should be caught by useAuth's login, but as a fallback
         console.error("Error during code verification:", error);
         toast({ title: "Authentication Failed", description: "An error occurred during code verification.", variant: "destructive" });

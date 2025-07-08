@@ -108,6 +108,54 @@ interface IAIModerationSettings {
   aiPunishmentConfigs: Record<number, IAIPunishmentConfig>; // Map punishment type ID to AI config
 }
 
+// Separate document interfaces for each settings section
+interface IPunishmentTypesDocument extends MongooseDocument {
+  punishmentTypes: IPunishmentType[];
+}
+
+interface IStatusThresholdsDocument extends MongooseDocument {
+  statusThresholds: IStatusThresholds;
+}
+
+interface ISystemSettingsDocument extends MongooseDocument {
+  systemSettings: ISystemSettings;
+}
+
+interface ITicketTagsDocument extends MongooseDocument {
+  ticketTags: string[];
+}
+
+interface IAppealFormDocument extends MongooseDocument {
+  appealForm: IAppealFormSettings;
+}
+
+interface IGeneralSettingsDocument extends MongooseDocument {
+  general: {
+    serverDisplayName: string;
+    homepageIconUrl: string;
+    panelIconUrl: string;
+  };
+}
+
+interface IAiModerationSettingsDocument extends MongooseDocument {
+  aiModerationSettings: {
+    enableAutomatedActions: boolean;
+    strictnessLevel: string;
+    aiPunishmentConfigs: Record<string, any>;
+  };
+}
+
+interface ITicketFormsDocument extends MongooseDocument {
+  ticketForms: any;
+}
+
+interface IApiKeysDocument extends MongooseDocument {
+  api_key?: string;
+  ticket_api_key?: string;
+  minecraft_api_key?: string;
+}
+
+// Legacy interface for backward compatibility during migration
 interface ISettingsDocument extends MongooseDocument {
   settings: Map<string, any>;
 }
@@ -128,6 +176,865 @@ router.use(isAuthenticated);
 
 // Mount domain routes
 router.use('/domain', domainRoutes);
+
+// Helper function to get models for separate settings documents
+function getSettingsModels(dbConnection: Connection) {
+  return {
+    PunishmentTypes: dbConnection.model<IPunishmentTypesDocument>('PunishmentTypes'),
+    StatusThresholds: dbConnection.model<IStatusThresholdsDocument>('StatusThresholds'),
+    SystemSettings: dbConnection.model<ISystemSettingsDocument>('SystemSettings'),
+    TicketTags: dbConnection.model<ITicketTagsDocument>('TicketTags'),
+    AppealForm: dbConnection.model<IAppealFormDocument>('AppealForm'),
+    GeneralSettings: dbConnection.model<IGeneralSettingsDocument>('GeneralSettings'),
+    AiModerationSettings: dbConnection.model<IAiModerationSettingsDocument>('AiModerationSettings'),
+    TicketForms: dbConnection.model<ITicketFormsDocument>('TicketForms'),
+    ApiKeys: dbConnection.model<IApiKeysDocument>('ApiKeys'),
+    // Legacy model for backward compatibility
+    Settings: dbConnection.model<ISettingsDocument>('Settings')
+  };
+}
+
+// New function to create separate settings documents
+export async function createSeparateDefaultSettings(dbConnection: Connection, serverName?: string): Promise<void> {
+  const models = getSettingsModels(dbConnection);
+  
+  // Only include core Administrative punishment types (ordinals 0-5, not customizable)
+  const corePunishmentTypes: IPunishmentType[] = [
+    { 
+      id: 0, 
+      name: 'Kick', 
+      category: 'Administrative', 
+      isCustomizable: false, 
+      ordinal: 0,
+      staffDescription: 'Kick a player.',
+      playerDescription: 'BOOT!',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: false,
+      appealForm: {
+        fields: []
+      }
+    },
+    { 
+      id: 1, 
+      name: 'Manual Mute', 
+      category: 'Administrative', 
+      isCustomizable: false, 
+      ordinal: 1,
+      staffDescription: 'Manually mute a player.',
+      playerDescription: 'You have been silenced.',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 2, 
+      name: 'Manual Ban', 
+      category: 'Administrative', 
+      isCustomizable: false, 
+      ordinal: 2,
+      staffDescription: 'Manually ban a player.',
+      playerDescription: 'The ban hammer has spoken.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 3, 
+      name: 'Security Ban', 
+      category: 'Administrative', 
+      isCustomizable: false, 
+      ordinal: 3,
+      staffDescription: 'Compromised or potentially compromised account.',
+      playerDescription: 'Suspicious activity has been detected on your account. Please secure your account and appeal this ban.',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'security_concern',
+            type: 'checkbox',
+            label: 'I have secured my account',
+            description: 'Please confirm that you have changed your password and secured the email associated with your account',
+            required: true,
+            order: 1
+          },
+        ]
+      }
+    },
+    { 
+      id: 4, 
+      name: 'Linked Ban', 
+      category: 'Administrative', 
+      isCustomizable: false, 
+      ordinal: 4,
+      staffDescription: 'Usually automatically applied due to ban evasion.',
+      playerDescription: 'Evading bans through the use of alternate accounts or sharing your account is strictly prohibited. This ban was automatically issued through a high-confidence IP address linking system for ban #{linked-id}.',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'linked_appeal_reason',
+            type: 'textarea',
+            label: 'Appeal Reason',
+            description: 'Please explain why you believe this linking was incorrect',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 5, 
+      name: 'Blacklist', 
+      category: 'Administrative', 
+      isCustomizable: false, 
+      ordinal: 5,
+      staffDescription: 'Remove a player (unappealable).',
+      playerDescription: 'You are blacklisted from the server.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: false,
+      appealForm: {
+        fields: []
+      }
+    }
+  ];
+
+  // Default Social punishment types (customizable, ordered as requested)
+  const defaultSocialTypes: IPunishmentType[] = [
+    { 
+      id: 8, 
+      name: 'Chat Abuse', 
+      category: 'Social', 
+      isCustomizable: true, 
+      ordinal: 6,
+      durations: {
+        low: { first: { value: 6, unit: 'hours', type: 'mute' }, medium: { value: 1, unit: 'days', type: 'mute' }, habitual: { value: 3, unit: 'days', type: 'mute' } },
+        regular: { first: { value: 1, unit: 'days', type: 'mute' }, medium: { value: 3, unit: 'days', type: 'mute' }, habitual: { value: 7, unit: 'days', type: 'mute' } },
+        severe: { first: { value: 3, unit: 'days', type: 'mute' }, medium: { value: 7, unit: 'days', type: 'mute' }, habitual: { value: 14, unit: 'days', type: 'mute' } }
+      },
+      points: { low: 1, regular: 1, severe: 2 },
+      staffDescription: 'Inappropriate language, excessive caps, or disruptive chat behavior.',
+      playerDescription: 'Public chat channels are reserved for decent messages. Review acceptable public chat decorum here: https://www.server.com/rules#chat',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 9, 
+      name: 'Anti Social', 
+      category: 'Social', 
+      isCustomizable: true, 
+      ordinal: 7,
+      durations: {
+        low: { first: { value: 3, unit: 'days', type: 'mute' }, medium: { value: 7, unit: 'days', type: 'mute' }, habitual: { value: 14, unit: 'days', type: 'mute' } },
+        regular: { first: { value: 7, unit: 'days', type: 'mute' }, medium: { value: 30, unit: 'days', type: 'mute' }, habitual: { value: 90, unit: 'days', type: 'mute' } },
+        severe: { first: { value: 30, unit: 'days', type: 'mute' }, medium: { value: 90, unit: 'days', type: 'mute' }, habitual: { value: 180, unit: 'days', type: 'mute' } }
+      },
+      points: { low: 2, regular: 3, severe: 4 },
+      staffDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment.',
+      playerDescription: 'Anti-social and disruptive behavior is strictly prohibited from public channels. If you would not want your mom to hear it, keep it yourself!',
+      canBeAltBlocking: false,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 10, 
+      name: 'Targeting', 
+      category: 'Social', 
+      isCustomizable: true, 
+      ordinal: 8,
+      durations: {
+        low: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 90, unit: 'days', type: 'ban' }, medium: { value: 180, unit: 'days', type: 'ban' }, habitual: { value: 365, unit: 'days', type: 'ban' } }
+      },
+      points: { low: 4, regular: 6, severe: 10 },
+      staffDescription: 'Persistent harassment, bullying, or targeting of specific players with malicious intent.',
+      playerDescription: 'This server has a zero tolerance policy on targeting individuals regardless of the basis or medium. This policy encompasses Harassment, Torment, Threats, and Cyber attacks.',
+      canBeAltBlocking: true,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 11, 
+      name: 'Bad Content', 
+      category: 'Social', 
+      isCustomizable: true, 
+      ordinal: 9,
+      durations: {
+        low: { first: { value: 1, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } }
+      },
+      points: { low: 3, regular: 4, severe: 5 },
+      staffDescription: 'Inappropriate content including sexual references, doxxing, links to harmful sites.',
+      playerDescription: 'Sharing inappropriate content of any kind is strictly prohibited. This encompasses sexual references, doxxing, links to malicious websites, and content intended to disrupt or harm other players.',
+      canBeAltBlocking: true,
+      canBeStatWiping: false,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    }
+  ];
+
+  // Default Gameplay punishment types (customizable, ordered as requested)
+  const defaultGameplayTypes: IPunishmentType[] = [
+    { 
+      id: 12, 
+      name: 'Team Abuse', 
+      category: 'Gameplay', 
+      isCustomizable: true, 
+      ordinal: 12,
+      durations: {
+        low: { first: { value: 6, unit: 'hours', type: 'ban' }, medium: { value: 12, unit: 'hours', type: 'ban' }, habitual: { value: 3, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 12, unit: 'hours', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } }
+      },
+      points: { low: 2, regular: 2, severe: 3 },
+      staffDescription: 'Intentionally harming teammates, cross-teaming, or aiding cheaters.',
+      playerDescription: 'Please be considerate to fellow players by not team-griefing, aiding cheaters, or cross-teaming.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 13, 
+      name: 'Game Abuse', 
+      category: 'Gameplay', 
+      isCustomizable: true, 
+      ordinal: 13,
+      durations: {
+        low: { first: { value: 1, unit: 'days', type: 'ban' }, medium: { value: 3, unit: 'days', type: 'ban' }, habitual: { value: 7, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 7, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } }
+      },
+      points: { low: 2, regular: 3, severe: 5 },
+      staffDescription: 'Violating game specific rules for fair play.',
+      playerDescription: 'Violating game specific rules for competitive fair-play. It is your responsibility to be aware of and abide by all network-wide and game-specific rules.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 14, 
+      name: 'Cheating', 
+      category: 'Gameplay', 
+      isCustomizable: true, 
+      ordinal: 17,
+      durations: {
+        low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 14, unit: 'days', type: 'ban' }, habitual: { value: 30, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 60, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 0, unit: 'days', type: 'permanent ban' } }
+      },
+      points: { low: 5, regular: 7, severe: 9 },
+      staffDescription: 'Using hacks, mods, exploits, or other software to gain an unfair advantage.',
+      playerDescription: 'Cheating through the use of client-side modifications or game exploits to gain an unfair advantage over other players is strictly prohibited.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 15, 
+      name: 'Game Trading', 
+      category: 'Gameplay', 
+      isCustomizable: true, 
+      ordinal: 16,
+      durations: {
+        low: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 0, unit: 'days', type: 'permanent ban' }, medium: { value: 0, unit: 'days', type: 'permanent ban' }, habitual: { value: 0, unit: 'days', type: 'permanent ban' } }
+      },
+      points: { low: 4, regular: 6, severe: 10 },
+      staffDescription: 'Trading or selling in-game items, content, or services on unauthorized third-party platforms.',
+      playerDescription: 'Trading or selling in-game items, content, or services on unauthorized third-party platforms is strictly prohibited.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 16, 
+      name: 'Account Abuse', 
+      category: 'Gameplay', 
+      isCustomizable: true, 
+      ordinal: 15,
+      durations: {
+        low: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 60, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 30, unit: 'days', type: 'ban' }, medium: { value: 90, unit: 'days', type: 'ban' }, habitual: { value: 180, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 0, unit: 'days', type: 'permanent ban' }, medium: { value: 0, unit: 'days', type: 'permanent ban' }, habitual: { value: 0, unit: 'days', type: 'permanent ban' } }
+      },
+      points: { low: 4, regular: 6, severe: 10 },
+      staffDescription: 'Account sharing, alt-account boosting, selling/trading accounts.',
+      playerDescription: 'Misuse of accounts for the purposes of financial or levelling gain is prohibited. This encompasses account sharing, trading, selling and boosting through the use of alternate accounts.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    },
+    { 
+      id: 17, 
+      name: 'Systems Abuse', 
+      category: 'Gameplay', 
+      isCustomizable: true, 
+      ordinal: 14,
+      durations: {
+        low: { first: { value: 3, unit: 'days', type: 'ban' }, medium: { value: 7, unit: 'days', type: 'ban' }, habitual: { value: 14, unit: 'days', type: 'ban' } },
+        regular: { first: { value: 14, unit: 'days', type: 'ban' }, medium: { value: 30, unit: 'days', type: 'ban' }, habitual: { value: 90, unit: 'days', type: 'ban' } },
+        severe: { first: { value: 90, unit: 'days', type: 'ban' }, medium: { value: 180, unit: 'days', type: 'ban' }, habitual: { value: 365, unit: 'days', type: 'ban' } }
+      },
+      points: { low: 2, regular: 3, severe: 5 },
+      staffDescription: 'Abusing server functions by opening redundant tickets, creating lag machines, etc.',
+      playerDescription: 'Using server systems in an unintended and harmful way is strictly prohibited. This encompasses lag machines, ticket spam, etc.',
+      canBeAltBlocking: true,
+      canBeStatWiping: true,
+      isAppealable: true,
+      appealForm: {
+        fields: [
+          {
+            id: 'why',
+            type: 'textarea',
+            label: 'Why should this punishment be amended?',
+            description: 'Please provide context and any relevant information to support your appeal',
+            required: true,
+            order: 1
+          }
+        ]
+      }
+    }
+  ];
+
+  // Combine all punishment types
+  const allPunishmentTypes = [...corePunishmentTypes, ...defaultSocialTypes, ...defaultGameplayTypes];
+
+  // Create separate documents
+  await Promise.all([
+    // Punishment Types
+    models.PunishmentTypes.findOneAndUpdate(
+      {}, 
+      { punishmentTypes: allPunishmentTypes }, 
+      { upsert: true, new: true }
+    ),
+    
+    // Status Thresholds
+    models.StatusThresholds.findOneAndUpdate(
+      {},
+      { 
+        statusThresholds: {
+          gameplay: { medium: 5, habitual: 10 },
+          social: { medium: 4, habitual: 8 }
+        }
+      },
+      { upsert: true, new: true }
+    ),
+    
+    // System Settings
+    models.SystemSettings.findOneAndUpdate(
+      {},
+      {
+        systemSettings: {
+          maxLoginAttempts: 5,
+          lockoutDuration: 30 * 60 * 1000, // 30 minutes
+          sessionTimeout: 2 * 60 * 60 * 1000, // 2 hours
+          requireAdminApproval: true,
+          requireTwoFactor: true
+        }
+      },
+      { upsert: true, new: true }
+    ),
+    
+    // Ticket Tags
+    models.TicketTags.findOneAndUpdate(
+      {},
+      {
+        ticketTags: [
+          'bug', 'player', 'chat', 'appeal', 'high-priority', 'needs-review',
+          'in-progress', 'resolved', 'won\'t-fix', 'duplicate'
+        ]
+      },
+      { upsert: true, new: true }
+    ),
+    
+    // General Settings
+    models.GeneralSettings.findOneAndUpdate(
+      {},
+      {
+        general: {
+          serverDisplayName: serverName || '',
+          homepageIconUrl: '',
+          panelIconUrl: ''
+        }
+      },
+      { upsert: true, new: true }
+    ),
+    
+    // AI Moderation Settings
+    models.AiModerationSettings.findOneAndUpdate(
+      {},
+      {
+        aiModerationSettings: {
+          enableAutomatedActions: true,
+          strictnessLevel: 'standard',
+          aiPunishmentConfigs: {
+            6: { // Chat Abuse
+              enabled: true,
+              aiDescription: 'Inappropriate language, excessive caps, spam, or disruptive chat behavior that violates community standards.'
+            },
+            7: { // Anti Social
+              enabled: true,
+              aiDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment for other players.'
+            }
+          }
+        }
+      },
+      { upsert: true, new: true }
+    ),
+    
+    // Appeal Form
+    models.AppealForm.findOneAndUpdate(
+      {},
+      {
+        appealForm: {
+          fields: [
+            {
+              id: 'reason',
+              type: 'textarea',
+              label: 'Appeal Reason',
+              description: 'Please explain why you believe this punishment should be reviewed',
+              required: true,
+              order: 1
+            },
+            {
+              id: 'evidence',
+              type: 'text',
+              label: 'Evidence Links (Optional)',
+              description: 'Provide links to any screenshots, videos, or other evidence',
+              required: false,
+              order: 2
+            },
+            {
+              id: 'acknowledge_error',
+              type: 'checkbox',
+              label: 'I believe this punishment was issued in error',
+              description: 'Check this box if you believe you were wrongfully punished',
+              required: false,
+              order: 3
+            }
+          ]
+        }
+      },
+      { upsert: true, new: true }
+    )
+  ]);
+}
+
+// Function to retrieve all settings from separate documents
+export async function getAllSettingsFromSeparateDocuments(dbConnection: Connection): Promise<any> {
+  const models = getSettingsModels(dbConnection);
+  
+  try {
+    const [
+      punishmentTypesDoc,
+      statusThresholdsDoc,
+      systemSettingsDoc,
+      ticketTagsDoc,
+      appealFormDoc,
+      generalSettingsDoc,
+      aiModerationSettingsDoc,
+      apiKeysDoc
+    ] = await Promise.all([
+      models.PunishmentTypes.findOne({}),
+      models.StatusThresholds.findOne({}),
+      models.SystemSettings.findOne({}),
+      models.TicketTags.findOne({}),
+      models.AppealForm.findOne({}),
+      models.GeneralSettings.findOne({}),
+      models.AiModerationSettings.findOne({}),
+      models.ApiKeys.findOne({})
+    ]);
+
+    return {
+      punishmentTypes: punishmentTypesDoc?.punishmentTypes || [],
+      statusThresholds: statusThresholdsDoc?.statusThresholds || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } },
+      system: systemSettingsDoc?.systemSettings || {},
+      ticketTags: ticketTagsDoc?.ticketTags || [],
+      appealForm: appealFormDoc?.appealForm || { fields: [] },
+      general: generalSettingsDoc?.general || {},
+      aiModerationSettings: aiModerationSettingsDoc?.aiModerationSettings || {},
+      api_key: apiKeysDoc?.api_key,
+      ticket_api_key: apiKeysDoc?.ticket_api_key,
+      minecraft_api_key: apiKeysDoc?.minecraft_api_key
+    };
+  } catch (error) {
+    console.error('Error retrieving settings from separate documents:', error);
+    throw error;
+  }
+}
+
+// Function to migrate from legacy single document to separate documents
+export async function migrateLegacyToSeparateDocuments(dbConnection: Connection, legacyDoc: HydratedDocument<ISettingsDocument>): Promise<void> {
+  const models = getSettingsModels(dbConnection);
+  const settingsMap = legacyDoc.settings;
+  
+  try {
+    await Promise.all([
+      // Migrate Punishment Types
+      models.PunishmentTypes.findOneAndUpdate(
+        {},
+        { punishmentTypes: settingsMap.get('punishmentTypes') || [] },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate Status Thresholds
+      models.StatusThresholds.findOneAndUpdate(
+        {},
+        { statusThresholds: settingsMap.get('statusThresholds') || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } } },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate System Settings
+      models.SystemSettings.findOneAndUpdate(
+        {},
+        { systemSettings: settingsMap.get('system') || {} },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate Ticket Tags
+      models.TicketTags.findOneAndUpdate(
+        {},
+        { ticketTags: settingsMap.get('ticketTags') || [] },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate Appeal Form
+      models.AppealForm.findOneAndUpdate(
+        {},
+        { appealForm: settingsMap.get('appealForm') || { fields: [] } },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate General Settings
+      models.GeneralSettings.findOneAndUpdate(
+        {},
+        { general: settingsMap.get('general') || {} },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate AI Moderation Settings
+      models.AiModerationSettings.findOneAndUpdate(
+        {},
+        { aiModerationSettings: settingsMap.get('aiModerationSettings') || {} },
+        { upsert: true, new: true }
+      ),
+      
+      // Migrate API Keys
+      models.ApiKeys.findOneAndUpdate(
+        {},
+        {
+          api_key: settingsMap.get('api_key'),
+          ticket_api_key: settingsMap.get('ticket_api_key'),
+          minecraft_api_key: settingsMap.get('minecraft_api_key')
+        },
+        { upsert: true, new: true }
+      )
+    ]);
+    
+    console.log('[Settings Migration] Successfully migrated legacy settings to separate documents');
+  } catch (error) {
+    console.error('[Settings Migration] Error migrating legacy settings:', error);
+    throw error;
+  }
+}
+
+// Function to update separate documents based on request body
+export async function updateSeparateDocuments(dbConnection: Connection, requestBody: any): Promise<void> {
+  const models = getSettingsModels(dbConnection);
+  
+  const updates: Promise<any>[] = [];
+  
+  if (requestBody.punishmentTypes !== undefined) {
+    updates.push(
+      models.PunishmentTypes.findOneAndUpdate(
+        {},
+        { punishmentTypes: requestBody.punishmentTypes },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.statusThresholds !== undefined) {
+    updates.push(
+      models.StatusThresholds.findOneAndUpdate(
+        {},
+        { statusThresholds: requestBody.statusThresholds },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.system !== undefined) {
+    updates.push(
+      models.SystemSettings.findOneAndUpdate(
+        {},
+        { systemSettings: requestBody.system },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.ticketTags !== undefined) {
+    updates.push(
+      models.TicketTags.findOneAndUpdate(
+        {},
+        { ticketTags: requestBody.ticketTags },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.appealForm !== undefined) {
+    updates.push(
+      models.AppealForm.findOneAndUpdate(
+        {},
+        { appealForm: requestBody.appealForm },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.general !== undefined) {
+    updates.push(
+      models.GeneralSettings.findOneAndUpdate(
+        {},
+        { general: requestBody.general },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.aiModerationSettings !== undefined) {
+    updates.push(
+      models.AiModerationSettings.findOneAndUpdate(
+        {},
+        { aiModerationSettings: requestBody.aiModerationSettings },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  // Handle API keys separately
+  const apiKeyUpdates: any = {};
+  if (requestBody.api_key !== undefined) {
+    apiKeyUpdates.api_key = requestBody.api_key;
+  }
+  if (requestBody.ticket_api_key !== undefined) {
+    apiKeyUpdates.ticket_api_key = requestBody.ticket_api_key;
+  }
+  if (requestBody.minecraft_api_key !== undefined) {
+    apiKeyUpdates.minecraft_api_key = requestBody.minecraft_api_key;
+  }
+  
+  if (Object.keys(apiKeyUpdates).length > 0) {
+    updates.push(
+      models.ApiKeys.findOneAndUpdate(
+        {},
+        apiKeyUpdates,
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (updates.length > 0) {
+    await Promise.all(updates);
+  }
+}
+
+// Function to cleanup orphaned AI punishment configs in separate documents structure
+export async function cleanupOrphanedAIPunishmentConfigsSeparate(dbConnection: Connection): Promise<void> {
+  const models = getSettingsModels(dbConnection);
+  
+  try {
+    const [punishmentTypesDoc, aiModerationDoc] = await Promise.all([
+      models.PunishmentTypes.findOne({}),
+      models.AiModerationSettings.findOne({})
+    ]);
+    
+    if (!punishmentTypesDoc || !aiModerationDoc) {
+      return;
+    }
+
+    const allPunishmentTypes = punishmentTypesDoc.punishmentTypes || [];
+    const aiSettings = aiModerationDoc.aiModerationSettings || {
+      enableAutomatedActions: true,
+      strictnessLevel: 'standard',
+      aiPunishmentConfigs: {}
+    };
+
+    if (!aiSettings.aiPunishmentConfigs) {
+      return;
+    }
+
+    // Get valid punishment type IDs
+    const validPunishmentTypeIds = new Set(allPunishmentTypes.map((pt: IPunishmentType) => pt.id));
+    
+    // Find orphaned AI configs
+    const orphanedConfigIds = Object.keys(aiSettings.aiPunishmentConfigs)
+      .map(id => parseInt(id))
+      .filter(id => !validPunishmentTypeIds.has(id));
+
+    if (orphanedConfigIds.length > 0) {
+      console.log(`[Settings] Cleaning up ${orphanedConfigIds.length} orphaned AI punishment configs:`, orphanedConfigIds);
+      
+      // Remove orphaned configs
+      orphanedConfigIds.forEach(id => {
+        delete aiSettings.aiPunishmentConfigs[id];
+      });
+
+      // Save updated settings
+      await models.AiModerationSettings.findOneAndUpdate(
+        {},
+        { aiModerationSettings: aiSettings },
+        { upsert: true, new: true }
+      );
+      
+      console.log(`[Settings] Successfully removed orphaned AI configs for punishment types:`, orphanedConfigIds);
+    }
+  } catch (error) {
+    console.error('[Settings] Error cleaning up orphaned AI punishment configs:', error);
+  }
+}
 
 export async function createDefaultSettings(dbConnection: Connection, serverName?: string): Promise<HydratedDocument<ISettingsDocument>> {
   try {
@@ -1277,51 +2184,87 @@ async function cleanupOrphanedAIPunishmentConfigs(dbConnection: Connection): Pro
 
 router.get('/', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+    const models = getSettingsModels(req.serverDbConnection!);
+    
+    // Check if separate documents exist
+    const punishmentTypesDoc = await models.PunishmentTypes.findOne({});
+    
+    if (punishmentTypesDoc) {
+      // Use new separate documents structure
+      const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+      res.json({ settings: allSettings });
+    } else {
+      // Fall back to legacy structure or create new separate documents
+      const legacySettingsDoc = await models.Settings.findOne({});
+      
+      if (legacySettingsDoc) {
+        // Migrate from legacy structure to separate documents
+        await migrateLegacyToSeparateDocuments(req.serverDbConnection!, legacySettingsDoc);
+        const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+        res.json({ settings: allSettings });
+      } else {
+        // Create new separate documents
+        await createSeparateDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+        const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+        res.json({ settings: allSettings });
+      }
     }
-    if (!settingsDoc) { // Should not happen if createDefaultSettings is successful
-        return res.status(500).json({ error: 'Failed to retrieve or create settings document' });
-    }
-    // Convert Map to object and wrap in a 'settings' key
-    res.json({ settings: Object.fromEntries(settingsDoc.settings) });
   } catch (error) {
+    console.error('Error in settings GET route:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 router.patch('/', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
-    }
-
-    if (!settingsDoc) { // Should not happen
-        return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
-    }
+    const models = getSettingsModels(req.serverDbConnection!);
     
-    // Check if punishment types are being updated
-    const updatingPunishmentTypes = 'punishmentTypes' in req.body;
+    // Check if separate documents exist
+    const punishmentTypesDoc = await models.PunishmentTypes.findOne({});
     
-    for (const key in req.body) {
-      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
-        settingsDoc.settings.set(key, req.body[key]);
+    if (punishmentTypesDoc) {
+      // Update separate documents
+      await updateSeparateDocuments(req.serverDbConnection!, req.body);
+      
+      // Clean up orphaned AI punishment configs if punishment types were updated
+      if ('punishmentTypes' in req.body) {
+        await cleanupOrphanedAIPunishmentConfigsSeparate(req.serverDbConnection!);
       }
+      
+      const allSettings = await getAllSettingsFromSeparateDocuments(req.serverDbConnection!);
+      res.json({ settings: allSettings });
+    } else {
+      // Fall back to legacy structure
+      const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
+      let settingsDoc = await Settings.findOne({});
+      if (!settingsDoc) {
+        settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+      }
+
+      if (!settingsDoc) {
+        return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
+      }
+      
+      // Check if punishment types are being updated
+      const updatingPunishmentTypes = 'punishmentTypes' in req.body;
+      
+      for (const key in req.body) {
+        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+          settingsDoc.settings.set(key, req.body[key]);
+        }
+      }
+      await settingsDoc.save();
+      
+      // Clean up orphaned AI punishment configs if punishment types were updated
+      if (updatingPunishmentTypes) {
+        await cleanupOrphanedAIPunishmentConfigs(req.serverDbConnection!);
+      }
+      
+      // Convert Map to object and wrap in a 'settings' key
+      res.json({ settings: Object.fromEntries(settingsDoc.settings) });
     }
-    await settingsDoc.save();
-    
-    // Clean up orphaned AI punishment configs if punishment types were updated
-    if (updatingPunishmentTypes) {
-      await cleanupOrphanedAIPunishmentConfigs(req.serverDbConnection!);
-    }
-    
-    // Convert Map to object and wrap in a 'settings' key
-    res.json({ settings: Object.fromEntries(settingsDoc.settings) });
   } catch (error) {
+    console.error('Error in settings PATCH route:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

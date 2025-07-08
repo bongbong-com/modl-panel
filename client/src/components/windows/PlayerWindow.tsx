@@ -858,11 +858,9 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
         
         // Get status thresholds from settings
         let statusThresholds = { social: { medium: 4, habitual: 8 }, gameplay: { medium: 5, habitual: 10 } };
-        if (settingsData?.settings?.statusThresholds) {
+        if (settingsData?.settings?.get && settingsData.settings.get('statusThresholds')) {
           try {
-            const thresholdsData = typeof settingsData.settings.statusThresholds === 'string' 
-              ? JSON.parse(settingsData.settings.statusThresholds) 
-              : settingsData.settings.statusThresholds;
+            const thresholdsData = settingsData.settings.get('statusThresholds');
             if (thresholdsData) {
               statusThresholds = thresholdsData;
             }
