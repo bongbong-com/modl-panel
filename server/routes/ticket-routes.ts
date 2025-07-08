@@ -517,7 +517,26 @@ router.get('/tag/:tag', async (req: Request<{ tag: string }>, res: Response) => 
 router.get('/creator/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
-    const tickets = await Ticket.find({ creator: req.params.uuid });
+    const tickets = await Ticket.find({ creatorUuid: req.params.uuid });
+    res.json(tickets);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all tickets involving a player (both created by them and reports against them)
+router.get('/player/:uuid', async (req: Request<{ uuid: string }>, res: Response) => {
+  try {
+    const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
+    
+    // Find tickets where the player is either the creator OR the reported player
+    const tickets = await Ticket.find({
+      $or: [
+        { creatorUuid: req.params.uuid },
+        { reportedPlayerUuid: req.params.uuid }
+      ]
+    }).sort({ created: -1 }); // Sort by creation date, newest first
+    
     res.json(tickets);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });

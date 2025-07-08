@@ -8,7 +8,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import ResizableWindow from '@/components/layout/ResizableWindow';
-import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets, useModifyPunishment, useAddPunishmentNote, useLinkedAccounts, useFindLinkedAccounts } from '@/hooks/use-data';
+import { usePlayer, useApplyPunishment, useSettings, usePlayerTickets, usePlayerAllTickets, useModifyPunishment, useAddPunishmentNote, useLinkedAccounts, useFindLinkedAccounts } from '@/hooks/use-data';
 import { ClickablePlayer } from '@/components/ui/clickable-player';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/hooks/use-toast';
@@ -529,8 +529,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     // Use React Query hook to fetch player data with refetch capability
   const { data: player, isLoading, error, refetch } = usePlayer(playerId);
   
-  // Fetch player tickets
-  const { data: playerTickets, isLoading: isLoadingTickets } = usePlayerTickets(playerId);
+  // Fetch all player tickets (both created by them and reports against them)
+  const { data: playerTickets, isLoading: isLoadingTickets } = usePlayerAllTickets(playerId);
   
   // Fetch linked accounts
   const { data: linkedAccountsData, isLoading: isLoadingLinkedAccounts, refetch: refetchLinkedAccounts } = useLinkedAccounts(playerId);
@@ -2194,41 +2194,64 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
               </div>
             ) : playerTickets && playerTickets.length > 0 ? (
               <div className="space-y-2">
-                {playerTickets.map((ticket: any) => (
-                  <div key={ticket._id} className="bg-muted/30 p-3 rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="font-medium text-sm">{ticket._id}</span>
-                          <Badge variant={ticket.status === 'Open' ? 'destructive' : ticket.status === 'Closed' ? 'secondary' : 'default'} className="text-xs">
-                            {ticket.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Category: {ticket.category}
-                        </p>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Created: {formatDateWithTime(ticket.created)}
-                        </p>
-                        {ticket.creatorName && (
-                          <p className="text-sm text-muted-foreground">
-                            Creator: {ticket.creatorName}
-                          </p>
-                        )}
-                        {ticket.tags && ticket.tags.length > 0 && (
-                          <div className="flex gap-1 mt-2">
-                            {ticket.tags.map((tag: string, index: number) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {tag}
+                {playerTickets.map((ticket: any) => {
+                  // Determine if this player created the ticket or is the reported player
+                  const isCreator = ticket.creatorUuid === playerId;
+                  const isReported = ticket.reportedPlayerUuid === playerId;
+                  
+                  return (
+                    <div key={ticket._id} className="bg-muted/30 p-3 rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="font-medium text-sm">{ticket._id}</span>
+                            <Badge variant={ticket.status === 'Open' ? 'destructive' : ticket.status === 'Closed' ? 'secondary' : 'default'} className="text-xs">
+                              {ticket.status}
+                            </Badge>
+                            {/* Show badge indicating player's role in the ticket */}
+                            {isCreator && (
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                Created
                               </Badge>
-                            ))}
+                            )}
+                            {isReported && (
+                              <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                                Reported
+                              </Badge>
+                            )}
                           </div>
-                        )}
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Category: {ticket.category || ticket.type}
+                          </p>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Created: {formatDateWithTime(ticket.created)}
+                          </p>
+                          {ticket.creatorName && (
+                            <p className="text-sm text-muted-foreground">
+                              Creator: {ticket.creatorName}
+                            </p>
+                          )}
+                          {/* Show reported player if this player created a report */}
+                          {isCreator && ticket.reportedPlayer && (
+                            <p className="text-sm text-muted-foreground">
+                              Reported: {ticket.reportedPlayer}
+                            </p>
+                          )}
+                          {ticket.tags && ticket.tags.length > 0 && (
+                            <div className="flex gap-1 mt-2">
+                              {ticket.tags.map((tag: string, index: number) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="bg-muted/30 p-3 rounded-lg">

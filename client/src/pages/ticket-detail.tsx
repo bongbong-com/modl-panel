@@ -642,8 +642,8 @@ const TicketDetail = () => {
         reportedBy: ticketData.reportedBy || 'Unknown',
         date: validDate,
         category,
-        relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName,
-        relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId,
+        relatedPlayer: ticketData.relatedPlayer?.username || ticketData.relatedPlayerName || ticketData.reportedPlayer,
+        relatedPlayerId: ticketData.relatedPlayer?.uuid || ticketData.relatedPlayerId || ticketData.reportedPlayerUuid,
         messages: (ticketData.messages || (ticketData.replies && ticketData.replies.map((reply: any) => ({
           id: reply._id || reply.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           sender: reply.name,
@@ -1166,11 +1166,19 @@ const TicketDetail = () => {
                     <span className="text-muted-foreground">Date:</span>
                     <span className="ml-1">{formatDate(ticketDetails.date)}</span>
                   </div>
-                  {/* Removed assignedTo field as part of simplified ticket system */}
-                  {ticketDetails.relatedPlayer && (
-                    <div className="flex items-center">
-                      <span className="text-muted-foreground">Related Player:</span>
-                      <span className="ml-1">{ticketDetails.relatedPlayer}</span>
+                  {/* Show reported player for player and chat reports */}
+                  {(ticketDetails.category === 'Player Report' || ticketDetails.category === 'Chat Report') && ticketDetails.relatedPlayer && (
+                    <div>
+                      <span className="text-muted-foreground">Reported:</span>
+                      <span className="ml-1">
+                        <ClickablePlayer 
+                          playerText={ticketDetails.relatedPlayerId || ticketDetails.relatedPlayer}
+                          showIcon={true}
+                          className="text-sm"
+                        >
+                          {ticketDetails.relatedPlayer}
+                        </ClickablePlayer>
+                      </span>
                     </div>
                   )}
                 </div>
