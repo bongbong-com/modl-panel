@@ -139,12 +139,13 @@ router.use('/domain', domainRoutes);
 
 // Helper function to get settings models
 function getSettingsModels(dbConnection: Connection) {
-  // Always use our local SettingsSchema with the 'type' field to avoid strict mode errors
-  if (!dbConnection.models.SettingsWithType) {
-    dbConnection.model<ISettingsDocument>('SettingsWithType', SettingsSchema);
+  // Force use of our local SettingsSchema with the 'type' field to avoid strict mode errors
+  // Delete the existing Settings model if it exists and recreate with our schema
+  if (dbConnection.models.Settings) {
+    delete dbConnection.models.Settings;
   }
   return {
-    Settings: dbConnection.models.SettingsWithType
+    Settings: dbConnection.model<ISettingsDocument>('Settings', SettingsSchema)
   };
 }
 
