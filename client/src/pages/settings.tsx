@@ -136,6 +136,8 @@ interface PunishmentType {
     habitual: { value: number; unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months'; type: 'mute' | 'ban' | 'permanent mute' | 'permanent ban'; };
   };
   singleSeverityPoints?: number; // Points for single severity punishments
+  permanentUntilUsernameChange?: boolean; // Whether this punishment persists until player changes username
+  permanentUntilSkinChange?: boolean; // Whether this punishment persists until player changes skin
 }
 
 // Type definition for offender status thresholds
@@ -2432,6 +2434,7 @@ const Settings = () => {
                               type="checkbox"
                               id="singleSeverityPunishment"
                               checked={selectedPunishment.singleSeverityPunishment || false}
+                              disabled={selectedPunishment.permanentUntilUsernameChange || selectedPunishment.permanentUntilSkinChange}
                               onChange={(e) => {
                                 setSelectedPunishment(prev => prev ? {
                                   ...prev,
@@ -2449,6 +2452,48 @@ const Settings = () => {
                             />
                             <Label htmlFor="singleSeverityPunishment" className="text-sm">
                               Single-severity punishment
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="permanentUntilUsernameChange"
+                              checked={selectedPunishment.permanentUntilUsernameChange || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  permanentUntilUsernameChange: e.target.checked,
+                                  // Clear single severity if permanent is checked
+                                  singleSeverityPunishment: e.target.checked ? false : prev.singleSeverityPunishment,
+                                  // Clear skin change if username change is checked
+                                  permanentUntilSkinChange: e.target.checked ? false : prev.permanentUntilSkinChange
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="permanentUntilUsernameChange" className="text-sm">
+                              Permanent until username change
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id="permanentUntilSkinChange"
+                              checked={selectedPunishment.permanentUntilSkinChange || false}
+                              onChange={(e) => {
+                                setSelectedPunishment(prev => prev ? {
+                                  ...prev,
+                                  permanentUntilSkinChange: e.target.checked,
+                                  // Clear single severity if permanent is checked
+                                  singleSeverityPunishment: e.target.checked ? false : prev.singleSeverityPunishment,
+                                  // Clear username change if skin change is checked
+                                  permanentUntilUsernameChange: e.target.checked ? false : prev.permanentUntilUsernameChange
+                                } : null);
+                              }}
+                              className="rounded"
+                            />
+                            <Label htmlFor="permanentUntilSkinChange" className="text-sm">
+                              Permanent until skin change
                             </Label>
                           </div>
                           {selectedPunishment.singleSeverityPunishment && (
@@ -2567,8 +2612,8 @@ const Settings = () => {
                         </div>
                       </div>
 
-                      {/* Only show Durations and Points if not single severity */}
-                      {!selectedPunishment.singleSeverityPunishment && (
+                      {/* Only show Durations and Points if not single severity and not permanent until change */}
+                      {!selectedPunishment.singleSeverityPunishment && !selectedPunishment.permanentUntilUsernameChange && !selectedPunishment.permanentUntilSkinChange && (
                     <div className="space-y-4">
                       {/* Durations Configuration */}
                       <div>
