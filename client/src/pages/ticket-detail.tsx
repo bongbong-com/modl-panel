@@ -726,6 +726,19 @@ const TicketDetail = () => {
     return "Type your reply here...";
   };
 
+  // Helper function to convert duration to milliseconds
+  const getDurationMultiplier = (unit: string): number => {
+    switch (unit) {
+      case 'seconds': return 1000;
+      case 'minutes': return 60 * 1000;
+      case 'hours': return 60 * 60 * 1000;
+      case 'days': return 24 * 60 * 60 * 1000;
+      case 'weeks': return 7 * 24 * 60 * 60 * 1000;
+      case 'months': return 30 * 24 * 60 * 60 * 1000;
+      default: return 1000;
+    }
+  };
+
   const handleSendReply = async () => {
     if (!ticketDetails.newReply?.trim() || !ticketDetails.selectedAction) return;
     
@@ -822,7 +835,7 @@ const TicketDetail = () => {
         content: newMessage.content,
         timestamp: timestamp,
         staff: newMessage.staff,
-        closedAs: actionDesc && ticketDetails.selectedAction !== 'Comment' ? ticketDetails.selectedAction : undefined
+        closedAs: ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' ? ticketDetails.selectedAction : undefined
       };
       
       setTicketDetails(prev => ({
@@ -838,13 +851,29 @@ const TicketDetail = () => {
       }));
       
       try {
+        // Prepare update data
+        const updateData: any = {
+          status,
+          newReply: newMessage,
+          locked: isClosing || status === 'Closed' ? true : ticketDetails.locked
+        };
+        
+        // Add appeal action data if it's an appeal action
+        if (ticketDetails.selectedAction === 'Pardon') {
+          updateData.appealAction = 'pardon';
+        } else if (ticketDetails.selectedAction === 'Reduce' || ticketDetails.selectedAction?.toLowerCase().includes('reduce')) {
+          updateData.appealAction = 'reduce';
+          updateData.customValues = {
+            duration: ticketDetails.duration ? 
+              (ticketDetails.duration.value * getDurationMultiplier(ticketDetails.duration.unit)) : 
+              0,
+            isPermanent: ticketDetails.isPermanent
+          };
+        }
+        
         await updateTicketMutation.mutateAsync({
           id: ticketDetails.id,
-          data: {
-            status,
-            newReply: newMessage,
-            locked: isClosing || status === 'Closed' ? true : ticketDetails.locked
-          }
+          data: updateData
         });
         queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets', ticketId] });
       } catch (error) {
