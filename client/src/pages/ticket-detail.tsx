@@ -735,8 +735,8 @@ const TicketDetail = () => {
     let messageContent = ticketDetails.newReply.trim();
     let status: 'Open' | 'Closed' = ticketDetails.status;
     
+    let actionDesc = '';
     if (ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment') {
-      let actionDesc = '';
       switch(ticketDetails.selectedAction) {
         case 'Accepted':
           actionDesc = "accepted this report";
@@ -780,8 +780,23 @@ const TicketDetail = () => {
           actionDesc = "reopened this ticket";
           status = 'Open';
           break;
+        default:
+          // Handle quick response actions
+          const actions = getQuickResponsesForTicket(ticketDetails.category);
+          const actionConfig = actions.find(act => act.name === ticketDetails.selectedAction);
+          if (actionConfig) {
+            actionDesc = actionConfig.name.toLowerCase();
+            if (actionConfig.closeTicket) {
+              status = 'Closed';
+            }
+          } else if (ticketDetails.selectedAction?.toLowerCase().includes('reduce')) {
+            // Handle dynamic reduce actions
+            actionDesc = ticketDetails.isPermanent 
+              ? 'changed the punishment to permanent' 
+              : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
+            status = 'Closed';
+          }
       }
-      messageContent = actionDesc;
     }
     
     if (messageContent) {
@@ -807,7 +822,7 @@ const TicketDetail = () => {
         content: newMessage.content,
         timestamp: timestamp,
         staff: newMessage.staff,
-        closedAs: isClosing ? ticketDetails.selectedAction : undefined
+        closedAs: actionDesc && ticketDetails.selectedAction !== 'Comment' ? ticketDetails.selectedAction : undefined
       };
       
       setTicketDetails(prev => ({
@@ -1413,7 +1428,7 @@ const TicketDetail = () => {
                       </div>
                       
                       {/* Additional options for Reduce action */}
-                      {ticketDetails.selectedAction === 'Reduce' && (
+                      {ticketDetails.selectedAction && ticketDetails.selectedAction.toLowerCase().includes('reduce') && (
                         <div className="mb-3 p-3 border rounded-md bg-muted/10">
                           <div className="flex items-center mb-2">
                             <Checkbox 
