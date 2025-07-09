@@ -665,7 +665,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
       <Button
         onClick={handleApplyPunishment}
-        disabled={isApplying || !data.reason?.trim()}
+        disabled={isApplying || ((['Kick', 'Manual Mute', 'Manual Ban'].includes(data.selectedPunishmentCategory || '')) && !data.reason?.trim())}
         className="w-full"
       >
         {isApplying ? (

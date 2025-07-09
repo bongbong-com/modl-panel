@@ -611,7 +611,8 @@ interface AddPunishmentBody {
 }
 router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddPunishmentBody>, res: Response): Promise<void> => {
   // Permission checking is handled dynamically based on punishment type
-  const Player = req.serverDbConnection!.model<IPlayer>('Player');  try {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');
+  try {
     const {
       issuerName, 
       type_ordinal,
@@ -630,11 +631,11 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
     // Check permission based on punishment type
     try {
       const Settings = req.serverDbConnection!.model('Settings');
-      const settingsDoc = await Settings.findOne({});
+      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
       let punishmentTypeName = 'Unknown';
       
-      if (settingsDoc?.settings?.get('punishmentTypes')) {
-        const punishmentTypes = settingsDoc.settings.get('punishmentTypes');
+      if (punishmentTypesDoc?.data) {
+        const punishmentTypes = punishmentTypesDoc.data;
         const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === type_ordinal);
         if (punishmentType) {
           punishmentTypeName = punishmentType.name;
