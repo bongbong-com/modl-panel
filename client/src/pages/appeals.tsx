@@ -330,7 +330,7 @@ const AppealsPage = () => {
         reason: values.reason || '', // Fallback for basic schema
         additionalData: Object.fromEntries(
           Object.entries(values).filter(([key]) => 
-            !['banId', 'email', 'reason'].includes(key)
+            !['banId', 'email'].includes(key)
           )
         ),
       };

@@ -109,8 +109,8 @@ router.post('/', async (req: Request, res: Response) => {
       additionalData
     } = req.body;
     
-    if (!punishmentId || !playerUuid || !email || !reason) {
-        return res.status(400).json({ error: 'Missing required fields: punishmentId, playerUuid, email, reason' });
+    if (!punishmentId || !playerUuid || !email) {
+        return res.status(400).json({ error: 'Missing required fields: punishmentId, playerUuid, email' });
     }
     
     const player = await Player.findOne({ minecraftUuid: playerUuid, 'punishments.id': punishmentId });
@@ -165,10 +165,16 @@ router.post('/', async (req: Request, res: Response) => {
       data: appealDataMap,
     });
     
-    let initialReplyContent = `Appeal Reason: ${reason}\n`;
+    let initialReplyContent = '';
+    
+    if (reason && reason.trim()) {
+      initialReplyContent += `Appeal Reason: ${reason}\n`;
+    }
+    
     if (evidence) {
       initialReplyContent += `Evidence: ${evidence}\n`;
     }
+    
     if (additionalData && typeof additionalData === 'object') {
       initialReplyContent += '\nAdditional Information:\n';
       for (const [key, value] of Object.entries(additionalData)) {
@@ -176,7 +182,13 @@ router.post('/', async (req: Request, res: Response) => {
         initialReplyContent += `${key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}: ${displayValue}\n`;
       }
     }
+    
     initialReplyContent += `\nContact Email: ${email}`;
+    
+    // If no content was added, provide a default message
+    if (initialReplyContent.trim() === `Contact Email: ${email}`) {
+      initialReplyContent = `Appeal submitted for punishment ${punishmentId}.\n\nContact Email: ${email}`;
+    }
 
     appealTicketDocument.replies.push({
       name: player.usernames[player.usernames.length - 1]?.username || 'Player',
