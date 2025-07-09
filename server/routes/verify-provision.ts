@@ -65,9 +65,8 @@ async function createSuperAdminUser(dbConnection: Connection, adminEmail: string
       return;
     }
     
-    // Generate a secure random password for the super admin
-    const tempPassword = crypto.randomBytes(16).toString('hex');
-    const hashedPassword = await hashPassword(tempPassword);
+    // No password needed - auth is done via email codes
+    const hashedPassword = await hashPassword('unused');
     
     // Create super admin user
     const superAdmin = {
@@ -77,8 +76,6 @@ async function createSuperAdminUser(dbConnection: Connection, adminEmail: string
       role: 'Super Admin', // Required field from StaffSchema
       admin: true,
       twoFaSecret: crypto.randomBytes(10).toString('hex'),
-      tempPassword: tempPassword, // Store temporarily so admin can retrieve it
-      mustChangePassword: true,
       created: new Date(),
       lastLogin: null
     };
@@ -92,18 +89,14 @@ async function createSuperAdminUser(dbConnection: Connection, adminEmail: string
     
     const Log = dbConnection.model('Log');
     await Log.create({
-      description: `Super admin user created for ${adminEmail}. Temporary password: ${tempPassword}. Admin must change password on first login.`,
+      description: `Super admin user created for ${adminEmail}. Authentication is handled via email verification codes.`,
       level: 'info',
       source: 'provisioning',
       created: new Date()
     });
     
     console.log(`[PROVISIONING] Super admin user created for ${adminEmail}`);
-    console.log(`[PROVISIONING] Temporary password: ${tempPassword}`);
-    console.log(`[PROVISIONING] IMPORTANT: The admin must change this password on first login`);
-    console.log(`[PROVISIONING] This password is also stored in the system logs for reference`);
-    
-    // TODO: In production, consider sending this password via secure email instead of logging
+    console.log(`[PROVISIONING] Authentication is handled via email verification codes`);
     
   } catch (error) {
     console.error('Error creating super admin user:', error);
