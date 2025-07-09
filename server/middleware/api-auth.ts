@@ -48,48 +48,42 @@ export async function verifyMinecraftApiKey(req: Request, res: Response, next: N
       console.log(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API Keys Data:`, apiKeysDoc.data);
     }
     
-    // Check if API keys document exists - create it if missing (for existing servers)
-    if (!apiKeysDoc || !apiKeysDoc.data) {
-      console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key document not found. Creating default API key document.`);
+    // Check if API keys document exists and has data
+    if (!apiKeysDoc || !apiKeysDoc.data || !apiKeysDoc.data.api_key) {
+      console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key document exists but has no api_key. Updating document.`);
       
-      // Create default API key document for existing servers
+      // Generate a new API key
       const newApiKey = generateTicketApiKey();
-      const newApiKeysDoc = await Settings.findOneAndUpdate(
-        { type: 'apiKeys' },
-        {
-          type: 'apiKeys',
-          data: {
-            api_key: newApiKey
-          }
-        },
-        { upsert: true, new: true }
-      );
       
-      console.log(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] Created default API key document with key: ${newApiKey}`);
-      
-      // Use the newly created API key
-      if (newApiKeysDoc && newApiKeysDoc.data && newApiKeysDoc.data.api_key) {
-        const configuredApiKey = newApiKeysDoc.data.api_key;
-        console.log(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] Using newly created API key for authentication`);
-        
-        // Verify the provided API key against the new one
-        if (configuredApiKey !== apiKey) {
-          console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] Invalid API key provided. Please use the API key from the admin panel.`);
-          return res.status(401).json({
-            status: 401,
-            message: 'Invalid API key. Please use the API key from the admin panel.'
-          });
-        }
-        
-        // API key is valid, proceed
-        return next();
+      // If document exists but has no data, update it
+      if (apiKeysDoc) {
+        apiKeysDoc.data = { api_key: newApiKey };
+        await apiKeysDoc.save();
+        console.log(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] Updated existing API key document with key: ${newApiKey}`);
+      } else {
+        // Document doesn't exist, create it (should not happen due to createDefaultSettings)
+        console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key document not found. This should not happen.`);
+        return res.status(401).json({
+          status: 401, 
+          message: 'API key authentication is not properly configured for this server'
+        });
       }
       
-      // If creation failed, return error
-      return res.status(401).json({
-        status: 401, 
-        message: 'API key authentication is not properly configured for this server'
-      });
+      // Use the newly created API key
+      const configuredApiKey = newApiKey;
+      console.log(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] Using newly created API key for authentication`);
+      
+      // Verify the provided API key against the new one
+      if (configuredApiKey !== apiKey) {
+        console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] Invalid API key provided. New API key: ${newApiKey}`);
+        return res.status(401).json({
+          status: 401,
+          message: `Invalid API key. Please use the new API key: ${newApiKey}`
+        });
+      }
+      
+      // API key is valid, proceed
+      return next();
     }
     
     // Get unified API key from API keys document (only use api_key, remove legacy fallbacks)
