@@ -985,6 +985,39 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     if (warning.type?.toLowerCase().includes('mute')) return 'mute';
     if (warning.type?.toLowerCase().includes('ban') || warning.type?.toLowerCase().includes('blacklist')) return 'ban';
     
+    // If we have punishment type configuration, look up the actual action based on duration data
+    if (punishmentType && warning) {
+      // Get the severity and status from the punishment data
+      const severity = warning.severity || warning.data?.severity;
+      const status = warning.status || warning.data?.status;
+      const originalDuration = warning.duration || warning.data?.duration;
+      
+      // For single severity punishments, check singleSeverityDurations
+      if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
+        const offenseLevel = status === 'low' ? 'first' : status === 'medium' ? 'medium' : 'habitual';
+        const durationConfig = punishmentType.singleSeverityDurations[offenseLevel];
+        if (durationConfig && durationConfig.type) {
+          return durationConfig.type; // This will be 'mute', 'ban', 'permanent mute', or 'permanent ban'
+        }
+      }
+      
+      // For multi-severity punishments, check durations
+      if (punishmentType.durations && severity) {
+        const severityKey = severity === 'lenient' ? 'low' : severity === 'regular' ? 'regular' : 'severe';
+        const offenseLevel = status === 'low' ? 'first' : status === 'medium' ? 'medium' : 'habitual';
+        const durationConfig = punishmentType.durations[severityKey]?.[offenseLevel];
+        if (durationConfig && durationConfig.type) {
+          return durationConfig.type; // This will be 'mute', 'ban', 'permanent mute', or 'permanent ban'
+        }
+      }
+      
+      // If we can't determine from configuration, check if it's permanent based on duration
+      if (originalDuration === 0 || originalDuration === -1 || originalDuration < 0) {
+        // Default to permanent ban for permanent punishments if we can't determine otherwise
+        return 'permanent ban';
+      }
+    }
+    
     // Check if the punishment type has an action property
     if (punishmentType?.action) {
       return punishmentType.action;
