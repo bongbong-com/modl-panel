@@ -2759,7 +2759,8 @@ const Settings = () => {
                                           }
                                         } : null);
                                       }}
-                                      className="text-center text-xs h-8 w-16"
+                                      disabled={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.type?.includes('permanent')}
+                                      className={`text-center text-xs h-8 w-16 ${selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.type?.includes('permanent') ? 'opacity-50' : ''}`}
                                       placeholder="48"
                                     />
                                     <Select
@@ -2779,8 +2780,9 @@ const Settings = () => {
                                           }
                                         } : null);
                                       }}
+                                      disabled={selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.type?.includes('permanent')}
                                     >
-                                      <SelectTrigger className="w-[60px] h-8 text-xs">
+                                      <SelectTrigger className={`w-[60px] h-8 text-xs ${selectedPunishment.durations?.regular[offenseType as keyof typeof selectedPunishment.durations.regular]?.type?.includes('permanent') ? 'opacity-50' : ''}`}>
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -2855,7 +2857,8 @@ const Settings = () => {
                                           }
                                         } : null);
                                       }}
-                                      className="text-center text-xs h-8 w-16"
+                                      disabled={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.type?.includes('permanent')}
+                                      className={`text-center text-xs h-8 w-16 ${selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.type?.includes('permanent') ? 'opacity-50' : ''}`}
                                       placeholder="72"
                                     />
                                     <Select
@@ -2875,8 +2878,9 @@ const Settings = () => {
                                           }
                                         } : null);
                                       }}
+                                      disabled={selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.type?.includes('permanent')}
                                     >
-                                      <SelectTrigger className="w-[60px] h-8 text-xs">
+                                      <SelectTrigger className={`w-[60px] h-8 text-xs ${selectedPunishment.durations?.severe[offenseType as keyof typeof selectedPunishment.durations.severe]?.type?.includes('permanent') ? 'opacity-50' : ''}`}>
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
