@@ -72,7 +72,7 @@ async function createSuperAdminUser(dbConnection: Connection, adminEmail: string
     // Create super admin user
     const superAdmin = {
       email: adminEmail,
-      username: 'SuperAdmin',
+      username: 'Dr. Doofenshmirtz',
       password: hashedPassword,
       role: 'Super Admin', // Required field from StaffSchema
       admin: true,
