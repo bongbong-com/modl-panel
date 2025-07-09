@@ -19,6 +19,7 @@ interface IReply {
   type: string; // e.g., 'public', 'internal'
   created: Date;
   staff: boolean;
+  action?: string; // Action taken with this reply (e.g., 'Close', 'Pardon', 'Reduce')
 }
 
 interface ITicket extends MongooseDocument {
@@ -421,7 +422,8 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
         content: updates.newReply.content,
         type: updates.newReply.type,
         created: new Date(updates.newReply.created),
-        staff: updates.newReply.staff
+        staff: updates.newReply.staff,
+        action: updates.newReply.action
       };
       ticket.replies.push(newReply);
 

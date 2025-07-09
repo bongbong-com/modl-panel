@@ -1761,9 +1761,16 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             <p className="text-xs font-medium text-muted-foreground mb-1">Attached Tickets:</p>
                             <div className="flex flex-wrap gap-1">
                               {warning.attachedTicketIds.map((ticketId, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  ticket-{ticketId}
-                                </Badge>
+                                <Button
+                                  key={idx}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => openWindow('ticket', { ticketId: ticketId })}
+                                >
+                                  <Link2 className="h-3 w-3 mr-1" />
+                                  {ticketId}
+                                </Button>
                               ))}
                             </div>
                           </div>                        )}

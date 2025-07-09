@@ -828,7 +828,7 @@ const TicketDetail = () => {
         content: newMessage.content,
         timestamp: timestamp,
         staff: newMessage.staff,
-        closedAs: ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' ? ticketDetails.selectedAction : undefined
+        closedAs: ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && ticketDetails.selectedAction !== 'Reopen' ? ticketDetails.selectedAction : undefined
       };
       
       setTicketDetails(prev => ({
