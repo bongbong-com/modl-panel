@@ -34,33 +34,22 @@ export async function verifyTicketApiKey(req: Request, res: Response, next: Next
     }
 
     const Settings = req.serverDbConnection.model('Settings');
-    // Get settings document to check for the unified API key
-    const settingsDoc = await Settings.findOne({});
+    // Check database settings for the specific tenant using separate documents schema
+    const apiKeysDoc = await Settings.findOne({ type: 'apiKeys' });
     
-    // Check if settings exists and has the right structure
-    if (!settingsDoc || !settingsDoc.settings) {
-      console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key authentication is not properly configured. No settings document found or settings map is missing.`);
+    // Check if API keys document exists
+    if (!apiKeysDoc || !apiKeysDoc.data) {
+      console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key authentication is not properly configured. No API keys document found.`);
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'API key authentication is not properly configured for this server'
       });
     }
     
-    // Get unified API key from settings (check new unified key first, then fallback to legacy keys)
-    let configuredApiKey: string | undefined;
-    
-    // settingsDoc.settings is expected to be a Map
-    if (settingsDoc.settings instanceof Map) {
-      configuredApiKey = settingsDoc.settings.get('api_key') || 
-                         settingsDoc.settings.get('ticket_api_key') || 
-                         settingsDoc.settings.get('minecraft_api_key');
-    } else {
-      // This case should ideally not happen if schema is enforced
-      console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] settingsDoc.settings is not a Map. Attempting to access as object.`);
-      configuredApiKey = (settingsDoc.settings as any).api_key || 
-                         (settingsDoc.settings as any).ticket_api_key || 
-                         (settingsDoc.settings as any).minecraft_api_key;
-    }
+    // Get unified API key from API keys document (check new unified key first, then fallback to legacy keys)
+    const configuredApiKey = apiKeysDoc.data.api_key || 
+                             apiKeysDoc.data.ticket_api_key || 
+                             apiKeysDoc.data.minecraft_api_key;
     
     if (configuredApiKey === undefined) {
       console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key not configured in settings.`);
