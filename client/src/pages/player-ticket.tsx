@@ -394,7 +394,7 @@ const PlayerTicket = () => {
     
     try {
       if (settingsData?.settings) {
-        const ticketForms = settingsData.settings.get('ticketForms');
+        const ticketForms = settingsData.settings.ticketForms;
         
         // Try the ticket type first, then try 'application' for 'staff' tickets (legacy support)
         if (ticketForms && ticketForms[ticketDetails.type]) {
@@ -490,7 +490,7 @@ const PlayerTicket = () => {
     
     try {
       if (settingsData?.settings) {
-        const ticketForms = settingsData.settings.get('ticketForms');
+        const ticketForms = settingsData.settings.ticketForms;
         
         // Try the ticket type first, then try 'application' for 'staff' tickets (legacy support)
         if (ticketForms && ticketForms[ticketDetails.type]) {

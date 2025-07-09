@@ -253,7 +253,7 @@ const TicketDetail = () => {
     
     // Get quick responses from settings (fallback to default config)
     const quickResponses: QuickResponsesConfiguration = 
-      settingsData.settings.get('quickResponses') || defaultQuickResponsesConfig;
+      settingsData.settings.quickResponses || defaultQuickResponsesConfig;
     
     // Find the category for this ticket type
     let ticketType = '';

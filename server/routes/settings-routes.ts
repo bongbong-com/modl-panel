@@ -3363,15 +3363,11 @@ router.post('/upload-icon', checkPermission('admin.settings.modify'), upload.sin
 // Function to add default Social and Gameplay punishment types during provisioning
 export async function addDefaultPunishmentTypes(dbConnection: Connection): Promise<void> {
   try {
-    const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
-    let settingsDoc = await SettingsModel.findOne({});
+    const models = getSettingsModels(dbConnection);
     
-    if (!settingsDoc || !settingsDoc.settings) {
-      throw new Error('Settings document not found. createDefaultSettings should be called first.');
-    }
-
-    // Get existing punishment types
-    const existingTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    // Get existing punishment types from the separate document
+    const punishmentTypesDoc = await models.Settings.findOne({ type: 'punishmentTypes' });
+    const existingTypes = punishmentTypesDoc?.data || [];
     
     // Create a map of existing types by ordinal for quick lookup
     const existingTypesMap = new Map();
@@ -3779,9 +3775,15 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
       // Sort by ordinal to maintain proper order
       allPunishmentTypes.sort((a, b) => a.ordinal - b.ordinal);
       
-      // Update the settings document
-      settingsDoc.settings.set('punishmentTypes', allPunishmentTypes);
-      await settingsDoc.save();
+      // Update the punishment types document
+      await models.Settings.findOneAndUpdate(
+        { type: 'punishmentTypes' },
+        { 
+          type: 'punishmentTypes', 
+          data: allPunishmentTypes 
+        },
+        { upsert: true }
+      );
       
       console.log(`Added ${missingTypes.length} missing default punishment types to database`);
     } else {
