@@ -85,6 +85,11 @@ function getEffectivePunishmentState(punishment: IPunishment): { effectiveActive
     }
   }
   
+  // Final check: if there's an expiry date and it's in the past, the punishment is not active
+  if (effectiveExpiry && effectiveExpiry.getTime() <= new Date().getTime()) {
+    effectiveActive = false;
+  }
+  
   return { effectiveActive, effectiveExpiry, hasModifications: modifications.length > 0 };
 }
 
