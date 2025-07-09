@@ -1336,9 +1336,74 @@ const TicketDetail = () => {
                                 </Badge>
                               )}
                               {(message.closedAs && message.closedAs !== "Comment" && message.closedAs !== "Reopen") && (
-                                <Badge variant="outline" className="text-xs">
-                                  {message.closedAs}
-                                </Badge>
+                                (() => {
+                                  const action = message.closedAs;
+                                  let badgeText = action;
+                                  let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "outline";
+                                  let badgeIcon = null;
+                                  
+                                  // Customize badge based on action type
+                                  if (action === 'Close') {
+                                    badgeText = 'Closed';
+                                    badgeVariant = 'secondary';
+                                    badgeIcon = <LockIcon className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Pardon') {
+                                    badgeText = 'Pardoned';
+                                    badgeVariant = 'default';
+                                    badgeIcon = <ThumbsUp className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Reduce') {
+                                    // Extract duration info from message content if available
+                                    const durationMatch = message.content.match(/reduced the punishment to (\d+) (\w+)/);
+                                    if (durationMatch) {
+                                      badgeText = `Reduced to ${durationMatch[1]} ${durationMatch[2]}`;
+                                    } else if (message.content.includes('permanent')) {
+                                      badgeText = 'Made Permanent';
+                                    } else {
+                                      badgeText = 'Reduced';
+                                    }
+                                    badgeVariant = 'outline';
+                                    badgeIcon = <ArrowLeft className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Reject' || action === 'Rejected') {
+                                    badgeText = 'Rejected';
+                                    badgeVariant = 'destructive';
+                                    badgeIcon = <XCircle className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Accept' || action === 'Accepted') {
+                                    badgeText = 'Accepted';
+                                    badgeVariant = 'default';
+                                    badgeIcon = <CheckCircle2 className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Completed') {
+                                    badgeText = 'Completed';
+                                    badgeVariant = 'default';
+                                    badgeIcon = <CheckCircle2 className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Stale') {
+                                    badgeText = 'Stale';
+                                    badgeVariant = 'secondary';
+                                    badgeIcon = <Clock className="h-3 w-3 mr-1" />;
+                                  } else if (action === 'Duplicate') {
+                                    badgeText = 'Duplicate';
+                                    badgeVariant = 'secondary';
+                                    badgeIcon = <FileText className="h-3 w-3 mr-1" />;
+                                  } else if (action.toLowerCase().includes('reduce')) {
+                                    // Handle dynamic reduce actions
+                                    const durationMatch = message.content.match(/reduced the punishment to (\d+) (\w+)/);
+                                    if (durationMatch) {
+                                      badgeText = `Reduced to ${durationMatch[1]} ${durationMatch[2]}`;
+                                    } else if (message.content.includes('permanent')) {
+                                      badgeText = 'Made Permanent';
+                                    } else {
+                                      badgeText = 'Reduced';
+                                    }
+                                    badgeVariant = 'outline';
+                                    badgeIcon = <ArrowLeft className="h-3 w-3 mr-1" />;
+                                  }
+                                  
+                                  return (
+                                    <Badge variant={badgeVariant} className="text-xs flex items-center">
+                                      {badgeIcon}
+                                      {badgeText}
+                                    </Badge>
+                                  );
+                                })()
                               )}
                             </div>
                             
