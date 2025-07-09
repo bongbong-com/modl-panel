@@ -2324,29 +2324,25 @@ router.post('/api-key/generate', checkPermission('admin.settings.modify'), async
     console.log('[Unified API Key GENERATE] Server name:', req.serverName);
     console.log('[Unified API Key GENERATE] DB connection exists:', !!req.serverDbConnection);
     
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    
-    console.log('[Unified API Key GENERATE] Settings doc found:', !!settingsDoc);
-    
-    // Create settings document if it doesn't exist
-    if (!settingsDoc) {
-      console.log('[Unified API Key GENERATE] Creating default settings document');
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
-    }
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      console.error('[Unified API Key GENERATE] Settings document or settings map is undefined');
-      return res.status(500).json({ error: 'Settings configuration error' });
-    }
+    const Settings = req.serverDbConnection!.model('Settings');
     
     // Generate new API key
     const newApiKey = generateTicketApiKey();
     console.log('[Unified API Key GENERATE] Generated new API key with length:', newApiKey.length);
     
-    // Save to settings
-    settingsDoc.settings.set('api_key', newApiKey);
-    await settingsDoc.save();
+    // Update or create API keys document
+    const apiKeysDoc = await Settings.findOneAndUpdate(
+      { type: 'apiKeys' },
+      { 
+        type: 'apiKeys', 
+        data: { 
+          api_key: newApiKey 
+        } 
+      },
+      { upsert: true, new: true }
+    );
+    
+    console.log('[Unified API Key GENERATE] Saved new API key to apiKeys document');
     
     console.log('[Unified API Key GENERATE] Saved new API key to settings');
     
@@ -2367,14 +2363,8 @@ router.get('/api-key/reveal', checkPermission('admin.settings.view'), async (req
     console.log('[Unified API Key REVEAL] Request received');
     console.log('[Unified API Key REVEAL] Server name:', req.serverName);
     
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-    
-    const apiKey = settingsDoc.settings.get('api_key');
+    const apiKeysData = await getSettingsValue(req.serverDbConnection!, 'apiKeys');
+    const apiKey = apiKeysData?.api_key;
     
     if (!apiKey) {
       return res.status(404).json({ 
@@ -2395,16 +2385,18 @@ router.get('/api-key/reveal', checkPermission('admin.settings.view'), async (req
 // Revoke unified API key
 router.delete('/api-key', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    const settingsDoc = await Settings.findOne({});
+    const Settings = req.serverDbConnection!.model('Settings');
     
-    if (!settingsDoc || !settingsDoc.settings) {
-      return res.status(404).json({ error: 'Settings not found' });
+    // Update API keys document to remove the api_key
+    const apiKeysDoc = await Settings.findOne({ type: 'apiKeys' });
+    if (apiKeysDoc && apiKeysDoc.data) {
+      delete apiKeysDoc.data.api_key;
+      await Settings.findOneAndUpdate(
+        { type: 'apiKeys' },
+        { type: 'apiKeys', data: apiKeysDoc.data },
+        { new: true }
+      );
     }
-    
-    // Remove the API key
-    settingsDoc.settings.delete('api_key');
-    await settingsDoc.save();
     
     res.json({ 
       message: 'API key revoked successfully' 
@@ -2470,29 +2462,28 @@ router.post('/ticket-api-key/generate', checkPermission('admin.settings.modify')
     console.log('[Ticket API Key GENERATE] Server name:', req.serverName);
     console.log('[Ticket API Key GENERATE] DB connection exists:', !!req.serverDbConnection);
     
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    
-    console.log('[Ticket API Key GENERATE] Settings doc found:', !!settingsDoc);
-    
-    // Create settings document if it doesn't exist
-    if (!settingsDoc) {
-      console.log('[Ticket API Key GENERATE] Creating default settings document');
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
-    }
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      console.error('[Ticket API Key GENERATE] Settings document or settings map is undefined');
-      return res.status(500).json({ error: 'Settings configuration error' });
-    }
+    const Settings = req.serverDbConnection!.model('Settings');
     
     // Generate new API key
     const newApiKey = generateTicketApiKey();
     console.log('[Ticket API Key GENERATE] Generated new API key with length:', newApiKey.length);
     
-    // Save to settings
-    settingsDoc.settings.set('ticket_api_key', newApiKey);
-    await settingsDoc.save();
+    // Get existing API keys data
+    const existingApiKeysDoc = await Settings.findOne({ type: 'apiKeys' });
+    const currentApiKeys = existingApiKeysDoc?.data || {};
+    
+    // Update or create API keys document
+    await Settings.findOneAndUpdate(
+      { type: 'apiKeys' },
+      { 
+        type: 'apiKeys', 
+        data: { 
+          ...currentApiKeys,
+          ticket_api_key: newApiKey 
+        } 
+      },
+      { upsert: true, new: true }
+    );
     console.log('[Ticket API Key GENERATE] Saved API key to database');
     
     // Verify it was saved
@@ -2574,25 +2565,27 @@ router.get('/minecraft-api-key', checkPermission('admin.settings.view'), async (
 // Generate new minecraft API key
 router.post('/minecraft-api-key/generate', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
-    const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
-    let settingsDoc = await Settings.findOne({});
-    
-    // Create settings document if it doesn't exist
-    if (!settingsDoc) {
-      settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
-    }
-    
-    if (!settingsDoc || !settingsDoc.settings) {
-      console.error('[Minecraft API Key GENERATE] Settings document or settings map is undefined');
-      return res.status(500).json({ error: 'Settings configuration error' });
-    }
+    const Settings = req.serverDbConnection!.model('Settings');
     
     // Generate new API key (using same function as ticket API key)
     const newApiKey = generateTicketApiKey();
     
-    // Save to settings
-    settingsDoc.settings.set('minecraft_api_key', newApiKey);
-    await settingsDoc.save();
+    // Get existing API keys data
+    const existingApiKeysDoc = await Settings.findOne({ type: 'apiKeys' });
+    const currentApiKeys = existingApiKeysDoc?.data || {};
+    
+    // Update or create API keys document
+    await Settings.findOneAndUpdate(
+      { type: 'apiKeys' },
+      { 
+        type: 'apiKeys', 
+        data: { 
+          ...currentApiKeys,
+          minecraft_api_key: newApiKey 
+        } 
+      },
+      { upsert: true, new: true }
+    );
     
     // Return the full key only once (for copying)
     res.json({ 
