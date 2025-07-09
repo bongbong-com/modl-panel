@@ -839,7 +839,7 @@ export async function getAllSettings(dbConnection: Connection): Promise<any> {
       system: settings.system || {},
       ticketTags: settings.ticketTags || [],
       quickResponses: settings.quickResponses || { categories: [] },
-      ticketForms: settings.ticketForms || { bug_report: [], support_request: [], staff_application: [] },
+      ticketForms: settings.ticketForms || { bug: { fields: [], sections: [] }, support: { fields: [], sections: [] }, application: { fields: [], sections: [] } },
       general: settings.general || {},
       aiModerationSettings: settings.aiModerationSettings || {},
       api_key: settings.api_key,
@@ -2043,7 +2043,7 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
         {
           id: 'bug_actions',
           name: 'Bug Report Actions',
-          ticketTypes: ['bug_report'],
+          ticketTypes: ['bug'],
           order: 4,
           actions: [
             {
