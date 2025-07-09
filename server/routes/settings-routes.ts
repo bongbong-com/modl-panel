@@ -891,10 +891,32 @@ export async function updateSettings(dbConnection: Connection, requestBody: any)
   const updates: Promise<any>[] = [];
   
   if (requestBody.punishmentTypes !== undefined) {
+    // Merge punishment types to preserve existing data
+    const currentDoc = await models.Settings.findOne({ type: 'punishmentTypes' });
+    const existingTypes = currentDoc?.data || [];
+    
+    // Create a map of existing types by ordinal for quick lookup
+    const existingTypesMap = new Map();
+    existingTypes.forEach((type: IPunishmentType) => {
+      existingTypesMap.set(type.ordinal, type);
+    });
+    
+    // Merge new types with existing ones, prioritizing new types
+    const mergedTypes = [...requestBody.punishmentTypes];
+    existingTypes.forEach((type: IPunishmentType) => {
+      const hasNewType = requestBody.punishmentTypes.some((newType: IPunishmentType) => newType.ordinal === type.ordinal);
+      if (!hasNewType) {
+        mergedTypes.push(type);
+      }
+    });
+    
+    // Sort by ordinal to maintain order
+    mergedTypes.sort((a: IPunishmentType, b: IPunishmentType) => a.ordinal - b.ordinal);
+    
     updates.push(
       models.Settings.findOneAndUpdate(
         { type: 'punishmentTypes' },
-        { type: 'punishmentTypes', data: requestBody.punishmentTypes },
+        { type: 'punishmentTypes', data: mergedTypes },
         { upsert: true, new: true }
       )
     );
@@ -2150,7 +2172,7 @@ async function cleanupOrphanedAIPunishmentConfigsHelper(dbConnection: Connection
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     const settingsDoc = await SettingsModel.findOne({});
     
-    if (!settingsDoc) {
+    if (!settingsDoc || !settingsDoc.settings) {
       return;
     }
 
@@ -2242,6 +2264,9 @@ router.post('/reset', async (req: Request, res: Response) => {
     
     // Create new default settings documents
     await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
+    
+    // Ensure all default punishment types are added
+    await addDefaultPunishmentTypes(req.serverDbConnection!);
     
     // Return the new settings
     const allSettings = await getAllSettings(req.serverDbConnection!);
@@ -2717,7 +2742,7 @@ router.put('/ai-punishment-types/:id', async (req: Request, res: Response) => {
     const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
     const settingsDoc = await SettingsModel.findOne({});
 
-    if (!settingsDoc) {
+    if (!settingsDoc || !settingsDoc.settings) {
       return res.status(404).json({ error: 'Settings not found' });
     }
 
@@ -2800,7 +2825,7 @@ router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) =>
     const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
     const settingsDoc = await SettingsModel.findOne({});
 
-    if (!settingsDoc) {
+    if (!settingsDoc || !settingsDoc.settings) {
       return res.status(404).json({ error: 'Settings not found' });
     }
 
@@ -2932,7 +2957,7 @@ router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
     const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
     const settingsDoc = await SettingsModel.findOne({});
 
-    if (!settingsDoc) {
+    if (!settingsDoc || !settingsDoc.settings) {
       return res.status(404).json({ error: 'Settings not found' });
     }
 
@@ -3169,7 +3194,7 @@ router.get('/:key', async (req: Request<{ key: string }>, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
-    if (!settingsDoc || !settingsDoc.settings.has(req.params.key)) {
+    if (!settingsDoc || !settingsDoc.settings || !settingsDoc.settings.has(req.params.key)) {
       return res.status(404).json({ error: `Setting key '${req.params.key}' not found` });
     }
     res.json({ key: req.params.key, value: settingsDoc.settings.get(req.params.key) });
@@ -3185,7 +3210,7 @@ router.put('/:key', checkPermission('admin.settings.modify'), async (req: Reques
     if (!settingsDoc) {
       settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.modlServer?.serverName);
     }
-    if (!settingsDoc) { // Should not happen
+    if (!settingsDoc || !settingsDoc.settings) { // Should not happen
         return res.status(500).json({ error: 'Failed to retrieve or create settings document for update' });
     }
     settingsDoc.settings.set(req.params.key, req.body.value);
@@ -3272,19 +3297,33 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
     const SettingsModel = dbConnection.model<ISettingsDocument>('Settings');
     let settingsDoc = await SettingsModel.findOne({});
     
-    if (!settingsDoc) {
+    if (!settingsDoc || !settingsDoc.settings) {
       throw new Error('Settings document not found. createDefaultSettings should be called first.');
     }
 
     // Get existing punishment types
     const existingTypes = settingsDoc.settings.get('punishmentTypes') || [];
     
-    // Check if we already have Social and Gameplay types (ordinals 6+)
-    const hasCustomTypes = existingTypes.some((type: IPunishmentType) => type.ordinal > 5);
-    if (hasCustomTypes) {
-      console.log('Custom punishment types already exist, skipping default creation');
+    // Create a map of existing types by ordinal for quick lookup
+    const existingTypesMap = new Map();
+    existingTypes.forEach((type: IPunishmentType) => {
+      existingTypesMap.set(type.ordinal, type);
+    });
+    
+    // Check if we already have all default Social and Gameplay types
+    // Instead of skipping entirely, check for specific missing types
+    const requiredSocialOrdinals = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+    const requiredGameplayOrdinals = [6, 7, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51];
+    
+    const missingSocialTypes = requiredSocialOrdinals.filter(ordinal => !existingTypesMap.has(ordinal));
+    const missingGameplayTypes = requiredGameplayOrdinals.filter(ordinal => !existingTypesMap.has(ordinal));
+    
+    if (missingSocialTypes.length === 0 && missingGameplayTypes.length === 0) {
+      console.log('All default punishment types already exist, skipping creation');
       return;
     }
+    
+    console.log(`Missing social types: ${missingSocialTypes.length}, missing gameplay types: ${missingGameplayTypes.length}`);
 
     // Default Social punishment types (customizable, ordered as requested)
     const defaultSocialTypes: IPunishmentType[] = [
@@ -3647,14 +3686,38 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
       }
     ];
 
-    // Combine existing core types with new default types
-    const allPunishmentTypes = [...existingTypes, ...defaultSocialTypes, ...defaultGameplayTypes];
+    // Only add missing types to preserve existing data
+    const missingTypes = [];
     
-    // Update the settings document
-    settingsDoc.settings.set('punishmentTypes', allPunishmentTypes);
-    await settingsDoc.save();
+    // Add missing social types
+    defaultSocialTypes.forEach(type => {
+      if (missingSocialTypes.includes(type.ordinal)) {
+        missingTypes.push(type);
+      }
+    });
     
-    console.log('Added default Social and Gameplay punishment types to database');
+    // Add missing gameplay types  
+    defaultGameplayTypes.forEach(type => {
+      if (missingGameplayTypes.includes(type.ordinal)) {
+        missingTypes.push(type);
+      }
+    });
+    
+    if (missingTypes.length > 0) {
+      // Combine existing types with only the missing ones
+      const allPunishmentTypes = [...existingTypes, ...missingTypes];
+      
+      // Sort by ordinal to maintain proper order
+      allPunishmentTypes.sort((a, b) => a.ordinal - b.ordinal);
+      
+      // Update the settings document
+      settingsDoc.settings.set('punishmentTypes', allPunishmentTypes);
+      await settingsDoc.save();
+      
+      console.log(`Added ${missingTypes.length} missing default punishment types to database`);
+    } else {
+      console.log('All required punishment types already exist, no changes needed');
+    }
   } catch (error) {
     console.error('Error adding default punishment types:', error);
     throw error;

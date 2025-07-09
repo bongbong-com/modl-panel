@@ -187,7 +187,7 @@ export class AIModerationService {
       const SettingsModel = this.dbConnection.model('Settings');
       const settingsDoc = await SettingsModel.findOne({});
 
-      if (!settingsDoc) {
+      if (!settingsDoc || !settingsDoc.settings) {
         return null;
       }
 
