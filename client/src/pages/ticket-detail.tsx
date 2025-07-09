@@ -376,7 +376,7 @@ const TicketDetail = () => {
 
   // Process settings data to extract punishment types by category
   useEffect(() => {
-    const punishmentTypesData = settingsData?.settings?.get?.('punishmentTypes');
+    const punishmentTypesData = settingsData?.settings?.punishmentTypes;
     if (punishmentTypesData) {
       try {
         // Parse punishment types if they're stored as a string
