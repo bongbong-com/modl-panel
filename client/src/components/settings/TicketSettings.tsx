@@ -1670,6 +1670,11 @@ const DraggableFieldCard = ({
   onEditField, 
   onDeleteField 
 }: DraggableFieldCardProps) => {
+  // Add null check for field
+  if (!field || !field.id) {
+    return null;
+  }
+  
   const [{ isDragging }, drag] = useDrag({
     type: 'field',
     item: { index, sectionId, fieldId: field.id },
@@ -1805,7 +1810,7 @@ const DraggableSectionCard = ({
 
   // Get fields for this section
   const sectionFields = ticketForms[selectedTicketFormType as keyof TicketFormsConfiguration]?.fields
-    ?.filter(field => field.sectionId === section.id)
+    ?.filter(field => field && field.id && field.sectionId === section.id)
     ?.sort((a, b) => a.order - b.order) || [];
 
   return (
