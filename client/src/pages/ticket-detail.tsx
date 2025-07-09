@@ -808,9 +808,7 @@ const TicketDetail = () => {
     }
     
     if (messageContent) {
-      const isClosing = ticketDetails.selectedAction && 
-                       ticketDetails.selectedAction !== 'Comment' && 
-                       ticketDetails.selectedAction !== 'Reopen';
+      const isClosing = status === 'Closed';
       
       const newMessage = {
         id: `msg-${Date.now()}`,
@@ -864,7 +862,7 @@ const TicketDetail = () => {
               await modifyPunishmentMutation.mutateAsync({
                 uuid: playerUuid,
                 punishmentId: punishmentId,
-                modificationType: 'MANUAL_PARDON',
+                modificationType: 'APPEAL_ACCEPT',
                 reason: 'Appeal approved - full pardon granted'
               });
               
@@ -891,7 +889,7 @@ const TicketDetail = () => {
               await modifyPunishmentMutation.mutateAsync({
                 uuid: playerUuid,
                 punishmentId: punishmentId,
-                modificationType: 'MANUAL_DURATION_CHANGE',
+                modificationType: 'APPEAL_DURATION_CHANGE',
                 reason: 'Appeal partially approved - duration reduced',
                 newDuration: ticketDetails.duration
               });
