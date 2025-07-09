@@ -863,7 +863,8 @@ const TicketDetail = () => {
                 uuid: playerUuid,
                 punishmentId: punishmentId,
                 modificationType: 'APPEAL_ACCEPT',
-                reason: 'Appeal approved - full pardon granted'
+                reason: 'Appeal approved - full pardon granted',
+                appealTicketId: ticketDetails.id
               });
               
               toast({
@@ -891,7 +892,8 @@ const TicketDetail = () => {
                 punishmentId: punishmentId,
                 modificationType: 'APPEAL_DURATION_CHANGE',
                 reason: 'Appeal partially approved - duration reduced',
-                newDuration: ticketDetails.duration
+                newDuration: ticketDetails.duration,
+                appealTicketId: ticketDetails.id
               });
               
               toast({
@@ -903,6 +905,34 @@ const TicketDetail = () => {
               toast({
                 title: 'Error',
                 description: 'Failed to reduce punishment. The ticket reply was sent but the punishment was not modified.',
+                variant: 'destructive'
+              });
+            }
+          }
+        } else if (ticketDetails.selectedAction === 'Reject' || ticketDetails.selectedAction === 'Rejected' || ticketDetails.selectedAction?.toLowerCase().includes('reject')) {
+          // Get punishment data from ticket
+          const punishmentId = ticketData?.data?.punishmentId;
+          const playerUuid = ticketData?.data?.playerUuid;
+          
+          if (punishmentId && playerUuid) {
+            try {
+              await modifyPunishmentMutation.mutateAsync({
+                uuid: playerUuid,
+                punishmentId: punishmentId,
+                modificationType: 'APPEAL_REJECT',
+                reason: 'Appeal rejected - original punishment upheld',
+                appealTicketId: ticketDetails.id
+              });
+              
+              toast({
+                title: 'Appeal Rejected',
+                description: `Appeal for punishment ${punishmentId} has been rejected.`
+              });
+            } catch (error) {
+              console.error('Error rejecting appeal:', error);
+              toast({
+                title: 'Error',
+                description: 'Failed to record appeal rejection. The ticket reply was sent but the punishment was not updated.',
                 variant: 'destructive'
               });
             }

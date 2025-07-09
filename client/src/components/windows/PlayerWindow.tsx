@@ -1790,9 +1790,22 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                       New duration: {(mod.effectiveDuration === 0 || mod.effectiveDuration === -1 || mod.effectiveDuration < 0) ? 'Permanent' : formatDuration(mod.effectiveDuration)}
                                     </p>
                                   )}
-                                  <p className="text-muted-foreground text-xs">
-                                    By: {mod.issuerName}
-                                  </p>
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-muted-foreground text-xs">
+                                      By: {mod.issuerName}
+                                    </p>
+                                    {mod.appealTicketId && (mod.type?.includes('APPEAL')) && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() => openWindow('ticket', { ticketId: mod.appealTicketId })}
+                                      >
+                                        <Link2 className="h-3 w-3 mr-1" />
+                                        View Appeal
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>

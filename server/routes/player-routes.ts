@@ -730,11 +730,12 @@ interface AddPunishmentModificationBody {
     issuerName: string;
     effectiveDuration?: number;
     reason?: string;
+    appealTicketId?: string;
 }
 router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Request<{ uuid: string, punishmentId: string }, {}, AddPunishmentModificationBody>, res: Response): Promise<void> => {
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
-    const { type, issuerName, effectiveDuration, reason } = req.body;
+    const { type, issuerName, effectiveDuration, reason, appealTicketId } = req.body;
     if (!type || !issuerName) return res.status(400).json({ error: 'Type and issuerName are required for modifications' });
     
     const player = await Player.findOne({ minecraftUuid: req.params.uuid });
@@ -751,13 +752,18 @@ router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Reques
       issuerName,
       issued: new Date(),
       effectiveDuration,
-      reason 
+      reason,
+      appealTicketId
     });
     
     // Apply the modification to the punishment's current state
     if (type === 'MANUAL_PARDON' || type === 'APPEAL_ACCEPT') {
       // Mark punishment as inactive
-      punishment.data.set('active', false);    } else if (type === 'MANUAL_DURATION_CHANGE' || type === 'APPEAL_DURATION_CHANGE') {
+      punishment.data.set('active', false);
+    } else if (type === 'APPEAL_REJECT') {
+      // Appeal rejected - punishment remains active, just mark as reviewed
+      punishment.data.set('appealReviewed', true);
+    } else if (type === 'MANUAL_DURATION_CHANGE' || type === 'APPEAL_DURATION_CHANGE') {
       // Update the duration and recalculate expiry
       if (effectiveDuration !== undefined) {
         punishment.data.set('duration', effectiveDuration);

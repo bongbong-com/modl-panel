@@ -643,19 +643,26 @@ export function useModifyPunishment() {
       punishmentId, 
       modificationType, 
       reason, 
-      newDuration 
+      newDuration,
+      appealTicketId
     }: { 
       uuid: string, 
       punishmentId: string, 
       modificationType: string, 
       reason: string, 
-      newDuration?: { value: number; unit: string } 
+      newDuration?: { value: number; unit: string },
+      appealTicketId?: string
     }) => {
       const body: any = {
         type: modificationType,
         issuerName: user?.username || 'Unknown User',
         reason: reason
       };
+      
+      // Add appeal ticket ID if provided
+      if (appealTicketId) {
+        body.appealTicketId = appealTicketId;
+      }
 
       // Convert duration to milliseconds for duration change modifications
       if ((modificationType === 'MANUAL_DURATION_CHANGE' || modificationType === 'APPEAL_DURATION_CHANGE') && newDuration) {
