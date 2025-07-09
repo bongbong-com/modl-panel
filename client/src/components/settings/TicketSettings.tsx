@@ -38,6 +38,7 @@ interface TicketFormSection {
   showIfFieldId?: string;
   showIfValue?: string;
   showIfValues?: string[];
+  hideByDefault?: boolean;
 }
 
 interface TicketFormSettings {
@@ -139,6 +140,7 @@ const TicketSettings = ({
   // Section builder states
   const [newTicketFormSectionTitle, setNewTicketFormSectionTitle] = useState('');
   const [newTicketFormSectionDescription, setNewTicketFormSectionDescription] = useState('');
+  const [newTicketFormSectionHideByDefault, setNewTicketFormSectionHideByDefault] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
@@ -228,6 +230,7 @@ const TicketSettings = ({
       title: newTicketFormSectionTitle,
       description: newTicketFormSectionDescription || undefined,
       order: ticketForms[selectedTicketFormType]?.sections?.length || 0,
+      hideByDefault: newTicketFormSectionHideByDefault,
     };
 
     if (selectedTicketFormSection) {
@@ -817,6 +820,7 @@ const TicketSettings = ({
                                 setSelectedTicketFormSection(section);
                                 setNewTicketFormSectionTitle(section.title);
                                 setNewTicketFormSectionDescription(section.description || '');
+                                setNewTicketFormSectionHideByDefault(section.hideByDefault || false);
                                 setIsAddTicketFormSectionDialogOpen(true);
                               }}
                               onDeleteSection={removeTicketFormSection}
@@ -1316,6 +1320,19 @@ const TicketSettings = ({
                 onChange={(e) => setNewTicketFormSectionDescription(e.target.value)}
               />
             </div>
+
+            {/* Hide by Default Option */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="hide-by-default"
+                checked={newTicketFormSectionHideByDefault}
+                onCheckedChange={setNewTicketFormSectionHideByDefault}
+              />
+              <Label htmlFor="hide-by-default">Hide by default</Label>
+              <p className="text-xs text-muted-foreground">
+                Section will be hidden unless revealed by option navigation
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1326,6 +1343,7 @@ const TicketSettings = ({
                 setSelectedTicketFormSection(null);
                 setNewTicketFormSectionTitle('');
                 setNewTicketFormSectionDescription('');
+                setNewTicketFormSectionHideByDefault(false);
               }}
             >
               Cancel
@@ -1824,7 +1842,14 @@ const DraggableSectionCard = ({
         <div className="flex items-center gap-2">
           <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
           <div>
-            <h6 className="font-medium">{section.title}</h6>
+            <div className="flex items-center gap-2">
+              <h6 className="font-medium">{section.title}</h6>
+              {section.hideByDefault && (
+                <Badge variant="secondary" className="text-xs">
+                  Hidden by default
+                </Badge>
+              )}
+            </div>
             {section.description && (
               <p className="text-sm text-muted-foreground">{section.description}</p>
             )}

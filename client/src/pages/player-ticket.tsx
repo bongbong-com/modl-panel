@@ -74,6 +74,7 @@ interface FormSection {
   showIfFieldId?: string;
   showIfValue?: string;
   showIfValues?: string[];
+  hideByDefault?: boolean;
 }
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -573,9 +574,9 @@ const PlayerTicket = () => {
     const getVisibleSections = (): Set<string> => {
       const visibleSections = new Set<string>();
       
-      // First, add all sections that don't have conditional logic
+      // First, add all sections that don't have conditional logic and are not hidden by default
       sectionDefinitions.forEach((section: FormSection) => {
-        if (!section.showIfFieldId) {
+        if (!section.showIfFieldId && !section.hideByDefault) {
           visibleSections.add(section.id);
         }
       });
