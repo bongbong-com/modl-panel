@@ -2255,7 +2255,7 @@ router.patch('/', checkPermission('admin.settings.modify'), async (req: Request,
   }
 });
 
-router.post('/reset', async (req: Request, res: Response) => {
+router.post('/reset', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
@@ -2280,7 +2280,7 @@ router.post('/reset', async (req: Request, res: Response) => {
 // Unified API Key Management Routes - Moved before generic /:key route to prevent interception
 
 // Get current unified API key (masked for security)
-router.get('/api-key', async (req: Request, res: Response) => {
+router.get('/api-key', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     console.log('[Unified API Key GET] Request received');
     console.log('[Unified API Key GET] Server name:', req.serverName);
@@ -2318,7 +2318,7 @@ router.get('/api-key', async (req: Request, res: Response) => {
 });
 
 // Generate new unified API key
-router.post('/api-key/generate', async (req: Request, res: Response) => {
+router.post('/api-key/generate', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     console.log('[Unified API Key GENERATE] Request received');
     console.log('[Unified API Key GENERATE] Server name:', req.serverName);
@@ -2357,7 +2357,7 @@ router.post('/api-key/generate', async (req: Request, res: Response) => {
 });
 
 // Get full unified API key (for revealing/copying)
-router.get('/api-key/reveal', async (req: Request, res: Response) => {
+router.get('/api-key/reveal', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     console.log('[Unified API Key REVEAL] Request received');
     console.log('[Unified API Key REVEAL] Server name:', req.serverName);
@@ -2388,7 +2388,7 @@ router.get('/api-key/reveal', async (req: Request, res: Response) => {
 });
 
 // Revoke unified API key
-router.delete('/api-key', async (req: Request, res: Response) => {
+router.delete('/api-key', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
@@ -2413,7 +2413,7 @@ router.delete('/api-key', async (req: Request, res: Response) => {
 // Legacy API Key Management Routes (for backward compatibility)
 
 // Get current ticket API key (masked for security)
-router.get('/ticket-api-key', async (req: Request, res: Response) => {
+router.get('/ticket-api-key', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     console.log('[Ticket API Key GET] Request received');
     console.log('[Ticket API Key GET] Server name:', req.serverName);
@@ -2459,7 +2459,7 @@ router.get('/ticket-api-key', async (req: Request, res: Response) => {
 });
 
 // Generate new ticket API key
-router.post('/ticket-api-key/generate', async (req: Request, res: Response) => {
+router.post('/ticket-api-key/generate', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     console.log('[Ticket API Key GENERATE] Request received');
     console.log('[Ticket API Key GENERATE] Server name:', req.serverName);
@@ -2503,7 +2503,7 @@ router.post('/ticket-api-key/generate', async (req: Request, res: Response) => {
 });
 
 // Revoke ticket API key
-router.delete('/ticket-api-key', async (req: Request, res: Response) => {
+router.delete('/ticket-api-key', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
@@ -2528,7 +2528,7 @@ router.delete('/ticket-api-key', async (req: Request, res: Response) => {
 // Minecraft API Key Management Routes
 
 // Get current minecraft API key (masked for security)
-router.get('/minecraft-api-key', async (req: Request, res: Response) => {
+router.get('/minecraft-api-key', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
@@ -2562,7 +2562,7 @@ router.get('/minecraft-api-key', async (req: Request, res: Response) => {
 });
 
 // Generate new minecraft API key
-router.post('/minecraft-api-key/generate', async (req: Request, res: Response) => {
+router.post('/minecraft-api-key/generate', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});
@@ -2591,7 +2591,7 @@ router.post('/minecraft-api-key/generate', async (req: Request, res: Response) =
 });
 
 // Revoke minecraft API key
-router.delete('/minecraft-api-key', async (req: Request, res: Response) => {
+router.delete('/minecraft-api-key', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     const settingsDoc = await Settings.findOne({});
@@ -3245,7 +3245,7 @@ const upload = multer({
 });
 
 // File upload endpoint for server icons
-router.post('/upload-icon', upload.single('icon'), async (req: Request, res: Response) => {
+router.post('/upload-icon', checkPermission('admin.settings.modify'), upload.single('icon'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
