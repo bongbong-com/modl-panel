@@ -785,6 +785,48 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       { upsert: true, new: true }
     )
   ]);
+  
+  // Run migration to fix any existing ticketForms data
+  try {
+    await migrateTicketForms(dbConnection);
+  } catch (migrationError) {
+    console.error('Error during automatic ticketForms migration:', migrationError);
+  }
+}
+
+// Function to migrate ticketForms from old format to new format
+export async function migrateTicketForms(dbConnection: Connection): Promise<void> {
+  const models = getSettingsModels(dbConnection);
+  
+  try {
+    const ticketFormsDoc = await models.Settings.findOne({ type: 'ticketForms' });
+    
+    if (ticketFormsDoc && ticketFormsDoc.data && 
+        (ticketFormsDoc.data.bug_report || ticketFormsDoc.data.support_request || ticketFormsDoc.data.staff_application)) {
+      
+      const newFormat = {
+        bug: ticketFormsDoc.data.bug_report || { fields: [], sections: [] },
+        support: ticketFormsDoc.data.support_request || { fields: [], sections: [] },
+        application: ticketFormsDoc.data.staff_application || { fields: [], sections: [] }
+      };
+      
+      await models.Settings.findOneAndUpdate(
+        { type: 'ticketForms' },
+        { 
+          type: 'ticketForms', 
+          data: newFormat 
+        },
+        { upsert: true }
+      );
+      
+      console.log('Successfully migrated ticketForms from old format to new format');
+    } else {
+      console.log('ticketForms already in correct format or doesn\'t exist');
+    }
+  } catch (error) {
+    console.error('Error during ticketForms migration:', error);
+    throw error;
+  }
 }
 
 // Function to retrieve all settings from separate documents
@@ -816,7 +858,32 @@ export async function getAllSettings(dbConnection: Connection): Promise<any> {
           settings.quickResponses = doc.data;
           break;
         case 'ticketForms':
-          settings.ticketForms = doc.data;
+          // Check if data is in old format and migrate it
+          if (doc.data && (doc.data.bug_report || doc.data.support_request || doc.data.staff_application)) {
+            // Migrate from old format to new format
+            settings.ticketForms = {
+              bug: doc.data.bug_report || { fields: [], sections: [] },
+              support: doc.data.support_request || { fields: [], sections: [] },
+              application: doc.data.staff_application || { fields: [], sections: [] }
+            };
+            
+            // Update the document in the database with the new format
+            try {
+              await models.Settings.findOneAndUpdate(
+                { type: 'ticketForms' },
+                { 
+                  type: 'ticketForms', 
+                  data: settings.ticketForms 
+                },
+                { upsert: true }
+              );
+              console.log('Migrated ticketForms from old format to new format');
+            } catch (migrationError) {
+              console.error('Error migrating ticketForms:', migrationError);
+            }
+          } else {
+            settings.ticketForms = doc.data;
+          }
           break;
         case 'general':
           settings.general = doc.data;
@@ -2254,6 +2321,17 @@ router.post('/reset', checkPermission('admin.settings.modify'), async (req: Requ
   } catch (error) {
     console.error('Error resetting settings:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Migration endpoint to fix ticketForms format
+router.post('/migrate-ticket-forms', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+  try {
+    await migrateTicketForms(req.serverDbConnection!);
+    res.json({ success: true, message: 'Ticket forms migration completed successfully' });
+  } catch (error) {
+    console.error('Error during ticket forms migration:', error);
+    res.status(500).json({ success: false, error: 'Failed to migrate ticket forms' });
   }
 });
 
