@@ -118,9 +118,8 @@ const AppealsPage = () => {
   const [isLoadingPunishment, setIsLoadingPunishment] = useState(false);
   const [newReply, setNewReply] = useState("");
 
-  // Fetch settings to get appeal form configuration
-  const { data: settings } = useSettings();
-  const appealFormSettings = settings?.appealForm as AppealFormSettings | undefined;
+  // Appeal form configuration will come from the punishment-specific data
+  const [appealFormSettings, setAppealFormSettings] = useState<AppealFormSettings | undefined>(undefined);
 
   // API mutations
   const createAppealMutation = useCreateAppeal();
@@ -240,6 +239,25 @@ const AppealsPage = () => {
         isAppealable: data.isAppealable,
         playerUuid: data.playerUuid, // Store playerUuid here
       });
+
+      // Set punishment-specific appeal form configuration
+      if (data.appealForm) {
+        setAppealFormSettings(data.appealForm);
+      } else {
+        // Fallback to default appeal form if punishment type doesn't have one
+        setAppealFormSettings({
+          fields: [
+            {
+              id: 'reason',
+              type: 'textarea',
+              label: 'Appeal Reason',
+              description: 'Please explain why you believe this punishment should be removed or reduced.',
+              required: true,
+              order: 1
+            }
+          ]
+        });
+      }
 
       // Automatically set the banId in the appeal form
       appealForm.setValue('banId', data.id);

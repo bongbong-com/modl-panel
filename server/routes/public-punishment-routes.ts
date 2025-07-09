@@ -122,9 +122,10 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
       return;
     }
     
-    // Get the punishment type name and appealability from settings
+    // Get the punishment type name, appealability, and appeal form from settings
     let punishmentTypeName = 'Violation';
     let punishmentTypeIsAppealable = true;
+    let punishmentTypeAppealForm = null;
     
     try {
       const Settings = req.serverDbConnection.model('Settings');
@@ -142,6 +143,7 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
           if (punishmentType) {
             punishmentTypeName = punishmentType.name;
             punishmentTypeIsAppealable = punishmentType.isAppealable !== false;
+            punishmentTypeAppealForm = punishmentType.appealForm;
           } else {
             // Fallback to hardcoded names for core administrative types
             const coreTypes: { [key: number]: string } = {
@@ -200,6 +202,7 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
       expires: expiresDate, // Include expiration date
       active: isActive,
       appealable: punishmentTypeIsAppealable,
+      appealForm: punishmentTypeAppealForm, // Include punishment-specific appeal form
       existingAppeal: existingAppeal,
       // Include both username for display and UUID for API calls
       playerUsername: player.usernames.length > 0 ? player.usernames[player.usernames.length - 1].username : 'Unknown',

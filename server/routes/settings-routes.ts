@@ -773,43 +773,6 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       { upsert: true, new: true }
     ),
     
-    // Appeal Form document
-    models.Settings.findOneAndUpdate(
-      { type: 'appealForm' },
-      {
-        type: 'appealForm',
-        data: {
-          fields: [
-            {
-              id: 'reason',
-              type: 'textarea',
-              label: 'Appeal Reason',
-              description: 'Please explain why you believe this punishment should be reviewed',
-              required: true,
-              order: 1
-            },
-            {
-              id: 'evidence',
-              type: 'text',
-              label: 'Evidence Links (Optional)',
-              description: 'Provide links to any screenshots, videos, or other evidence',
-              required: false,
-              order: 2
-            },
-            {
-              id: 'acknowledge_error',
-              type: 'checkbox',
-              label: 'I believe this punishment was issued in error',
-              description: 'Check this box if you believe you were wrongfully punished',
-              required: false,
-              order: 3
-            }
-          ]
-        }
-      },
-      { upsert: true, new: true }
-    ),
-    
     // API Keys document with default unified API key
     models.Settings.findOneAndUpdate(
       { type: 'apiKeys' },
@@ -849,8 +812,11 @@ export async function getAllSettings(dbConnection: Connection): Promise<any> {
         case 'ticketTags':
           settings.ticketTags = doc.data;
           break;
-        case 'appealForm':
-          settings.appealForm = doc.data;
+        case 'quickResponses':
+          settings.quickResponses = doc.data;
+          break;
+        case 'ticketForms':
+          settings.ticketForms = doc.data;
           break;
         case 'general':
           settings.general = doc.data;
@@ -872,7 +838,8 @@ export async function getAllSettings(dbConnection: Connection): Promise<any> {
       statusThresholds: settings.statusThresholds || { gameplay: { medium: 5, habitual: 10 }, social: { medium: 4, habitual: 8 } },
       system: settings.system || {},
       ticketTags: settings.ticketTags || [],
-      appealForm: settings.appealForm || { fields: [] },
+      quickResponses: settings.quickResponses || { categories: [] },
+      ticketForms: settings.ticketForms || { bug_report: [], support_request: [], staff_application: [] },
       general: settings.general || {},
       aiModerationSettings: settings.aiModerationSettings || {},
       api_key: settings.api_key,
@@ -954,21 +921,32 @@ export async function updateSettings(dbConnection: Connection, requestBody: any)
     );
   }
   
-  if (requestBody.appealForm !== undefined) {
-    updates.push(
-      models.Settings.findOneAndUpdate(
-        { type: 'appealForm' },
-        { type: 'appealForm', data: requestBody.appealForm },
-        { upsert: true, new: true }
-      )
-    );
-  }
   
   if (requestBody.general !== undefined) {
     updates.push(
       models.Settings.findOneAndUpdate(
         { type: 'general' },
         { type: 'general', data: requestBody.general },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.quickResponses !== undefined) {
+    updates.push(
+      models.Settings.findOneAndUpdate(
+        { type: 'quickResponses' },
+        { type: 'quickResponses', data: requestBody.quickResponses },
+        { upsert: true, new: true }
+      )
+    );
+  }
+  
+  if (requestBody.ticketForms !== undefined) {
+    updates.push(
+      models.Settings.findOneAndUpdate(
+        { type: 'ticketForms' },
+        { type: 'ticketForms', data: requestBody.ticketForms },
         { upsert: true, new: true }
       )
     );
