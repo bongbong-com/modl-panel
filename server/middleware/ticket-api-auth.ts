@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { getSettingsValue } from '../routes/settings-routes';
 
 /**
  * Middleware to verify API key for ticket creation routes
@@ -33,29 +34,13 @@ export async function verifyTicketApiKey(req: Request, res: Response, next: Next
       });
     }
 
-    const Settings = req.serverDbConnection.model('Settings');
-    // Check database settings for the specific tenant using separate documents schema
-    const apiKeysDoc = await Settings.findOne({ type: 'apiKeys' });
+    // Use the same logic as settings page to retrieve API key
+    const apiKeysData = await getSettingsValue(req.serverDbConnection, 'apiKeys');
+    const configuredApiKey = apiKeysData?.api_key;
     
-    console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API Keys Document:`, apiKeysDoc ? 'Found' : 'Not Found');
-    if (apiKeysDoc) {
-      console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API Keys Data:`, apiKeysDoc.data);
-    }
-    
-    // Check if API keys document exists
-    if (!apiKeysDoc || !apiKeysDoc.data) {
-      console.warn(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API key authentication is not properly configured. No API keys document found.`);
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'API key authentication is not properly configured for this server'
-      });
-    }
-    
-    // Get unified API key from API keys document (only use api_key, remove legacy fallbacks)
-    const configuredApiKey = apiKeysDoc.data.api_key;
-    
+    // Clean up duplicate logging
+    console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API Keys Data:`, apiKeysData ? 'Found' : 'Not Found');
     console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] Configured API Key:`, configuredApiKey ? 'Found' : 'Not Found');
-    console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] Provided API Key:`, apiKey ? 'Provided' : 'Not Provided');
     
     if (configuredApiKey === undefined) {
       console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key not configured in settings.`);
