@@ -2335,6 +2335,11 @@ router.post('/api-key/generate', checkPermission('admin.settings.modify'), async
       settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
     }
     
+    if (!settingsDoc || !settingsDoc.settings) {
+      console.error('[Unified API Key GENERATE] Settings document or settings map is undefined');
+      return res.status(500).json({ error: 'Settings configuration error' });
+    }
+    
     // Generate new API key
     const newApiKey = generateTicketApiKey();
     console.log('[Unified API Key GENERATE] Generated new API key with length:', newApiKey.length);
@@ -2476,6 +2481,11 @@ router.post('/ticket-api-key/generate', checkPermission('admin.settings.modify')
       settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
     }
     
+    if (!settingsDoc || !settingsDoc.settings) {
+      console.error('[Ticket API Key GENERATE] Settings document or settings map is undefined');
+      return res.status(500).json({ error: 'Settings configuration error' });
+    }
+    
     // Generate new API key
     const newApiKey = generateTicketApiKey();
     console.log('[Ticket API Key GENERATE] Generated new API key with length:', newApiKey.length);
@@ -2570,6 +2580,11 @@ router.post('/minecraft-api-key/generate', checkPermission('admin.settings.modif
     // Create settings document if it doesn't exist
     if (!settingsDoc) {
       settingsDoc = await createDefaultSettings(req.serverDbConnection!, req.serverName);
+    }
+    
+    if (!settingsDoc || !settingsDoc.settings) {
+      console.error('[Minecraft API Key GENERATE] Settings document or settings map is undefined');
+      return res.status(500).json({ error: 'Settings configuration error' });
     }
     
     // Generate new API key (using same function as ticket API key)
