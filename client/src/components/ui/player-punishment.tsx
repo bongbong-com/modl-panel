@@ -665,7 +665,22 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
       <Button
         onClick={handleApplyPunishment}
-        disabled={isApplying || ((['Kick', 'Manual Mute', 'Manual Ban'].includes(data.selectedPunishmentCategory || '')) && !data.reason?.trim())}
+        disabled={isApplying || ((['Kick', 'Manual Mute', 'Manual Ban'].includes(data.selectedPunishmentCategory || '')) && !data.reason?.trim()) || (() => {
+          const punishmentType = getCurrentPunishmentType();
+          if (!punishmentType) return true;
+          
+          // For multi-severity punishments, severity is required
+          if (!punishmentType.singleSeverityPunishment && !['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(data.selectedPunishmentCategory || '')) {
+            return !data.selectedSeverity;
+          }
+          
+          // For single-severity punishments, offense level is required
+          if (punishmentType.singleSeverityPunishment) {
+            return !data.selectedOffenseLevel;
+          }
+          
+          return false;
+        })()}
         className="w-full"
       >
         {isApplying ? (

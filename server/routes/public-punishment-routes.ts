@@ -128,10 +128,10 @@ router.get('/punishment/:punishmentId/appeal-info', async (req: Request<{ punish
     
     try {
       const Settings = req.serverDbConnection.model('Settings');
-      const settings = await Settings.findOne({});
+      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
       
-      if (settings?.settings) {
-        const punishmentTypesRaw = settings.settings.get ? settings.settings.get('punishmentTypes') : settings.settings.punishmentTypes;
+      if (punishmentTypesDoc?.data) {
+        const punishmentTypesRaw = punishmentTypesDoc.data;
         
         if (punishmentTypesRaw) {
           const punishmentTypes = typeof punishmentTypesRaw === 'string' 

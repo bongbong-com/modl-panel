@@ -32,8 +32,8 @@ async function getUserPermissions(req: Request, userRole: string): Promise<strin
   // Get punishment permissions from settings
   try {
     const Settings = req.serverDbConnection.model('Settings');
-    const settingsDoc = await Settings.findOne({});
-    const punishmentTypes = settingsDoc?.settings?.get('punishmentTypes') || [];
+    const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+    const punishmentTypes = punishmentTypesDoc?.data || [];
     
     const punishmentPermissions = punishmentTypes.map((type: any) => 
       `punishment.apply.${type.name.toLowerCase().replace(/\s+/g, '-')}`
@@ -133,10 +133,10 @@ async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<n
   
   try {
     const Settings = dbConnection.model('Settings');
-    const settingsDoc = await Settings.findOne({});
+    const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
     
-    if (settingsDoc?.settings) {
-      const punishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    if (punishmentTypesDoc?.data) {
+      const punishmentTypes = punishmentTypesDoc.data;
       
       for (const punishmentType of punishmentTypes) {
         // Only process custom punishment types (ordinal 6+)
@@ -634,10 +634,10 @@ async function getPunishmentDescription(
   // For non-manual punishments, get the player description from punishment type configuration
   try {
     const Settings = dbConnection.model('Settings');
-    const settingsDoc = await Settings.findOne({});
+    const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
     
-    if (settingsDoc?.settings) {
-      const punishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+    if (punishmentTypesDoc?.data) {
+      const punishmentTypes = punishmentTypesDoc.data;
       const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
       
       if (punishmentType?.playerDescription) {

@@ -58,8 +58,8 @@ const getBasePermissions = (): Permission[] => [
 const getPunishmentPermissions = async (dbConnection: Connection): Promise<Permission[]> => {
   try {
     const Settings = dbConnection.model('Settings');
-    const settingsDoc = await Settings.findOne({});
-    const punishmentTypes = settingsDoc?.settings?.get('punishmentTypes') || [];
+    const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+    const punishmentTypes = punishmentTypesDoc?.data || [];
     
     return punishmentTypes.map((type: any) => ({
       id: `punishment.apply.${type.name.toLowerCase().replace(/\s+/g, '-')}`,
