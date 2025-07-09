@@ -33,7 +33,7 @@ import {
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
-import { useTicket, usePanelTicket, useUpdateTicket, useSettings, useStaff } from '@/hooks/use-data';
+import { useTicket, usePanelTicket, useUpdateTicket, useSettings, useStaff, useModifyPunishment } from '@/hooks/use-data';
 import { QuickResponsesConfiguration, defaultQuickResponsesConfig } from '@/types/quickResponses';
 import { useToast } from '@/hooks/use-toast';
 import PageContainer from '@/components/layout/PageContainer';
@@ -367,6 +367,9 @@ const TicketDetail = () => {
   
   // Mutation hook for updating tickets
   const updateTicketMutation = useUpdateTicket();
+
+  // Mutation hook for modifying punishments
+  const modifyPunishmentMutation = useModifyPunishment();
 
   // Fetch settings to get punishment types
   const { data: settingsData } = useSettings();
@@ -753,37 +756,29 @@ const TicketDetail = () => {
       switch(ticketDetails.selectedAction) {
         case 'Accepted':
           actionDesc = "accepted this report";
-          status = 'Closed';
           break;
         case 'Rejected':
           actionDesc = "rejected this report";
-          status = 'Closed';
           break;
         case 'Completed':
           actionDesc = "marked this bug as completed";
-          status = 'Closed';
           break;
         case 'Stale':
           actionDesc = "marked this bug as stale";
-          status = 'Closed';
           break;
         case 'Duplicate':
           actionDesc = "marked this bug as duplicate";
-          status = 'Closed';
           break;
         case 'Pardon':
           actionDesc = "pardoned this punishment";
-          status = 'Closed';
           break;
         case 'Reduce':
           actionDesc = ticketDetails.isPermanent 
             ? 'changed the punishment to permanent' 
             : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
-          status = 'Closed';
           break;
         case 'Reject':
           actionDesc = "rejected this appeal";
-          status = 'Closed';
           break;
         case 'Close':
           actionDesc = "closed this ticket";
@@ -858,17 +853,62 @@ const TicketDetail = () => {
           locked: isClosing || status === 'Closed' ? true : ticketDetails.locked
         };
         
-        // Add appeal action data if it's an appeal action
+        // Handle punishment modifications for appeal actions
         if (ticketDetails.selectedAction === 'Pardon') {
-          updateData.appealAction = 'pardon';
+          // Get punishment data from ticket
+          const punishmentId = ticketData?.data?.punishmentId;
+          const playerUuid = ticketData?.data?.playerUuid;
+          
+          if (punishmentId && playerUuid) {
+            try {
+              await modifyPunishmentMutation.mutateAsync({
+                uuid: playerUuid,
+                punishmentId: punishmentId,
+                modificationType: 'MANUAL_PARDON',
+                reason: 'Appeal approved - full pardon granted'
+              });
+              
+              toast({
+                title: 'Punishment Pardoned',
+                description: `Punishment ${punishmentId} has been pardoned successfully.`
+              });
+            } catch (error) {
+              console.error('Error pardoning punishment:', error);
+              toast({
+                title: 'Error',
+                description: 'Failed to pardon punishment. The ticket reply was sent but the punishment was not modified.',
+                variant: 'destructive'
+              });
+            }
+          }
         } else if (ticketDetails.selectedAction === 'Reduce' || ticketDetails.selectedAction?.toLowerCase().includes('reduce')) {
-          updateData.appealAction = 'reduce';
-          updateData.customValues = {
-            duration: ticketDetails.duration ? 
-              (ticketDetails.duration.value * getDurationMultiplier(ticketDetails.duration.unit)) : 
-              0,
-            isPermanent: ticketDetails.isPermanent
-          };
+          // Get punishment data from ticket
+          const punishmentId = ticketData?.data?.punishmentId;
+          const playerUuid = ticketData?.data?.playerUuid;
+          
+          if (punishmentId && playerUuid && ticketDetails.duration) {
+            try {
+              await modifyPunishmentMutation.mutateAsync({
+                uuid: playerUuid,
+                punishmentId: punishmentId,
+                modificationType: 'MANUAL_DURATION_CHANGE',
+                reason: 'Appeal partially approved - duration reduced',
+                newDuration: ticketDetails.duration
+              });
+              
+              toast({
+                title: 'Punishment Reduced',
+                description: `Punishment ${punishmentId} duration has been reduced successfully.`
+              });
+            } catch (error) {
+              console.error('Error reducing punishment:', error);
+              toast({
+                title: 'Error',
+                description: 'Failed to reduce punishment. The ticket reply was sent but the punishment was not modified.',
+                variant: 'destructive'
+              });
+            }
+          }
         }
         
         await updateTicketMutation.mutateAsync({
