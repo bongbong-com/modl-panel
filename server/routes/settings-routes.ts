@@ -810,12 +810,14 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       { upsert: true, new: true }
     ),
     
-    // API Keys document
+    // API Keys document with default unified API key
     models.Settings.findOneAndUpdate(
       { type: 'apiKeys' },
       {
         type: 'apiKeys',
-        data: {}
+        data: {
+          api_key: generateTicketApiKey()
+        }
       },
       { upsert: true, new: true }
     )
@@ -2330,7 +2332,7 @@ router.post('/api-key/generate', checkPermission('admin.settings.modify'), async
     const newApiKey = generateTicketApiKey();
     console.log('[Unified API Key GENERATE] Generated new API key with length:', newApiKey.length);
     
-    // Update or create API keys document
+    // Update or create API keys document (only store unified api_key)
     const apiKeysDoc = await Settings.findOneAndUpdate(
       { type: 'apiKeys' },
       { 
@@ -2341,6 +2343,9 @@ router.post('/api-key/generate', checkPermission('admin.settings.modify'), async
       },
       { upsert: true, new: true }
     );
+    
+    console.log(`[Unified API Key GENERATE] Created/Updated API Keys Document:`, apiKeysDoc ? 'Success' : 'Failed');
+    console.log(`[Unified API Key GENERATE] Stored API Key:`, apiKeysDoc?.data?.api_key ? 'Success' : 'Failed');
     
     console.log('[Unified API Key GENERATE] Saved new API key to apiKeys document');
     

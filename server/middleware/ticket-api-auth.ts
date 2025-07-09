@@ -37,19 +37,25 @@ export async function verifyTicketApiKey(req: Request, res: Response, next: Next
     // Check database settings for the specific tenant using separate documents schema
     const apiKeysDoc = await Settings.findOne({ type: 'apiKeys' });
     
+    console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API Keys Document:`, apiKeysDoc ? 'Found' : 'Not Found');
+    if (apiKeysDoc) {
+      console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API Keys Data:`, apiKeysDoc.data);
+    }
+    
     // Check if API keys document exists
     if (!apiKeysDoc || !apiKeysDoc.data) {
-      console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key authentication is not properly configured. No API keys document found.`);
+      console.warn(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] API key authentication is not properly configured. No API keys document found.`);
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'API key authentication is not properly configured for this server'
       });
     }
     
-    // Get unified API key from API keys document (check new unified key first, then fallback to legacy keys)
-    const configuredApiKey = apiKeysDoc.data.api_key || 
-                             apiKeysDoc.data.ticket_api_key || 
-                             apiKeysDoc.data.minecraft_api_key;
+    // Get unified API key from API keys document (only use api_key, remove legacy fallbacks)
+    const configuredApiKey = apiKeysDoc.data.api_key;
+    
+    console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] Configured API Key:`, configuredApiKey ? 'Found' : 'Not Found');
+    console.log(`[Ticket API Auth - ${req.serverName || 'Unknown Server'}] Provided API Key:`, apiKey ? 'Provided' : 'Not Provided');
     
     if (configuredApiKey === undefined) {
       console.warn(`[Unified API Auth - ${req.serverName || 'Unknown Server'}] API key not configured in settings.`);

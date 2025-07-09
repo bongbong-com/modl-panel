@@ -10,7 +10,6 @@ import {
   SettingsSchema,
   ModlServerSchema
 } from 'modl-shared-web';
-import crypto from 'crypto';
 import { seedDefaultHomepageCards } from '../db/seed-data';
 import { strictRateLimit } from '../middleware/rate-limiter';
 import { createDefaultSettings, addDefaultPunishmentTypes } from './settings-routes';
@@ -36,101 +35,26 @@ interface IModlServer extends Document {
   createdAt?: Date; // from schema
 }
 
-// Helper to hash password for staff accounts
-async function hashPassword(password: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // Create a salt and hash using scrypt
-    const salt = crypto.randomBytes(16).toString('hex');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      resolve(`${derivedKey.toString('hex')}.${salt}`);
-    });
-  });
-}
-
-// Create super admin user during provisioning
-async function createSuperAdminUser(dbConnection: Connection, adminEmail: string): Promise<void> {
-  try {
-    // Register the Staff model on this connection if not already registered
-    if (!dbConnection.models.Staff) {
-      dbConnection.model('Staff', StaffSchema);
-    }
-    
-    const Staff = dbConnection.model('Staff');
-    
-    // Check if any admin users already exist
-    const existingAdmin = await Staff.findOne({ admin: true });
-    if (existingAdmin) {
-      console.log('Super admin user already exists, skipping creation');
-      return;
-    }
-    
-    // No password needed - auth is done via email codes
-    const hashedPassword = await hashPassword('unused');
-    
-    // Create super admin user
-    const superAdmin = {
-      email: adminEmail,
-      username: 'Dr. Doofenshmirtz',
-      password: hashedPassword,
-      role: 'Super Admin', // Required field from StaffSchema
-      admin: true,
-      twoFaSecret: crypto.randomBytes(10).toString('hex'),
-      created: new Date(),
-      lastLogin: null
-    };
-    
-    await Staff.create(superAdmin);
-    
-    // Create system log
-    if (!dbConnection.models.Log) {
-      dbConnection.model('Log', LogSchema);
-    }
-    
-    const Log = dbConnection.model('Log');
-    await Log.create({
-      description: `Super admin user created for ${adminEmail}. Authentication is handled via email verification codes.`,
-      level: 'info',
-      source: 'provisioning',
-      created: new Date()
-    });
-    
-    console.log(`[PROVISIONING] Super admin user created for ${adminEmail}`);
-    console.log(`[PROVISIONING] Authentication is handled via email verification codes`);
-    
-  } catch (error) {
-    console.error('Error creating super admin user:', error);
-    throw error;
-  }
-}
-
 export async function provisionNewServerInstance(
   dbConnection: Connection,
   serverName: string,
   globalConnection: Connection, // Added globalConnection parameter
   serverConfigId: string // Added serverConfigId to update the document
 ) {
-  // Get server configuration to access admin email
-  const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
-  const serverConfig = await ModlServerModel.findById(serverConfigId);
-  
-  if (!serverConfig) {
-    throw new Error(`Server configuration not found for ID: ${serverConfigId}`);
-  }
-
-  // Create default settings with all punishment types
+  // Create default settings with core Administrative punishment types
   await createDefaultSettings(dbConnection, serverName);
+  
+  // Add default Social and Gameplay punishment types
+  await addDefaultPunishmentTypes(dbConnection);
 
   // Create default staff roles
   await createDefaultRoles(dbConnection);
 
-  // Create super admin user
-  await createSuperAdminUser(dbConnection, serverConfig.adminEmail);
-
   // Seed default homepage cards
   await seedDefaultHomepageCards(dbConnection);
     
-  // Update server status to completed
+
+  const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
   await ModlServerModel.findByIdAndUpdate(serverConfigId, {
     provisioningStatus: 'completed',
     databaseName: dbConnection.name, // Store the actual database name used
