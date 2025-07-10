@@ -131,7 +131,7 @@ const TicketSettings = ({
   const [newTicketFormFieldDescription, setNewTicketFormFieldDescription] = useState('');
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
-  const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
+  const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('');
   const [newTicketFormFieldGoToSection, setNewTicketFormFieldGoToSection] = useState('');
   const [newTicketFormFieldOptionSectionMapping, setNewTicketFormFieldOptionSectionMapping] = useState<Record<string, string>>({});
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
@@ -156,7 +156,7 @@ const TicketSettings = ({
       required: newTicketFormFieldRequired,
       options: (newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') ? newTicketFormFieldOptions : undefined,
       order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
-      sectionId: newTicketFormFieldSectionId && newTicketFormFieldSectionId !== "__none__" ? newTicketFormFieldSectionId : undefined,
+      sectionId: newTicketFormFieldSectionId || undefined,
       optionSectionMapping: Object.keys(newTicketFormFieldOptionSectionMapping).length > 0 ? 
         Object.fromEntries(Object.entries(newTicketFormFieldOptionSectionMapping).filter(([, value]) => value !== '')) : 
         undefined,
@@ -190,7 +190,7 @@ const TicketSettings = ({
     setNewTicketFormFieldDescription('');
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
-    setNewTicketFormFieldSectionId('__none__');
+    setNewTicketFormFieldSectionId('');
     setNewTicketFormFieldGoToSection('');
     setNewTicketFormFieldOptionSectionMapping({});
     setIsOptionNavigationExpanded(false);
@@ -831,7 +831,7 @@ const TicketSettings = ({
                                 setNewTicketFormFieldDescription(field.description || '');
                                 setNewTicketFormFieldRequired(field.required);
                                 setNewTicketFormFieldOptions(field.options || []);
-                                setNewTicketFormFieldSectionId(field.sectionId || '__none__');
+                                setNewTicketFormFieldSectionId(field.sectionId || '');
                                 setNewTicketFormFieldGoToSection(field.goToSection || '');
                                 setNewTicketFormFieldOptionSectionMapping(field.optionSectionMapping || {});
                                 setIsAddTicketFormFieldDialogOpen(true);
@@ -1144,7 +1144,6 @@ const TicketSettings = ({
                   <SelectValue placeholder="Select section" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">No section</SelectItem>
                   {ticketForms[selectedTicketFormType as keyof TicketFormsConfiguration]?.sections
                     ?.sort((a, b) => a.order - b.order)
                     .map(section => (
@@ -1226,11 +1225,11 @@ const TicketSettings = ({
                         </div>
                         <div className="flex-1">
                           <Select
-                            value={newTicketFormFieldOptionSectionMapping[option] || '__none__'}
+                            value={newTicketFormFieldOptionSectionMapping[option] || ''}
                             onValueChange={(value) => 
                               setNewTicketFormFieldOptionSectionMapping(prev => ({
                                 ...prev,
-                                [option]: value === '__none__' ? '' : value
+                                [option]: value
                               }))
                             }
                           >
@@ -1240,7 +1239,7 @@ const TicketSettings = ({
                             <SelectContent>
                               <SelectItem value="__none__">No navigation</SelectItem>
                               {ticketForms[selectedTicketFormType as keyof TicketFormsConfiguration]?.sections
-                                ?.filter(section => section.id !== newTicketFormFieldSectionId || newTicketFormFieldSectionId === '__none__')
+                                ?.filter(section => section.id !== newTicketFormFieldSectionId || !newTicketFormFieldSectionId)
                                 ?.sort((a, b) => a.order - b.order)
                                 .map(section => (
                                   <SelectItem key={section.id} value={section.id}>
@@ -1270,7 +1269,7 @@ const TicketSettings = ({
                 setNewTicketFormFieldDescription('');
                 setNewTicketFormFieldRequired(false);
                 setNewTicketFormFieldOptions([]);
-                setNewTicketFormFieldSectionId('__none__');
+                setNewTicketFormFieldSectionId('');
                 setNewTicketFormFieldGoToSection('');
                 setNewTicketFormFieldOptionSectionMapping({});
                 setIsOptionNavigationExpanded(false);

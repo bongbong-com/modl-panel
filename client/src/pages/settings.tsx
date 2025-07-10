@@ -3832,11 +3832,11 @@ const Settings = () => {
                             </div>
                             <div className="flex-1">
                               <Select
-                                value={newAppealFieldOptionSectionMapping[option] || '__none__'}
+                                value={newAppealFieldOptionSectionMapping[option] || ''}
                                 onValueChange={(value) => 
                                   setNewAppealFieldOptionSectionMapping(prev => ({
                                     ...prev,
-                                    [option]: value === '__none__' ? '' : value
+                                    [option]: value
                                   }))
                                 }
                               >
@@ -4279,7 +4279,7 @@ const Settings = () => {
                                 onValueChange={(value) => 
                                   setNewTicketFormFieldOptionSectionMapping(prev => ({
                                     ...prev,
-                                    [option]: value === '__none__' ? '' : value
+                                    [option]: value
                                   }))
                                 }
                               >
