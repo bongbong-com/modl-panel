@@ -2477,46 +2477,35 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">File:</span>
-                                <span className="text-blue-600">{fileName || 'Unknown file'}</span>
+                                <a 
+                                  href={fileUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline"
+                                >
+                                  {fileName || 'Unknown file'}
+                                </a>
                               </div>
                               {evidenceText && evidenceText !== fileName && (
                                 <div className="text-muted-foreground">{evidenceText}</div>
                               )}
-                              {mediaType === 'image' ? (
-                                <div className="space-y-2">
-                                  <img 
-                                    src={fileUrl} 
-                                    alt="Evidence" 
-                                    className="max-w-full max-h-48 rounded border"
-                                    style={{ maxWidth: '300px' }}
-                                  />
-                                  <a 
-                                    href={fileUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline text-xs"
-                                  >
-                                    View full size
-                                  </a>
-                                </div>
-                              ) : mediaType === 'video' ? (
-                                <div className="space-y-2">
-                                  <video 
-                                    src={fileUrl} 
-                                    controls 
-                                    className="max-w-full max-h-48 rounded border"
-                                    style={{ maxWidth: '300px' }}
-                                  />
-                                  <a 
-                                    href={fileUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline text-xs"
-                                  >
-                                    Open in new tab
-                                  </a>
-                                </div>
-                              ) : (
+                              {mediaType === 'image' && (
+                                <img 
+                                  src={fileUrl} 
+                                  alt="Evidence" 
+                                  className="max-w-full max-h-48 rounded border"
+                                  style={{ maxWidth: '300px' }}
+                                />
+                              )}
+                              {mediaType === 'video' && (
+                                <video 
+                                  src={fileUrl} 
+                                  controls 
+                                  className="max-w-full max-h-48 rounded border"
+                                  style={{ maxWidth: '300px' }}
+                                />
+                              )}
+                              {mediaType === 'link' && (
                                 <a 
                                   href={fileUrl} 
                                   target="_blank" 
@@ -2528,39 +2517,19 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                               )}
                             </div>
                           ) : mediaType === 'image' ? (
-                            <div className="space-y-2">
-                              <img 
-                                src={evidenceText} 
-                                alt="Evidence" 
-                                className="max-w-full max-h-48 rounded border"
-                                style={{ maxWidth: '300px' }}
-                              />
-                              <a 
-                                href={evidenceText} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline text-xs"
-                              >
-                                View full size
-                              </a>
-                            </div>
+                            <img 
+                              src={evidenceText} 
+                              alt="Evidence" 
+                              className="max-w-full max-h-48 rounded border"
+                              style={{ maxWidth: '300px' }}
+                            />
                           ) : mediaType === 'video' ? (
-                            <div className="space-y-2">
-                              <video 
-                                src={evidenceText} 
-                                controls 
-                                className="max-w-full max-h-48 rounded border"
-                                style={{ maxWidth: '300px' }}
-                              />
-                              <a 
-                                href={evidenceText} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline text-xs"
-                              >
-                                Open in new tab
-                              </a>
-                            </div>
+                            <video 
+                              src={evidenceText} 
+                              controls 
+                              className="max-w-full max-h-48 rounded border"
+                              style={{ maxWidth: '300px' }}
+                            />
                           ) : evidenceType === 'url' ? (
                             <a 
                               href={evidenceText} 
@@ -2592,7 +2561,7 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                 <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
                 <div className="flex items-center space-x-2">
                   <textarea
-                    className={`flex-1 rounded-md border border-border px-3 py-2 text-sm h-16 resize-none ${
+                    className={`flex-1 rounded-md border border-border px-3 py-2 text-sm h-10 resize-none ${
                       uploadedFile ? 'bg-muted text-muted-foreground' : 'bg-background'
                     }`}
                     placeholder="Enter evidence URL or description..."
