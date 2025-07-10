@@ -2422,29 +2422,140 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             {punishmentData.evidence && punishmentData.evidence.length > 0 ? (
               <div className="space-y-2">
                 {punishmentData.evidence.map((evidenceItem: any, index: number) => {
-                  // Parse evidence if it's an object with issuer/date info
-                  let evidenceText = evidenceItem;
+                  // Handle both legacy string format and new object format
+                  let evidenceText = '';
                   let issuerInfo = '';
+                  let evidenceType = 'text';
+                  let fileUrl = '';
+                  let fileName = '';
+                  let fileType = '';
                   
                   if (typeof evidenceItem === 'string') {
+                    // Legacy string format
                     evidenceText = evidenceItem;
                     issuerInfo = 'By: System on Unknown';
+                    evidenceType = evidenceItem.match(/^https?:\/\//) ? 'url' : 'text';
                   } else if (typeof evidenceItem === 'object' && evidenceItem.text) {
+                    // New object format
                     evidenceText = evidenceItem.text;
                     const issuer = evidenceItem.issuerName || 'System';
                     const date = evidenceItem.date ? formatDate(evidenceItem.date) : 'Unknown';
                     issuerInfo = `By: ${issuer} on ${date}`;
+                    evidenceType = evidenceItem.type || 'text';
+                    fileUrl = evidenceItem.fileUrl || '';
+                    fileName = evidenceItem.fileName || '';
+                    fileType = evidenceItem.fileType || '';
                   }
                   
-                  // Check if evidence looks like a URL
-                  const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
+                  // Helper function to detect media type from URL
+                  const getMediaType = (url: string) => {
+                    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+                    const videoExts = ['.mp4', '.webm', '.mov'];
+                    const urlLower = url.toLowerCase();
+                    
+                    if (imageExts.some(ext => urlLower.includes(ext))) return 'image';
+                    if (videoExts.some(ext => urlLower.includes(ext))) return 'video';
+                    return 'link';
+                  };
+                  
+                  // For file evidence, use the file URL for media detection
+                  const displayUrl = evidenceType === 'file' ? fileUrl : evidenceText;
+                  const mediaType = (evidenceType === 'url' || evidenceType === 'file') ? getMediaType(displayUrl) : 'text';
                   
                   return (
                     <div key={index} className="text-sm p-2 bg-background rounded border border-border border-l-4 border-l-blue-500">
                       <div className="flex items-start">
                         <FileText className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          {isUrl ? (
+                          {evidenceType === 'file' ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">File:</span>
+                                <span className="text-blue-600">{fileName || 'Unknown file'}</span>
+                              </div>
+                              {evidenceText && evidenceText !== fileName && (
+                                <div className="text-muted-foreground">{evidenceText}</div>
+                              )}
+                              {mediaType === 'image' ? (
+                                <div className="space-y-2">
+                                  <img 
+                                    src={fileUrl} 
+                                    alt="Evidence" 
+                                    className="max-w-full max-h-48 rounded border"
+                                    style={{ maxWidth: '300px' }}
+                                  />
+                                  <a 
+                                    href={fileUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                  >
+                                    View full size
+                                  </a>
+                                </div>
+                              ) : mediaType === 'video' ? (
+                                <div className="space-y-2">
+                                  <video 
+                                    src={fileUrl} 
+                                    controls 
+                                    className="max-w-full max-h-48 rounded border"
+                                    style={{ maxWidth: '300px' }}
+                                  />
+                                  <a 
+                                    href={fileUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                  >
+                                    Open in new tab
+                                  </a>
+                                </div>
+                              ) : (
+                                <a 
+                                  href={fileUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline break-all"
+                                >
+                                  Download File
+                                </a>
+                              )}
+                            </div>
+                          ) : mediaType === 'image' ? (
+                            <div className="space-y-2">
+                              <img 
+                                src={evidenceText} 
+                                alt="Evidence" 
+                                className="max-w-full max-h-48 rounded border"
+                                style={{ maxWidth: '300px' }}
+                              />
+                              <a 
+                                href={evidenceText} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline text-xs"
+                              >
+                                View full size
+                              </a>
+                            </div>
+                          ) : mediaType === 'video' ? (
+                            <div className="space-y-2">
+                              <video 
+                                src={evidenceText} 
+                                controls 
+                                className="max-w-full max-h-48 rounded border"
+                                style={{ maxWidth: '300px' }}
+                              />
+                              <a 
+                                href={evidenceText} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline text-xs"
+                              >
+                                Open in new tab
+                              </a>
+                            </div>
+                          ) : evidenceType === 'url' ? (
                             <a 
                               href={evidenceText} 
                               target="_blank" 
@@ -2473,12 +2584,81 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             {isAddingEvidence && (
               <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
                 <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
-                <textarea
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
-                  placeholder="Enter evidence URL or description..."
-                  value={newEvidence}
-                  onChange={(e) => setNewEvidence(e.target.value)}
-                />
+                <div className="flex items-center space-x-2">
+                  <textarea
+                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                    placeholder="Enter evidence URL or description..."
+                    value={newEvidence}
+                    onChange={(e) => setNewEvidence(e.target.value)}
+                  />
+                  
+                  {/* Upload button */}
+                  <MediaUpload
+                    uploadType="evidence"
+                    onUploadComplete={(result, file) => {
+                      // Add the file as evidence
+                      const evidenceData = {
+                        text: file?.name || 'Uploaded file',
+                        issuerName: user?.username || 'Staff',
+                        date: new Date().toISOString(),
+                        type: 'file',
+                        fileUrl: result.url,
+                        fileName: file?.name || 'Unknown file',
+                        fileType: file?.type || 'application/octet-stream',
+                        fileSize: file?.size || 0
+                      };
+                      
+                      // Submit the evidence directly
+                      fetch(`/api/panel/players/${punishmentData.playerUuid}/punishments/${punishmentId}/evidence`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(evidenceData)
+                      })
+                      .then(response => {
+                        if (!response.ok) {
+                          throw new Error('Failed to add evidence');
+                        }
+                        return response.json();
+                      })
+                      .then(() => {
+                        toast({
+                          title: 'Evidence Added',
+                          description: 'File evidence has been added to the punishment successfully'
+                        });
+                        
+                        // Refresh punishment data
+                        fetch(`/api/panel/players/punishment/${punishmentId}`)
+                          .then(refreshResponse => {
+                            if (refreshResponse.ok) {
+                              return refreshResponse.json();
+                            }
+                          })
+                          .then(refreshedData => {
+                            if (refreshedData) {
+                              setPunishmentData(refreshedData);
+                            }
+                          });
+                      })
+                      .catch(error => {
+                        console.error('Error adding evidence to punishment:', error);
+                        toast({
+                          title: "Failed to add evidence",
+                          description: error instanceof Error ? error.message : "An unknown error occurred",
+                          variant: "destructive"
+                        });
+                      });
+                    }}
+                    metadata={{
+                      playerId: punishmentData.playerUuid,
+                      category: 'punishment'
+                    }}
+                    variant="button-only"
+                    maxFiles={1}
+                  />
+                </div>
+                
                 <div className="flex justify-end gap-2 mt-2">
                   <Button
                     variant="outline"

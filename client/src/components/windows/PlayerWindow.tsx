@@ -14,6 +14,7 @@ import { ClickablePlayer } from '@/components/ui/clickable-player';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from '@/hooks/use-toast';
 import PlayerPunishment, { PlayerPunishmentData } from '@/components/ui/player-punishment';
+import MediaUpload from '@/components/MediaUpload';
 
 // Local type definitions
 interface WindowPosition {
@@ -1724,22 +1725,30 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           {warning.evidence && warning.evidence.length > 0 ? (
                             <ul className="text-xs space-y-2">
                               {warning.evidence.map((evidenceItem, idx) => {
-                                // Parse evidence if it's an object with issuer/date info
-                                let evidenceText = evidenceItem;
+                                // Handle both legacy string format and new object format
+                                let evidenceText = '';
                                 let issuerInfo = '';
+                                let evidenceType = 'text';
+                                let fileUrl = '';
+                                let fileName = '';
+                                let fileType = '';
                                 
                                 if (typeof evidenceItem === 'string') {
+                                  // Legacy string format
                                   evidenceText = evidenceItem;
                                   issuerInfo = 'By: System on Unknown';
+                                  evidenceType = evidenceItem.match(/^https?:\/\//) ? 'url' : 'text';
                                 } else if (typeof evidenceItem === 'object' && evidenceItem.text) {
+                                  // New object format
                                   evidenceText = evidenceItem.text;
                                   const issuer = evidenceItem.issuerName || 'System';
                                   const date = evidenceItem.date ? formatDateWithTime(evidenceItem.date) : 'Unknown';
                                   issuerInfo = `By: ${issuer} on ${date}`;
+                                  evidenceType = evidenceItem.type || 'text';
+                                  fileUrl = evidenceItem.fileUrl || '';
+                                  fileName = evidenceItem.fileName || '';
+                                  fileType = evidenceItem.fileType || '';
                                 }
-                                
-                                // Check if evidence looks like a URL
-                                const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
                                 
                                 // Helper function to detect media type from URL
                                 const getMediaType = (url: string) => {
@@ -1752,14 +1761,70 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   return 'link';
                                 };
                                 
-                                const mediaType = isUrl ? getMediaType(evidenceText) : 'text';
+                                // For file evidence, use the file URL for media detection
+                                const displayUrl = evidenceType === 'file' ? fileUrl : evidenceText;
+                                const mediaType = (evidenceType === 'url' || evidenceType === 'file') ? getMediaType(displayUrl) : 'text';
                                 
                                 return (
                                   <li key={idx} className="bg-muted/20 p-2 rounded text-xs border-l-2 border-blue-500">
                                     <div className="flex items-start">
                                       <FileText className="h-3 w-3 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
                                       <div className="flex-1 min-w-0">
-                                        {mediaType === 'image' ? (
+                                        {evidenceType === 'file' ? (
+                                          <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-medium">File:</span>
+                                              <span className="text-blue-600">{fileName || 'Unknown file'}</span>
+                                            </div>
+                                            {evidenceText && evidenceText !== fileName && (
+                                              <div className="text-muted-foreground">{evidenceText}</div>
+                                            )}
+                                            {mediaType === 'image' ? (
+                                              <div className="space-y-2">
+                                                <img 
+                                                  src={fileUrl} 
+                                                  alt="Evidence" 
+                                                  className="max-w-full max-h-48 rounded border"
+                                                  style={{ maxWidth: '300px' }}
+                                                />
+                                                <a 
+                                                  href={fileUrl} 
+                                                  target="_blank" 
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                                >
+                                                  View full size
+                                                </a>
+                                              </div>
+                                            ) : mediaType === 'video' ? (
+                                              <div className="space-y-2">
+                                                <video 
+                                                  src={fileUrl} 
+                                                  controls 
+                                                  className="max-w-full max-h-48 rounded border"
+                                                  style={{ maxWidth: '300px' }}
+                                                />
+                                                <a 
+                                                  href={fileUrl} 
+                                                  target="_blank" 
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                                >
+                                                  Open in new tab
+                                                </a>
+                                              </div>
+                                            ) : (
+                                              <a 
+                                                href={fileUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 underline break-all"
+                                              >
+                                                Download File
+                                              </a>
+                                            )}
+                                          </div>
+                                        ) : mediaType === 'image' ? (
                                           <div className="space-y-2">
                                             <img 
                                               src={evidenceText} 
@@ -1793,7 +1858,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                               Open in new tab
                                             </a>
                                           </div>
-                                        ) : isUrl ? (
+                                        ) : evidenceType === 'url' ? (
                                           <a 
                                             href={evidenceText} 
                                             target="_blank" 
@@ -2054,12 +2119,71 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         {warning.id && playerInfo.isAddingPunishmentEvidence && playerInfo.punishmentEvidenceTarget === (warning.id || `warning-${index}`) && (
                           <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
                             <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
-                            <textarea
-                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
-                              placeholder="Enter evidence URL or description..."
-                              value={playerInfo.newPunishmentEvidence || ''}
-                              onChange={(e) => setPlayerInfo(prev => ({...prev, newPunishmentEvidence: e.target.value}))}
-                            />
+                            <div className="flex items-center space-x-2">
+                              <textarea
+                                className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                                placeholder="Enter evidence URL or description..."
+                                value={playerInfo.newPunishmentEvidence || ''}
+                                onChange={(e) => setPlayerInfo(prev => ({...prev, newPunishmentEvidence: e.target.value}))}
+                              />
+                              
+                              {/* Upload button */}
+                              <MediaUpload
+                                uploadType="evidence"
+                                onUploadComplete={(result, file) => {
+                                  // Add the file as evidence
+                                  const evidenceData = {
+                                    text: file?.name || 'Uploaded file',
+                                    issuerName: user?.username || 'Admin',
+                                    date: new Date().toISOString(),
+                                    type: 'file',
+                                    fileUrl: result.url,
+                                    fileName: file?.name || 'Unknown file',
+                                    fileType: file?.type || 'application/octet-stream',
+                                    fileSize: file?.size || 0
+                                  };
+                                  
+                                  // Submit the evidence directly
+                                  fetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify(evidenceData)
+                                  })
+                                  .then(response => {
+                                    if (!response.ok) {
+                                      throw new Error('Failed to add evidence');
+                                    }
+                                    return response.json();
+                                  })
+                                  .then(() => {
+                                    toast({
+                                      title: 'Evidence Added',
+                                      description: `File evidence has been added to the punishment successfully`
+                                    });
+                                    
+                                    // Refetch player data to update the UI
+                                    refetch();
+                                  })
+                                  .catch(error => {
+                                    console.error('Error adding evidence to punishment:', error);
+                                    toast({
+                                      title: "Failed to add evidence",
+                                      description: error instanceof Error ? error.message : "An unknown error occurred",
+                                      variant: "destructive"
+                                    });
+                                  });
+                                }}
+                                metadata={{
+                                  playerId: playerId,
+                                  category: 'punishment'
+                                }}
+                                variant="button-only"
+                                maxFiles={1}
+                              />
+                            </div>
+                            
                             <div className="flex justify-end gap-2 mt-2">
                               <Button
                                 variant="outline"

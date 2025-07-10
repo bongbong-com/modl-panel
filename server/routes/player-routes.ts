@@ -1365,7 +1365,7 @@ router.post('/:uuid/punishments/:punishmentId/evidence', async (req: Request<{ u
   const Player = req.serverDbConnection!.model<IPlayer>('Player');
   try {
     const { uuid, punishmentId } = req.params;
-    const { text, issuerName, date } = req.body;
+    const { text, issuerName, date, type, fileUrl, fileName, fileType, fileSize } = req.body;
     
     if (!text?.trim()) {
       return res.status(400).json({ error: 'Evidence text is required' });
@@ -1383,12 +1383,32 @@ router.post('/:uuid/punishments/:punishmentId/evidence', async (req: Request<{ u
       return res.status(404).json({ error: 'Punishment not found' });
     }
     
+    // Determine evidence type
+    let evidenceType = type || 'text';
+    if (!type) {
+      // Auto-detect type based on content
+      if (text.trim().match(/^https?:\/\//)) {
+        evidenceType = 'url';
+      } else if (fileUrl) {
+        evidenceType = 'file';
+      }
+    }
+    
     // Add the evidence
-    const evidenceItem = {
+    const evidenceItem: any = {
       text: text.trim(),
       issuerName: issuerName || 'System',
-      date: date || new Date()
+      date: date || new Date(),
+      type: evidenceType
     };
+    
+    // Add file-related fields if this is a file upload
+    if (evidenceType === 'file' && fileUrl) {
+      evidenceItem.fileUrl = fileUrl;
+      evidenceItem.fileName = fileName || 'Unknown file';
+      evidenceItem.fileType = fileType || 'application/octet-stream';
+      evidenceItem.fileSize = fileSize || 0;
+    }
     
     if (!punishment.evidence) {
       punishment.evidence = [];
