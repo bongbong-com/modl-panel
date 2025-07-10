@@ -1799,66 +1799,59 @@ const TicketDetail = () => {
                           }}
                         />
                         
-                        {/* Reply Attachments */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs text-muted-foreground">Attachments</label>
-                            <MediaUpload
-                              uploadType="ticket"
-                              onUploadComplete={(result, file) => {
-                                if (file) {
-                                  const newAttachment = {
-                                    id: Date.now().toString(),
-                                    url: result.url,
-                                    key: result.key,
-                                    fileName: file.name,
-                                    fileType: file.type,
-                                    fileSize: file.size,
-                                    uploadedAt: new Date().toISOString(),
-                                    uploadedBy: user?.username || 'Staff'
-                                  };
-                                  setReplyAttachments(prev => [...prev, newAttachment]);
-                                }
-                              }}
-                              metadata={{
-                                ticketId: ticketDetails.id,
-                                fieldId: 'reply'
-                              }}
-                              variant="button-only"
-                              maxFiles={5}
-                            />
-                          </div>
-                          
-                          {/* Attachment Badges */}
-                          {replyAttachments.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {replyAttachments.map((attachment) => (
-                                <Badge 
-                                  key={attachment.id} 
-                                  variant="secondary" 
-                                  className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
-                                  onClick={() => window.open(attachment.url, '_blank')}
+                        {/* Attachment Badges */}
+                        {replyAttachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {replyAttachments.map((attachment) => (
+                              <Badge 
+                                key={attachment.id} 
+                                variant="secondary" 
+                                className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
+                                onClick={() => window.open(attachment.url, '_blank')}
+                              >
+                                {getFileIcon(attachment.fileType)}
+                                <span className="text-xs">{truncateFileName(attachment.fileName)}</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReplyAttachments(prev => prev.filter(a => a.id !== attachment.id));
+                                  }}
+                                  className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
+                                  title={`Remove ${attachment.fileName}`}
                                 >
-                                  {getFileIcon(attachment.fileType)}
-                                  <span className="text-xs">{truncateFileName(attachment.fileName)}</span>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setReplyAttachments(prev => prev.filter(a => a.id !== attachment.id));
-                                    }}
-                                    className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
-                                    title={`Remove ${attachment.fileName}`}
-                                  >
-                                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                  </button>
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                         
                         {/* Reply Actions */}
-                        <div className="flex items-center justify-end gap-4">
+                        <div className="flex items-center justify-between">
+                          <MediaUpload
+                            uploadType="ticket"
+                            onUploadComplete={(result, file) => {
+                              if (file) {
+                                const newAttachment = {
+                                  id: Date.now().toString(),
+                                  url: result.url,
+                                  key: result.key,
+                                  fileName: file.name,
+                                  fileType: file.type,
+                                  fileSize: file.size,
+                                  uploadedAt: new Date().toISOString(),
+                                  uploadedBy: user?.username || 'Staff'
+                                };
+                                setReplyAttachments(prev => [...prev, newAttachment]);
+                              }
+                            }}
+                            metadata={{
+                              ticketId: ticketDetails.id,
+                              fieldId: 'reply'
+                            }}
+                            variant="button-only"
+                            maxFiles={5}
+                          />
                           <Button 
                             size="sm" 
                             onClick={handleSendReply}
