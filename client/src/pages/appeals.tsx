@@ -143,6 +143,42 @@ const AppealsPage = () => {
   // API mutations
   const createAppealMutation = useCreateAppeal();
 
+  // Reset form when appeal form settings change
+  useEffect(() => {
+    if (appealFormSettings) {
+      const newDefaultValues = {
+        banId: appealForm.getValues('banId') || "",
+        email: appealForm.getValues('email') || "",
+        // Add default values for dynamic fields
+        ...Object.fromEntries(
+          (appealFormSettings?.fields || []).map(field => {
+            let defaultValue;
+            switch (field.type) {
+              case 'checkbox':
+                defaultValue = false;
+                break;
+              case 'checkboxes':
+                defaultValue = [];
+                break;
+              case 'multiple_choice':
+              case 'dropdown':
+              case 'text':
+              case 'textarea':
+              case 'file_upload':
+              default:
+                defaultValue = '';
+                break;
+            }
+            return [field.id, defaultValue];
+          })
+        ),
+      };
+      
+      // Reset form with new default values but preserve banId and email
+      appealForm.reset(newDefaultValues);
+    }
+  }, [appealFormSettings]);
+
   // Create dynamic form schema based on appeal form settings
   const createDynamicSchema = () => {
     if (!appealFormSettings?.fields) {
@@ -209,10 +245,26 @@ const AppealsPage = () => {
       email: "",
       // Add default values for dynamic fields
       ...Object.fromEntries(
-        (appealFormSettings?.fields || []).map(field => [
-          field.id, 
-          field.type === 'checkbox' ? false : ''
-        ])
+        (appealFormSettings?.fields || []).map(field => {
+          let defaultValue;
+          switch (field.type) {
+            case 'checkbox':
+              defaultValue = false;
+              break;
+            case 'checkboxes':
+              defaultValue = [];
+              break;
+            case 'multiple_choice':
+            case 'dropdown':
+            case 'text':
+            case 'textarea':
+            case 'file_upload':
+            default:
+              defaultValue = '';
+              break;
+          }
+          return [field.id, defaultValue];
+        })
       ),
     },
   });
@@ -279,7 +331,16 @@ const AppealsPage = () => {
               label: 'Appeal Reason',
               description: 'Please explain why you believe this punishment should be removed or reduced.',
               required: true,
-              order: 1
+              order: 1,
+              sectionId: 'default_section'
+            }
+          ],
+          sections: [
+            {
+              id: 'default_section',
+              title: 'Appeal Information',
+              description: 'Please provide information about your appeal',
+              order: 0
             }
           ]
         });
@@ -678,7 +739,7 @@ const AppealsPage = () => {
                         formField.onChange(result.url);
                       }}
                       metadata={{
-                        appealId: banId,
+                        appealId: appealForm.getValues('banId') || 'unknown',
                         fieldId: field.id
                       }}
                       variant="compact"
@@ -1050,11 +1111,23 @@ const AppealsPage = () => {
                       />
                       
                       {/* Dynamic Fields with Sections */}
-                      {appealFormSettings?.sections && appealFormSettings.sections.length > 0 ? (
-                        // Render sections and their fields
-                        appealFormSettings.sections
-                          .sort((a, b) => a.order - b.order)
-                          .map(section => (
+                      {appealFormSettings?.sections
+                        ?.sort((a, b) => a.order - b.order)
+                        .map(section => {
+                          // Check section visibility
+                          let isVisible = true;
+                          
+                          // Hide if hideByDefault is true (for now, always show during appeal submission)
+                          // In the future, this could be enhanced with conditional logic
+                          if (section.hideByDefault) {
+                            // For now, always show sections during form submission
+                            // Later this can be enhanced with field-based conditional logic
+                            isVisible = true;
+                          }
+                          
+                          if (!isVisible) return null;
+                          
+                          return (
                             <div key={section.id} className="space-y-4">
                               <div className="border-l-4 border-primary/50 pl-4">
                                 <h3 className="text-lg font-semibold">{section.title}</h3>
@@ -1069,14 +1142,15 @@ const AppealsPage = () => {
                                   .map(field => renderFormField(field))}
                               </div>
                             </div>
-                          ))
-                      ) : (
-                        // Render fields without sections (legacy support and fields not in sections)
-                        appealFormSettings?.fields
-                          ?.filter(field => !field.sectionId)
-                          ?.sort((a, b) => a.order - b.order)
-                          .map(field => renderFormField(field))
-                      )}
+                          );
+                        })
+                        .filter(Boolean)}
+                      
+                      {/* Fields not in any section (should be minimal with new system) */}
+                      {appealFormSettings?.fields
+                        ?.filter(field => !field.sectionId)
+                        ?.sort((a, b) => a.order - b.order)
+                        .map(field => renderFormField(field))}
                       
                       {/* Fallback reason field if no dynamic fields */}
                       {(!appealFormSettings?.fields || appealFormSettings.fields.length === 0) && (
