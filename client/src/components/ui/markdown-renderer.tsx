@@ -22,6 +22,50 @@ const processMarkdownContent = (content: string): string => {
 const MarkdownRenderer = ({ content, className, allowHtml = false }: MarkdownRendererProps) => {
   const processedContent = processMarkdownContent(content);
   
+  // Check if content contains structured form data (bullet points, bold labels)
+  const hasStructuredContent = /\*\*[^*]+\*\*:\s*\n(•[^\n]*\n?)+/.test(content);
+  
+  if (hasStructuredContent) {
+    // For structured content (like appeal form data), use pre-wrap to preserve formatting
+    return (
+      <div className={cn(
+        "text-sm whitespace-pre-wrap break-words",
+        className
+      )}>
+        {/* Parse and render the structured content manually */}
+        {content.split('\n').map((line, index) => {
+          // Handle bold labels
+          if (line.match(/^\*\*[^*]+\*\*:/)) {
+            const label = line.replace(/^\*\*([^*]+)\*\*:/, '$1');
+            return (
+              <div key={index} className="font-semibold mt-2 first:mt-0">
+                {label}:
+              </div>
+            );
+          }
+          // Handle bullet points
+          if (line.startsWith('• ')) {
+            return (
+              <div key={index} className="ml-4">
+                {line}
+              </div>
+            );
+          }
+          // Handle regular lines
+          if (line.trim()) {
+            return (
+              <div key={index}>
+                {line}
+              </div>
+            );
+          }
+          // Empty lines
+          return <div key={index} className="h-2" />;
+        })}
+      </div>
+    );
+  }
+  
   return (
     <div className={cn(
       "prose prose-sm max-w-none",
