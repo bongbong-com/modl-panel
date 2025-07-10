@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send, Paperclip } from 'lucide-react';
+import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send, Paperclip, File, Image, Video, FileText, Eye, X } from 'lucide-react';
 import { Label } from "modl-shared-web/components/ui/label";
 import { Button } from "modl-shared-web/components/ui/button";
 import { Input } from "modl-shared-web/components/ui/input";
@@ -137,12 +137,30 @@ const AppealsPage = () => {
   const [isLoadingPunishment, setIsLoadingPunishment] = useState(false);
   const [newReply, setNewReply] = useState("");
   const [attachments, setAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
+  const [replyAttachments, setReplyAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
 
   // Appeal form configuration will come from the punishment-specific data
   const [appealFormSettings, setAppealFormSettings] = useState<AppealFormSettings | undefined>(undefined);
 
   // API mutations
   const createAppealMutation = useCreateAppeal();
+
+  // Helper function to get file icon
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <Image className="h-3 w-3" />;
+    if (type.startsWith('video/')) return <Video className="h-3 w-3" />;
+    if (type === 'application/pdf') return <FileText className="h-3 w-3" />;
+    return <File className="h-3 w-3" />;
+  };
+
+  // Helper function to truncate filename
+  const truncateFileName = (fileName: string, maxLength: number = 15) => {
+    if (fileName.length <= maxLength) return fileName;
+    const extension = fileName.split('.').pop();
+    const name = fileName.substring(0, fileName.lastIndexOf('.'));
+    const truncatedName = name.substring(0, maxLength - extension!.length - 4) + '...';
+    return `${truncatedName}.${extension}`;
+  };
 
   // Reset form when appeal form settings change
   useEffect(() => {
@@ -527,6 +545,7 @@ const AppealsPage = () => {
           content: newReply,
           type: 'user',
           staff: false,
+          attachments: replyAttachments.map(a => a.url), // Include attachment URLs
         }),
       });
 
@@ -537,6 +556,7 @@ const AppealsPage = () => {
       // Refresh appeal details
       await fetchAppealDetails(appealInfo.id);
       setNewReply("");
+      setReplyAttachments([]); // Clear reply attachments
 
       toast({
         title: "Reply Sent",
@@ -1054,18 +1074,66 @@ const AppealsPage = () => {
                               />
                             </div>
                             
-                            {/* Reply Actions */}
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex-1">
-                                <TicketAttachments
-                                  ticketId={appealInfo.id}
-                                  ticketType="appeal"
-                                  showTitle={false}
-                                  compact={true}
-                                  publicMode={true}
+                            {/* Reply Attachments */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs text-muted-foreground">Attachments (Optional)</Label>
+                                <MediaUpload
+                                  uploadType="appeal"
+                                  onUploadComplete={(result, file) => {
+                                    if (file) {
+                                      const newAttachment = {
+                                        id: Date.now().toString(),
+                                        url: result.url,
+                                        key: result.key,
+                                        fileName: file.name,
+                                        fileType: file.type,
+                                        fileSize: file.size,
+                                        uploadedAt: new Date().toISOString(),
+                                        uploadedBy: 'You'
+                                      };
+                                      setReplyAttachments(prev => [...prev, newAttachment]);
+                                    }
+                                  }}
+                                  metadata={{
+                                    appealId: appealInfo?.id || 'unknown',
+                                    fieldId: 'reply'
+                                  }}
+                                  variant="button-only"
+                                  maxFiles={5}
                                 />
                               </div>
                               
+                              {/* Attachment Badges */}
+                              {replyAttachments.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {replyAttachments.map((attachment) => (
+                                    <Badge 
+                                      key={attachment.id} 
+                                      variant="secondary" 
+                                      className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
+                                      onClick={() => window.open(attachment.url, '_blank')}
+                                    >
+                                      {getFileIcon(attachment.fileType)}
+                                      <span className="text-xs">{truncateFileName(attachment.fileName)}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setReplyAttachments(prev => prev.filter(a => a.id !== attachment.id));
+                                        }}
+                                        className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
+                                        title={`Remove ${attachment.fileName}`}
+                                      >
+                                        <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                      </button>
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Reply Actions */}
+                            <div className="flex items-center justify-end gap-4">
                               <Button
                                 onClick={handleSendReply}
                                 disabled={!newReply.trim()}
@@ -1164,20 +1232,18 @@ const AppealsPage = () => {
                             if (!isVisible) return null;
                             
                             return (
-                              <div key={section.id} className="space-y-4">
-                                <div className="border-l-4 border-primary/50 pl-4">
-                                  <h3 className="text-lg font-semibold">{section.title}</h3>
+                              <div key={section.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                                <div className="border-b pb-2">
+                                  <h3 className="font-medium text-lg">{section.title}</h3>
                                   {section.description && (
-                                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                                    <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
                                   )}
                                 </div>
-                                <div className="space-y-4 pl-4">
-                                  {appealFormSettings?.fields && Array.isArray(appealFormSettings.fields) && appealFormSettings.fields.length > 0 &&
-                                    appealFormSettings.fields
-                                      .filter(field => field.sectionId === section.id)
-                                      .sort((a, b) => a.order - b.order)
-                                      .map(field => renderFormField(field))}
-                                </div>
+                                {appealFormSettings?.fields && Array.isArray(appealFormSettings.fields) && appealFormSettings.fields.length > 0 &&
+                                  appealFormSettings.fields
+                                    .filter(field => field.sectionId === section.id)
+                                    .sort((a, b) => a.order - b.order)
+                                    .map(field => renderFormField(field))}
                               </div>
                             );
                           })
@@ -1214,28 +1280,28 @@ const AppealsPage = () => {
                         />
                       )}
                       
-                      {/* File Attachments */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium flex items-center gap-2">
-                          <Paperclip className="h-4 w-4" />
-                          Attachments (Optional)
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          You can attach screenshots, videos, or documents to support your appeal
-                        </p>
-                        <TicketAttachments
-                          ticketId={banInfo?.id || 'unknown'}
-                          ticketType="appeal"
-                          existingAttachments={attachments}
-                          onAttachmentsUpdate={setAttachments}
-                          showTitle={false}
-                          compact={false}
-                          publicMode={true}
-                        />
-                      </div>
-                      
                     </form>
                   </Form>
+                      
+                  {/* File Attachments (outside form to prevent auto-submit) */}
+                  <div className="space-y-2 mt-4">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Paperclip className="h-4 w-4" />
+                      Attachments (Optional)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      You can attach screenshots, videos, or documents to support your appeal
+                    </p>
+                    <TicketAttachments
+                      ticketId={banInfo?.id || 'unknown'}
+                      ticketType="appeal"
+                      existingAttachments={attachments}
+                      onAttachmentsUpdate={setAttachments}
+                      showTitle={false}
+                      compact={false}
+                      publicMode={true}
+                    />
+                  </div>
                     </CardContent>
                     <CardFooter>
                       <Button 
