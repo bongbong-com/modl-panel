@@ -866,7 +866,7 @@ const TicketDetail = () => {
         content: newMessage.content,
         timestamp: timestamp,
         staff: newMessage.staff,
-        attachments: replyAttachments.map(a => a.url),
+        attachments: replyAttachments,
         closedAs: ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && ticketDetails.selectedAction !== 'Reopen' ? ticketDetails.selectedAction : undefined
       };
       
@@ -1802,7 +1802,7 @@ const TicketDetail = () => {
                         {/* Reply Attachments */}
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <label className="text-xs text-muted-foreground">Attachments (Optional)</label>
+                            <label className="text-xs text-muted-foreground">Attachments</label>
                             <MediaUpload
                               uploadType="ticket"
                               onUploadComplete={(result, file) => {

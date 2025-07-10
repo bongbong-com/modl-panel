@@ -21,6 +21,7 @@ interface IReply {
   created: Date;
   staff: boolean;
   action?: string; // Action taken with this reply (e.g., 'Close', 'Pardon', 'Reduce')
+  attachments?: any[]; // File attachments for this reply
 }
 
 interface ITicket extends MongooseDocument {
@@ -285,6 +286,7 @@ interface AddReplyBody {
   type: string;
   staff?: boolean;
   avatar?: string;
+  attachments?: any[];
 }
 
 router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
@@ -302,6 +304,7 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
       type: req.body.type,
       created: new Date(),
       staff: req.body.staff || false,
+      attachments: req.body.attachments || []
     };
 
     ticket.replies.push(newReply);
@@ -413,6 +416,7 @@ interface UpdateTicketBody {
     created: Date;
     staff: boolean;
     action?: string;
+    attachments?: any[];
   };
   newNote?: {
     content: string;
@@ -455,7 +459,8 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
         type: updates.newReply.type,
         created: new Date(updates.newReply.created),
         staff: updates.newReply.staff,
-        action: updates.newReply.action
+        action: updates.newReply.action,
+        attachments: updates.newReply.attachments || []
       };
       ticket.replies.push(newReply);
 

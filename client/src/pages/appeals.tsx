@@ -1132,7 +1132,7 @@ const AppealsPage = () => {
                             {/* Reply Attachments */}
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <Label className="text-xs text-muted-foreground">Attachments (Optional)</Label>
+                                <Label className="text-xs text-muted-foreground">Attachments</Label>
                                 <MediaUpload
                                   uploadType="appeal"
                                   onUploadComplete={(result, file) => {
