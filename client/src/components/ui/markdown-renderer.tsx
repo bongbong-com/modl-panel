@@ -55,17 +55,75 @@ const MarkdownRenderer = ({ content, className, allowHtml = false }: MarkdownRen
             
             return <strong {...props}>{children}</strong>;
           },
-          // Custom link renderer to ensure external links open in new tab
-          a: ({ href, children, ...props }) => (
-            <a 
-              href={href} 
-              target={href?.startsWith('http') ? '_blank' : undefined}
-              rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
-              {...props}
-            >
-              {children}
-            </a>
-          ),
+          // Custom link renderer to handle media URLs and external links
+          a: ({ href, children, ...props }) => {
+            // Check if this is a media URL that should be embedded
+            const isMediaUrl = href && (
+              href.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i) ||
+              href.match(/\.(mp4|webm|mov)(\?.*)?$/i)
+            );
+            
+            if (isMediaUrl) {
+              const isImage = href.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i);
+              const isVideo = href.match(/\.(mp4|webm|mov)(\?.*)?$/i);
+              
+              if (isImage) {
+                return (
+                  <div className="my-4">
+                    <img 
+                      src={href} 
+                      alt={children?.toString() || "Media"}
+                      className="max-w-full h-auto rounded border"
+                      style={{ maxWidth: '500px' }}
+                    />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <a 
+                        href={href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        View full size
+                      </a>
+                    </div>
+                  </div>
+                );
+              } else if (isVideo) {
+                return (
+                  <div className="my-4">
+                    <video 
+                      src={href} 
+                      controls 
+                      className="max-w-full h-auto rounded border"
+                      style={{ maxWidth: '500px' }}
+                    />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <a 
+                        href={href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Open in new tab
+                      </a>
+                    </div>
+                  </div>
+                );
+              }
+            }
+            
+            // Default link behavior for non-media URLs
+            return (
+              <a 
+                href={href} 
+                target={href?.startsWith('http') ? '_blank' : undefined}
+                rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
+                {...props}
+              >
+                {children}
+              </a>
+            );
+          },
           // Custom code block renderer
           code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || '');

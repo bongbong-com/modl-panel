@@ -1741,12 +1741,59 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 // Check if evidence looks like a URL
                                 const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
                                 
+                                // Helper function to detect media type from URL
+                                const getMediaType = (url: string) => {
+                                  const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+                                  const videoExts = ['.mp4', '.webm', '.mov'];
+                                  const urlLower = url.toLowerCase();
+                                  
+                                  if (imageExts.some(ext => urlLower.includes(ext))) return 'image';
+                                  if (videoExts.some(ext => urlLower.includes(ext))) return 'video';
+                                  return 'link';
+                                };
+                                
+                                const mediaType = isUrl ? getMediaType(evidenceText) : 'text';
+                                
                                 return (
                                   <li key={idx} className="bg-muted/20 p-2 rounded text-xs border-l-2 border-blue-500">
                                     <div className="flex items-start">
                                       <FileText className="h-3 w-3 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
                                       <div className="flex-1 min-w-0">
-                                        {isUrl ? (
+                                        {mediaType === 'image' ? (
+                                          <div className="space-y-2">
+                                            <img 
+                                              src={evidenceText} 
+                                              alt="Evidence" 
+                                              className="max-w-full max-h-48 rounded border"
+                                              style={{ maxWidth: '300px' }}
+                                            />
+                                            <a 
+                                              href={evidenceText} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                            >
+                                              View full size
+                                            </a>
+                                          </div>
+                                        ) : mediaType === 'video' ? (
+                                          <div className="space-y-2">
+                                            <video 
+                                              src={evidenceText} 
+                                              controls 
+                                              className="max-w-full max-h-48 rounded border"
+                                              style={{ maxWidth: '300px' }}
+                                            />
+                                            <a 
+                                              href={evidenceText} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="text-blue-600 hover:text-blue-800 underline text-xs"
+                                            >
+                                              Open in new tab
+                                            </a>
+                                          </div>
+                                        ) : isUrl ? (
                                           <a 
                                             href={evidenceText} 
                                             target="_blank" 

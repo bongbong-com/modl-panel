@@ -600,28 +600,8 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       <div key="evidence" className="space-y-4">
         <label className="text-sm font-medium">Evidence</label>
         
-        {/* File Upload Section */}
-        <div className="border rounded-lg p-4 bg-muted/50">
-          <h4 className="text-sm font-medium mb-2">Upload Evidence Files</h4>
-          <MediaUpload
-            uploadType="evidence"
-            onUploadComplete={(result) => {
-              // Add the uploaded file URL to evidence array
-              const newEvidence = [...(data.evidence || []), result.url];
-              updateData({ evidence: newEvidence });
-            }}
-            metadata={{
-              playerId: playerId,
-              category: 'punishment'
-            }}
-            variant="compact"
-            maxFiles={5}
-          />
-        </div>
-
-        {/* Text Evidence Section */}
+        {/* Evidence Items */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">Text Evidence & URLs</h4>
           {(data.evidence || []).map((evidence, index) => (
             <div key={index} className="flex items-center space-x-2">
               <input
@@ -647,13 +627,34 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
               </Button>
             </div>
           ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => updateData({ evidence: [...(data.evidence || []), ''] })}
-          >
-            Add Text Evidence
-          </Button>
+          
+          {/* Action Buttons Row */}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => updateData({ evidence: [...(data.evidence || []), ''] })}
+            >
+              Add Text Evidence
+            </Button>
+            
+            <div className="flex-1">
+              <MediaUpload
+                uploadType="evidence"
+                onUploadComplete={(result) => {
+                  // Add the uploaded file URL to evidence array
+                  const newEvidence = [...(data.evidence || []), result.url];
+                  updateData({ evidence: newEvidence });
+                }}
+                metadata={{
+                  playerId: playerId,
+                  category: 'punishment'
+                }}
+                variant="button-only"
+                maxFiles={5}
+              />
+            </div>
+          </div>
         </div>
       </div>
     );

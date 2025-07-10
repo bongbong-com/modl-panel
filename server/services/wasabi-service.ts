@@ -132,8 +132,8 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
 
     await s3Client.send(uploadCommand);
 
-    // Generate public URL
-    const url = `${WASABI_ENDPOINT}/${BUCKET_NAME}/${key}`;
+    // Generate public URL using bucket name as domain (CDN)
+    const url = `https://${BUCKET_NAME}/${key}`;
 
     return {
       success: true,
