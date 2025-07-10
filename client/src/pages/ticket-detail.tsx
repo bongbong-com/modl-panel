@@ -888,14 +888,27 @@ const TicketDetail = () => {
           const punishmentId = ticketData?.data?.punishmentId;
           const playerUuid = ticketData?.data?.playerUuid;
           
-          if (punishmentId && playerUuid && ticketDetails.duration) {
+          if (punishmentId && playerUuid) {
             try {
+              // Determine the new duration
+              let newDuration;
+              
+              if (ticketDetails.isPermanent) {
+                // Permanent punishment - send 0 value
+                newDuration = { value: 0, unit: 'seconds' };
+              } else if (ticketDetails.duration?.value && ticketDetails.duration?.unit) {
+                // Use the provided duration - the hook will convert to milliseconds
+                newDuration = ticketDetails.duration;
+              } else {
+                throw new Error('Invalid duration specified for reduction');
+              }
+              
               await modifyPunishmentMutation.mutateAsync({
                 uuid: playerUuid,
                 punishmentId: punishmentId,
                 modificationType: 'APPEAL_DURATION_CHANGE',
                 reason: 'Appeal partially approved - duration reduced',
-                newDuration: ticketDetails.duration,
+                newDuration: newDuration,
                 appealTicketId: ticketDetails.id
               });
               
