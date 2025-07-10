@@ -28,7 +28,8 @@ import {
   Lock as LockIcon,
   Unlock as UnlockIcon,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Ticket
 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
