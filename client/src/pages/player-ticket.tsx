@@ -607,8 +607,14 @@ const PlayerTicket = () => {
             if (targetSection) {
               visibleSections.add(targetSection);
             }
-          } else if (field.type === 'multiple_choice' || field.type === 'checkboxes') {
-            // For multi-choice, check if any selected values map to sections
+          } else if (field.type === 'multiple_choice') {
+            // For multiple choice (now single selection), check if selected value maps to a section
+            const targetSection = field.optionSectionMapping[fieldValue];
+            if (targetSection) {
+              visibleSections.add(targetSection);
+            }
+          } else if (field.type === 'checkboxes') {
+            // For checkboxes, check if any selected values map to sections
             const selectedValues = fieldValue.split(',').map(v => v.trim()).filter(v => v);
             selectedValues.forEach(value => {
               const targetSection = field.optionSectionMapping![value];
@@ -692,24 +698,22 @@ const PlayerTicket = () => {
           <div className="space-y-2">
             {field.options?.map((option) => (
               <div key={option} className="flex items-center space-x-2">
-                <Checkbox 
+                <input
+                  type="radio"
                   id={`${field.id}-${option}`}
-                  checked={formData[field.id]?.includes(option) || false}
-                  onCheckedChange={(checked: boolean) => {
-                    const currentValues = formData[field.id] ? formData[field.id].split(',') : [];
-                    if (checked) {
-                      const newValues = [...currentValues, option].filter(v => v.trim() !== '');
-                      handleFormFieldChange(field.id, newValues.join(','));
-                    } else {
-                      const newValues = currentValues.filter(v => v !== option);
-                      handleFormFieldChange(field.id, newValues.join(','));
+                  name={field.id}
+                  value={option}
+                  checked={formData[field.id] === option}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleFormFieldChange(field.id, option);
                     }
                   }}
-                  className="mt-1"
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
                 />
                 <label 
                   htmlFor={`${field.id}-${option}`}
-                  className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  className="text-sm font-normal leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                 >
                   {option}
                 </label>

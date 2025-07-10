@@ -41,20 +41,31 @@ import { QuickResponsesConfiguration, defaultQuickResponsesConfig } from '@/type
 // Type definitions for appeal form fields
 interface AppealFormField {
   id: string;
-  type: 'checkbox' | 'text' | 'textarea' | 'dropdown';
+  type: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes';
   label: string;
   description?: string;
   required: boolean;
-  options?: string[]; // For dropdown fields
+  options?: string[];
   order: number;
-  // Divergent form paths
-  showIfFieldId?: string; // Field ID to watch for conditions
-  showIfValue?: string | boolean; // Value that triggers showing this field
-  hideIfValue?: string | boolean; // Value that triggers hiding this field
+  sectionId?: string;
+  goToSection?: string;
+  optionSectionMapping?: Record<string, string>; // Maps option values to section IDs
+}
+
+interface AppealFormSection {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  showIfFieldId?: string;
+  showIfValue?: string;
+  showIfValues?: string[];
+  hideByDefault?: boolean;
 }
 
 interface AppealFormSettings {
   fields: AppealFormField[];
+  sections: AppealFormSection[];
 }
 
 // Type definitions for configurable ticket forms with sections
@@ -530,12 +541,19 @@ const Settings = () => {
 
   // Appeal form state variables
   const [selectedAppealField, setSelectedAppealField] = useState<AppealFormField | null>(null);
+  const [selectedAppealSection, setSelectedAppealSection] = useState<AppealFormSection | null>(null);
   const [isAddAppealFieldDialogOpen, setIsAddAppealFieldDialogOpen] = useState(false);
+  const [isAddAppealSectionDialogOpen, setIsAddAppealSectionDialogOpen] = useState(false);
   const [newAppealFieldLabel, setNewAppealFieldLabel] = useState('');
-  const [newAppealFieldType, setNewAppealFieldType] = useState<'checkbox' | 'text' | 'textarea' | 'dropdown'>('text');
+  const [newAppealFieldType, setNewAppealFieldType] = useState<'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes'>('text');
   const [newAppealFieldDescription, setNewAppealFieldDescription] = useState('');
   const [newAppealFieldRequired, setNewAppealFieldRequired] = useState(false);
   const [newAppealFieldOptions, setNewAppealFieldOptions] = useState<string[]>([]);
+  const [newAppealFieldSectionId, setNewAppealFieldSectionId] = useState('__none__');
+  const [newAppealFieldOptionSectionMapping, setNewAppealFieldOptionSectionMapping] = useState<Record<string, string>>({});
+  const [newAppealSectionTitle, setNewAppealSectionTitle] = useState('');
+  const [newAppealSectionDescription, setNewAppealSectionDescription] = useState('');
+  const [newAppealSectionHideByDefault, setNewAppealSectionHideByDefault] = useState(false);
   const [newOption, setNewOption] = useState('');
 
   // Collapsible section states (all collapsed by default)
@@ -1708,17 +1726,33 @@ const Settings = () => {
 
     const currentFields = selectedPunishment.appealForm?.fields || [];
     const newField: AppealFormField = {
-      id: `field_${Date.now()}`,
+      id: selectedAppealField?.id || `field_${Date.now()}`,
       type: newAppealFieldType,
       label: newAppealFieldLabel.trim(),
       description: newAppealFieldDescription.trim() || undefined,
       required: newAppealFieldRequired,
-      options: newAppealFieldType === 'dropdown' ? newAppealFieldOptions : undefined,
-      order: currentFields.length
+      options: (newAppealFieldType === 'dropdown' || newAppealFieldType === 'multiple_choice') ? newAppealFieldOptions : undefined,
+      order: currentFields.length,
+      sectionId: newAppealFieldSectionId && newAppealFieldSectionId !== "__none__" ? newAppealFieldSectionId : undefined,
+      optionSectionMapping: Object.keys(newAppealFieldOptionSectionMapping).length > 0 ? 
+        Object.fromEntries(Object.entries(newAppealFieldOptionSectionMapping).filter(([, value]) => value !== '')) : 
+        undefined,
     };
 
+    let updatedFields;
+    if (selectedAppealField) {
+      // Update existing field
+      updatedFields = currentFields.map(field => 
+        field.id === selectedAppealField.id ? newField : field
+      );
+    } else {
+      // Add new field
+      updatedFields = [...currentFields, newField];
+    }
+
     const updatedAppealForm: AppealFormSettings = {
-      fields: [...currentFields, newField]
+      fields: updatedFields,
+      sections: selectedPunishment.appealForm?.sections || []
     };
 
     setSelectedPunishment(prev => prev ? {
@@ -1732,6 +1766,9 @@ const Settings = () => {
     setNewAppealFieldDescription('');
     setNewAppealFieldRequired(false);
     setNewAppealFieldOptions([]);
+    setNewAppealFieldSectionId('__none__');
+    setNewAppealFieldOptionSectionMapping({});
+    setSelectedAppealField(null);
     setIsAddAppealFieldDialogOpen(false);
   };
 
@@ -1745,7 +1782,69 @@ const Settings = () => {
     setSelectedPunishment(prev => prev ? {
       ...prev,
       appealForm: {
+        ...prev.appealForm,
         fields: updatedFields
+      }
+    } : null);
+  };
+
+  const addAppealFormSection = () => {
+    if (!selectedPunishment || !newAppealSectionTitle.trim()) return;
+
+    const currentSections = selectedPunishment.appealForm?.sections || [];
+    const newSection: AppealFormSection = {
+      id: selectedAppealSection?.id || `section_${Date.now()}`,
+      title: newAppealSectionTitle.trim(),
+      description: newAppealSectionDescription.trim() || undefined,
+      order: currentSections.length,
+      hideByDefault: newAppealSectionHideByDefault,
+    };
+
+    let updatedSections;
+    if (selectedAppealSection) {
+      // Update existing section
+      updatedSections = currentSections.map(section => 
+        section.id === selectedAppealSection.id ? newSection : section
+      );
+    } else {
+      // Add new section
+      updatedSections = [...currentSections, newSection];
+    }
+
+    const updatedAppealForm: AppealFormSettings = {
+      fields: selectedPunishment.appealForm?.fields || [],
+      sections: updatedSections
+    };
+
+    setSelectedPunishment(prev => prev ? {
+      ...prev,
+      appealForm: updatedAppealForm
+    } : null);
+
+    // Reset form
+    setNewAppealSectionTitle('');
+    setNewAppealSectionDescription('');
+    setNewAppealSectionHideByDefault(false);
+    setSelectedAppealSection(null);
+    setIsAddAppealSectionDialogOpen(false);
+  };
+
+  const removeAppealFormSection = (sectionId: string) => {
+    if (!selectedPunishment?.appealForm) return;
+
+    const updatedSections = (selectedPunishment.appealForm.sections || [])
+      .filter(s => s.id !== sectionId)
+      .map((section, index) => ({ ...section, order: index }));
+    
+    // Also remove fields that belong to this section
+    const updatedFields = (selectedPunishment.appealForm.fields || [])
+      .filter(f => f.sectionId !== sectionId);
+
+    setSelectedPunishment(prev => prev ? {
+      ...prev,
+      appealForm: {
+        fields: updatedFields,
+        sections: updatedSections
       }
     } : null);
   };
@@ -3057,22 +3156,158 @@ const Settings = () => {
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-base font-medium">Appeal Form Fields</h4>
+                        <h4 className="text-base font-medium">Appeal Form Configuration</h4>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Configure custom fields for players to fill out when appealing this punishment type.
+                          Configure custom sections and fields for players to fill out when appealing this punishment type.
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => setIsAddAppealFieldDialogOpen(true)}
-                        disabled={selectedPunishment.isAppealable === false}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Field
-                      </Button>
-                    </div>                    {/* Appeal Form Fields List */}
-                    <div className={`space-y-2 ${selectedPunishment.isAppealable === false ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsAddAppealSectionDialogOpen(true)}
+                          disabled={selectedPunishment.isAppealable === false}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Section
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setIsAddAppealFieldDialogOpen(true)}
+                          disabled={selectedPunishment.isAppealable === false}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Field
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Appeal Form Sections and Fields */}
+                    <div className={`space-y-4 ${selectedPunishment.isAppealable === false ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {selectedPunishment.appealForm?.sections
+                        ?.sort((a, b) => a.order - b.order)
+                        .map((section) => (
+                          <div key={section.id} className="border rounded-lg p-4 bg-card space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h6 className="font-medium">{section.title}</h6>
+                                    {section.hideByDefault && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        Hidden by default
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {section.description && (
+                                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedAppealSection(section);
+                                    setNewAppealSectionTitle(section.title);
+                                    setNewAppealSectionDescription(section.description || '');
+                                    setNewAppealSectionHideByDefault(section.hideByDefault || false);
+                                    setIsAddAppealSectionDialogOpen(true);
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => removeAppealFormSection(section.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Fields in this section */}
+                            <div className="space-y-2">
+                              {selectedPunishment.appealForm?.fields
+                                ?.filter(field => field.sectionId === section.id)
+                                ?.sort((a, b) => a.order - b.order)
+                                .map((field) => (
+                                  <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {field.type}
+                                        </Badge>
+                                        <span className="font-medium">{field.label}</span>
+                                        {field.required && (
+                                          <Badge variant="destructive" className="text-xs">Required</Badge>
+                                        )}
+                                      </div>
+                                      {field.description && (
+                                        <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
+                                      )}
+                                      {field.options && field.options.length > 0 && (
+                                        <div className="flex gap-1 mt-2">
+                                          {field.options.map((option, idx) => (
+                                            <Badge key={idx} variant="outline" className="text-xs">
+                                              {option}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedAppealField(field);
+                                          setNewAppealFieldLabel(field.label);
+                                          setNewAppealFieldType(field.type);
+                                          setNewAppealFieldDescription(field.description || '');
+                                          setNewAppealFieldRequired(field.required);
+                                          setNewAppealFieldOptions(field.options || []);
+                                          setNewAppealFieldSectionId(field.sectionId || '__none__');
+                                          setNewAppealFieldOptionSectionMapping(field.optionSectionMapping || {});
+                                          setIsAddAppealFieldDialogOpen(true);
+                                        }}
+                                        className="text-xs px-2 h-7"
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeAppealFormField(field.id)}
+                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setNewAppealFieldSectionId(section.id);
+                                  setIsAddAppealFieldDialogOpen(true);
+                                }}
+                                className="w-full"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Field to Section
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+
+                      {/* Fields not in any section */}
                       {selectedPunishment.appealForm?.fields
+                        ?.filter(field => !field.sectionId)
                         ?.sort((a, b) => a.order - b.order)
                         .map((field) => (
                           <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
@@ -3085,18 +3320,10 @@ const Settings = () => {
                                 {field.required && (
                                   <Badge variant="secondary" className="text-xs">Required</Badge>
                                 )}
+                                <Badge variant="outline" className="text-xs">No section</Badge>
                               </div>
                               {field.description && (
                                 <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
-                              )}
-                              {field.options && field.options.length > 0 && (
-                                <div className="flex gap-1 mt-2">
-                                  {field.options.map((option, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs">
-                                      {option}
-                                    </Badge>
-                                  ))}
-                                </div>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
@@ -3110,6 +3337,8 @@ const Settings = () => {
                                   setNewAppealFieldDescription(field.description || '');
                                   setNewAppealFieldRequired(field.required);
                                   setNewAppealFieldOptions(field.options || []);
+                                  setNewAppealFieldSectionId('__none__');
+                                  setNewAppealFieldOptionSectionMapping(field.optionSectionMapping || {});
                                   setIsAddAppealFieldDialogOpen(true);
                                 }}
                                 className="text-xs px-2 h-7"
@@ -3128,13 +3357,14 @@ const Settings = () => {
                           </div>
                         ))}
 
-                      {(!selectedPunishment.appealForm?.fields || selectedPunishment.appealForm.fields.length === 0) && (
+                      {(!selectedPunishment.appealForm?.fields || selectedPunishment.appealForm.fields.length === 0) && 
+                       (!selectedPunishment.appealForm?.sections || selectedPunishment.appealForm.sections.length === 0) && (
                         <div className="text-center py-8 text-muted-foreground">
                           <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                           <p className="text-sm">
                             {selectedPunishment.isAppealable === false 
                               ? 'Appeals are disabled for this punishment type'
-                              : 'No custom appeal fields configured'
+                              : 'No custom appeal form configured'
                             }
                           </p>
                           <p className="text-xs mt-1">
@@ -3181,7 +3411,7 @@ const Settings = () => {
         {/* Add/Edit Appeal Form Field Dialog */}
         {isAddAppealFieldDialogOpen && (
           <Dialog open={isAddAppealFieldDialogOpen} onOpenChange={setIsAddAppealFieldDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {selectedAppealField ? 'Edit Appeal Form Field' : 'Add Appeal Form Field'}
@@ -3208,16 +3438,19 @@ const Settings = () => {
                   <Label htmlFor="field-type">Field Type</Label>
                   <Select
                     value={newAppealFieldType}
-                    onValueChange={(value) => setNewAppealFieldType(value as 'checkbox' | 'text' | 'textarea' | 'dropdown')}
+                    onValueChange={(value: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes') => setNewAppealFieldType(value)}
                   >
                     <SelectTrigger id="field-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="text">Text Input</SelectItem>
-                      <SelectItem value="textarea">Text Area</SelectItem>
-                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                      <SelectItem value="textarea">Textarea</SelectItem>
                       <SelectItem value="dropdown">Dropdown</SelectItem>
+                      <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                      <SelectItem value="checkboxes">Checkboxes</SelectItem>
+                      <SelectItem value="file_upload">File Upload</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -3233,41 +3466,55 @@ const Settings = () => {
                   />
                 </div>
 
-                {/* Required Checkbox */}
+                {/* Required Toggle */}
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
+                  <Switch
                     id="field-required"
                     checked={newAppealFieldRequired}
-                    onChange={(e) => setNewAppealFieldRequired(e.target.checked)}
-                    className="rounded"
+                    onCheckedChange={setNewAppealFieldRequired}
                   />
-                  <Label htmlFor="field-required" className="text-sm">
-                    Required field
-                  </Label>
+                  <Label htmlFor="field-required">Required Field</Label>
                 </div>
 
-                {/* Dropdown Options */}
-                {newAppealFieldType === 'dropdown' && (
+                {/* Section Assignment */}
+                <div className="space-y-2">
+                  <Label htmlFor="field-section">Section</Label>
+                  <Select
+                    value={newAppealFieldSectionId}
+                    onValueChange={setNewAppealFieldSectionId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No section</SelectItem>
+                      {selectedPunishment?.appealForm?.sections
+                        ?.sort((a, b) => a.order - b.order)
+                        .map(section => (
+                          <SelectItem key={section.id} value={section.id}>
+                            {section.title}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Dropdown/Multiple Choice Options */}
+                {(newAppealFieldType === 'dropdown' || newAppealFieldType === 'multiple_choice') && (
                   <div className="space-y-2">
-                    <Label>Dropdown Options</Label>
+                    <Label>{newAppealFieldType === 'dropdown' ? 'Dropdown' : 'Multiple Choice'} Options</Label>
                     <div className="space-y-2">
                       {newAppealFieldOptions.map((option, index) => (
                         <div key={index} className="flex items-center gap-2">
-                          <Input
-                            value={option}
-                            onChange={(e) => {
-                              const updatedOptions = [...newAppealFieldOptions];
-                              updatedOptions[index] = e.target.value;
-                              setNewAppealFieldOptions(updatedOptions);
-                            }}
-                            className="flex-1"
-                          />
+                          <Input value={option} readOnly className="flex-1" />
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeAppealFieldOption(index)}
-                            className="h-8 w-8"
+                            onClick={() => {
+                              const updatedOptions = newAppealFieldOptions.filter((_, i) => i !== index);
+                              setNewAppealFieldOptions(updatedOptions);
+                            }}
+                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -3275,26 +3522,76 @@ const Settings = () => {
                       ))}
                       <div className="flex gap-2">
                         <Input
-                          placeholder="New option"
+                          placeholder="Add option"
                           value={newOption}
                           onChange={(e) => setNewOption(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              addNewAppealFieldOption();
+                              if (newOption.trim()) {
+                                setNewAppealFieldOptions(prev => [...prev, newOption.trim()]);
+                                setNewOption('');
+                              }
                             }
                           }}
-                          className="flex-1"
                         />
                         <Button
-                          size="sm"
-                          onClick={addNewAppealFieldOption}
+                          type="button"
+                          onClick={() => {
+                            if (newOption.trim()) {
+                              setNewAppealFieldOptions(prev => [...prev, newOption.trim()]);
+                              setNewOption('');
+                            }
+                          }}
                           disabled={!newOption.trim()}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Per-Option Section Navigation for Dropdown/Multiple Choice Fields */}
+                {(newAppealFieldType === 'dropdown' || newAppealFieldType === 'multiple_choice') && newAppealFieldOptions.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Option Navigation (Optional)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Configure which section to show when each option is selected.
+                    </p>
+                    {newAppealFieldOptions.map((option, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium">{option}</Label>
+                        </div>
+                        <div className="flex-1">
+                          <Select
+                            value={newAppealFieldOptionSectionMapping[option] || '__none__'}
+                            onValueChange={(value) => 
+                              setNewAppealFieldOptionSectionMapping(prev => ({
+                                ...prev,
+                                [option]: value === '__none__' ? '' : value
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="No navigation" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">No navigation</SelectItem>
+                              {selectedPunishment?.appealForm?.sections
+                                ?.filter(section => section.id !== newAppealFieldSectionId || newAppealFieldSectionId === '__none__')
+                                ?.sort((a, b) => a.order - b.order)
+                                .map(section => (
+                                  <SelectItem key={section.id} value={section.id}>
+                                    {section.title}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -3310,30 +3607,89 @@ const Settings = () => {
                     setNewAppealFieldDescription('');
                     setNewAppealFieldRequired(false);
                     setNewAppealFieldOptions([]);
+                    setNewAppealFieldSectionId('__none__');
+                    setNewAppealFieldOptionSectionMapping({});
                   }}
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    if (selectedAppealField) {
-                      // Update existing field
-                      updateAppealFormField(selectedAppealField.id, {
-                        label: newAppealFieldLabel.trim(),
-                        type: newAppealFieldType,
-                        description: newAppealFieldDescription.trim() || undefined,
-                        required: newAppealFieldRequired,
-                        options: newAppealFieldType === 'dropdown' ? newAppealFieldOptions : undefined
-                      });
-                      setSelectedAppealField(null);
-                    } else {
-                      // Add new field
-                      addAppealFormField();
-                    }
-                  }}
-                  disabled={!newAppealFieldLabel.trim() || (newAppealFieldType === 'dropdown' && newAppealFieldOptions.length === 0)}
+                  onClick={addAppealFormField}
+                  disabled={!newAppealFieldLabel.trim()}
                 >
                   {selectedAppealField ? 'Update Field' : 'Add Field'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Add/Edit Appeal Form Section Dialog */}
+        {isAddAppealSectionDialogOpen && (
+          <Dialog open={isAddAppealSectionDialogOpen} onOpenChange={setIsAddAppealSectionDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{selectedAppealSection ? 'Edit Section' : 'Add Section'}</DialogTitle>
+                <DialogDescription>
+                  {selectedAppealSection ? 'Update the section details below.' : 'Create a new section for organizing appeal form fields.'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Section Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="section-title">Section Title</Label>
+                  <Input
+                    id="section-title"
+                    placeholder="Enter section title"
+                    value={newAppealSectionTitle}
+                    onChange={(e) => setNewAppealSectionTitle(e.target.value)}
+                  />
+                </div>
+
+                {/* Section Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="section-description">Description (Optional)</Label>
+                  <Input
+                    id="section-description"
+                    placeholder="Enter section description"
+                    value={newAppealSectionDescription}
+                    onChange={(e) => setNewAppealSectionDescription(e.target.value)}
+                  />
+                </div>
+
+                {/* Hide by Default Option */}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="hide-by-default"
+                    checked={newAppealSectionHideByDefault}
+                    onCheckedChange={setNewAppealSectionHideByDefault}
+                  />
+                  <Label htmlFor="hide-by-default">Hide by default</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Section will be hidden unless revealed by option navigation
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddAppealSectionDialogOpen(false);
+                    setSelectedAppealSection(null);
+                    setNewAppealSectionTitle('');
+                    setNewAppealSectionDescription('');
+                    setNewAppealSectionHideByDefault(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={addAppealFormSection}
+                  disabled={!newAppealSectionTitle.trim()}
+                >
+                  {selectedAppealSection ? 'Update Section' : 'Add Section'}
                 </Button>
               </DialogFooter>
             </DialogContent>

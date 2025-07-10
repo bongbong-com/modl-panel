@@ -141,20 +141,31 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
         console.warn('Could not fetch ticket forms configuration');
       }
       
-      // Create a map of field IDs to labels
+      // Create a map of field IDs to labels and field objects
       const fieldLabels: Record<string, string> = {};
+      const fieldMap: Record<string, any> = {};
+      let orderedFields: any[] = [];
+      
       if (ticketForms && ticketForms[type] && ticketForms[type].fields) {
         ticketForms[type].fields.forEach((field: any) => {
           fieldLabels[field.id] = field.label;
+          fieldMap[field.id] = field;
         });
+        // Sort fields by order
+        orderedFields = ticketForms[type].fields.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       }
       
-      Object.entries(formData).forEach(([key, value]) => {
+      // Process fields in order
+      orderedFields.forEach((field) => {
+        const key = field.id;
+        const value = formData[key];
+        if (value === undefined || value === null || value === '') return;
+        
         // Skip chatlog for chat reports as it's already handled above
         if (type === 'chat' && key === 'chatlog') return;
         
-        // Get the field label or fallback to the key
-        const fieldLabel = fieldLabels[key] || key;
+        // Get the field label
+        const fieldLabel = field.label || key;
         
         // Special formatting for Chat Messages field
         if (fieldLabel === 'Chat Messages' && typeof value === 'string') {
@@ -181,8 +192,20 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
             // Fallback to original format if parsing fails
             contentString += `${value}\n\n`;
           }
+        } else if (field.type === 'multiple_choice' && field.options) {
+          // For multiple choice, show the option label instead of the value
+          const selectedOption = field.options.find((opt: string) => opt === value);
+          contentString += `**${fieldLabel}:** ${selectedOption || value}\n\n`;
         } else {
           contentString += `**${fieldLabel}:** ${value}\n\n`;
+        }
+      });
+      
+      // Add any formData fields that weren't in the form configuration
+      Object.entries(formData).forEach(([key, value]) => {
+        if (!fieldMap[key] && value !== undefined && value !== null && value !== '') {
+          if (type === 'chat' && key === 'chatlog') return;
+          contentString += `**${key}:** ${value}\n\n`;
         }
       });
     }

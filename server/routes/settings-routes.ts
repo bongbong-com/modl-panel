@@ -60,16 +60,31 @@ interface IPunishmentType {
 
 interface IAppealFormField {
   id: string;
-  type: 'checkbox' | 'text' | 'textarea' | 'dropdown';
+  type: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes';
   label: string;
   description?: string;
   required: boolean;
-  options?: string[]; // For dropdown fields
+  options?: string[];
   order: number;
+  sectionId?: string;
+  goToSection?: string;
+  optionSectionMapping?: Record<string, string>; // Maps option values to section IDs
+}
+
+interface IAppealFormSection {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  showIfFieldId?: string;
+  showIfValue?: string;
+  showIfValues?: string[];
+  hideByDefault?: boolean;
 }
 
 interface IAppealFormSettings {
   fields: IAppealFormField[];
+  sections: IAppealFormSection[];
 }
 
 interface IStatusThresholds {
@@ -211,7 +226,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -235,7 +259,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -259,8 +292,17 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'I have secured my account',
             description: 'Please confirm that you have changed your password and secured the email associated with your account',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'security_section'
           },
+        ],
+        sections: [
+          {
+            id: 'security_section',
+            title: 'Account Security',
+            description: 'Please confirm you have secured your account before submitting this appeal',
+            order: 0
+          }
         ]
       }
     },
@@ -283,7 +325,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Appeal Reason',
             description: 'Please explain why you believe this linking was incorrect',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Provide information about why you believe this linking was incorrect',
+            order: 0
           }
         ]
       }
@@ -300,7 +351,8 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       canBeStatWiping: true,
       isAppealable: false,
       appealForm: {
-        fields: []
+        fields: [],
+        sections: []
       }
     }
   ];
@@ -332,7 +384,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -362,7 +423,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -392,7 +462,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -422,7 +501,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -522,7 +610,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -552,7 +649,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -582,7 +688,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -612,7 +727,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -642,7 +766,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }
@@ -672,7 +805,16 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
             label: 'Why should this punishment be amended?',
             description: 'Please provide context and any relevant information to support your appeal',
             required: true,
-            order: 1
+            order: 1,
+            sectionId: 'appeal_reason_section'
+          }
+        ],
+        sections: [
+          {
+            id: 'appeal_reason_section',
+            title: 'Appeal Information',
+            description: 'Explain why you believe this punishment should be amended',
+            order: 0
           }
         ]
       }

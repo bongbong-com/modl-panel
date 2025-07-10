@@ -7,8 +7,11 @@ import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send } from 'lucide-re
 import { Label } from "modl-shared-web/components/ui/label";
 import { Button } from "modl-shared-web/components/ui/button";
 import { Input } from "modl-shared-web/components/ui/input";
+import { Textarea } from "modl-shared-web/components/ui/textarea";
 import { Checkbox } from "modl-shared-web/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "modl-shared-web/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "modl-shared-web/components/ui/select";
+import MediaUpload from '@/components/MediaUpload';
 import {
   Form,
   FormControl,
@@ -41,16 +44,31 @@ import TicketAttachments from '@/components/TicketAttachments';
 // Appeal form field interfaces
 interface AppealFormField {
   id: string;
-  type: 'checkbox' | 'text' | 'textarea' | 'dropdown';
+  type: 'text' | 'textarea' | 'dropdown' | 'multiple_choice' | 'checkbox' | 'file_upload' | 'checkboxes';
   label: string;
   description?: string;
   required: boolean;
-  options?: string[]; // For dropdown fields
+  options?: string[];
   order: number;
+  sectionId?: string;
+  goToSection?: string;
+  optionSectionMapping?: Record<string, string>;
+}
+
+interface AppealFormSection {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  showIfFieldId?: string;
+  showIfValue?: string;
+  showIfValues?: string[];
+  hideByDefault?: boolean;
 }
 
 interface AppealFormSettings {
   fields: AppealFormField[];
+  sections: AppealFormSection[];
 }
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -159,6 +177,17 @@ const AppealsPage = () => {
             : z.boolean().optional();
           break;
         case 'dropdown':
+        case 'multiple_choice':
+          schemaFields[field.id] = field.required 
+            ? z.string().min(1, { message: `${field.label} is required` })
+            : z.string().optional();
+          break;
+        case 'checkboxes':
+          schemaFields[field.id] = field.required 
+            ? z.array(z.string()).min(1, { message: `At least one ${field.label} must be selected` })
+            : z.array(z.string()).optional();
+          break;
+        case 'file_upload':
           schemaFields[field.id] = field.required 
             ? z.string().min(1, { message: `${field.label} is required` })
             : z.string().optional();
@@ -544,6 +573,133 @@ const AppealsPage = () => {
           />
         );
 
+      case 'multiple_choice':
+        return (
+          <FormField
+            key={field.id}
+            control={appealForm.control}
+            name={field.id as any}
+            render={({ field: formField }) => (
+              <FormItem className="space-y-3">
+                <FormLabel>{field.label}</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={formField.onChange}
+                    defaultValue={formField.value}
+                    className="flex flex-col space-y-1"
+                  >
+                    {field.options?.map((option) => (
+                      <FormItem key={option} className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value={option} />
+                        </FormControl>
+                        <FormLabel className="font-normal">
+                          {option}
+                        </FormLabel>
+                      </FormItem>
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                {field.description && (
+                  <FormDescription>{field.description}</FormDescription>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+
+      case 'checkboxes':
+        return (
+          <FormField
+            key={field.id}
+            control={appealForm.control}
+            name={field.id as any}
+            render={() => (
+              <FormItem>
+                <div className="mb-4">
+                  <FormLabel className="text-base">{field.label}</FormLabel>
+                  {field.description && (
+                    <FormDescription>{field.description}</FormDescription>
+                  )}
+                </div>
+                {field.options?.map((option) => (
+                  <FormField
+                    key={option}
+                    control={appealForm.control}
+                    name={field.id as any}
+                    render={({ field: formField }) => {
+                      return (
+                        <FormItem
+                          key={option}
+                          className="flex flex-row items-start space-x-3 space-y-0"
+                        >
+                          <FormControl>
+                            <Checkbox
+                              checked={formField.value?.includes(option)}
+                              onCheckedChange={(checked) => {
+                                const current = formField.value || [];
+                                return checked
+                                  ? formField.onChange([...current, option])
+                                  : formField.onChange(
+                                      current?.filter((value: string) => value !== option)
+                                    );
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            {option}
+                          </FormLabel>
+                        </FormItem>
+                      )
+                    }}
+                  />
+                ))}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+
+      case 'file_upload':
+        return (
+          <FormField
+            key={field.id}
+            control={appealForm.control}
+            name={field.id as any}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>{field.label}</FormLabel>
+                <FormControl>
+                  <div className="space-y-2">
+                    <MediaUpload
+                      uploadType="appeal"
+                      onUploadComplete={(result) => {
+                        formField.onChange(result.url);
+                      }}
+                      metadata={{
+                        appealId: banId,
+                        fieldId: field.id
+                      }}
+                      variant="compact"
+                      maxFiles={1}
+                    />
+                    {formField.value && (
+                      <div className="text-sm text-muted-foreground">
+                        File uploaded: {formField.value.split('/').pop()}
+                      </div>
+                    )}
+                  </div>
+                </FormControl>
+                {field.description && (
+                  <FormDescription>{field.description}</FormDescription>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+
       default:
         return null;
     }
@@ -893,10 +1049,34 @@ const AppealsPage = () => {
                         )}
                       />
                       
-                      {/* Dynamic Fields */}
-                      {appealFormSettings?.fields
-                        ?.sort((a, b) => a.order - b.order)
-                        .map(field => renderFormField(field))}
+                      {/* Dynamic Fields with Sections */}
+                      {appealFormSettings?.sections && appealFormSettings.sections.length > 0 ? (
+                        // Render sections and their fields
+                        appealFormSettings.sections
+                          .sort((a, b) => a.order - b.order)
+                          .map(section => (
+                            <div key={section.id} className="space-y-4">
+                              <div className="border-l-4 border-primary/50 pl-4">
+                                <h3 className="text-lg font-semibold">{section.title}</h3>
+                                {section.description && (
+                                  <p className="text-sm text-muted-foreground">{section.description}</p>
+                                )}
+                              </div>
+                              <div className="space-y-4 pl-4">
+                                {appealFormSettings?.fields
+                                  ?.filter(field => field.sectionId === section.id)
+                                  ?.sort((a, b) => a.order - b.order)
+                                  .map(field => renderFormField(field))}
+                              </div>
+                            </div>
+                          ))
+                      ) : (
+                        // Render fields without sections (legacy support and fields not in sections)
+                        appealFormSettings?.fields
+                          ?.filter(field => !field.sectionId)
+                          ?.sort((a, b) => a.order - b.order)
+                          .map(field => renderFormField(field))
+                      )}
                       
                       {/* Fallback reason field if no dynamic fields */}
                       {(!appealFormSettings?.fields || appealFormSettings.fields.length === 0) && (
