@@ -2011,6 +2011,16 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
     return punishmentType === 'Manual Ban' || punishmentType === 'Manual Mute';
   };
 
+  const isValidBadgeValue = (value: any): boolean => {
+    if (!value || value === null || value === undefined) return false;
+    if (typeof value === 'number' && value === 0) return false;
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return false;
+    if (trimmed === '0' || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'false') return false;
+    return true;
+  };
+
   if (isLoading) {
     return (
       <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
@@ -2120,47 +2130,74 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             )}
           </div>
 
-          {/* Badges for severity and offense level */}
+          {/* Badges matching PlayerWindow exactly */}
           <div className="mt-2 flex flex-wrap gap-2">
-            {punishmentData.severity && (
-              <Badge 
-                variant="outline" 
-                className={`text-xs ${
-                  punishmentData.severity.toLowerCase() === 'lenient' || punishmentData.severity.toLowerCase() === 'low' ? 
-                    'bg-green-500/10 dark:bg-green-400/10 text-green-700 dark:text-green-400 border-green-300 dark:border-green-600' :
-                  punishmentData.severity.toLowerCase() === 'regular' || punishmentData.severity.toLowerCase() === 'medium' ?
-                    'bg-orange-500/10 dark:bg-orange-400/10 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-600' :
-                    'bg-red-500/10 dark:bg-red-400/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600'
-                }`}
-              >
+            {/* Active/Inactive/Unstarted status badge */}
+            {(() => {
+              if (!punishmentData.started) {
+                return (
+                  <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700">
+                    Unstarted
+                  </Badge>
+                );
+              }
+              
+              if (!punishmentData.active) {
+                return (
+                  <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600">
+                    Inactive
+                  </Badge>
+                );
+              }
+              
+              return (
+                <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-700">
+                  Active
+                </Badge>
+              );
+            })()}
+
+            {/* Punishment type badge */}
+            <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600">
+              {punishmentData.type}
+            </Badge>
+
+            {/* Alt-blocking badge */}
+            {punishmentData.altBlocking && (
+              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700">
+                Alt-blocking
+              </Badge>
+            )}
+
+            {/* Severity badge */}
+            {isValidBadgeValue(punishmentData.severity) && (
+              <Badge variant="outline" className={`text-xs ${
+                (punishmentData.severity && punishmentData.severity.toLowerCase() === 'low') || (punishmentData.severity && punishmentData.severity.toLowerCase() === 'lenient') ? 
+                  'bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-700' :
+                (punishmentData.severity && punishmentData.severity.toLowerCase() === 'regular') || (punishmentData.severity && punishmentData.severity.toLowerCase() === 'medium') ?
+                  'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700' :
+                  'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700'
+              }`}>
                 {punishmentData.severity}
               </Badge>
             )}
-            
-            {punishmentData.offenseLevel && (
-              <Badge 
-                variant="outline" 
-                className={`text-xs ${
-                  punishmentData.offenseLevel.toLowerCase() === 'first' || punishmentData.offenseLevel.toLowerCase() === 'low' ? 
-                    'bg-green-500/10 dark:bg-green-400/10 text-green-700 dark:text-green-400 border-green-300 dark:border-green-600' :
-                  punishmentData.offenseLevel.toLowerCase() === 'medium' ?
-                    'bg-orange-500/10 dark:bg-orange-400/10 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-600' :
-                    'bg-red-500/10 dark:bg-red-400/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600'
-                }`}
-              >
+
+            {/* Status/Offense level badge */}
+            {isValidBadgeValue(punishmentData.offenseLevel) && (
+              <Badge variant="outline" className={`text-xs ${
+                (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'low') || (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'first') ? 
+                  'bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-700' :
+                punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'medium' ?
+                  'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700' :
+                  'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700'
+              }`}>
                 {punishmentData.offenseLevel}
               </Badge>
             )}
 
-            {punishmentData.altBlocking && (
-              <Badge variant="destructive" className="text-xs">
-                <Shield className="h-3 w-3 mr-1" />
-                Alt-Blocking
-              </Badge>
-            )}
-
+            {/* Stat-wiping badge */}
             {punishmentData.statWiping && (
-              <Badge variant="destructive" className="text-xs">
+              <Badge variant="outline" className="text-xs bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700">
                 Stat-Wiping
               </Badge>
             )}
