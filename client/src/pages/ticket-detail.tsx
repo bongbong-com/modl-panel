@@ -2183,15 +2183,16 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             )}
 
             {/* Status/Offense level badge */}
-            {isValidBadgeValue(punishmentData.offenseLevel) && (
+            {isValidBadgeValue(punishmentData.status || punishmentData.offenseLevel) && (
               <Badge variant="outline" className={`text-xs ${
-                (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'low') || (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'first') ? 
+                ((punishmentData.status && punishmentData.status.toLowerCase() === 'low') || (punishmentData.status && punishmentData.status.toLowerCase() === 'first') ||
+                 (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'low') || (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'first')) ? 
                   'bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-700' :
-                punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'medium' ?
+                ((punishmentData.status && punishmentData.status.toLowerCase() === 'medium') || (punishmentData.offenseLevel && punishmentData.offenseLevel.toLowerCase() === 'medium')) ?
                   'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700' :
                   'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700'
               }`}>
-                {punishmentData.offenseLevel}
+                {punishmentData.status || punishmentData.offenseLevel}
               </Badge>
             )}
 
@@ -2212,18 +2213,58 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
           )}
 
           {/* Evidence Section */}
-          {punishmentData.evidence && punishmentData.evidence.length > 0 && (
-            <div className="mt-3">
-              <div className="text-muted-foreground font-medium text-sm mb-1">Evidence:</div>
-              <div className="space-y-1">
-                {punishmentData.evidence.map((item: string, index: number) => (
-                  <div key={index} className="text-sm p-2 bg-background rounded border border-border">
-                    {item}
-                  </div>
-                ))}
+          <div className="mt-3">
+            <div className="text-muted-foreground font-medium text-sm mb-1">Evidence:</div>
+            {punishmentData.evidence && punishmentData.evidence.length > 0 ? (
+              <div className="space-y-2">
+                {punishmentData.evidence.map((evidenceItem: any, index: number) => {
+                  // Parse evidence if it's an object with issuer/date info
+                  let evidenceText = evidenceItem;
+                  let issuerInfo = '';
+                  
+                  if (typeof evidenceItem === 'string') {
+                    evidenceText = evidenceItem;
+                    issuerInfo = 'By: System on Unknown';
+                  } else if (typeof evidenceItem === 'object' && evidenceItem.text) {
+                    evidenceText = evidenceItem.text;
+                    const issuer = evidenceItem.issuerName || 'System';
+                    const date = evidenceItem.date ? formatDate(evidenceItem.date) : 'Unknown';
+                    issuerInfo = `By: ${issuer} on ${date}`;
+                  }
+                  
+                  // Check if evidence looks like a URL
+                  const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
+                  
+                  return (
+                    <div key={index} className="text-sm p-2 bg-background rounded border border-border border-l-4 border-l-blue-500">
+                      <div className="flex items-start">
+                        <FileText className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          {isUrl ? (
+                            <a 
+                              href={evidenceText} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline break-all"
+                            >
+                              {evidenceText}
+                            </a>
+                          ) : (
+                            <span className="break-all">{evidenceText}</span>
+                          )}
+                          <p className="text-muted-foreground text-xs mt-1">
+                            {issuerInfo}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground">No evidence</p>
+            )}
+          </div>
 
           {/* Notes Section */}
           <div className="mt-3">
@@ -2269,10 +2310,21 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
               <div className="text-muted-foreground font-medium text-sm mb-1">Attached Reports:</div>
               <div className="flex flex-wrap gap-2">
                 {punishmentData.attachedTicketIds.map((ticketId: string, index: number) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => {
+                      // Navigate to ticket detail page
+                      // Replace # with ID- for URL compatibility
+                      const urlSafeTicketId = ticketId.replace('#', 'ID-');
+                      window.open(`/panel/tickets/${urlSafeTicketId}`, '_blank');
+                    }}
+                  >
                     <Ticket className="h-3 w-3 mr-1" />
                     {ticketId}
-                  </Badge>
+                  </Button>
                 ))}
               </div>
             </div>

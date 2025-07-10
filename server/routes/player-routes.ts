@@ -869,6 +869,8 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
       // Get the punishment type name from settings if available
     let punishmentTypeName = 'Unknown';
     let punishmentTypeIsAppealable = true; // Default to appealable
+    
+    // First try to get from settings
     try {
       const Settings = req.serverDbConnection!.model('Settings');
       const settings = await Settings.findOne({});
@@ -885,6 +887,21 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
       }
     } catch (settingsError) {
       console.warn('Could not fetch punishment type name from settings:', settingsError);
+    }
+    
+    // Fallback to core administrative types if still unknown
+    if (punishmentTypeName === 'Unknown') {
+      const coreTypes: { [key: number]: string } = {
+        0: 'Kick',
+        1: 'Manual Mute', 
+        2: 'Manual Ban',
+        3: 'Security Ban',
+        4: 'Linked Ban',
+        5: 'Blacklist'
+      };
+      if (coreTypes[punishment.type_ordinal]) {
+        punishmentTypeName = coreTypes[punishment.type_ordinal];
+      }
     }
       // Transform punishment data for the frontend
     const transformedPunishment = {
@@ -907,7 +924,8 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
       severity: punishment.data?.get('severity') || null,
       altBlocking: punishment.data?.get('altBlocking') || false,
       statWiping: punishment.data?.get('statWiping') || false,
-      offenseLevel: punishment.data?.get('offenseLevel') || null
+      offenseLevel: punishment.data?.get('offenseLevel') || null,
+      status: punishment.data?.get('status') || null
     };
     
     // Check if punishment is active

@@ -1744,13 +1744,50 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             </Button>
                           </div>
                           {warning.evidence && warning.evidence.length > 0 ? (
-                            <ul className="text-xs space-y-1">
-                              {warning.evidence.map((evidence, idx) => (
-                                <li key={idx} className="flex items-start">
-                                  <FileText className="h-3 w-3 mr-1 mt-0.5 text-muted-foreground" />
-                                  <span className="break-all">{evidence}</span>
-                                </li>
-                              ))}
+                            <ul className="text-xs space-y-2">
+                              {warning.evidence.map((evidenceItem, idx) => {
+                                // Parse evidence if it's an object with issuer/date info
+                                let evidenceText = evidenceItem;
+                                let issuerInfo = '';
+                                
+                                if (typeof evidenceItem === 'string') {
+                                  evidenceText = evidenceItem;
+                                  issuerInfo = 'By: System on Unknown';
+                                } else if (typeof evidenceItem === 'object' && evidenceItem.text) {
+                                  evidenceText = evidenceItem.text;
+                                  const issuer = evidenceItem.issuerName || 'System';
+                                  const date = evidenceItem.date ? formatDateWithTime(evidenceItem.date) : 'Unknown';
+                                  issuerInfo = `By: ${issuer} on ${date}`;
+                                }
+                                
+                                // Check if evidence looks like a URL
+                                const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
+                                
+                                return (
+                                  <li key={idx} className="bg-muted/20 p-2 rounded text-xs border-l-2 border-blue-500">
+                                    <div className="flex items-start">
+                                      <FileText className="h-3 w-3 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        {isUrl ? (
+                                          <a 
+                                            href={evidenceText} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800 underline break-all"
+                                          >
+                                            {evidenceText}
+                                          </a>
+                                        ) : (
+                                          <span className="break-all">{evidenceText}</span>
+                                        )}
+                                        <p className="text-muted-foreground text-xs mt-1">
+                                          {issuerInfo}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           ) : (
                             <p className="text-xs text-muted-foreground">No evidence added</p>
