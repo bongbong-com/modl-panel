@@ -288,6 +288,14 @@ const AppealsPage = () => {
       return;
     }
 
+    // Create field labels mapping for server
+    const fieldLabelsMapping: Record<string, string> = {};
+    if (appealFormSettings?.fields) {
+      appealFormSettings.fields.forEach((field) => {
+        fieldLabelsMapping[field.id] = field.label;
+      });
+    }
+
     const appealData = {
       punishmentId: banInfo.id,
       playerUuid: banInfo.playerUuid, // Add playerUuid to the submission
@@ -296,6 +304,7 @@ const AppealsPage = () => {
       additionalData: {
         ...values, // Pass all form fields as additional data
       },
+      fieldLabels: fieldLabelsMapping  // Send field labels to server
     };
 
     // Remove fields already explicitly set
@@ -454,7 +463,21 @@ const AppealsPage = () => {
             render={({ field: formField }) => (
               <FormItem>
                 <FormLabel>{field.label}</FormLabel>
-                <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                <Select 
+                  onValueChange={(value) => {
+                    formField.onChange(value);
+                    
+                    // Handle section navigation - force form re-validation to trigger conditional renders
+                    if (field.optionSectionMapping && field.optionSectionMapping[value]) {
+                      // Force re-render by triggering form validation
+                      setTimeout(() => appealForm.trigger(), 0);
+                    } else if (field.goToSection) {
+                      // Navigate to specific section
+                      setTimeout(() => appealForm.trigger(), 0);
+                    }
+                  }} 
+                  defaultValue={formField.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={field.description || "Select an option"} />

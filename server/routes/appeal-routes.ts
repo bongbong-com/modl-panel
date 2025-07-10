@@ -107,7 +107,8 @@ router.post('/', async (req: Request, res: Response) => {
       reason,
       evidence,
       additionalData,
-      attachments
+      attachments,
+      fieldLabels  // Add field labels mapping
     } = req.body;
     
     if (!punishmentId || !playerUuid || !email) {
@@ -179,8 +180,15 @@ router.post('/', async (req: Request, res: Response) => {
     if (additionalData && typeof additionalData === 'object') {
       initialReplyContent += '\nAdditional Information:\n';
       for (const [key, value] of Object.entries(additionalData)) {
+        // Skip file upload fields and system fields in initial content
+        if (typeof value === 'object' || Array.isArray(value)) {
+          continue;
+        }
+        
         const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
-        initialReplyContent += `${key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}: ${displayValue}\n`;
+        // Use field label if available, otherwise convert field ID to readable format
+        const fieldLabel = (fieldLabels && fieldLabels[key]) || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase());
+        initialReplyContent += `${fieldLabel}: ${displayValue}\n`;
       }
     }
     

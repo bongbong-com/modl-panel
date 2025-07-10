@@ -480,7 +480,12 @@ const AppealsPage = () => {
             // Add files to attachments array
             files.forEach((file: any) => {
               if (typeof file === 'object' && file.url) {
-                allAttachments.push(file);
+                allAttachments.push({
+                  url: file.url,
+                  fileName: file.fileName || file.url.split('/').pop() || 'file',
+                  fileType: file.fileType || 'application/octet-stream',
+                  fileSize: file.fileSize || 0
+                });
               } else if (typeof file === 'string' && file.trim()) {
                 allAttachments.push({
                   url: file,
@@ -490,9 +495,17 @@ const AppealsPage = () => {
               }
             });
             
-            // Show attachment count in message only if there are files
+            // Show attachment file names in message
             if (files.length > 0) {
-              contentString += `**${fieldLabel}:** [${files.length} file${files.length > 1 ? 's' : ''} attached]\n\n`;
+              const fileNames = files.map((file: any) => {
+                if (typeof file === 'object' && file.fileName) {
+                  return file.fileName;
+                } else if (typeof file === 'string') {
+                  return file.split('/').pop() || 'file';
+                }
+                return 'file';
+              }).join(', ');
+              contentString += `**${fieldLabel}:** ${fileNames}\n\n`;
             }
           }
         } else {
@@ -544,6 +557,14 @@ const AppealsPage = () => {
         )
       );
 
+      // Create field labels mapping for server
+      const fieldLabelsMapping: Record<string, string> = {};
+      if (appealFormSettings?.fields) {
+        appealFormSettings.fields.forEach((field) => {
+          fieldLabelsMapping[field.id] = field.label;
+        });
+      }
+
       // Create appeal data matching server expectations
       const appealData = {
         punishmentId: values.banId,
@@ -552,7 +573,8 @@ const AppealsPage = () => {
         reason: mainReason,
         evidence: evidence,
         additionalData: additionalData,
-        attachments: allAttachments
+        attachments: allAttachments,
+        fieldLabels: fieldLabelsMapping  // Send field labels to server
       };
 
       await createAppealMutation.mutateAsync(appealData);
@@ -743,13 +765,13 @@ const AppealsPage = () => {
                   onValueChange={(value) => {
                     formField.onChange(value);
                     
-                    // Handle section navigation
+                    // Handle section navigation - force form re-validation to trigger conditional renders
                     if (field.optionSectionMapping && field.optionSectionMapping[value]) {
-                      // Show target section by updating form values to trigger re-render
-                      appealForm.trigger();
+                      // Force re-render by triggering form validation
+                      setTimeout(() => appealForm.trigger(), 0);
                     } else if (field.goToSection) {
                       // Navigate to specific section
-                      appealForm.trigger();
+                      setTimeout(() => appealForm.trigger(), 0);
                     }
                   }} 
                   defaultValue={formField.value}
@@ -790,13 +812,13 @@ const AppealsPage = () => {
                     onValueChange={(value) => {
                       formField.onChange(value);
                       
-                      // Handle section navigation
+                      // Handle section navigation - force form re-validation to trigger conditional renders
                       if (field.optionSectionMapping && field.optionSectionMapping[value]) {
-                        // Show target section by updating form values to trigger re-render
-                        appealForm.trigger();
+                        // Force re-render by triggering form validation
+                        setTimeout(() => appealForm.trigger(), 0);
                       } else if (field.goToSection) {
                         // Navigate to specific section
-                        appealForm.trigger();
+                        setTimeout(() => appealForm.trigger(), 0);
                       }
                     }}
                     defaultValue={formField.value}
