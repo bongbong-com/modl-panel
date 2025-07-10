@@ -659,7 +659,7 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
   
   try {
     const { id } = req.params;
-    const { name, content, type = 'user', staff = false } = req.body;
+    const { name, content, type = 'user', staff = false, attachments = [] } = req.body;
     
     if (!name || !content) {
       return res.status(400).json({
@@ -692,6 +692,7 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
       type: type,
       created: new Date(),
       staff: staff,
+      attachments: attachments, // Include attachments array
       // Compatibility fields
       sender: name,
       senderType: staff ? 'staff' : 'user',

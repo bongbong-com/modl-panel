@@ -116,6 +116,13 @@ interface AppealMessage {
   content: string;
   timestamp: string;
   isStaffNote?: boolean;
+  attachments?: Array<{
+    id?: string;
+    url: string;
+    fileName?: string;
+    fileType?: string;
+    fileSize?: number;
+  } | string>; // Support both attachment objects and URL strings for backward compatibility
 }
 
 // Interface for appeal information
@@ -519,7 +526,8 @@ const AppealsPage = () => {
           senderName: reply.name || reply.sender,
           content: reply.content,
           timestamp: reply.created || reply.timestamp,
-          isStaffNote: reply.type === 'staff-note'
+          isStaffNote: reply.type === 'staff-note',
+          attachments: reply.attachments || []
         }))
       };
       
@@ -545,7 +553,7 @@ const AppealsPage = () => {
           content: newReply,
           type: 'user',
           staff: false,
-          attachments: replyAttachments.map(a => a.url), // Include attachment URLs
+          attachments: replyAttachments, // Include full attachment data
         }),
       });
 
@@ -1044,6 +1052,30 @@ const AppealsPage = () => {
                                   </div>
                                   <div className="text-sm">
                                     <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                                    
+                                    {/* Display message attachments */}
+                                    {message.attachments && message.attachments.length > 0 && (
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        {message.attachments.map((attachment: any, idx: number) => {
+                                          // Handle both attachment objects and URL strings
+                                          const attachmentData = typeof attachment === 'string' ? 
+                                            { url: attachment, fileName: attachment.split('/').pop() || 'file', fileType: 'application/octet-stream' } : 
+                                            attachment;
+                                          
+                                          return (
+                                            <Badge 
+                                              key={idx} 
+                                              variant="outline" 
+                                              className="flex items-center gap-1 cursor-pointer hover:bg-muted/50"
+                                              onClick={() => window.open(attachmentData.url, '_blank')}
+                                            >
+                                              {getFileIcon(attachmentData.fileType)}
+                                              <span className="text-xs">{truncateFileName(attachmentData.fileName || attachmentData.url.split('/').pop() || 'file')}</span>
+                                            </Badge>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
