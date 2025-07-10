@@ -3579,60 +3579,62 @@ const Settings = () => {
 
                     {/* Appeal Form Sections and Fields */}
                     <div className={`space-y-4 ${selectedPunishment.isAppealable === false ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {selectedPunishment.appealForm?.sections
-                        ?.sort((a, b) => a.order - b.order)
-                        .map((section, index) => (
-                          <DraggableAppealFormSectionCard
-                            key={section.id}
-                            section={section}
-                            index={index}
-                            moveSection={moveAppealFormSection}
-                            selectedPunishment={selectedPunishment}
-                            onEditSection={onEditAppealFormSection}
-                            onDeleteSection={onDeleteAppealFormSection}
-                            onEditField={onEditAppealFormField}
-                            onDeleteField={onDeleteAppealFormField}
-                            onAddField={onAddAppealFormField}
-                            moveField={moveAppealFormField}
-                            moveFieldBetweenSections={moveAppealFormFieldBetweenSections}
-                          />
-                        ))}
+                      <DndProvider backend={HTML5Backend}>
+                        {selectedPunishment.appealForm?.sections
+                          ?.sort((a, b) => a.order - b.order)
+                          .map((section, index) => (
+                            <DraggableAppealFormSectionCard
+                              key={section.id}
+                              section={section}
+                              index={index}
+                              moveSection={moveAppealFormSection}
+                              selectedPunishment={selectedPunishment}
+                              onEditSection={onEditAppealFormSection}
+                              onDeleteSection={onDeleteAppealFormSection}
+                              onEditField={onEditAppealFormField}
+                              onDeleteField={onDeleteAppealFormField}
+                              onAddField={onAddAppealFormField}
+                              moveField={moveAppealFormField}
+                              moveFieldBetweenSections={moveAppealFormFieldBetweenSections}
+                            />
+                          ))}
 
-                      {/* Fields not in any section */}
-                      {selectedPunishment.appealForm?.fields
-                        ?.filter(field => !field.sectionId)
-                        ?.sort((a, b) => a.order - b.order)
-                        .map((field, index) => (
-                          <DraggableAppealFormFieldCard
-                            key={field.id}
-                            field={field}
-                            index={index}
-                            sectionId=""
-                            moveField={moveAppealFormField}
-                            moveFieldBetweenSections={moveAppealFormFieldBetweenSections}
-                            onEditField={onEditAppealFormField}
-                            onDeleteField={onDeleteAppealFormField}
-                          />
-                        ))}
+                        {/* Fields not in any section */}
+                        {selectedPunishment.appealForm?.fields
+                          ?.filter(field => !field.sectionId)
+                          ?.sort((a, b) => a.order - b.order)
+                          .map((field, index) => (
+                            <DraggableAppealFormFieldCard
+                              key={field.id}
+                              field={field}
+                              index={index}
+                              sectionId=""
+                              moveField={moveAppealFormField}
+                              moveFieldBetweenSections={moveAppealFormFieldBetweenSections}
+                              onEditField={onEditAppealFormField}
+                              onDeleteField={onDeleteAppealFormField}
+                            />
+                          ))}
 
-                      {(!selectedPunishment.appealForm?.fields || selectedPunishment.appealForm.fields.length === 0) && 
-                       (!selectedPunishment.appealForm?.sections || selectedPunishment.appealForm.sections.length === 0) && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">
-                            {selectedPunishment.isAppealable === false 
-                              ? 'Appeals are disabled for this punishment type'
-                              : 'No custom appeal form configured'
-                            }
-                          </p>
-                          <p className="text-xs mt-1">
-                            {selectedPunishment.isAppealable === false 
-                              ? 'Players will see "This punishment is not appealable" message'
-                              : 'Players will use the default appeal form'
-                            }
-                          </p>
-                        </div>
-                      )}
+                        {(!selectedPunishment.appealForm?.fields || selectedPunishment.appealForm.fields.length === 0) && 
+                         (!selectedPunishment.appealForm?.sections || selectedPunishment.appealForm.sections.length === 0) && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">
+                              {selectedPunishment.isAppealable === false 
+                                ? 'Appeals are disabled for this punishment type'
+                                : 'No custom appeal form configured'
+                              }
+                            </p>
+                            <p className="text-xs mt-1">
+                              {selectedPunishment.isAppealable === false 
+                                ? 'Players will see "This punishment is not appealable" message'
+                                : 'Players will use the default appeal form'
+                              }
+                            </p>
+                          </div>
+                        )}
+                      </DndProvider>
                     </div>
                   </div>
                 </TabsContent>
