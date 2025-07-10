@@ -100,10 +100,52 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       preview += ` (${levelMap[data.selectedOffenseLevel]} Offense)`;
     }
     
+    // Determine the punishment action type (ban/mute/kick)
+    let actionType = '';
+    
+    // Handle administrative punishments
+    if (punishmentType.name === 'Kick') {
+      actionType = 'kick';
+    } else if (punishmentType.name === 'Manual Mute') {
+      actionType = 'mute';
+    } else if (punishmentType.name === 'Manual Ban' || punishmentType.name === 'Security Ban' || punishmentType.name === 'Linked Ban') {
+      actionType = 'ban';
+    } else if (punishmentType.name === 'Blacklist') {
+      actionType = 'blacklist';
+    } else {
+      // For configured punishment types, determine based on duration configuration
+      if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations && data.selectedOffenseLevel) {
+        const durationConfig = punishmentType.singleSeverityDurations[data.selectedOffenseLevel];
+        actionType = durationConfig?.type || 'ban';
+      } else if (punishmentType.durations && data.selectedSeverity) {
+        const severityKey = data.selectedSeverity.toLowerCase() as 'low' | 'regular' | 'severe';
+        const severityMap = { 'lenient': 'low', 'regular': 'regular', 'aggravated': 'severe' };
+        const mappedSeverity = severityMap[data.selectedSeverity.toLowerCase() as keyof typeof severityMap] || 'regular';
+        
+        const offenseLevel = 'first'; // Default to first offense for preview
+        const durationConfig = punishmentType.durations[mappedSeverity as keyof typeof punishmentType.durations]?.[offenseLevel];
+        
+        // Check if it has banValue/banUnit (indicates mute with escalation to ban)
+        if (durationConfig?.banValue !== undefined) {
+          actionType = 'mute'; // Primary action is mute
+        } else {
+          actionType = 'ban'; // Default to ban for most punishment types
+        }
+      } else {
+        actionType = 'ban'; // Default fallback
+      }
+    }
+    
+    // Add duration and action type
     if (data.isPermanent) {
-      preview += ' - Permanent';
+      preview += ` - Permanent ${actionType}`;
     } else if (data.duration && data.duration.value > 0) {
-      preview += ` - ${data.duration.value} ${data.duration.unit}`;
+      preview += ` - ${data.duration.value} ${data.duration.unit} ${actionType}`;
+    } else if (actionType === 'kick') {
+      // Kicks don't have duration
+      preview += ` - ${actionType}`;
+    } else if (actionType) {
+      preview += ` - ${actionType}`;
     }
     
     return preview;
