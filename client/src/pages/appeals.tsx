@@ -151,7 +151,7 @@ const AppealsPage = () => {
         email: appealForm.getValues('email') || "",
         // Add default values for dynamic fields
         ...Object.fromEntries(
-          (appealFormSettings?.fields || []).map(field => {
+          (Array.isArray(appealFormSettings?.fields) ? appealFormSettings.fields : []).map(field => {
             let defaultValue;
             switch (field.type) {
               case 'checkbox':
@@ -195,7 +195,8 @@ const AppealsPage = () => {
       email: z.string().email({ message: "Please enter a valid email address" }),
     };
 
-    appealFormSettings.fields.forEach(field => {
+    if (Array.isArray(appealFormSettings.fields)) {
+      appealFormSettings.fields.forEach(field => {
       switch (field.type) {
         case 'text':
           schemaFields[field.id] = field.required 
@@ -230,6 +231,7 @@ const AppealsPage = () => {
           break;
       }
     });
+    }
 
     return z.object(schemaFields);
   };
@@ -245,7 +247,7 @@ const AppealsPage = () => {
       email: "",
       // Add default values for dynamic fields
       ...Object.fromEntries(
-        (appealFormSettings?.fields || []).map(field => {
+        (Array.isArray(appealFormSettings?.fields) ? appealFormSettings.fields : []).map(field => {
           let defaultValue;
           switch (field.type) {
             case 'checkbox':
@@ -697,13 +699,13 @@ const AppealsPage = () => {
                         >
                           <FormControl>
                             <Checkbox
-                              checked={formField.value?.includes(option)}
+                              checked={Array.isArray(formField.value) && formField.value.includes(option)}
                               onCheckedChange={(checked) => {
-                                const current = formField.value || [];
+                                const current = Array.isArray(formField.value) ? formField.value : [];
                                 return checked
                                   ? formField.onChange([...current, option])
                                   : formField.onChange(
-                                      current?.filter((value: string) => value !== option)
+                                      current.filter((value: string) => value !== option)
                                     );
                               }}
                             />
@@ -747,7 +749,7 @@ const AppealsPage = () => {
                     />
                     {formField.value && (
                       <div className="text-sm text-muted-foreground">
-                        File uploaded: {formField.value.split('/').pop()}
+                        File uploaded: {typeof formField.value === 'string' ? formField.value.split('/').pop() : 'Unknown file'}
                       </div>
                     )}
                   </div>
@@ -1111,49 +1113,52 @@ const AppealsPage = () => {
                       />
                       
                       {/* Dynamic Fields with Sections */}
-                      {appealFormSettings?.sections
-                        ?.sort((a, b) => a.order - b.order)
-                        .map(section => {
-                          // Check section visibility
-                          let isVisible = true;
-                          
-                          // Hide if hideByDefault is true (for now, always show during appeal submission)
-                          // In the future, this could be enhanced with conditional logic
-                          if (section.hideByDefault) {
-                            // For now, always show sections during form submission
-                            // Later this can be enhanced with field-based conditional logic
-                            isVisible = true;
-                          }
-                          
-                          if (!isVisible) return null;
-                          
-                          return (
-                            <div key={section.id} className="space-y-4">
-                              <div className="border-l-4 border-primary/50 pl-4">
-                                <h3 className="text-lg font-semibold">{section.title}</h3>
-                                {section.description && (
-                                  <p className="text-sm text-muted-foreground">{section.description}</p>
-                                )}
+                      {appealFormSettings?.sections && Array.isArray(appealFormSettings.sections) && appealFormSettings.sections.length > 0 && 
+                        appealFormSettings.sections
+                          .sort((a, b) => a.order - b.order)
+                          .map(section => {
+                            // Check section visibility
+                            let isVisible = true;
+                            
+                            // Hide if hideByDefault is true (for now, always show during appeal submission)
+                            // In the future, this could be enhanced with conditional logic
+                            if (section.hideByDefault) {
+                              // For now, always show sections during form submission
+                              // Later this can be enhanced with field-based conditional logic
+                              isVisible = true;
+                            }
+                            
+                            if (!isVisible) return null;
+                            
+                            return (
+                              <div key={section.id} className="space-y-4">
+                                <div className="border-l-4 border-primary/50 pl-4">
+                                  <h3 className="text-lg font-semibold">{section.title}</h3>
+                                  {section.description && (
+                                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                                  )}
+                                </div>
+                                <div className="space-y-4 pl-4">
+                                  {appealFormSettings?.fields && Array.isArray(appealFormSettings.fields) && appealFormSettings.fields.length > 0 &&
+                                    appealFormSettings.fields
+                                      .filter(field => field.sectionId === section.id)
+                                      .sort((a, b) => a.order - b.order)
+                                      .map(field => renderFormField(field))}
+                                </div>
                               </div>
-                              <div className="space-y-4 pl-4">
-                                {appealFormSettings?.fields
-                                  ?.filter(field => field.sectionId === section.id)
-                                  ?.sort((a, b) => a.order - b.order)
-                                  .map(field => renderFormField(field))}
-                              </div>
-                            </div>
-                          );
-                        })
-                        .filter(Boolean)}
+                            );
+                          })
+                          .filter(Boolean)}
                       
                       {/* Fields not in any section (should be minimal with new system) */}
-                      {appealFormSettings?.fields
-                        ?.filter(field => !field.sectionId)
-                        ?.sort((a, b) => a.order - b.order)
-                        .map(field => renderFormField(field))}
+                      {appealFormSettings?.fields && Array.isArray(appealFormSettings.fields) &&
+                        appealFormSettings.fields
+                          .filter(field => !field.sectionId)
+                          .sort((a, b) => a.order - b.order)
+                          .map(field => renderFormField(field))}
                       
                       {/* Fallback reason field if no dynamic fields */}
-                      {(!appealFormSettings?.fields || appealFormSettings.fields.length === 0) && (
+                      {(!appealFormSettings?.fields || !Array.isArray(appealFormSettings.fields) || appealFormSettings.fields.length === 0) && (
                         <FormField
                           control={appealForm.control}
                           name="reason"
