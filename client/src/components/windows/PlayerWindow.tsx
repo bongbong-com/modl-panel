@@ -1766,9 +1766,14 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   variant="outline"
                                   size="sm"
                                   className="h-6 px-2 text-xs"
-                                  onClick={() => openWindow('ticket', { ticketId: ticketId })}
+                                  onClick={() => {
+                                    // Navigate to ticket detail page
+                                    // Replace # with ID- for URL compatibility
+                                    const urlSafeTicketId = ticketId.replace('#', 'ID-');
+                                    setLocation(`/panel/tickets/${urlSafeTicketId}`);
+                                  }}
                                 >
-                                  <Link2 className="h-3 w-3 mr-1" />
+                                  <Ticket className="h-3 w-3 mr-1" />
                                   {ticketId}
                                 </Button>
                               ))}

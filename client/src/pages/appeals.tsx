@@ -756,7 +756,7 @@ const AppealsPage = () => {
                       </div>
                       <div className="divide-y max-h-[400px] overflow-y-auto">
                         {appealInfo.messages
-                          .filter(message => !message.isStaffNote)
+                          .filter(message => !message.isStaffNote && message.sender !== 'system')
                           .map((message) => (
                             <div key={message.id} className="p-4">
                               <div className="flex items-start gap-3">

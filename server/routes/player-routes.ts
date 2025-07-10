@@ -898,7 +898,16 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
       playerUuid: player.minecraftUuid,
       playerUsername: player.usernames.length > 0 ? player.usernames[player.usernames.length - 1].username : 'Unknown',
       active: true, // Default to true
-      expires: null as Date | null
+      expires: null as Date | null,
+      // Additional fields
+      notes: punishment.notes || [],
+      evidence: punishment.evidence || [],
+      attachedTicketIds: punishment.attachedTicketIds || [],
+      modifications: punishment.modifications || [],
+      severity: punishment.data?.get('severity') || null,
+      altBlocking: punishment.data?.get('altBlocking') || false,
+      statWiping: punishment.data?.get('statWiping') || false,
+      offenseLevel: punishment.data?.get('offenseLevel') || null
     };
     
     // Check if punishment is active

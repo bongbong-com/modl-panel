@@ -1976,14 +1976,14 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
 
   if (isLoading) {
     return (
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+      <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-full">
-            <Axe className="h-5 w-5 text-purple-600" />
+          <div className="p-2 bg-purple-500/10 dark:bg-purple-400/10 rounded-full">
+            <Axe className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-purple-900 mb-2">Punishment Details</h3>
-            <div className="text-sm text-purple-800">Loading punishment information...</div>
+            <h3 className="font-semibold mb-2">Punishment Details</h3>
+            <div className="text-sm text-muted-foreground">Loading punishment information...</div>
           </div>
         </div>
       </div>
@@ -1992,14 +1992,14 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+      <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-red-100 rounded-full">
-            <Axe className="h-5 w-5 text-red-600" />
+          <div className="p-2 bg-red-500/10 dark:bg-red-400/10 rounded-full">
+            <Axe className="h-5 w-5 text-red-600 dark:text-red-400" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-red-900 mb-2">Punishment Details</h3>
-            <div className="text-sm text-red-800">Failed to load punishment information</div>
+            <h3 className="font-semibold mb-2">Punishment Details</h3>
+            <div className="text-sm text-red-600 dark:text-red-400">Failed to load punishment information</div>
           </div>
         </div>
       </div>
@@ -2011,22 +2011,22 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
   }
 
   return (
-    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+    <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
       <div className="flex items-start gap-3">
-        <div className="p-2 bg-purple-100 rounded-full">
-          <Axe className="h-5 w-5 text-purple-600" />
+        <div className="p-2 bg-purple-500/10 dark:bg-purple-400/10 rounded-full">
+          <Axe className="h-5 w-5 text-purple-600 dark:text-purple-400" />
         </div>
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-purple-900">Punishment Details</h3>
-            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+            <h3 className="font-semibold">Punishment Details</h3>
+            <Badge variant="outline" className="bg-purple-500/10 dark:bg-purple-400/10 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-600">
               ID: {punishmentData.id}
             </Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
-              <span className="text-purple-600 font-medium">Player:</span>
+              <span className="text-muted-foreground font-medium">Player:</span>
               <span className="ml-2">
                 <ClickablePlayer 
                   playerText={punishmentData.playerUsername}
@@ -2040,24 +2040,24 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             </div>
             
             <div>
-              <span className="text-purple-600 font-medium">Type:</span>
+              <span className="text-muted-foreground font-medium">Type:</span>
               <span className="ml-2">{punishmentData.type}</span>
             </div>
             
             <div>
-              <span className="text-purple-600 font-medium">Issued:</span>
+              <span className="text-muted-foreground font-medium">Issued:</span>
               <span className="ml-2">{formatDate(punishmentData.issued)}</span>
             </div>
             
             <div>
-              <span className="text-purple-600 font-medium">Status:</span>
+              <span className="text-muted-foreground font-medium">Status:</span>
               <span className="ml-2">
                 <Badge 
                   variant="outline" 
                   className={
                     punishmentData.active 
-                      ? "bg-red-100 text-red-700 border-red-300" 
-                      : "bg-gray-100 text-gray-700 border-gray-300"
+                      ? "bg-red-500/10 dark:bg-red-400/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600" 
+                      : "bg-gray-500/10 dark:bg-gray-400/10 text-gray-700 dark:text-gray-400 border-gray-300 dark:border-gray-600"
                   }
                 >
                   {punishmentData.active ? 'Active' : 'Inactive'}
@@ -2067,21 +2067,28 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             
             {punishmentData.expires && (
               <div>
-                <span className="text-purple-600 font-medium">Expires:</span>
+                <span className="text-muted-foreground font-medium">Expires:</span>
                 <span className="ml-2">{formatDate(punishmentData.expires)}</span>
               </div>
             )}
             
             <div>
-              <span className="text-purple-600 font-medium">Issued by:</span>
+              <span className="text-muted-foreground font-medium">Issued by:</span>
               <span className="ml-2">{punishmentData.issuerName}</span>
             </div>
+
+            {punishmentData.started && (
+              <div>
+                <span className="text-muted-foreground font-medium">Started:</span>
+                <span className="ml-2">{formatDate(punishmentData.started)}</span>
+              </div>
+            )}
           </div>
 
           {punishmentData.reason && (
-            <div className="mt-3 p-3 bg-white rounded-md border border-purple-200">
-              <div className="text-purple-600 font-medium text-sm mb-1">Reason:</div>
-              <div className="text-sm text-gray-900">{punishmentData.reason}</div>
+            <div className="mt-3 p-3 bg-background rounded-md border border-border">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Reason:</div>
+              <div className="text-sm">{punishmentData.reason}</div>
             </div>
           )}
 
@@ -2091,13 +2098,94 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                 variant="outline" 
                 className={`text-xs ${
                   punishmentData.severity.toLowerCase() === 'lenient' || punishmentData.severity.toLowerCase() === 'low' ? 
-                    'bg-green-100 text-green-800 border-green-300' :
+                    'bg-green-500/10 dark:bg-green-400/10 text-green-700 dark:text-green-400 border-green-300 dark:border-green-600' :
                   punishmentData.severity.toLowerCase() === 'regular' || punishmentData.severity.toLowerCase() === 'medium' ?
-                    'bg-orange-100 text-orange-800 border-orange-300' :
-                    'bg-red-100 text-red-800 border-red-300'
+                    'bg-orange-500/10 dark:bg-orange-400/10 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-600' :
+                    'bg-red-500/10 dark:bg-red-400/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600'
                 }`}
               >
                 {punishmentData.severity}
+              </Badge>
+            </div>
+          )}
+
+          {/* Evidence Section */}
+          {punishmentData.evidence && punishmentData.evidence.length > 0 && (
+            <div className="mt-3">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Evidence:</div>
+              <div className="space-y-1">
+                {punishmentData.evidence.map((item: string, index: number) => (
+                  <div key={index} className="text-sm p-2 bg-background rounded border border-border">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes Section */}
+          {punishmentData.notes && punishmentData.notes.length > 0 && (
+            <div className="mt-3">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Staff Notes:</div>
+              <div className="space-y-2">
+                {punishmentData.notes.map((note: any, index: number) => (
+                  <div key={index} className="text-sm p-2 bg-background rounded border border-border">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">{note.issuerName}</span>
+                      <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
+                    </div>
+                    <div>{note.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Attached Reports Section */}
+          {punishmentData.attachedTicketIds && punishmentData.attachedTicketIds.length > 0 && (
+            <div className="mt-3">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Attached Reports:</div>
+              <div className="flex flex-wrap gap-2">
+                {punishmentData.attachedTicketIds.map((ticketId: string, index: number) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    <Ticket className="h-3 w-3 mr-1" />
+                    {ticketId}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Modifications Section */}
+          {punishmentData.modifications && punishmentData.modifications.length > 0 && (
+            <div className="mt-3">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Modifications:</div>
+              <div className="space-y-2">
+                {punishmentData.modifications.map((mod: any, index: number) => (
+                  <div key={index} className="text-sm p-2 bg-background rounded border border-border">
+                    <div className="flex items-center justify-between mb-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {mod.type.replace(/_/g, ' ')}
+                      </Badge>
+                      {mod.issued && (
+                        <span className="text-xs text-muted-foreground">{formatDate(mod.issued)}</span>
+                      )}
+                    </div>
+                    {mod.data && mod.data.reason && (
+                      <div className="text-xs mt-1">Reason: {mod.data.reason}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Alt Blocking */}
+          {punishmentData.altBlocking && (
+            <div className="mt-2">
+              <Badge variant="destructive" className="text-xs">
+                <Shield className="h-3 w-3 mr-1" />
+                Alt-Blocking Enabled
               </Badge>
             </div>
           )}
