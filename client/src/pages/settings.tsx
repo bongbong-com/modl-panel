@@ -249,7 +249,7 @@ interface DraggableSectionCardProps {
   onDeleteSection: (sectionId: string) => void;
   onEditField: (field: TicketFormField) => void;
   onDeleteField: (fieldId: string) => void;
-  onAddField: () => void;
+  onAddField: (sectionId: string) => void;
   moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
   moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
 }
@@ -350,7 +350,7 @@ const DraggableSectionCard = ({
         <Button
           size="sm"
           variant="outline"
-          onClick={onAddField}
+          onClick={() => onAddField(section.id)}
           className="w-full"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -476,7 +476,7 @@ interface DraggableAppealFormSectionCardProps {
   onDeleteSection: (sectionId: string) => void;
   onEditField: (field: AppealFormField) => void;
   onDeleteField: (fieldId: string) => void;
-  onAddField: () => void;
+  onAddField: (sectionId: string) => void;
   moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
   moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
 }
@@ -584,7 +584,7 @@ const DraggableAppealFormSectionCard = ({
         <Button
           size="sm"
           variant="outline"
-          onClick={onAddField}
+          onClick={() => onAddField(section.id)}
           className="w-full"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -824,7 +824,7 @@ const Settings = () => {
   const [newAppealFieldDescription, setNewAppealFieldDescription] = useState('');
   const [newAppealFieldRequired, setNewAppealFieldRequired] = useState(false);
   const [newAppealFieldOptions, setNewAppealFieldOptions] = useState<string[]>([]);
-  const [newAppealFieldSectionId, setNewAppealFieldSectionId] = useState('__none__');
+  const [newAppealFieldSectionId, setNewAppealFieldSectionId] = useState('');
   const [newAppealFieldOptionSectionMapping, setNewAppealFieldOptionSectionMapping] = useState<Record<string, string>>({});
   const [isAppealOptionNavigationExpanded, setIsAppealOptionNavigationExpanded] = useState(false);
   const [newAppealSectionTitle, setNewAppealSectionTitle] = useState('');
@@ -882,7 +882,7 @@ const Settings = () => {
   const [newTicketFormFieldDescription, setNewTicketFormFieldDescription] = useState('');
   const [newTicketFormFieldRequired, setNewTicketFormFieldRequired] = useState(false);
   const [newTicketFormFieldOptions, setNewTicketFormFieldOptions] = useState<string[]>([]);
-  const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('__none__');
+  const [newTicketFormFieldSectionId, setNewTicketFormFieldSectionId] = useState('');
   const [newTicketFormFieldGoToSection, setNewTicketFormFieldGoToSection] = useState('');
   const [newTicketFormFieldOptionSectionMapping, setNewTicketFormFieldOptionSectionMapping] = useState<Record<string, string>>({});
   const [newTicketFormOption, setNewTicketFormOption] = useState('');
@@ -2009,7 +2009,7 @@ const Settings = () => {
       required: newAppealFieldRequired,
       options: (newAppealFieldType === 'dropdown' || newAppealFieldType === 'multiple_choice') ? newAppealFieldOptions : undefined,
       order: currentFields.length,
-      sectionId: newAppealFieldSectionId && newAppealFieldSectionId !== "__none__" ? newAppealFieldSectionId : undefined,
+      sectionId: newAppealFieldSectionId || undefined,
       optionSectionMapping: Object.keys(newAppealFieldOptionSectionMapping).length > 0 ? 
         Object.fromEntries(Object.entries(newAppealFieldOptionSectionMapping).filter(([, value]) => value !== '')) : 
         undefined,
@@ -2042,7 +2042,7 @@ const Settings = () => {
     setNewAppealFieldDescription('');
     setNewAppealFieldRequired(false);
     setNewAppealFieldOptions([]);
-    setNewAppealFieldSectionId('__none__');
+    setNewAppealFieldSectionId('');
     setNewAppealFieldOptionSectionMapping({});
     setSelectedAppealField(null);
     setIsAddAppealFieldDialogOpen(false);
@@ -2163,7 +2163,7 @@ const Settings = () => {
       required: newTicketFormFieldRequired,
       options: (newTicketFormFieldType === 'dropdown' || newTicketFormFieldType === 'multiple_choice') ? newTicketFormFieldOptions : undefined,
       order: ticketForms[selectedTicketFormType]?.fields?.length || 0,
-      sectionId: newTicketFormFieldSectionId && newTicketFormFieldSectionId !== "__none__" ? newTicketFormFieldSectionId : undefined,
+      sectionId: newTicketFormFieldSectionId || undefined,
       optionSectionMapping: Object.keys(newTicketFormFieldOptionSectionMapping).length > 0 ? 
         Object.fromEntries(Object.entries(newTicketFormFieldOptionSectionMapping).filter(([, value]) => value !== '')) : 
         undefined,
@@ -2197,7 +2197,7 @@ const Settings = () => {
     setNewTicketFormFieldDescription('');
     setNewTicketFormFieldRequired(false);
     setNewTicketFormFieldOptions([]);
-    setNewTicketFormFieldSectionId('__none__');
+    setNewTicketFormFieldSectionId('');
     setNewTicketFormFieldGoToSection('');
     setNewTicketFormFieldOptionSectionMapping({});
     setIsOptionNavigationExpanded(false);
@@ -2437,9 +2437,9 @@ const Settings = () => {
     console.log('Delete field:', fieldId);
   }, []);
 
-  const onAddField = useCallback(() => {
-    // Placeholder implementation - could open a dialog to add new field
-    console.log('Add field');
+  const onAddField = useCallback((sectionId: string) => {
+    setNewTicketFormFieldSectionId(sectionId);
+    setIsAddTicketFormFieldDialogOpen(true);
   }, []);
 
   const moveField = useCallback((dragIndex: number, hoverIndex: number, sectionId: string) => {
@@ -2553,7 +2553,7 @@ const Settings = () => {
     setNewAppealFieldDescription(field.description || '');
     setNewAppealFieldRequired(field.required);
     setNewAppealFieldOptions(field.options || []);
-    setNewAppealFieldSectionId(field.sectionId || '__none__');
+    setNewAppealFieldSectionId(field.sectionId || '');
     setNewAppealFieldOptionSectionMapping(field.optionSectionMapping || {});
     setIsAddAppealFieldDialogOpen(true);
   }, []);
@@ -2562,7 +2562,8 @@ const Settings = () => {
     removeAppealFormField(fieldId);
   };
 
-  const onAddAppealFormField = useCallback(() => {
+  const onAddAppealFormField = useCallback((sectionId: string) => {
+    setNewAppealFieldSectionId(sectionId);
     setIsAddAppealFieldDialogOpen(true);
   }, []);
 
@@ -3739,7 +3740,6 @@ const Settings = () => {
                       <SelectValue placeholder="Select section" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">No section</SelectItem>
                       {selectedPunishment?.appealForm?.sections
                         ?.sort((a, b) => a.order - b.order)
                         .map(section => (
@@ -3846,7 +3846,7 @@ const Settings = () => {
                                 <SelectContent>
                                   <SelectItem value="__none__">No navigation</SelectItem>
                                   {selectedPunishment?.appealForm?.sections
-                                    ?.filter(section => section.id !== newAppealFieldSectionId || newAppealFieldSectionId === '__none__')
+                                    ?.filter(section => section.id !== newAppealFieldSectionId || !newAppealFieldSectionId)
                                     ?.sort((a, b) => a.order - b.order)
                                     .map(section => (
                                       <SelectItem key={section.id} value={section.id}>
@@ -3875,7 +3875,7 @@ const Settings = () => {
                     setNewAppealFieldDescription('');
                     setNewAppealFieldRequired(false);
                     setNewAppealFieldOptions([]);
-                    setNewAppealFieldSectionId('__none__');
+                    setNewAppealFieldSectionId('');
                     setNewAppealFieldOptionSectionMapping({});
                   }}
                 >
@@ -4194,7 +4194,6 @@ const Settings = () => {
                       <SelectValue placeholder="Select section" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">No section</SelectItem>
                       {ticketForms[selectedTicketFormType]?.sections
                         ?.sort((a, b) => a.order - b.order)
                         .map(section => (
@@ -4290,7 +4289,7 @@ const Settings = () => {
                                 <SelectContent>
                                   <SelectItem value="__none__">No navigation</SelectItem>
                                   {ticketForms[selectedTicketFormType]?.sections
-                                    ?.filter(section => section.id !== newTicketFormFieldSectionId || newTicketFormFieldSectionId === '__none__')
+                                    ?.filter(section => section.id !== newTicketFormFieldSectionId || !newTicketFormFieldSectionId)
                                     ?.sort((a, b) => a.order - b.order)
                                     .map(section => (
                                       <SelectItem key={section.id} value={section.id}>
@@ -4320,7 +4319,7 @@ const Settings = () => {
                     setNewTicketFormFieldDescription('');
                     setNewTicketFormFieldRequired(false);
                     setNewTicketFormFieldOptions([]);
-                    setNewTicketFormFieldSectionId('__none__');
+                    setNewTicketFormFieldSectionId('');
                     setNewTicketFormFieldGoToSection('');
                     setNewTicketFormFieldOptionSectionMapping({});
                     setIsOptionNavigationExpanded(false);
