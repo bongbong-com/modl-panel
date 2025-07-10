@@ -252,8 +252,11 @@ const AppealsPage = () => {
           break;
         case 'file_upload':
           schemaFields[field.id] = field.required 
-            ? z.string().min(1, { message: `${field.label} is required` })
-            : z.string().optional();
+            ? z.union([
+                z.array(z.any()).min(1, { message: `${field.label} is required` }),
+                z.string().min(1, { message: `${field.label} is required` })
+              ])
+            : z.union([z.array(z.any()), z.string()]).optional();
           break;
       }
     });
@@ -805,37 +808,101 @@ const AppealsPage = () => {
             key={field.id}
             control={appealForm.control}
             name={field.id as any}
-            render={({ field: formField }) => (
-              <FormItem>
-                <FormLabel>{field.label}</FormLabel>
-                <FormControl>
-                  <div className="space-y-2">
-                    <MediaUpload
-                      uploadType="appeal"
-                      onUploadComplete={(result) => {
-                        // Prevent form submission
-                        formField.onChange(result.url);
-                      }}
-                      metadata={{
-                        appealId: appealForm.getValues('banId') || 'unknown',
-                        fieldId: field.id
-                      }}
-                      variant="compact"
-                      maxFiles={1}
-                    />
-                    {formField.value && (
-                      <div className="text-sm text-muted-foreground">
-                        File uploaded: {typeof formField.value === 'string' ? formField.value.split('/').pop() : 'Unknown file'}
-                      </div>
-                    )}
-                  </div>
-                </FormControl>
-                {field.description && (
-                  <FormDescription>{field.description}</FormDescription>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field: formField }) => {
+              const currentFiles = Array.isArray(formField.value) ? formField.value : formField.value ? [formField.value] : [];
+              
+              const handleFileUpload = (result: { url: string; key: string }, file?: File) => {
+                const newFile = {
+                  id: Date.now().toString(),
+                  url: result.url,
+                  key: result.key,
+                  fileName: file?.name || result.url.split('/').pop() || 'file',
+                  fileType: file?.type || 'application/octet-stream',
+                  fileSize: file?.size || 0
+                };
+                
+                const updatedFiles = [...currentFiles, newFile];
+                formField.onChange(updatedFiles);
+              };
+              
+              const handleFileRemove = (fileToRemove: any) => {
+                const updatedFiles = currentFiles.filter((file: any) => 
+                  (typeof file === 'string' ? file : file.url) !== (typeof fileToRemove === 'string' ? fileToRemove : fileToRemove.url)
+                );
+                formField.onChange(updatedFiles.length > 0 ? updatedFiles : '');
+              };
+              
+              const getFileIcon = (type: string) => {
+                if (type.startsWith('image/')) return <Image className="h-3 w-3" />;
+                if (type.startsWith('video/')) return <Video className="h-3 w-3" />;
+                if (type === 'application/pdf') return <FileText className="h-3 w-3" />;
+                return <File className="h-3 w-3" />;
+              };
+              
+              const truncateFileName = (name: string, maxLength: number = 20) => {
+                if (name.length <= maxLength) return name;
+                const extension = name.split('.').pop();
+                const nameWithoutExt = name.substring(0, name.lastIndexOf('.'));
+                const truncated = nameWithoutExt.substring(0, maxLength - extension!.length - 4) + '...';
+                return truncated + '.' + extension;
+              };
+              
+              return (
+                <FormItem>
+                  <FormLabel>{field.label}</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      <MediaUpload
+                        uploadType="appeal"
+                        onUploadComplete={handleFileUpload}
+                        metadata={{
+                          appealId: appealForm.getValues('banId') || 'unknown',
+                          fieldId: field.id
+                        }}
+                        variant="compact"
+                        maxFiles={5}
+                      />
+                      {currentFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {currentFiles.map((file: any, idx: number) => {
+                            const fileData = typeof file === 'string' ? 
+                              { url: file, fileName: file.split('/').pop() || 'file', fileType: 'application/octet-stream' } : 
+                              file;
+                            
+                            return (
+                              <Badge 
+                                key={idx} 
+                                variant="secondary" 
+                                className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
+                                onClick={() => window.open(fileData.url, '_blank')}
+                              >
+                                {getFileIcon(fileData.fileType)}
+                                <span className="text-xs">{truncateFileName(fileData.fileName)}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFileRemove(file);
+                                  }}
+                                  className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
+                                  title={`Remove ${fileData.fileName}`}
+                                >
+                                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </FormControl>
+                  {field.description && (
+                    <FormDescription>{field.description}</FormDescription>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         );
 
@@ -1268,14 +1335,15 @@ const AppealsPage = () => {
                           .sort((a, b) => a.order - b.order)
                           .map(section => {
                             // Check section visibility
-                            let isVisible = true;
+                            let isVisible = !section.hideByDefault;
                             
-                            // Hide if hideByDefault is true (for now, always show during appeal submission)
-                            // In the future, this could be enhanced with conditional logic
-                            if (section.hideByDefault) {
-                              // For now, always show sections during form submission
-                              // Later this can be enhanced with field-based conditional logic
-                              isVisible = true;
+                            // Show section if condition is met
+                            if (section.showIfFieldId && section.showIfValue) {
+                              const fieldValue = appealForm.watch(section.showIfFieldId);
+                              isVisible = fieldValue === section.showIfValue;
+                            } else if (section.showIfFieldId && section.showIfValues) {
+                              const fieldValue = appealForm.watch(section.showIfFieldId);
+                              isVisible = section.showIfValues.includes(fieldValue);
                             }
                             
                             if (!isVisible) return null;
