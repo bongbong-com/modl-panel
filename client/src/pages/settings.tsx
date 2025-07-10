@@ -2129,13 +2129,15 @@ const Settings = () => {
                   Punishment Types
                 </TabsTrigger>
               )}
-              <TabsTrigger
-                value="tags"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <Tag className="h-4 w-4 mr-2" />
-                Tickets
-              </TabsTrigger>
+              {canAccessSettingsTab('tags') && (
+                <TabsTrigger
+                  value="tags"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <Tag className="h-4 w-4 mr-2" />
+                  Tickets
+                </TabsTrigger>
+              )}
               {canAccessSettingsTab('staff') && (
                 <TabsTrigger
                   value="staff"
@@ -2145,13 +2147,15 @@ const Settings = () => {
                   Staff Management
                 </TabsTrigger>
               )}
-              <TabsTrigger
-                value="knowledgebase"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                Knowledgebase
-              </TabsTrigger>
+              {canAccessSettingsTab('knowledgebase') && (
+                <TabsTrigger
+                  value="knowledgebase"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Knowledgebase
+                </TabsTrigger>
+              )}
               {canAccessSettingsTab('homepage') && (
                 <TabsTrigger
                   value="homepage"
@@ -2220,8 +2224,9 @@ const Settings = () => {
               </TabsContent>
             )}
 
-            <TabsContent value="tags">
-              <TicketSettings
+            {canAccessSettingsTab('tags') && (
+              <TabsContent value="tags">
+                <TicketSettings
                 quickResponsesState={quickResponsesState}
                 setQuickResponsesState={setQuickResponsesState}
                 bugReportTags={bugReportTags}
@@ -2253,7 +2258,8 @@ const Settings = () => {
                 moveField={moveField}
                 moveFieldBetweenSections={moveFieldBetweenSections}
               />
-            </TabsContent>
+              </TabsContent>
+            )}
 
 
             <TabsContent value="staff" className="p-6">
@@ -2286,9 +2292,11 @@ const Settings = () => {
             </TabsContent>
 
 
-            <TabsContent value="knowledgebase" className="space-y-6 p-6">
-              <KnowledgebaseSettings />
-            </TabsContent>
+            {canAccessSettingsTab('knowledgebase') && (
+              <TabsContent value="knowledgebase" className="space-y-6 p-6">
+                <KnowledgebaseSettings />
+              </TabsContent>
+            )}
 
             {canAccessSettingsTab('homepage') && (
               <TabsContent value="homepage" className="space-y-6 p-6">
