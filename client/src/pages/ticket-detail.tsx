@@ -2049,6 +2049,68 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
     return true;
   };
 
+  const formatDuration = (durationMs: number): string => {
+    if (durationMs === 0 || durationMs === -1 || durationMs < 0) return 'Permanent';
+    
+    const days = Math.floor(durationMs / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((durationMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    const minutes = Math.floor((durationMs % (60 * 60 * 1000)) / (60 * 1000));
+    const seconds = Math.floor((durationMs % (60 * 1000)) / 1000);
+    
+    if (days > 0) {
+      return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+    } else if (hours > 0) {
+      return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
+    } else if (minutes > 0) {
+      return `${minutes}m`;
+    } else {
+      return `${seconds}s`;
+    }
+  };
+
+  const formatDateWithRelative = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const timeDiff = date.getTime() - now.getTime();
+      
+      // Format the actual date
+      const formattedDate = date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      // Calculate relative time
+      const formatTimeDifference = (timeDiff: number) => {
+        const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const minutes = Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000));
+        
+        if (days > 0) {
+          return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+        } else if (hours > 0) {
+          return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
+        } else {
+          return `${minutes}m`;
+        }
+      };
+
+      const timeAgo = formatTimeDifference(timeDiff);
+      
+      if (timeDiff > 0) {
+        return `${formattedDate} (in ${timeAgo})`;
+      } else {
+        return `${formattedDate} (${timeAgo} ago)`;
+      }
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
@@ -2121,7 +2183,7 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             
             <div>
               <span className="text-muted-foreground font-medium">Issued:</span>
-              <span className="ml-2">{formatDate(punishmentData.issued)}</span>
+              <span className="ml-2">{formatDateWithRelative(punishmentData.issued)}</span>
             </div>
             
             <div>
@@ -2143,13 +2205,16 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             {punishmentData.started && (
               <div>
                 <span className="text-muted-foreground font-medium">Started:</span>
-                <span className="ml-2">{formatDate(punishmentData.started)}</span>
+                <span className="ml-2">{formatDateWithRelative(punishmentData.started)}</span>
               </div>
             )}
             
             <div>
               <span className="text-muted-foreground font-medium">Expiry:</span>
-              <span className="ml-2">{formatExpiryStatus(punishmentData.expires, punishmentData.active)}</span>
+              <span className="ml-2">
+                {punishmentData.expires ? formatDateWithRelative(punishmentData.expires) : 
+                 punishmentData.active ? 'Permanent' : 'Inactive'}
+              </span>
             </div>
             
             <div>
@@ -2433,31 +2498,6 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             )}
           </div>
 
-          {/* Attached Reports Section */}
-          {punishmentData.attachedTicketIds && punishmentData.attachedTicketIds.length > 0 && (
-            <div className="mt-3">
-              <div className="text-muted-foreground font-medium text-sm mb-1">Attached Reports:</div>
-              <div className="flex flex-wrap gap-2">
-                {punishmentData.attachedTicketIds.map((ticketId: string, index: number) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={() => {
-                      // Navigate to ticket detail page
-                      // Replace # with ID- for URL compatibility
-                      const urlSafeTicketId = ticketId.replace('#', 'ID-');
-                      window.open(`/panel/tickets/${urlSafeTicketId}`, '_blank');
-                    }}
-                  >
-                    <Ticket className="h-3 w-3 mr-1" />
-                    {ticketId}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Additional Data Section */}
           {punishmentData.data && Object.keys(punishmentData.data).length > 0 && (
@@ -2522,7 +2562,7 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                           )}
                           {mod.effectiveDuration !== undefined && (
                             <div className="text-muted-foreground text-xs mb-1">
-                              Duration: {mod.effectiveDuration === 0 ? 'Permanent' : `${mod.effectiveDuration}ms`}
+                              Duration: {formatDuration(mod.effectiveDuration)}
                             </div>
                           )}
                           <p className="text-muted-foreground text-xs mt-1">
@@ -2533,6 +2573,32 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Attached Reports Section */}
+          {punishmentData.attachedTicketIds && punishmentData.attachedTicketIds.length > 0 && (
+            <div className="mt-3">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Attached Reports:</div>
+              <div className="flex flex-wrap gap-2">
+                {punishmentData.attachedTicketIds.map((ticketId: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => {
+                      // Navigate to ticket detail page
+                      // Replace # with ID- for URL compatibility
+                      const urlSafeTicketId = ticketId.replace('#', 'ID-');
+                      window.open(`/panel/tickets/${urlSafeTicketId}`, '_blank');
+                    }}
+                  >
+                    <Ticket className="h-3 w-3 mr-1" />
+                    {ticketId}
+                  </Button>
+                ))}
               </div>
             </div>
           )}
