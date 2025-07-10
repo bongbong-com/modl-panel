@@ -1975,6 +1975,42 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
     }
   };
 
+  const formatExpiryStatus = (expires: string | null, active: boolean): string => {
+    if (!expires) {
+      return active ? 'Permanent' : 'Inactive';
+    }
+
+    const expiryDate = new Date(expires);
+    const now = new Date();
+    const timeDiff = expiryDate.getTime() - now.getTime();
+
+    const formatTimeDifference = (timeDiff: number) => {
+      const days = Math.floor(Math.abs(timeDiff) / (24 * 60 * 60 * 1000));
+      const hours = Math.floor((Math.abs(timeDiff) % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+      const minutes = Math.floor((Math.abs(timeDiff) % (60 * 60 * 1000)) / (60 * 1000));
+      
+      if (days > 0) {
+        return `${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+      } else if (hours > 0) {
+        return `${hours}h${minutes > 0 && hours < 24 ? ` ${minutes}m` : ''}`;
+      } else {
+        return `${minutes}m`;
+      }
+    };
+
+    if (timeDiff > 0) {
+      const timeLeft = formatTimeDifference(timeDiff);
+      return `expires in ${timeLeft}`;
+    } else {
+      const timeAgo = formatTimeDifference(timeDiff);
+      return `expired ${timeAgo} ago`;
+    }
+  };
+
+  const shouldShowReason = (punishmentType: string): boolean => {
+    return punishmentType === 'Manual Ban' || punishmentType === 'Manual Mute';
+  };
+
   if (isLoading) {
     return (
       <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
@@ -2066,12 +2102,10 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
               </span>
             </div>
             
-            {punishmentData.expires && (
-              <div>
-                <span className="text-muted-foreground font-medium">Expires:</span>
-                <span className="ml-2">{formatDate(punishmentData.expires)}</span>
-              </div>
-            )}
+            <div>
+              <span className="text-muted-foreground font-medium">Expiry:</span>
+              <span className="ml-2">{formatExpiryStatus(punishmentData.expires, punishmentData.active)}</span>
+            </div>
             
             <div>
               <span className="text-muted-foreground font-medium">Issued by:</span>
@@ -2086,15 +2120,9 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             )}
           </div>
 
-          {punishmentData.reason && (
-            <div className="mt-3 p-3 bg-background rounded-md border border-border">
-              <div className="text-muted-foreground font-medium text-sm mb-1">Reason:</div>
-              <div className="text-sm">{punishmentData.reason}</div>
-            </div>
-          )}
-
-          {punishmentData.severity && (
-            <div className="mt-2">
+          {/* Badges for severity and offense level */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {punishmentData.severity && (
               <Badge 
                 variant="outline" 
                 className={`text-xs ${
@@ -2107,6 +2135,42 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
               >
                 {punishmentData.severity}
               </Badge>
+            )}
+            
+            {punishmentData.offenseLevel && (
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  punishmentData.offenseLevel.toLowerCase() === 'first' || punishmentData.offenseLevel.toLowerCase() === 'low' ? 
+                    'bg-green-500/10 dark:bg-green-400/10 text-green-700 dark:text-green-400 border-green-300 dark:border-green-600' :
+                  punishmentData.offenseLevel.toLowerCase() === 'medium' ?
+                    'bg-orange-500/10 dark:bg-orange-400/10 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-600' :
+                    'bg-red-500/10 dark:bg-red-400/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-600'
+                }`}
+              >
+                {punishmentData.offenseLevel}
+              </Badge>
+            )}
+
+            {punishmentData.altBlocking && (
+              <Badge variant="destructive" className="text-xs">
+                <Shield className="h-3 w-3 mr-1" />
+                Alt-Blocking
+              </Badge>
+            )}
+
+            {punishmentData.statWiping && (
+              <Badge variant="destructive" className="text-xs">
+                Stat-Wiping
+              </Badge>
+            )}
+          </div>
+
+          {/* Only show reason for manual punishments */}
+          {punishmentData.reason && shouldShowReason(punishmentData.type) && (
+            <div className="mt-3 p-3 bg-background rounded-md border border-border">
+              <div className="text-muted-foreground font-medium text-sm mb-1">Reason:</div>
+              <div className="text-sm">{punishmentData.reason}</div>
             </div>
           )}
 
@@ -2125,9 +2189,27 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
           )}
 
           {/* Notes Section */}
-          {punishmentData.notes && punishmentData.notes.length > 0 && (
-            <div className="mt-3">
-              <div className="text-muted-foreground font-medium text-sm mb-1">Staff Notes:</div>
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-muted-foreground font-medium text-sm">Staff Notes:</div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => {
+                  const newNote = prompt('Enter staff note:');
+                  if (newNote?.trim()) {
+                    // TODO: Send to server to add note to punishment
+                    // This would need a new API endpoint to add notes to existing punishments
+                    console.log('Adding note to punishment:', punishmentData.id, newNote);
+                  }
+                }}
+              >
+                <StickyNote className="h-3 w-3 mr-1" />
+                Add Note
+              </Button>
+            </div>
+            {punishmentData.notes && punishmentData.notes.length > 0 ? (
               <div className="space-y-2">
                 {punishmentData.notes.map((note: any, index: number) => (
                   <div key={index} className="text-sm p-2 bg-background rounded border border-border">
@@ -2139,8 +2221,10 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground">No staff notes</p>
+            )}
+          </div>
 
           {/* Attached Reports Section */}
           {punishmentData.attachedTicketIds && punishmentData.attachedTicketIds.length > 0 && (
@@ -2181,15 +2265,6 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             </div>
           )}
 
-          {/* Alt Blocking */}
-          {punishmentData.altBlocking && (
-            <div className="mt-2">
-              <Badge variant="destructive" className="text-xs">
-                <Shield className="h-3 w-3 mr-1" />
-                Alt-Blocking Enabled
-              </Badge>
-            </div>
-          )}
         </div>
       </div>
     </div>

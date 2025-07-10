@@ -1714,9 +1714,36 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                       {/* Expanded details */}
                     {isPunishment && isExpanded && (
                       <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                        {warning.evidence && warning.evidence.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Evidence:</p>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs font-medium text-muted-foreground">Evidence:</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-5 px-2 text-xs"
+                              onClick={() => {
+                                const newEvidence = prompt('Enter evidence URL or description:');
+                                if (newEvidence?.trim()) {
+                                  // Add evidence to the punishment
+                                  setPlayerInfo(prev => ({
+                                    ...prev,
+                                    warnings: prev.warnings.map(w => 
+                                      w.id === warning.id 
+                                        ? { ...w, evidence: [...(w.evidence || []), newEvidence.trim()] }
+                                        : w
+                                    )
+                                  }));
+                                  
+                                  // TODO: Send to server to persist the evidence
+                                  // This would need a new API endpoint to add evidence to existing punishments
+                                }
+                              }}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add
+                            </Button>
+                          </div>
+                          {warning.evidence && warning.evidence.length > 0 ? (
                             <ul className="text-xs space-y-1">
                               {warning.evidence.map((evidence, idx) => (
                                 <li key={idx} className="flex items-start">
@@ -1725,8 +1752,10 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 </li>
                               ))}
                             </ul>
-                          </div>
-                        )}
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No evidence added</p>
+                          )}
+                        </div>
                         
                         {warning.notes && warning.notes.length > 0 && (
                           <div>
