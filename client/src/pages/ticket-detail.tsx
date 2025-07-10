@@ -48,6 +48,7 @@ import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import MarkdownHelp from '@/components/ui/markdown-help';
 import { ClickablePlayer } from '@/components/ui/clickable-player';
 import PlayerPunishment, { PlayerPunishmentData } from '@/components/ui/player-punishment';
+import TicketAttachments from '@/components/TicketAttachments';
 
 // Define PunishmentType interface
 interface PunishmentType {
@@ -1741,6 +1742,16 @@ const TicketDetail = () => {
                       
                       <div className="mb-2">
                         <MarkdownHelp />
+                      </div>
+                      
+                      {/* Attachment Upload Section */}
+                      <div className="border rounded-lg p-4 bg-muted/50 mb-4">
+                        <h4 className="text-sm font-medium mb-2">Attachments</h4>
+                        <TicketAttachments
+                          ticketId={ticketDetails.id}
+                          ticketType={ticketDetails.category}
+                          showTitle={false}
+                        />
                       </div>
                       
                       <div className="relative">

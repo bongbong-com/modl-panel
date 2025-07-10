@@ -133,13 +133,32 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     }
     
     if (formData && Object.keys(formData).length > 0) {
+      // Get ticket form configuration to get field labels
+      let ticketForms = null;
+      try {
+        ticketForms = await getSettingsValue(req.serverDbConnection!, 'ticketForms');
+      } catch (error) {
+        console.warn('Could not fetch ticket forms configuration');
+      }
+      
+      // Create a map of field IDs to labels
+      const fieldLabels: Record<string, string> = {};
+      if (ticketForms && ticketForms[type] && ticketForms[type].fields) {
+        ticketForms[type].fields.forEach((field: any) => {
+          fieldLabels[field.id] = field.label;
+        });
+      }
+      
       Object.entries(formData).forEach(([key, value]) => {
         // Skip chatlog for chat reports as it's already handled above
         if (type === 'chat' && key === 'chatlog') return;
         
+        // Get the field label or fallback to the key
+        const fieldLabel = fieldLabels[key] || key;
+        
         // Special formatting for Chat Messages field
-        if (key === 'Chat Messages' && typeof value === 'string') {
-          contentString += `**${key}:**\n`;
+        if (fieldLabel === 'Chat Messages' && typeof value === 'string') {
+          contentString += `**${fieldLabel}:**\n`;
           try {
             // Try to parse each line as JSON
             const lines = value.split('\n').filter(line => line.trim());
@@ -163,7 +182,7 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
             contentString += `${value}\n\n`;
           }
         } else {
-          contentString += `**${key}:** ${value}\n\n`;
+          contentString += `**${fieldLabel}:** ${value}\n\n`;
         }
       });
     }
@@ -345,10 +364,29 @@ router.post('/tickets/unfinished', async (req: Request, res: Response) => {
     }
     
     if (formData && Object.keys(formData).length > 0) {
+      // Get ticket form configuration to get field labels
+      let ticketForms = null;
+      try {
+        ticketForms = await getSettingsValue(req.serverDbConnection!, 'ticketForms');
+      } catch (error) {
+        console.warn('Could not fetch ticket forms configuration');
+      }
+      
+      // Create a map of field IDs to labels
+      const fieldLabels: Record<string, string> = {};
+      if (ticketForms && ticketForms[type] && ticketForms[type].fields) {
+        ticketForms[type].fields.forEach((field: any) => {
+          fieldLabels[field.id] = field.label;
+        });
+      }
+      
       Object.entries(formData).forEach(([key, value]) => {
         // Skip chatlog for chat reports as it's already handled above
         if (type === 'chat' && key === 'chatlog') return;
-        contentString += `${key}: ${value}\n\n`;
+        
+        // Get the field label or fallback to the key
+        const fieldLabel = fieldLabels[key] || key;
+        contentString += `${fieldLabel}: ${value}\n\n`;
       });
     }
     
@@ -732,6 +770,23 @@ router.post('/tickets/:id/submit', async (req: Request, res: Response) => {
       
       // Create initial message content from form data
       let contentString = '';
+      
+      // Get ticket form configuration to get field labels
+      let ticketForms = null;
+      try {
+        ticketForms = await getSettingsValue(req.serverDbConnection!, 'ticketForms');
+      } catch (error) {
+        console.warn('Could not fetch ticket forms configuration');
+      }
+      
+      // Create a map of field IDs to labels
+      const fieldLabels: Record<string, string> = {};
+      if (ticketForms && ticketForms[ticket.type] && ticketForms[ticket.type].fields) {
+        ticketForms[ticket.type].fields.forEach((field: any) => {
+          fieldLabels[field.id] = field.label;
+        });
+      }
+      
       Object.entries(formData).forEach(([key, value]) => {
         if (value && value.toString().trim()) {
           // Special handling for chat reports
@@ -763,8 +818,8 @@ router.post('/tickets/:id/submit', async (req: Request, res: Response) => {
             }
             contentString += `\n`;
           } else {
-            // Format field names to be more readable for non-chat fields
-            const fieldLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+            // Get the field label from form configuration or format the key as fallback
+            const fieldLabel = fieldLabels[key] || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
             contentString += `**${fieldLabel}:**\n${value}\n\n`;
           }
         }

@@ -4,6 +4,7 @@ import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import MediaUpload from '@/components/MediaUpload';
 
 export interface PlayerPunishmentData {
   selectedPunishmentCategory?: string;
@@ -596,9 +597,31 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     
     // Evidence field - shown for all punishment types
     sections.push(
-      <div key="evidence" className="space-y-2">
+      <div key="evidence" className="space-y-4">
         <label className="text-sm font-medium">Evidence</label>
+        
+        {/* File Upload Section */}
+        <div className="border rounded-lg p-4 bg-muted/50">
+          <h4 className="text-sm font-medium mb-2">Upload Evidence Files</h4>
+          <MediaUpload
+            uploadType="evidence"
+            onUploadComplete={(result) => {
+              // Add the uploaded file URL to evidence array
+              const newEvidence = [...(data.evidence || []), result.url];
+              updateData({ evidence: newEvidence });
+            }}
+            metadata={{
+              playerId: playerId,
+              category: 'punishment'
+            }}
+            variant="compact"
+            maxFiles={5}
+          />
+        </div>
+
+        {/* Text Evidence Section */}
         <div className="space-y-2">
+          <h4 className="text-sm font-medium">Text Evidence & URLs</h4>
           {(data.evidence || []).map((evidence, index) => (
             <div key={index} className="flex items-center space-x-2">
               <input
@@ -629,7 +652,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
             size="sm"
             onClick={() => updateData({ evidence: [...(data.evidence || []), ''] })}
           >
-            Add Evidence
+            Add Text Evidence
           </Button>
         </div>
       </div>

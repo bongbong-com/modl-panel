@@ -23,6 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'm
 import { Popover, PopoverContent, PopoverTrigger } from 'modl-shared-web/components/ui/popover';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from 'modl-shared-web/components/ui/card';
 import { useTicket, useAddTicketReply, useSubmitTicketForm, useSettings } from '@/hooks/use-data';
+import TicketAttachments from '@/components/TicketAttachments';
+import MediaUpload from '@/components/MediaUpload';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
@@ -743,18 +745,27 @@ const PlayerTicket = () => {
             ))}
           </div>
         ) : field.type === 'file_upload' ? (
-          <Input
-            id={field.id}
-            type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                handleFormFieldChange(field.id, file.name);
-              }
-            }}
-            required={field.required}
-            accept="image/*,.pdf,.doc,.docx,.txt"
-          />
+          <div className="space-y-2">
+            <MediaUpload
+              uploadType="ticket"
+              onUploadComplete={(result) => {
+                // Store the uploaded file URL in form data
+                handleFormFieldChange(field.id, result.url);
+              }}
+              metadata={{
+                ticketId: ticketDetails.id,
+                ticketType: ticketDetails.type,
+                fieldId: field.id
+              }}
+              variant="compact"
+              maxFiles={1}
+            />
+            {formData[field.id] && (
+              <div className="text-sm text-muted-foreground">
+                File uploaded: {formData[field.id].split('/').pop()}
+              </div>
+            )}
+          </div>
         ) : (
           <Input
             id={field.id}
@@ -1003,6 +1014,16 @@ const PlayerTicket = () => {
                         onChange={(e) => setNewReply(e.target.value)}
                         placeholder="Type your reply here..."
                         className="min-h-[100px]"
+                      />
+                    </div>
+                    
+                    {/* Attachment Upload Section */}
+                    <div className="border rounded-lg p-4 bg-muted/50">
+                      <h4 className="text-sm font-medium mb-2">Attachments</h4>
+                      <TicketAttachments
+                        ticketId={ticketDetails.id}
+                        ticketType={ticketDetails.type}
+                        showTitle={false}
                       />
                     </div>
                     

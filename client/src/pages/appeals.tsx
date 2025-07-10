@@ -36,6 +36,7 @@ import { Separator } from 'modl-shared-web/components/ui/separator';
 import { Textarea } from 'modl-shared-web/components/ui/textarea';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useSettings, useCreateAppeal } from '@/hooks/use-data';
+import TicketAttachments from '@/components/TicketAttachments';
 
 // Appeal form field interfaces
 interface AppealFormField {
@@ -807,6 +808,16 @@ const AppealsPage = () => {
                                 onChange={(e) => setNewReply(e.target.value)}
                                 placeholder="Type your reply here..."
                                 className="min-h-[100px]"
+                              />
+                            </div>
+                            
+                            {/* Attachment Upload Section */}
+                            <div className="border rounded-lg p-4 bg-muted/50">
+                              <h4 className="text-sm font-medium mb-2">Attachments</h4>
+                              <TicketAttachments
+                                ticketId={appealInfo.id}
+                                ticketType="appeal"
+                                showTitle={false}
                               />
                             </div>
                             
