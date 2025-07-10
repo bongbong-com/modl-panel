@@ -117,6 +117,7 @@ const AppealsPage = () => {
   const [showAppealForm, setShowAppealForm] = useState(false);
   const [isLoadingPunishment, setIsLoadingPunishment] = useState(false);
   const [newReply, setNewReply] = useState("");
+  const [forceRerender, setForceRerender] = useState(0); // Force re-render for section visibility
 
   // Appeal form configuration will come from the punishment-specific data
   const [appealFormSettings, setAppealFormSettings] = useState<AppealFormSettings | undefined>(undefined);
@@ -469,11 +470,11 @@ const AppealsPage = () => {
                     
                     // Handle section navigation - force form re-validation to trigger conditional renders
                     if (field.optionSectionMapping && field.optionSectionMapping[value]) {
-                      // Force re-render by triggering form validation
-                      setTimeout(() => appealForm.trigger(), 0);
+                      // Force re-render by updating state
+                      setForceRerender(prev => prev + 1);
                     } else if (field.goToSection) {
                       // Navigate to specific section
-                      setTimeout(() => appealForm.trigger(), 0);
+                      setForceRerender(prev => prev + 1);
                     }
                   }} 
                   defaultValue={formField.value}

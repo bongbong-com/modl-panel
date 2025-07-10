@@ -182,6 +182,12 @@ router.post('/', async (req: Request, res: Response) => {
       for (const [key, value] of Object.entries(additionalData)) {
         // Skip file upload fields and system fields in initial content
         if (typeof value === 'object' || Array.isArray(value)) {
+          // Handle arrays (checkboxes, multiple selections)
+          if (Array.isArray(value) && value.length > 0) {
+            const fieldLabel = (fieldLabels && fieldLabels[key]) || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase());
+            const listItems = value.map(item => `• ${item}`).join('\n');
+            initialReplyContent += `${fieldLabel}:\n${listItems}\n`;
+          }
           continue;
         }
         
@@ -207,6 +213,17 @@ router.post('/', async (req: Request, res: Response) => {
       staff: false,
       attachments: attachments || []
     });
+
+    // Add attachment info to initial content if files were uploaded
+    if (attachments && attachments.length > 0) {
+      let attachmentText = '\n\nAttached Files:\n';
+      attachments.forEach((attachment: any) => {
+        const fileName = attachment.fileName || attachment.url?.split('/').pop() || 'file';
+        attachmentText += `• ${fileName}\n`;
+      });
+      // Update the content to include attachment info
+      appealTicketDocument.replies[appealTicketDocument.replies.length - 1].content += attachmentText;
+    }
     
 
     punishment.attachedTicketIds = punishment.attachedTicketIds || [];

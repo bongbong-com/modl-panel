@@ -145,6 +145,7 @@ const AppealsPage = () => {
   const [newReply, setNewReply] = useState("");
   const [attachments, setAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
   const [replyAttachments, setReplyAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
+  const [forceRerender, setForceRerender] = useState(0); // Force re-render for section visibility
 
   // Appeal form configuration will come from the punishment-specific data
   const [appealFormSettings, setAppealFormSettings] = useState<AppealFormSettings | undefined>(undefined);
@@ -495,17 +496,17 @@ const AppealsPage = () => {
               }
             });
             
-            // Show attachment file names in message
+            // Show attachment file names in message as a list
             if (files.length > 0) {
               const fileNames = files.map((file: any) => {
                 if (typeof file === 'object' && file.fileName) {
-                  return file.fileName;
+                  return `• ${file.fileName}`;
                 } else if (typeof file === 'string') {
-                  return file.split('/').pop() || 'file';
+                  return `• ${file.split('/').pop() || 'file'}`;
                 }
-                return 'file';
-              }).join(', ');
-              contentString += `**${fieldLabel}:** ${fileNames}\n\n`;
+                return '• file';
+              }).join('\n');
+              contentString += `**${fieldLabel}:**\n${fileNames}\n\n`;
             }
           }
         } else {
@@ -520,7 +521,8 @@ const AppealsPage = () => {
             // Format the value properly
             let displayValue = value;
             if (Array.isArray(value)) {
-              displayValue = value.join(', ');
+              // For checkboxes - show as bullet list
+              displayValue = value.map(v => `• ${v}`).join('\n');
             } else if (typeof value === 'boolean') {
               displayValue = value ? 'Yes' : 'No';
             }
@@ -767,11 +769,11 @@ const AppealsPage = () => {
                     
                     // Handle section navigation - force form re-validation to trigger conditional renders
                     if (field.optionSectionMapping && field.optionSectionMapping[value]) {
-                      // Force re-render by triggering form validation
-                      setTimeout(() => appealForm.trigger(), 0);
+                      // Force re-render by updating state
+                      setForceRerender(prev => prev + 1);
                     } else if (field.goToSection) {
                       // Navigate to specific section
-                      setTimeout(() => appealForm.trigger(), 0);
+                      setForceRerender(prev => prev + 1);
                     }
                   }} 
                   defaultValue={formField.value}
@@ -814,11 +816,11 @@ const AppealsPage = () => {
                       
                       // Handle section navigation - force form re-validation to trigger conditional renders
                       if (field.optionSectionMapping && field.optionSectionMapping[value]) {
-                        // Force re-render by triggering form validation
-                        setTimeout(() => appealForm.trigger(), 0);
+                        // Force re-render by updating state
+                        setForceRerender(prev => prev + 1);
                       } else if (field.goToSection) {
                         // Navigate to specific section
-                        setTimeout(() => appealForm.trigger(), 0);
+                        setForceRerender(prev => prev + 1);
                       }
                     }}
                     defaultValue={formField.value}
@@ -1376,7 +1378,7 @@ const AppealsPage = () => {
                         appealFormSettings.sections
                           .sort((a, b) => a.order - b.order)
                           .map(section => {
-                            // Check section visibility
+                            // Check section visibility with forceRerender dependency
                             let isVisible = !section.hideByDefault;
                             
                             // Show section if condition is met
@@ -1386,6 +1388,18 @@ const AppealsPage = () => {
                             } else if (section.showIfFieldId && section.showIfValues) {
                               const fieldValue = appealForm.watch(section.showIfFieldId);
                               isVisible = section.showIfValues.includes(fieldValue);
+                            }
+                            
+                            // Check if any field in this section has optionSectionMapping that targets this section
+                            if (!isVisible && appealFormSettings?.fields) {
+                              appealFormSettings.fields.forEach(field => {
+                                if (field.optionSectionMapping) {
+                                  const fieldValue = appealForm.watch(field.id);
+                                  if (field.optionSectionMapping[fieldValue] === section.id) {
+                                    isVisible = true;
+                                  }
+                                }
+                              });
                             }
                             
                             if (!isVisible) return null;
