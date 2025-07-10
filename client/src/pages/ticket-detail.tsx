@@ -31,7 +31,8 @@ import {
   ShieldCheck,
   Ticket,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
@@ -772,27 +773,8 @@ const TicketDetail = () => {
         case 'Duplicate':
           actionDesc = "marked this bug as duplicate";
           break;
-        case 'Pardon':
-          actionDesc = "pardoned this punishment";
-          break;
-        case 'Reduce':
-          actionDesc = ticketDetails.isPermanent 
-            ? 'changed the punishment to permanent' 
-            : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
-          break;
-        case 'Reject':
-          actionDesc = "rejected this appeal";
-          break;
-        case 'Close':
-          actionDesc = "closed this ticket";
-          status = 'Closed';
-          break;
-        case 'Reopen':
-          actionDesc = "reopened this ticket";
-          status = 'Open';
-          break;
         default:
-          // Handle quick response actions
+          // Handle quick response actions first (takes precedence over hardcoded cases)
           const actions = getQuickResponsesForTicket(ticketDetails.category);
           const actionConfig = actions.find(act => act.name === ticketDetails.selectedAction);
           if (actionConfig) {
@@ -800,12 +782,38 @@ const TicketDetail = () => {
             if (actionConfig.closeTicket) {
               status = 'Closed';
             }
-          } else if (ticketDetails.selectedAction?.toLowerCase().includes('reduce')) {
-            // Handle dynamic reduce actions
-            actionDesc = ticketDetails.isPermanent 
-              ? 'changed the punishment to permanent' 
-              : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
-            status = 'Closed';
+          } else {
+            // Fallback to hardcoded cases if not in quick responses
+            switch(ticketDetails.selectedAction) {
+              case 'Pardon':
+                actionDesc = "pardoned this punishment";
+                break;
+              case 'Reduce':
+                actionDesc = ticketDetails.isPermanent 
+                  ? 'changed the punishment to permanent' 
+                  : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
+                break;
+              case 'Reject':
+                actionDesc = "rejected this appeal";
+                break;
+              case 'Close':
+                actionDesc = "closed this ticket";
+                status = 'Closed';
+                break;
+              case 'Reopen':
+                actionDesc = "reopened this ticket";
+                status = 'Open';
+                break;
+              default:
+                // Handle dynamic reduce actions
+                if (ticketDetails.selectedAction?.toLowerCase().includes('reduce')) {
+                  actionDesc = ticketDetails.isPermanent 
+                    ? 'changed the punishment to permanent' 
+                    : `reduced the punishment to ${ticketDetails.duration?.value || 0} ${ticketDetails.duration?.unit || 'days'}`;
+                  status = 'Closed';
+                }
+                break;
+            }
           }
       }
     }
@@ -2400,15 +2408,25 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             </div>
             {punishmentData.notes && punishmentData.notes.length > 0 ? (
               <div className="space-y-2">
-                {punishmentData.notes.map((note: any, index: number) => (
-                  <div key={index} className="text-sm p-2 bg-background rounded border border-border">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium">{note.issuerName}</span>
-                      <span className="text-xs text-muted-foreground">{formatDate(note.date)}</span>
+                {punishmentData.notes.map((note: any, index: number) => {
+                  const issuer = note.issuerName || 'System';
+                  const date = note.date ? formatDate(note.date) : 'Unknown';
+                  const issuerInfo = `By: ${issuer} on ${date}`;
+                  
+                  return (
+                    <div key={index} className="text-sm p-2 bg-background rounded border border-border border-l-4 border-l-green-500">
+                      <div className="flex items-start">
+                        <StickyNote className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="break-all">{note.text}</span>
+                          <p className="text-muted-foreground text-xs mt-1">
+                            {issuerInfo}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>{note.text}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">No staff notes</p>
@@ -2483,21 +2501,38 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
             <div className="mt-3">
               <div className="text-muted-foreground font-medium text-sm mb-1">Modifications:</div>
               <div className="space-y-2">
-                {punishmentData.modifications.map((mod: any, index: number) => (
-                  <div key={index} className="text-sm p-2 bg-background rounded border border-border">
-                    <div className="flex items-center justify-between mb-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {mod.type.replace(/_/g, ' ')}
-                      </Badge>
-                      {mod.issued && (
-                        <span className="text-xs text-muted-foreground">{formatDate(mod.issued)}</span>
-                      )}
+                {punishmentData.modifications.map((mod: any, index: number) => {
+                  const issuer = mod.issuerName || 'System';
+                  const date = mod.issued ? formatDate(mod.issued) : 'Unknown';
+                  const issuerInfo = `By: ${issuer} on ${date}`;
+                  const modType = mod.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase());
+                  
+                  return (
+                    <div key={index} className="text-sm p-2 bg-background rounded border border-border border-l-4 border-l-orange-500">
+                      <div className="flex items-start">
+                        <Settings className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {modType}
+                            </Badge>
+                          </div>
+                          {mod.reason && (
+                            <div className="mb-1 break-all">{mod.reason}</div>
+                          )}
+                          {mod.effectiveDuration !== undefined && (
+                            <div className="text-muted-foreground text-xs mb-1">
+                              Duration: {mod.effectiveDuration === 0 ? 'Permanent' : `${mod.effectiveDuration}ms`}
+                            </div>
+                          )}
+                          <p className="text-muted-foreground text-xs mt-1">
+                            {issuerInfo}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    {mod.data && mod.data.reason && (
-                      <div className="text-xs mt-1">Reason: {mod.data.reason}</div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
