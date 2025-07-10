@@ -2048,7 +2048,7 @@ const Settings = () => {
     setIsAddAppealFieldDialogOpen(false);
   };
 
-  const removeAppealFormField = (fieldId: string) => {
+  const removeAppealFormField = useCallback((fieldId: string) => {
     if (!selectedPunishment?.appealForm?.fields) return;
 
     const updatedFields = selectedPunishment.appealForm.fields
@@ -2062,7 +2062,7 @@ const Settings = () => {
         fields: updatedFields
       }
     } : null);
-  };
+  }, [selectedPunishment, setSelectedPunishment]);
 
   const addAppealFormSection = () => {
     if (!selectedPunishment || !newAppealSectionTitle.trim()) return;
@@ -2105,7 +2105,7 @@ const Settings = () => {
     setIsAddAppealSectionDialogOpen(false);
   };
 
-  const removeAppealFormSection = (sectionId: string) => {
+  const removeAppealFormSection = useCallback((sectionId: string) => {
     if (!selectedPunishment?.appealForm) return;
 
     const updatedSections = (selectedPunishment.appealForm.sections || [])
@@ -2123,7 +2123,7 @@ const Settings = () => {
         sections: updatedSections
       }
     } : null);
-  };
+  }, [selectedPunishment, setSelectedPunishment]);
 
   const updateAppealFormField = (fieldId: string, updates: Partial<AppealFormField>) => {
     if (!selectedPunishment?.appealForm?.fields) return;
@@ -2542,9 +2542,9 @@ const Settings = () => {
     setIsAddAppealSectionDialogOpen(true);
   }, []);
 
-  const onDeleteAppealFormSection = useCallback((sectionId: string) => {
+  const onDeleteAppealFormSection = (sectionId: string) => {
     removeAppealFormSection(sectionId);
-  }, []);
+  };
 
   const onEditAppealFormField = useCallback((field: AppealFormField) => {
     setSelectedAppealField(field);
@@ -2558,9 +2558,9 @@ const Settings = () => {
     setIsAddAppealFieldDialogOpen(true);
   }, []);
 
-  const onDeleteAppealFormField = useCallback((fieldId: string) => {
+  const onDeleteAppealFormField = (fieldId: string) => {
     removeAppealFormField(fieldId);
-  }, []);
+  };
 
   const onAddAppealFormField = useCallback(() => {
     setIsAddAppealFieldDialogOpen(true);
@@ -3565,14 +3565,6 @@ const Settings = () => {
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Section
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => setIsAddAppealFieldDialogOpen(true)}
-                          disabled={selectedPunishment.isAppealable === false}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Field
                         </Button>
                       </div>
                     </div>
