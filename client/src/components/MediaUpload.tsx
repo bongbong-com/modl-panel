@@ -243,6 +243,7 @@ export function MediaUpload({
     return (
       <>
         <Button 
+          type="button"
           onClick={openFileDialog}
           disabled={disabled || uploadedFiles.length >= maxFiles}
           className={className}
@@ -277,6 +278,7 @@ export function MediaUpload({
       
       {variant === 'compact' ? (
         <Button 
+          type="button"
           onClick={openFileDialog}
           disabled={disabled || uploadedFiles.length >= maxFiles}
           variant="outline"
@@ -342,6 +344,7 @@ export function MediaUpload({
               </div>
               
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={(e) => {
