@@ -55,7 +55,7 @@ interface PlayerInfo {
     id?: string;
     severity?: string;
     status?: string;
-    evidence?: string[];
+    evidence?: (string | {text: string; issuerName: string; date: string})[];
     notes?: Array<{text: string; issuerName: string; date: string}>;
     attachedTicketIds?: string[];
     active?: boolean;
@@ -72,6 +72,9 @@ interface PlayerInfo {
   isAddingPunishmentNote?: boolean;
   punishmentNoteTarget?: string | null;
   newPunishmentNote?: string;
+  isAddingPunishmentEvidence?: boolean;
+  punishmentEvidenceTarget?: string | null;
+  newPunishmentEvidence?: string;
   isModifyingPunishment?: boolean;
   modifyPunishmentTarget?: string | null;  modifyPunishmentAction?: 'modify' | null;
   modifyPunishmentReason?: string;
@@ -1717,31 +1720,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-xs font-medium text-muted-foreground">Evidence:</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-5 px-2 text-xs"
-                              onClick={() => {
-                                const newEvidence = prompt('Enter evidence URL or description:');
-                                if (newEvidence?.trim()) {
-                                  // Add evidence to the punishment
-                                  setPlayerInfo(prev => ({
-                                    ...prev,
-                                    warnings: prev.warnings.map(w => 
-                                      w.id === warning.id 
-                                        ? { ...w, evidence: [...(w.evidence || []), newEvidence.trim()] }
-                                        : w
-                                    )
-                                  }));
-                                  
-                                  // TODO: Send to server to persist the evidence
-                                  // This would need a new API endpoint to add evidence to existing punishments
-                                }
-                              }}
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Add
-                            </Button>
                           </div>
                           {warning.evidence && warning.evidence.length > 0 ? (
                             <ul className="text-xs space-y-2">
@@ -1928,6 +1906,23 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             <StickyNote className="h-3 w-3 mr-1" />
                             Add Note
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => {
+                              const id = warning.id || `warning-${index}`;
+                              setPlayerInfo(prev => ({
+                                ...prev,
+                                isAddingPunishmentEvidence: true,
+                                punishmentEvidenceTarget: id,
+                                newPunishmentEvidence: ''
+                              }));
+                            }}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Add Evidence
+                          </Button>
                             <Button
                             variant="outline"
                             size="sm"
@@ -2006,7 +2001,89 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                 Add Note
                               </Button>
                             </div>
-                          </div>                        )}                        {/* Modify Punishment Form */}
+                          </div>                        )}
+
+                        {/* Add Evidence Form */}
+                        {warning.id && playerInfo.isAddingPunishmentEvidence && playerInfo.punishmentEvidenceTarget === (warning.id || `warning-${index}`) && (
+                          <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
+                            <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
+                            <textarea
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                              placeholder="Enter evidence URL or description..."
+                              value={playerInfo.newPunishmentEvidence || ''}
+                              onChange={(e) => setPlayerInfo(prev => ({...prev, newPunishmentEvidence: e.target.value}))}
+                            />
+                            <div className="flex justify-end gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPlayerInfo(prev => ({
+                                  ...prev,
+                                  isAddingPunishmentEvidence: false,
+                                  punishmentEvidenceTarget: null,
+                                  newPunishmentEvidence: ''
+                                }))}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={!playerInfo.newPunishmentEvidence?.trim()}
+                                onClick={async () => {
+                                  if (!playerInfo.newPunishmentEvidence?.trim()) return;
+                                  
+                                  try {
+                                    // Add evidence to punishment via API
+                                    const evidenceData = {
+                                      text: playerInfo.newPunishmentEvidence.trim(),
+                                      issuerName: user?.username || 'Admin',
+                                      date: new Date().toISOString()
+                                    };
+                                    
+                                    const response = await fetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: JSON.stringify(evidenceData)
+                                    });
+                                    
+                                    if (!response.ok) {
+                                      throw new Error('Failed to add evidence');
+                                    }
+                                    
+                                    toast({
+                                      title: 'Evidence Added',
+                                      description: `Evidence has been added to the punishment successfully`
+                                    });
+                                    
+                                    // Refetch player data to update the UI
+                                    refetch();
+                                    
+                                    // Reset form
+                                    setPlayerInfo(prev => ({
+                                      ...prev,
+                                      isAddingPunishmentEvidence: false,
+                                      punishmentEvidenceTarget: null,
+                                      newPunishmentEvidence: ''
+                                    }));
+                                  } catch (error) {
+                                    console.error('Error adding evidence to punishment:', error);
+                                    toast({
+                                      title: "Failed to add evidence",
+                                      description: error instanceof Error ? error.message : "An unknown error occurred",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                Add Evidence
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Modify Punishment Form */}
                         {warning.id && playerInfo.isModifyingPunishment && playerInfo.modifyPunishmentTarget === (warning.id || `warning-${index}`) && (
                           <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
                             <p className="text-xs font-medium mb-2">Modify Punishment</p>

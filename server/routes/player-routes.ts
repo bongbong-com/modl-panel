@@ -36,6 +36,12 @@ interface IPunishmentNote {
   date: Date;
 }
 
+interface IEvidence {
+  text: string;
+  issuerName: string;
+  date: Date;
+}
+
 interface IPunishment {
   id: string;
   issuerName: string;
@@ -44,7 +50,7 @@ interface IPunishment {
   type_ordinal: number;
   modifications: any[];
   notes: IPunishmentNote[];
-  evidence: string[];
+  evidence: (string | IEvidence)[];
   attachedTicketIds: string[];
   data: Map<string, any>;
 }
@@ -873,12 +879,27 @@ router.get('/punishment/:punishmentId', async (req: Request<{ punishmentId: stri
     // First try to get from settings
     try {
       const Settings = req.serverDbConnection!.model('Settings');
-      const settings = await Settings.findOne({});
-      if (settings?.settings?.punishmentTypes) {
-        const punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
-          ? JSON.parse(settings.settings.punishmentTypes) 
-          : settings.settings.punishmentTypes;
-        
+      
+      // Try both the punishmentTypes collection and settings.punishmentTypes
+      let punishmentTypes = null;
+      
+      // First try the dedicated punishmentTypes document
+      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+      if (punishmentTypesDoc?.data) {
+        punishmentTypes = typeof punishmentTypesDoc.data === 'string' 
+          ? JSON.parse(punishmentTypesDoc.data) 
+          : punishmentTypesDoc.data;
+      } else {
+        // Fallback to settings.punishmentTypes
+        const settings = await Settings.findOne({});
+        if (settings?.settings?.punishmentTypes) {
+          punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
+            ? JSON.parse(settings.settings.punishmentTypes) 
+            : settings.settings.punishmentTypes;
+        }
+      }
+      
+      if (punishmentTypes) {
         const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
         if (punishmentType) {
           punishmentTypeName = punishmentType.name;
@@ -1338,5 +1359,51 @@ async function updatePlayerLinkedAccountsForPanel(
     console.error(`[Panel Account Linking] Error updating player linked accounts:`, error);
   }
 }
+
+// Add evidence to a punishment
+router.post('/:uuid/punishments/:punishmentId/evidence', async (req: Request<{ uuid: string; punishmentId: string }>, res: Response): Promise<void> => {
+  const Player = req.serverDbConnection!.model<IPlayer>('Player');
+  try {
+    const { uuid, punishmentId } = req.params;
+    const { text, issuerName, date } = req.body;
+    
+    if (!text?.trim()) {
+      return res.status(400).json({ error: 'Evidence text is required' });
+    }
+    
+    // Find the player
+    const player = await Player.findOne({ minecraftUuid: uuid });
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+    
+    // Find the punishment
+    const punishment = player.punishments.find((p: any) => p.id === punishmentId);
+    if (!punishment) {
+      return res.status(404).json({ error: 'Punishment not found' });
+    }
+    
+    // Add the evidence
+    const evidenceItem = {
+      text: text.trim(),
+      issuerName: issuerName || 'System',
+      date: date || new Date()
+    };
+    
+    if (!punishment.evidence) {
+      punishment.evidence = [];
+    }
+    
+    punishment.evidence.push(evidenceItem);
+    
+    // Save the player
+    await player.save();
+    
+    res.json({ message: 'Evidence added successfully', evidence: evidenceItem });
+  } catch (error) {
+    console.error('Error adding evidence to punishment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;

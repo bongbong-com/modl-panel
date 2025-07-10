@@ -29,7 +29,9 @@ import {
   Unlock as UnlockIcon,
   Loader2,
   ShieldCheck,
-  Ticket
+  Ticket,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
@@ -1930,6 +1932,11 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
   const [punishmentData, setPunishmentData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddingEvidence, setIsAddingEvidence] = useState(false);
+  const [newEvidence, setNewEvidence] = useState('');
+  const [showAdditionalData, setShowAdditionalData] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchPunishmentDetails = async () => {
@@ -2214,7 +2221,21 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
 
           {/* Evidence Section */}
           <div className="mt-3">
-            <div className="text-muted-foreground font-medium text-sm mb-1">Evidence:</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-muted-foreground font-medium text-sm">Evidence:</div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => {
+                  setIsAddingEvidence(true);
+                  setNewEvidence('');
+                }}
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                Add Evidence
+              </Button>
+            </div>
             {punishmentData.evidence && punishmentData.evidence.length > 0 ? (
               <div className="space-y-2">
                 {punishmentData.evidence.map((evidenceItem: any, index: number) => {
@@ -2263,6 +2284,83 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">No evidence</p>
+            )}
+            
+            {/* Add Evidence Form */}
+            {isAddingEvidence && (
+              <div className="mt-3 p-3 bg-muted/20 rounded-lg border">
+                <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
+                <textarea
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                  placeholder="Enter evidence URL or description..."
+                  value={newEvidence}
+                  onChange={(e) => setNewEvidence(e.target.value)}
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddingEvidence(false);
+                      setNewEvidence('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={!newEvidence.trim()}
+                    onClick={async () => {
+                      if (!newEvidence.trim()) return;
+                      
+                      try {
+                        const evidenceData = {
+                          text: newEvidence.trim(),
+                          issuerName: user?.username || 'Staff',
+                          date: new Date().toISOString()
+                        };
+                        
+                        const response = await fetch(`/api/panel/players/${punishmentData.playerUuid}/punishments/${punishmentId}/evidence`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify(evidenceData)
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to add evidence');
+                        }
+                        
+                        toast({
+                          title: 'Evidence Added',
+                          description: 'Evidence has been added to the punishment successfully'
+                        });
+                        
+                        // Refresh punishment data
+                        const refreshResponse = await fetch(`/api/panel/players/punishment/${punishmentId}`);
+                        if (refreshResponse.ok) {
+                          const refreshedData = await refreshResponse.json();
+                          setPunishmentData(refreshedData);
+                        }
+                        
+                        // Reset form
+                        setIsAddingEvidence(false);
+                        setNewEvidence('');
+                      } catch (error) {
+                        console.error('Error adding evidence to punishment:', error);
+                        toast({
+                          title: "Failed to add evidence",
+                          description: error instanceof Error ? error.message : "An unknown error occurred",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    Add Evidence
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -2327,6 +2425,43 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                   </Button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Additional Data Section */}
+          {punishmentData.data && Object.keys(punishmentData.data).length > 0 && (
+            <div className="mt-3">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="text-muted-foreground font-medium text-sm">Additional Data:</div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1 text-xs"
+                  onClick={() => setShowAdditionalData(!showAdditionalData)}
+                >
+                  {showAdditionalData ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
+              {showAdditionalData && (
+                <div className="text-xs bg-muted/20 p-2 rounded font-mono">
+                  {Object.entries(punishmentData.data).map(([key, value]) => (
+                    <div key={key}>
+                      <span className="text-muted-foreground">{key}:</span> {
+                        value === null ? 'null' :
+                        value === undefined ? 'undefined' :
+                        value === 0 ? '0' :
+                        value === '' ? '(empty)' :
+                        typeof value === 'object' ? JSON.stringify(value) : 
+                        String(value)
+                      }
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
