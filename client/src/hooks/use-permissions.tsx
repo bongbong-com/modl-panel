@@ -21,9 +21,9 @@ export const SETTINGS_PERMISSIONS = {
   account: [], // Everyone can access account settings
   general: [PERMISSIONS.ADMIN_SETTINGS_VIEW], // Server & Billing
   punishment: [PERMISSIONS.ADMIN_SETTINGS_VIEW], // Punishment Types
-  tags: [], // Tickets - everyone can access
+  tags: [PERMISSIONS.ADMIN_SETTINGS_VIEW], // Tickets - requires settings view
   staff: [PERMISSIONS.ADMIN_STAFF_MANAGE], // Staff Management
-  knowledgebase: [], // Everyone can access
+  knowledgebase: [PERMISSIONS.ADMIN_SETTINGS_VIEW], // Knowledgebase - requires settings view
   homepage: [PERMISSIONS.ADMIN_SETTINGS_VIEW], // Homepage Cards
 } as const;
 
