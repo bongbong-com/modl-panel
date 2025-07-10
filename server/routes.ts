@@ -24,6 +24,7 @@ import publicHomepageCardRoutes from './routes/public-homepage-card-routes'; // 
 import publicTicketRoutes from './routes/public-ticket-routes'; // Import public ticket routes
 import publicPunishmentRoutes from './routes/public-punishment-routes'; // Import public punishment routes
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
+import mediaRoutes from './routes/media-routes'; // Import media routes
 
 export async function registerRoutes(app: Express): Promise<Server> {
   let globalDbConnection: MongooseConnection | undefined = undefined;
@@ -158,6 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/billing', billingRoutes); // Billing management for the panel
   panelRouter.use('/knowledgebase', knowledgebaseRoutes); // Add knowledgebase routes to panel
   panelRouter.use('/', homepageCardRoutes); // Add homepage card routes to panel
+  panelRouter.use('/media', mediaRoutes); // Add media upload routes to panel
 
   panelRouter.get('/activity/recent', async (req: any, res) => {
     try {
