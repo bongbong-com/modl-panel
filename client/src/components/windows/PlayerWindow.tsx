@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   Eye, TriangleAlert, Ban, RefreshCcw, Search, LockOpen, History, 
   Link2, StickyNote, Ticket, UserRound, Shield, FileText, Upload, Loader2,
-  ChevronDown, ChevronRight, Settings
+  ChevronDown, ChevronRight, Settings, Plus
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Button } from 'modl-shared-web/components/ui/button';
