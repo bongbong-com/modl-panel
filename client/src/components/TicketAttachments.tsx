@@ -134,10 +134,34 @@ export function TicketAttachments({
         <div className={compact ? "flex items-center gap-2 flex-wrap" : "space-y-2"}>
           {!compact && showTitle && <h4 className="text-sm font-medium">Attachments</h4>}
           {compact ? (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Paperclip className="h-3 w-3" />
-              {attachments.length} file{attachments.length > 1 ? 's' : ''}
-            </Badge>
+            <>
+              {attachments.map((attachment) => {
+                // Truncate filename to max 20 characters
+                const truncatedName = attachment.fileName.length > 20 
+                  ? attachment.fileName.substring(0, 17) + '...'
+                  : attachment.fileName;
+                
+                return (
+                  <Badge 
+                    key={attachment.id} 
+                    variant="secondary" 
+                    className="flex items-center gap-1 max-w-fit"
+                  >
+                    {getFileIcon(attachment.fileType)}
+                    <span className="text-xs">{truncatedName}</span>
+                    {!readonly && (
+                      <button
+                        onClick={() => handleDeleteAttachment(attachment)}
+                        className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
+                        title={`Delete ${attachment.fileName}`}
+                      >
+                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    )}
+                  </Badge>
+                );
+              })}
+            </>
           ) : (
             <>
               {attachments.map((attachment) => (
