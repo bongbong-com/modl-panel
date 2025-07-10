@@ -253,6 +253,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
               variant={data.selectedSeverity === severity ? "default" : "outline"}
               size="sm"
               onClick={() => updateData({ selectedSeverity: severity as any })}
+              className="min-w-[100px] flex-1"
             >
               {severity}
             </Button>
@@ -287,6 +288,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
               variant={data.selectedOffenseLevel === level.id ? "default" : "outline"}
               size="sm"
               onClick={() => updateData({ selectedOffenseLevel: level.id as any })}
+              className="min-w-[100px] flex-1"
             >
               {level.label}
             </Button>
