@@ -1063,8 +1063,8 @@ const AppealsPage = () => {
             {showAppealForm && banInfo && (
               <div className="mt-8 space-y-4">
                 <Separator />
-                <h3 className="text-lg font-semibold mt-6">Submit Appeal</h3>
-                  {/* Unavailable punishment type notice */}
+                
+                {/* Unavailable punishment type notice */}
                 {banInfo.isAppealable === false && (
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
@@ -1077,6 +1077,14 @@ const AppealsPage = () => {
                 
                 {/* Dynamic Appeal Form */}
                 {banInfo.isAppealable !== false && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Submit Appeal</CardTitle>
+                      <CardDescription>
+                        Please provide detailed information about why you believe this punishment should be reviewed. Be honest and thorough in your explanation.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
                   <Form {...appealForm}>
                     <form onSubmit={appealForm.handleSubmit(onAppealSubmit)} className="space-y-4">
                       {/* Punishment ID Field (Read-only) */}
@@ -1181,14 +1189,20 @@ const AppealsPage = () => {
                         />
                       )}
                       
-                      <Button 
-                        type="submit" 
-                        className="w-full mt-6" 
-                        disabled={createAppealMutation.isPending}
-                      >
-                        {createAppealMutation.isPending ? "Submitting..." : "Submit Appeal"}                      </Button>
                     </form>
                   </Form>
+                    </CardContent>
+                    <CardFooter>
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={createAppealMutation.isPending}
+                        onClick={appealForm.handleSubmit(onAppealSubmit)}
+                      >
+                        {createAppealMutation.isPending ? "Submitting..." : "Submit Appeal"}
+                      </Button>
+                    </CardFooter>
+                  </Card>
                 )}
               </div>
             )}

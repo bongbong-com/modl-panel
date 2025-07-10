@@ -26,6 +26,7 @@ interface TicketAttachmentsProps {
   onAttachmentsUpdate?: (attachments: TicketAttachment[]) => void;
   readonly?: boolean;
   showTitle?: boolean;
+  publicMode?: boolean; // When true, disables delete functionality
 }
 
 export function TicketAttachments({
@@ -35,7 +36,8 @@ export function TicketAttachments({
   onAttachmentsUpdate,
   readonly = false,
   showTitle = true,
-  compact = false
+  compact = false,
+  publicMode = false
 }: TicketAttachmentsProps & { compact?: boolean }) {
   const [attachments, setAttachments] = useState<TicketAttachment[]>(existingAttachments);
   const { config, deleteMedia } = useMediaUpload();
@@ -67,6 +69,19 @@ export function TicketAttachments({
   };
 
   const handleDeleteAttachment = async (attachment: TicketAttachment) => {
+    if (publicMode) {
+      // In public mode, just remove from local state (no server deletion)
+      const updatedAttachments = attachments.filter(a => a.id !== attachment.id);
+      setAttachments(updatedAttachments);
+      onAttachmentsUpdate?.(updatedAttachments);
+
+      toast({
+        title: "Attachment Removed",
+        description: `${attachment.fileName} has been removed from this session.`,
+      });
+      return;
+    }
+
     try {
       await deleteMedia(attachment.key);
       const updatedAttachments = attachments.filter(a => a.id !== attachment.id);
@@ -153,7 +168,7 @@ export function TicketAttachments({
                       <button
                         onClick={() => handleDeleteAttachment(attachment)}
                         className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
-                        title={`Delete ${attachment.fileName}`}
+                        title={publicMode ? `Remove ${attachment.fileName}` : `Delete ${attachment.fileName}`}
                       >
                         <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
                       </button>
@@ -238,6 +253,7 @@ export function TicketAttachments({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteAttachment(attachment)}
+                    title={publicMode ? "Remove attachment" : "Delete attachment"}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

@@ -1029,6 +1029,7 @@ const PlayerTicket = () => {
                           ticketType={ticketDetails.type}
                           showTitle={false}
                           compact={true}
+                          publicMode={true}
                         />
                       </div>
                       

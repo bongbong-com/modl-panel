@@ -179,6 +179,56 @@ router.post('/upload/article', isAuthenticated, requireWasabiConfig, upload.sing
 });
 
 /**
+ * Upload appeal attachments (public route - no authentication required)
+ * Used for ban appeals submitted by players
+ */
+router.post('/upload/appeal', requireWasabiConfig, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const { appealId, fieldId } = req.body;
+    const serverName = req.serverName || 'unknown';
+    
+    if (!appealId || !fieldId) {
+      return res.status(400).json({ error: 'Appeal ID and field ID are required' });
+    }
+
+    const uploadOptions: MediaUploadOptions = {
+      file: req.file.buffer,
+      fileName: req.file.originalname,
+      contentType: req.file.mimetype,
+      folder: 'appeals',
+      subFolder: `appeal-${appealId}-${fieldId}`,
+      serverName,
+    };
+
+    const result = await uploadMedia(uploadOptions);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        url: result.url,
+        key: result.key,
+        message: 'Appeal attachment uploaded successfully'
+      });
+    } else {
+      res.status(400).json({
+        error: result.error || 'Failed to upload appeal attachment'
+      });
+    }
+
+  } catch (error) {
+    console.error('Appeal attachment upload error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to upload appeal attachment'
+    });
+  }
+});
+
+/**
  * Upload server icons (backward compatibility with existing system)
  * Uploads to Wasabi instead of local storage
  */
@@ -274,12 +324,14 @@ router.get('/config', isAuthenticated, (req, res) => {
     supportedTypes: {
       evidence: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'],
       tickets: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      appeals: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
       articles: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'],
       'server-icons': ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     },
     fileSizeLimits: {
       evidence: 100 * 1024 * 1024, // 100MB
       tickets: 10 * 1024 * 1024,   // 10MB
+      appeals: 10 * 1024 * 1024,   // 10MB
       articles: 50 * 1024 * 1024,  // 50MB
       'server-icons': 5 * 1024 * 1024 // 5MB
     }

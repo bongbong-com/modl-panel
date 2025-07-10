@@ -5,12 +5,14 @@ export interface MediaUploadConfig {
   supportedTypes: {
     evidence: string[];
     tickets: string[];
+    appeals: string[];
     articles: string[];
     'server-icons': string[];
   };
   fileSizeLimits: {
     evidence: number;
     tickets: number;
+    appeals: number;
     articles: number;
     'server-icons': number;
   };
@@ -36,7 +38,7 @@ export function useMediaUpload() {
 
   const uploadMedia = async (
     file: File,
-    uploadType: 'evidence' | 'ticket' | 'article' | 'server-icon',
+    uploadType: 'evidence' | 'ticket' | 'appeal' | 'article' | 'server-icon',
     metadata: Record<string, any> = {}
   ): Promise<{ url: string; key: string }> => {
     if (!config.data?.wasabiConfigured) {
