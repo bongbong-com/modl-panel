@@ -198,14 +198,6 @@ router.post('/', async (req: Request, res: Response) => {
       staff: false
     });
     
-    appealTicketDocument.replies.push({
-        name: 'System',
-        content: 'Your appeal has been received and is now Open. It will be reviewed by our staff team.',
-        type: 'system',
-        created: new Date(),
-        staff: false,
-        action: 'STATUS_OPEN'
-    });
 
     punishment.attachedTicketIds = punishment.attachedTicketIds || [];
     punishment.attachedTicketIds.push(appealId);

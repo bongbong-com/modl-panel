@@ -211,13 +211,6 @@ export async function seedDatabase() {
             staff: false
           },
           {
-            name: 'System',
-            content: 'Your appeal has been received and will be reviewed by our moderation team.',
-            type: 'system',
-            created: new Date('2023-05-25T00:10:00'),
-            staff: false
-          },
-          {
             name: 'AdminUser',
             content: 'We have reviewed your appeal and the evidence. Our automated system detected impossible movement patterns that cannot be explained by lag. Appeal denied.',
             type: 'staff',

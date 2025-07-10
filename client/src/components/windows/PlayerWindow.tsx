@@ -2098,13 +2098,36 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                     ...prev,
                                     selectedModificationType: e.target.value as any
                                   }))}
-                                >                                  <option value="">Select modification type...</option>
+                                >
+                                  <option value="">Select modification type...</option>
                                   <option value="MANUAL_DURATION_CHANGE">Change Duration</option>
                                   <option value="MANUAL_PARDON">Pardon</option>
-                                  <option value="SET_ALT_BLOCKING_TRUE">Enable Alt Blocking</option>
-                                  <option value="SET_WIPING_TRUE">Enable Wiping</option>
-                                  <option value="SET_ALT_BLOCKING_FALSE">Disable Alt Blocking</option>
-                                  <option value="SET_WIPING_FALSE">Disable Wiping</option>
+                                  {(() => {
+                                    const punishmentType = findPunishmentTypeForWarning(warning);
+                                    const options = [];
+                                    
+                                    // Only show alt blocking options if punishment type supports it
+                                    if (punishmentType?.canBeAltBlocking) {
+                                      const currentAltBlocking = warning.altBlocking;
+                                      if (!currentAltBlocking) {
+                                        options.push(<option key="alt-true" value="SET_ALT_BLOCKING_TRUE">Enable Alt Blocking</option>);
+                                      } else {
+                                        options.push(<option key="alt-false" value="SET_ALT_BLOCKING_FALSE">Disable Alt Blocking</option>);
+                                      }
+                                    }
+                                    
+                                    // Only show stat wiping options if punishment type supports it
+                                    if (punishmentType?.canBeStatWiping) {
+                                      const currentStatWiping = warning.data?.wiping || warning.data?.statWiping || false;
+                                      if (!currentStatWiping) {
+                                        options.push(<option key="wipe-true" value="SET_WIPING_TRUE">Enable Wiping</option>);
+                                      } else {
+                                        options.push(<option key="wipe-false" value="SET_WIPING_FALSE">Disable Wiping</option>);
+                                      }
+                                    }
+                                    
+                                    return options;
+                                  })()}
                                 </select>
                               </div>
                                 {playerInfo.selectedModificationType === 'MANUAL_DURATION_CHANGE' && (

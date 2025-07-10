@@ -789,13 +789,6 @@ export function setupAppealRoutes(app: Express) {
             type: 'player',
             created: new Date(),
             staff: false
-          },
-          {
-            name: 'System',
-            content: 'Your appeal has been received and will be reviewed by our moderation team.',
-            type: 'system',
-            created: new Date(),
-            staff: false
           }
         ],
         notes: [],
