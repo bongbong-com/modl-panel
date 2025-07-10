@@ -169,7 +169,6 @@ curl -X POST "https://123.cobl.gg/api/minecraft/player/login" \
   -H "X-API-Key: FhsxKUuaI2PdGN3mvHIEsVRJCcviNMiruFljfnkmZLk" \
   -d '{
     "minecraftUuid": "123e4567-e89b-12d3-a456-426614174000",
-    "username": "NewPlayer123",
     "ipAddress": "192.168.1.100",
     "skinHash": "a1b2c3d4e5f6789",
     "ipInfo": {

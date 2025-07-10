@@ -56,7 +56,7 @@ export interface MediaUploadOptions {
   file: Buffer;
   fileName: string;
   contentType: string;
-  folder: 'evidence' | 'tickets' | 'articles' | 'server-icons';
+  folder: 'evidence' | 'tickets' | 'appeals' | 'articles' | 'server-icons';
   subFolder?: string; // For organizing files within folders
   serverName?: string; // Server name for folder hierarchy
   maxSizeBytes?: number;
@@ -74,6 +74,7 @@ export interface MediaUploadResult {
 export const SUPPORTED_FILE_TYPES = {
   evidence: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'],
   tickets: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  appeals: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   articles: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'],
   'server-icons': ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 };
@@ -82,6 +83,7 @@ export const SUPPORTED_FILE_TYPES = {
 export const FILE_SIZE_LIMITS = {
   evidence: 100 * 1024 * 1024, // 100MB for evidence (videos can be large)
   tickets: 10 * 1024 * 1024,   // 10MB for ticket attachments
+  appeals: 10 * 1024 * 1024,   // 10MB for appeal attachments
   articles: 50 * 1024 * 1024,  // 50MB for article media
   'server-icons': 5 * 1024 * 1024 // 5MB for server icons
 };

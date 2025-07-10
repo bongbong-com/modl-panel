@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send } from 'lucide-react';
+import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send, Paperclip } from 'lucide-react';
 import { Label } from "modl-shared-web/components/ui/label";
 import { Button } from "modl-shared-web/components/ui/button";
 import { Input } from "modl-shared-web/components/ui/input";
@@ -136,6 +136,7 @@ const AppealsPage = () => {
   const [showAppealForm, setShowAppealForm] = useState(false);
   const [isLoadingPunishment, setIsLoadingPunishment] = useState(false);
   const [newReply, setNewReply] = useState("");
+  const [attachments, setAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
 
   // Appeal form configuration will come from the punishment-specific data
   const [appealFormSettings, setAppealFormSettings] = useState<AppealFormSettings | undefined>(undefined);
@@ -416,21 +417,43 @@ const AppealsPage = () => {
     }
   };
 
-  // Handle appeal form submission
+  // Handle appeal form submission (similar to ticket form submission)
   const onAppealSubmit = async (values: DynamicFormValues) => {
     if (!banInfo) return;
 
     try {
+      // Create initial message content from form data (similar to ticket system)
+      let contentString = '';
+      
+      // Create a map of field IDs to labels
+      const fieldLabels: Record<string, string> = {};
+      if (appealFormSettings?.fields) {
+        appealFormSettings.fields.forEach((field) => {
+          fieldLabels[field.id] = field.label;
+        });
+      }
+      
+      // Convert form data to structured message content
+      Object.entries(values).forEach(([key, value]) => {
+        if (value && value.toString().trim() && !['banId', 'email'].includes(key)) {
+          // Get the field label from form configuration or format the key as fallback
+          const fieldLabel = fieldLabels[key] || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+          contentString += `**${fieldLabel}:**\n${value}\n\n`;
+        }
+      });
+
+      // Create appeal data with structured content
       const appealData = {
         punishmentId: values.banId,
         playerUuid: banInfo.playerUuid,
         email: values.email,
-        reason: values.reason || '', // Fallback for basic schema
-        additionalData: Object.fromEntries(
+        formData: Object.fromEntries(
           Object.entries(values).filter(([key]) => 
             !['banId', 'email'].includes(key)
           )
         ),
+        initialMessage: contentString.trim(),
+        attachments: attachments // Include attachment data
       };
 
       await createAppealMutation.mutateAsync(appealData);
@@ -442,6 +465,7 @@ const AppealsPage = () => {
 
       // Refresh the page data
       setShowAppealForm(false);
+      setAttachments([]);
       onSearchSubmit({ banId: values.banId });
 
     } catch (error) {
@@ -1038,6 +1062,7 @@ const AppealsPage = () => {
                                   ticketType="appeal"
                                   showTitle={false}
                                   compact={true}
+                                  publicMode={true}
                                 />
                               </div>
                               
@@ -1188,6 +1213,26 @@ const AppealsPage = () => {
                           )}
                         />
                       )}
+                      
+                      {/* File Attachments */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium flex items-center gap-2">
+                          <Paperclip className="h-4 w-4" />
+                          Attachments (Optional)
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          You can attach screenshots, videos, or documents to support your appeal
+                        </p>
+                        <TicketAttachments
+                          ticketId={banInfo?.id || 'unknown'}
+                          ticketType="appeal"
+                          existingAttachments={attachments}
+                          onAttachmentsUpdate={setAttachments}
+                          showTitle={false}
+                          compact={false}
+                          publicMode={true}
+                        />
+                      </div>
                       
                     </form>
                   </Form>
