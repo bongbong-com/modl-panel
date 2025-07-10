@@ -186,7 +186,8 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
         content: reply.content,
         timestamp: reply.created,
         staff: reply.staff,
-        closedAs: reply.action
+        closedAs: reply.action,
+        attachments: reply.attachments || []
       })) || [],
       notes: ticket.notes || [],
       tags: ticket.tags || [],
