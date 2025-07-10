@@ -9,6 +9,7 @@ const router = express.Router();
 interface CreateTicketRequest {
   creatorUuid?: string;
   creatorName?: string;
+  creatorEmail?: string;
   type: 'bug' | 'player' | 'chat' | 'appeal' | 'staff' | 'support';
   subject: string;
   description?: string;
@@ -51,6 +52,7 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     const {
       creatorUuid,
       creatorName,
+      creatorEmail,
       type,
       subject,
       description,
@@ -186,6 +188,7 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     if (reportedPlayerName) ticketData.reportedPlayer = reportedPlayerName;
     if (chatMessages) ticketData.chatMessages = chatMessages;
     if (priority) ticketData.data.set('priority', priority);
+    if (creatorEmail) ticketData.data.set('creatorEmail', creatorEmail);
     
     // Add initial message if there's content
     if (contentString.trim()) {
@@ -254,6 +257,7 @@ router.post('/tickets/unfinished', async (req: Request, res: Response) => {
     const {
       creatorUuid,
       creatorName,
+      creatorEmail,
       type,
       subject,
       description,
@@ -357,6 +361,7 @@ router.post('/tickets/unfinished', async (req: Request, res: Response) => {
     if (reportedPlayerName) ticketData.reportedPlayer = reportedPlayerName;
     if (chatMessages) ticketData.chatMessages = chatMessages;
     if (priority) ticketData.data.set('priority', priority);
+    if (creatorEmail) ticketData.data.set('creatorEmail', creatorEmail);
     
     // Add initial message if there's content
     if (contentString.trim()) {
@@ -616,6 +621,29 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
     ticket.replies.push(newReply);
     
     await ticket.save();
+    
+    // Send email notification if staff replied and ticket has creator email
+    if (staff && ticket.data && ticket.data.get('creatorEmail')) {
+      try {
+        const TicketEmailService = (await import('../services/ticket-email-service')).default;
+        const emailService = new TicketEmailService();
+        
+        await emailService.sendTicketReplyNotification({
+          ticketId: ticket._id,
+          ticketSubject: ticket.subject,
+          ticketType: ticket.type,
+          playerName: ticket.creator,
+          playerEmail: ticket.data.get('creatorEmail'),
+          replyContent: content,
+          replyAuthor: name,
+          isStaffReply: staff,
+          serverName: req.serverName
+        });
+      } catch (emailError) {
+        console.error(`[Public Reply] Failed to send email notification for ticket ${id}:`, emailError);
+        // Don't fail the reply if email fails
+      }
+    }
     
     res.status(201).json({
       success: true,

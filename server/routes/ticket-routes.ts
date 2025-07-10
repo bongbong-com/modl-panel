@@ -314,6 +314,29 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
         newReply.content
       );
       await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
+      
+      // Send email notification if ticket has creator email
+      if (ticket.data && ticket.data.get('creatorEmail')) {
+        try {
+          const TicketEmailService = (await import('../services/ticket-email-service')).default;
+          const emailService = new TicketEmailService();
+          
+          await emailService.sendTicketReplyNotification({
+            ticketId: ticket._id,
+            ticketSubject: ticket.subject,
+            ticketType: ticket.type,
+            playerName: ticket.creator,
+            playerEmail: ticket.data.get('creatorEmail'),
+            replyContent: newReply.content,
+            replyAuthor: newReply.name,
+            isStaffReply: newReply.staff,
+            serverName: req.serverName
+          });
+        } catch (emailError) {
+          console.error(`[Staff Reply] Failed to send email notification for ticket ${req.params.id}:`, emailError);
+          // Don't fail the reply if email fails
+        }
+      }
     }
 
     res.status(201).json(newReply);
@@ -435,6 +458,29 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
           newReply.content
         );
         await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
+        
+        // Send email notification if ticket has creator email
+        if (ticket.data && ticket.data.get('creatorEmail')) {
+          try {
+            const TicketEmailService = (await import('../services/ticket-email-service')).default;
+            const emailService = new TicketEmailService();
+            
+            await emailService.sendTicketReplyNotification({
+              ticketId: ticket._id,
+              ticketSubject: ticket.subject,
+              ticketType: ticket.type,
+              playerName: ticket.creator,
+              playerEmail: ticket.data.get('creatorEmail'),
+              replyContent: newReply.content,
+              replyAuthor: newReply.name,
+              isStaffReply: newReply.staff,
+              serverName: req.serverName
+            });
+          } catch (emailError) {
+            console.error(`[Staff PATCH Reply] Failed to send email notification for ticket ${req.params.id}:`, emailError);
+            // Don't fail the reply if email fails
+          }
+        }
       }
     }
 
