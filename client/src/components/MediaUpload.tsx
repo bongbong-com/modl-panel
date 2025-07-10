@@ -244,9 +244,10 @@ export function MediaUpload({
           onClick={openFileDialog}
           disabled={disabled || uploadedFiles.length >= maxFiles}
           className={className}
+          size="sm"
+          variant="outline"
         >
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Media
+          <Upload className="h-4 w-4" />
         </Button>
         <input
           ref={fileInputRef}

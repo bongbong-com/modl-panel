@@ -606,15 +606,39 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
             <div key={index} className="flex items-center space-x-2">
               <input
                 type="text"
-                className="flex-1 h-8 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                className={`flex-1 h-8 rounded-md border border-input px-3 py-1 text-sm ${
+                  evidence.startsWith('http') ? 'bg-muted text-muted-foreground' : 'bg-background'
+                }`}
                 placeholder="Evidence URL or description..."
-                value={evidence}
+                value={evidence.startsWith('http') ? `📁 ${evidence.split('/').pop()}` : evidence}
                 onChange={(e) => {
+                  // Don't allow editing of uploaded files (URLs)
+                  if (evidence.startsWith('http')) return;
+                  
                   const newEvidence = [...(data.evidence || [])];
                   newEvidence[index] = e.target.value;
                   updateData({ evidence: newEvidence });
                 }}
+                readOnly={evidence.startsWith('http')}
               />
+              
+              {/* Upload button for this evidence item */}
+              <MediaUpload
+                uploadType="evidence"
+                onUploadComplete={(result) => {
+                  // Replace the current evidence item with the uploaded file URL
+                  const newEvidence = [...(data.evidence || [])];
+                  newEvidence[index] = result.url;
+                  updateData({ evidence: newEvidence });
+                }}
+                metadata={{
+                  playerId: playerId,
+                  category: 'punishment'
+                }}
+                variant="button-only"
+                maxFiles={1}
+              />
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -628,33 +652,14 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
             </div>
           ))}
           
-          {/* Action Buttons Row */}
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateData({ evidence: [...(data.evidence || []), ''] })}
-            >
-              Add Text Evidence
-            </Button>
-            
-            <div className="flex-1">
-              <MediaUpload
-                uploadType="evidence"
-                onUploadComplete={(result) => {
-                  // Add the uploaded file URL to evidence array
-                  const newEvidence = [...(data.evidence || []), result.url];
-                  updateData({ evidence: newEvidence });
-                }}
-                metadata={{
-                  playerId: playerId,
-                  category: 'punishment'
-                }}
-                variant="button-only"
-                maxFiles={5}
-              />
-            </div>
-          </div>
+          {/* Add Evidence Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => updateData({ evidence: [...(data.evidence || []), ''] })}
+          >
+            Add Evidence
+          </Button>
         </div>
       </div>
     );

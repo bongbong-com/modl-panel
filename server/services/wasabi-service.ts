@@ -1,5 +1,3 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import crypto from 'crypto';
@@ -8,16 +6,44 @@ import crypto from 'crypto';
 const WASABI_ENDPOINT = 'https://s3.wasabisys.com';
 const WASABI_REGION = 'us-east-1'; // Wasabi uses us-east-1 as default region
 
-// Initialize S3 client for Wasabi
-const s3Client = new S3Client({
-  region: WASABI_REGION,
-  endpoint: WASABI_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.WASABI_ACCESS_KEY || '',
-    secretAccessKey: process.env.WASABI_SECRET_KEY || '',
-  },
-  forcePathStyle: true, // Required for Wasabi compatibility
-});
+// Dynamic imports for AWS SDK to avoid constructor issues
+let S3Client: any;
+let PutObjectCommand: any;
+let DeleteObjectCommand: any;
+let GetObjectCommand: any;
+let HeadObjectCommand: any;
+let getSignedUrl: any;
+let s3Client: any;
+
+// Initialize AWS SDK components
+async function initializeAwsSdk() {
+  if (S3Client) return; // Already initialized
+  
+  try {
+    const { S3Client: S3, PutObjectCommand: Put, DeleteObjectCommand: Delete, GetObjectCommand: Get, HeadObjectCommand: Head } = await import('@aws-sdk/client-s3');
+    const { getSignedUrl: signUrl } = await import('@aws-sdk/s3-request-presigner');
+    
+    S3Client = S3;
+    PutObjectCommand = Put;
+    DeleteObjectCommand = Delete;
+    GetObjectCommand = Get;
+    HeadObjectCommand = Head;
+    getSignedUrl = signUrl;
+    
+    s3Client = new S3Client({
+      region: WASABI_REGION,
+      endpoint: WASABI_ENDPOINT,
+      credentials: {
+        accessKeyId: process.env.WASABI_ACCESS_KEY || '',
+        secretAccessKey: process.env.WASABI_SECRET_KEY || '',
+      },
+      forcePathStyle: true, // Required for Wasabi compatibility
+    });
+  } catch (error) {
+    console.error('Failed to initialize AWS SDK:', error);
+    throw error;
+  }
+}
 
 const BUCKET_NAME = process.env.WASABI_BUCKET_NAME || '';
 
@@ -101,9 +127,17 @@ function validateFile(file: Buffer, contentType: string, folder: string, options
  */
 export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUploadResult> {
   try {
+    // Initialize AWS SDK
+    await initializeAwsSdk();
+    
     // Validate environment variables
     if (!BUCKET_NAME) {
       return { success: false, error: 'Wasabi bucket not configured' };
+    }
+
+    // Check if S3 client is properly initialized
+    if (!s3Client || !s3Client.send) {
+      return { success: false, error: 'S3 client not properly initialized' };
     }
 
     // Validate file
@@ -155,6 +189,9 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
  */
 export async function deleteMedia(key: string): Promise<boolean> {
   try {
+    // Initialize AWS SDK
+    await initializeAwsSdk();
+    
     if (!BUCKET_NAME) {
       console.warn('Wasabi bucket not configured');
       return false;
@@ -179,6 +216,9 @@ export async function deleteMedia(key: string): Promise<boolean> {
  */
 export async function generatePresignedUrl(key: string, expiresInSeconds: number = 3600): Promise<string | null> {
   try {
+    // Initialize AWS SDK
+    await initializeAwsSdk();
+    
     if (!BUCKET_NAME) {
       return null;
     }
@@ -202,6 +242,9 @@ export async function generatePresignedUrl(key: string, expiresInSeconds: number
  */
 export async function mediaExists(key: string): Promise<boolean> {
   try {
+    // Initialize AWS SDK
+    await initializeAwsSdk();
+    
     if (!BUCKET_NAME) {
       return false;
     }
@@ -224,6 +267,9 @@ export async function mediaExists(key: string): Promise<boolean> {
  */
 export async function getMediaInfo(key: string): Promise<{ size: number; contentType: string; lastModified: Date } | null> {
   try {
+    // Initialize AWS SDK
+    await initializeAwsSdk();
+    
     if (!BUCKET_NAME) {
       return null;
     }
