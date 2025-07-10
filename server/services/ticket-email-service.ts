@@ -28,7 +28,7 @@ class TicketEmailService {
   async sendTicketReplyNotification(data: TicketEmailData): Promise<void> {
     try {
       const domain = process.env.DOMAIN || 'modl.gg';
-      const ticketUrl = `https://${data.serverName || 'app'}.${domain}/tickets/${data.ticketId}`;
+      const ticketUrl = `https://${data.serverName || 'app'}.${domain}/ticket/${data.ticketId}`;
       
       const subject = `Reply to Your ${data.ticketType} Ticket #${data.ticketId}`;
       
