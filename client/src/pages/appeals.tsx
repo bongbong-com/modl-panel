@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send, Paperclip, File, Image, Video, FileText, Eye, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertTriangle, SearchIcon, ShieldCheck, ShieldX, Send, Paperclip, File, Image, Video, FileText, Eye, X } from 'lucide-react';
 import { Label } from "modl-shared-web/components/ui/label";
 import { Button } from "modl-shared-web/components/ui/button";
 import { Input } from "modl-shared-web/components/ui/input";
@@ -34,11 +34,6 @@ import {
   AlertDescription,
   AlertTitle,
 } from "modl-shared-web/components/ui/alert";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "modl-shared-web/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from 'modl-shared-web/components/ui/separator';
 import { Badge } from 'modl-shared-web/components/ui/badge';
@@ -150,7 +145,6 @@ const AppealsPage = () => {
   const [attachments, setAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
   const [replyAttachments, setReplyAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
   const [forceRerender, setForceRerender] = useState(0); // Force re-render for section visibility
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set()); // Track which sections are expanded
 
   // Appeal form configuration will come from the punishment-specific data
   const [appealFormSettings, setAppealFormSettings] = useState<AppealFormSettings | undefined>(undefined);
@@ -1409,34 +1403,25 @@ const AppealsPage = () => {
                         appealFormSettings.sections
                           .sort((a, b) => a.order - b.order)
                           .map(section => {
-                            // Start with section collapsed if hideByDefault is true
-                            // forceRerender is used to trigger visibility recalculation
+                            // Check section visibility with forceRerender dependency
                             let isVisible = !section.hideByDefault;
                             
-                            // Auto-expand sections that are visible by default
-                            if (isVisible && !section.hideByDefault) {
-                              setExpandedSections(prev => new Set([...prev, section.id]));
-                            }
-                            
-                            // Show section if explicit condition is met
+                            // Show section if condition is met
                             if (section.showIfFieldId && section.showIfValue) {
                               const fieldValue = appealForm.watch(section.showIfFieldId);
                               isVisible = fieldValue === section.showIfValue;
                             } else if (section.showIfFieldId && section.showIfValues) {
                               const fieldValue = appealForm.watch(section.showIfFieldId);
-                              isVisible = section.showIfValues && section.showIfValues.includes(fieldValue);
+                              isVisible = section.showIfValues.includes(fieldValue);
                             }
                             
-                            // Override visibility if optionSectionMapping targets this section
-                            // Also automatically expand section when it becomes visible via navigation
-                            if (appealFormSettings?.fields) {
+                            // Check if any field in this section has optionSectionMapping that targets this section
+                            if (!isVisible && appealFormSettings?.fields) {
                               appealFormSettings.fields.forEach(field => {
                                 if (field.optionSectionMapping) {
                                   const fieldValue = appealForm.watch(field.id);
-                                  if (fieldValue && field.optionSectionMapping[fieldValue] === section.id) {
+                                  if (field.optionSectionMapping[fieldValue] === section.id) {
                                     isVisible = true;
-                                    // Auto-expand section when it becomes visible via option navigation
-                                    setExpandedSections(prev => new Set([...prev, section.id]));
                                   }
                                 }
                               });
@@ -1444,58 +1429,20 @@ const AppealsPage = () => {
                             
                             if (!isVisible) return null;
                             
-                            const isExpanded = expandedSections.has(section.id);
-                            const fieldCount = appealFormSettings?.fields?.filter(field => field.sectionId === section.id).length || 0;
-                            
                             return (
-                              <Collapsible 
-                                key={section.id} 
-                                open={isExpanded} 
-                                onOpenChange={(open) => {
-                                  setExpandedSections(prev => {
-                                    const newSet = new Set(prev);
-                                    if (open) {
-                                      newSet.add(section.id);
-                                    } else {
-                                      newSet.delete(section.id);
-                                    }
-                                    return newSet;
-                                  });
-                                }}
-                              >
-                                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
-                                  <div className="flex items-center">
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    <h4 className="text-base font-medium">{section.title}</h4>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    {!isExpanded && (
-                                      <span className="text-sm text-muted-foreground">
-                                        {fieldCount} field{fieldCount !== 1 ? 's' : ''}
-                                      </span>
-                                    )}
-                                    {isExpanded ? (
-                                      <ChevronDown className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4" />
-                                    )}
-                                  </div>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="pt-4">
-                                  <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
-                                    {section.description && (
-                                      <div className="border-b pb-2">
-                                        <p className="text-sm text-muted-foreground">{section.description}</p>
-                                      </div>
-                                    )}
-                                    {appealFormSettings?.fields && Array.isArray(appealFormSettings.fields) && appealFormSettings.fields.length > 0 &&
-                                      appealFormSettings.fields
-                                        .filter(field => field.sectionId === section.id)
-                                        .sort((a, b) => a.order - b.order)
-                                        .map(field => renderFormField(field))}
-                                  </div>
-                                </CollapsibleContent>
-                              </Collapsible>
+                              <div key={section.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                                <div className="border-b pb-2">
+                                  <h3 className="font-medium text-lg">{section.title}</h3>
+                                  {section.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
+                                  )}
+                                </div>
+                                {appealFormSettings?.fields && Array.isArray(appealFormSettings.fields) && appealFormSettings.fields.length > 0 &&
+                                  appealFormSettings.fields
+                                    .filter(field => field.sectionId === section.id)
+                                    .sort((a, b) => a.order - b.order)
+                                    .map(field => renderFormField(field))}
+                              </div>
                             );
                           })
                           .filter(Boolean)}
