@@ -7,7 +7,7 @@ import { Card, CardContent } from 'modl-shared-web/components/ui/card';
 import { cn } from 'modl-shared-web/lib/utils';
 
 interface MediaUploadProps {
-  uploadType: 'evidence' | 'ticket' | 'article' | 'server-icon';
+  uploadType: 'evidence' | 'ticket' | 'appeal' | 'article' | 'server-icon';
   onUploadComplete?: (result: { url: string; key: string }, file?: File) => void;
   onUploadStart?: () => void;
   onUploadError?: (error: string) => void;
@@ -36,6 +36,7 @@ interface UploadedFile {
 const DEFAULT_ACCEPTED_TYPES = {
   evidence: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'],
   ticket: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  appeal: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   article: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'],
   'server-icon': ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 };
@@ -44,6 +45,7 @@ const DEFAULT_ACCEPTED_TYPES = {
 const DEFAULT_SIZE_LIMITS = {
   evidence: 100 * 1024 * 1024, // 100MB
   ticket: 10 * 1024 * 1024,    // 10MB
+  appeal: 10 * 1024 * 1024,    // 10MB
   article: 50 * 1024 * 1024,   // 50MB
   'server-icon': 5 * 1024 * 1024 // 5MB
 };
