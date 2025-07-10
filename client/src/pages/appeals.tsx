@@ -813,6 +813,7 @@ const AppealsPage = () => {
                     <MediaUpload
                       uploadType="appeal"
                       onUploadComplete={(result) => {
+                        // Prevent form submission
                         formField.onChange(result.url);
                       }}
                       metadata={{

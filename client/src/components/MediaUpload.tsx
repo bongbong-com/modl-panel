@@ -233,7 +233,11 @@ export function MediaUpload({
     setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
-  const openFileDialog = () => {
+  const openFileDialog = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!disabled) {
       fileInputRef.current?.click();
     }
@@ -244,7 +248,7 @@ export function MediaUpload({
       <>
         <Button 
           type="button"
-          onClick={openFileDialog}
+          onClick={(e) => openFileDialog(e)}
           disabled={disabled || uploadedFiles.length >= maxFiles}
           className={className}
           size="sm"
@@ -279,7 +283,7 @@ export function MediaUpload({
       {variant === 'compact' ? (
         <Button 
           type="button"
-          onClick={openFileDialog}
+          onClick={(e) => openFileDialog(e)}
           disabled={disabled || uploadedFiles.length >= maxFiles}
           variant="outline"
           className="w-full"
@@ -297,7 +301,7 @@ export function MediaUpload({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={openFileDialog}
+          onClick={(e) => openFileDialog(e)}
         >
           <CardContent className="p-6 text-center">
             <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
