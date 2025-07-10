@@ -466,6 +466,281 @@ const DraggableFieldCard = ({
   );
 };
 
+// Draggable Appeal Form Section Card Component
+interface DraggableAppealFormSectionCardProps {
+  section: AppealFormSection;
+  index: number;
+  moveSection: (dragIndex: number, hoverIndex: number) => void;
+  selectedPunishment: PunishmentType;
+  onEditSection: (section: AppealFormSection) => void;
+  onDeleteSection: (sectionId: string) => void;
+  onEditField: (field: AppealFormField) => void;
+  onDeleteField: (fieldId: string) => void;
+  onAddField: () => void;
+  moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
+  moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
+}
+
+const DraggableAppealFormSectionCard = ({ 
+  section, 
+  index, 
+  moveSection, 
+  selectedPunishment,
+  onEditSection,
+  onDeleteSection,
+  onEditField,
+  onDeleteField,
+  onAddField,
+  moveField,
+  moveFieldBetweenSections
+}: DraggableAppealFormSectionCardProps) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'appeal-section',
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: 'appeal-section',
+    hover: (item: { index: number }) => {
+      if (item.index !== index) {
+        moveSection(item.index, index);
+        item.index = index;
+      }
+    },
+  });
+
+  const sectionFields = selectedPunishment.appealForm?.fields
+    ?.filter(field => field.sectionId === section.id)
+    ?.sort((a, b) => a.order - b.order) || [];
+
+  return (
+    <div
+      ref={(node) => drag(drop(node))}
+      className={`border rounded-lg p-4 bg-card space-y-3 ${
+        isDragging ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h6 className="font-medium">{section.title}</h6>
+              {section.hideByDefault && (
+                <Badge variant="secondary" className="text-xs">
+                  Hidden by default
+                </Badge>
+              )}
+            </div>
+            {section.description && (
+              <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onEditSection(section)}
+            className="h-8 px-2"
+          >
+            <Edit3 className="h-3 w-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDeleteSection(section.id)}
+            className="h-8 px-2 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Fields in this section */}
+      <div className="space-y-2">
+        {sectionFields.map((field, fieldIndex) => (
+          <DraggableAppealFormFieldCard
+            key={field.id}
+            field={field}
+            index={fieldIndex}
+            sectionId={section.id}
+            moveField={moveField}
+            moveFieldBetweenSections={moveFieldBetweenSections}
+            onEditField={onEditField}
+            onDeleteField={onDeleteField}
+          />
+        ))}
+        
+        {/* Drop zone for adding fields from other sections */}
+        <AppealFormFieldDropZone
+          sectionId={section.id}
+          moveFieldBetweenSections={moveFieldBetweenSections}
+        />
+        
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onAddField}
+          className="w-full"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Field
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// Draggable Appeal Form Field Card Component
+interface DraggableAppealFormFieldCardProps {
+  field: AppealFormField;
+  index: number;
+  sectionId: string;
+  moveField: (dragIndex: number, hoverIndex: number, sectionId: string) => void;
+  moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
+  onEditField: (field: AppealFormField) => void;
+  onDeleteField: (fieldId: string) => void;
+}
+
+const DraggableAppealFormFieldCard = ({ 
+  field, 
+  index, 
+  sectionId, 
+  moveField, 
+  moveFieldBetweenSections,
+  onEditField, 
+  onDeleteField 
+}: DraggableAppealFormFieldCardProps) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'appeal-field',
+    item: { index, sectionId, fieldId: field.id },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: 'appeal-field',
+    hover: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Allow movement within the same section
+      if (item.sectionId === sectionId && item.index !== index) {
+        moveField(item.index, index, sectionId);
+        item.index = index;
+      }
+    },
+    drop: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Handle cross-section movement
+      if (item.sectionId !== sectionId) {
+        moveFieldBetweenSections(item.fieldId, item.sectionId, sectionId, index);
+      }
+    },
+  });
+
+  const getFieldTypeLabel = (type: string) => {
+    switch (type) {
+      case 'text': return 'Text';
+      case 'textarea': return 'Textarea';
+      case 'dropdown': return 'Dropdown';
+      case 'multiple_choice': return 'Multiple Choice';
+      case 'checkbox': return 'Checkbox';
+      case 'file_upload': return 'File Upload';
+      case 'checkboxes': return 'Checkboxes';
+      default: return type;
+    }
+  };
+
+  return (
+    <div
+      ref={(node) => drag(drop(node))}
+      className={`border rounded p-3 bg-muted/50 ${
+        isDragging ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GripVertical className="h-3 w-3 text-muted-foreground cursor-move" />
+          <div>
+            <p className="text-sm font-medium">{field.label}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{getFieldTypeLabel(field.type)}</span>
+              {field.required && <span className="text-red-500">Required</span>}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onEditField(field)}
+            className="h-7 px-2"
+          >
+            <Edit3 className="h-3 w-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDeleteField(field.id)}
+            className="h-7 px-2 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Appeal Form Field Drop Zone Component
+interface AppealFormFieldDropZoneProps {
+  sectionId: string;
+  moveFieldBetweenSections: (fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => void;
+}
+
+const AppealFormFieldDropZone = ({ sectionId, moveFieldBetweenSections }: AppealFormFieldDropZoneProps) => {
+  const [{ isOver, canDrop }, drop] = useDrop({
+    accept: 'appeal-field',
+    drop: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Only handle cross-section drops
+      if (item.sectionId !== sectionId) {
+        moveFieldBetweenSections(item.fieldId, item.sectionId, sectionId);
+      }
+    },
+    canDrop: (item: { index: number; sectionId: string; fieldId: string }) => {
+      // Only allow drops from other sections
+      return item.sectionId !== sectionId;
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  });
+
+  return (
+    <div
+      ref={drop}
+      className={`border-2 border-dashed rounded-lg p-2 text-center text-sm transition-colors ${
+        isOver && canDrop
+          ? 'border-primary bg-primary/10 text-primary'
+          : canDrop
+          ? 'border-muted-foreground/50 text-muted-foreground'
+          : 'border-transparent'
+      }`}
+    >
+      {isOver && canDrop ? (
+        <span>Drop field here</span>
+      ) : canDrop ? (
+        <span className="opacity-50">Drop fields from other sections here</span>
+      ) : (
+        <span className="opacity-0">Drop zone</span>
+      )}
+    </div>
+  );
+};
+
 const Settings = () => {
   const { } = useSidebar();
   const [, navigateWouter] = useLocation();
@@ -2172,6 +2447,125 @@ const Settings = () => {
     moveFieldInForm(dragIndex, hoverIndex, sectionId);
   }, [moveFieldInForm]);
 
+  // Drag and drop handlers for appeal form sections
+  const moveAppealFormSection = useCallback((dragIndex: number, hoverIndex: number) => {
+    if (!selectedPunishment?.appealForm?.sections) return;
+    
+    const sections = [...selectedPunishment.appealForm.sections];
+    const dragSection = sections[dragIndex];
+    
+    sections.splice(dragIndex, 1);
+    sections.splice(hoverIndex, 0, dragSection);
+    
+    // Update order values
+    const updatedSections = sections.map((section, index) => ({
+      ...section,
+      order: index
+    }));
+    
+    setSelectedPunishment(prev => prev ? {
+      ...prev,
+      appealForm: {
+        ...prev.appealForm!,
+        sections: updatedSections
+      }
+    } : null);
+  }, [selectedPunishment]);
+
+  // Drag and drop handlers for appeal form fields within sections
+  const moveAppealFormField = useCallback((dragIndex: number, hoverIndex: number, sectionId: string) => {
+    if (!selectedPunishment?.appealForm?.fields) return;
+    
+    const allFields = [...selectedPunishment.appealForm.fields];
+    const sectionFields = allFields.filter(f => f.sectionId === sectionId);
+    
+    const dragField = sectionFields[dragIndex];
+    const hoverField = sectionFields[hoverIndex];
+    
+    if (!dragField || !hoverField) return;
+    
+    // Update the order values
+    const dragOrder = dragField.order;
+    const hoverOrder = hoverField.order;
+    
+    const updatedFields = allFields.map(field => {
+      if (field.id === dragField.id) {
+        return { ...field, order: hoverOrder };
+      } else if (field.id === hoverField.id) {
+        return { ...field, order: dragOrder };
+      }
+      return field;
+    });
+    
+    setSelectedPunishment(prev => prev ? {
+      ...prev,
+      appealForm: {
+        ...prev.appealForm!,
+        fields: updatedFields
+      }
+    } : null);
+  }, [selectedPunishment]);
+
+  // Function to move appeal form fields between sections
+  const moveAppealFormFieldBetweenSections = useCallback((fieldId: string, fromSectionId: string, toSectionId: string, targetIndex?: number) => {
+    if (!selectedPunishment?.appealForm?.fields) return;
+    
+    const allFields = [...selectedPunishment.appealForm.fields];
+    const fieldToMove = allFields.find(f => f.id === fieldId);
+    if (!fieldToMove) return;
+    
+    const targetSectionFields = allFields.filter(f => f.sectionId === toSectionId);
+    const newOrder = targetIndex !== undefined ? targetIndex : targetSectionFields.length;
+    
+    const updatedFields = allFields.map(field => {
+      if (field.id === fieldId) {
+        return { ...field, sectionId: toSectionId, order: newOrder };
+      }
+      return field;
+    });
+    
+    setSelectedPunishment(prev => prev ? {
+      ...prev,
+      appealForm: {
+        ...prev.appealForm!,
+        fields: updatedFields
+      }
+    } : null);
+  }, [selectedPunishment]);
+
+  // Appeal form edit and delete handlers
+  const onEditAppealFormSection = useCallback((section: AppealFormSection) => {
+    setSelectedAppealSection(section);
+    setNewAppealSectionTitle(section.title);
+    setNewAppealSectionDescription(section.description || '');
+    setNewAppealSectionHideByDefault(section.hideByDefault || false);
+    setIsAddAppealSectionDialogOpen(true);
+  }, []);
+
+  const onDeleteAppealFormSection = useCallback((sectionId: string) => {
+    removeAppealFormSection(sectionId);
+  }, []);
+
+  const onEditAppealFormField = useCallback((field: AppealFormField) => {
+    setSelectedAppealField(field);
+    setNewAppealFieldLabel(field.label);
+    setNewAppealFieldType(field.type);
+    setNewAppealFieldDescription(field.description || '');
+    setNewAppealFieldRequired(field.required);
+    setNewAppealFieldOptions(field.options || []);
+    setNewAppealFieldSectionId(field.sectionId || '__none__');
+    setNewAppealFieldOptionSectionMapping(field.optionSectionMapping || {});
+    setIsAddAppealFieldDialogOpen(true);
+  }, []);
+
+  const onDeleteAppealFormField = useCallback((fieldId: string) => {
+    removeAppealFormField(fieldId);
+  }, []);
+
+  const onAddAppealFormField = useCallback(() => {
+    setIsAddAppealFieldDialogOpen(true);
+  }, []);
+
   return (
     <PageContainer>
       <div className="flex flex-col space-y-6 pb-10">
@@ -3187,175 +3581,38 @@ const Settings = () => {
                     <div className={`space-y-4 ${selectedPunishment.isAppealable === false ? 'opacity-50 pointer-events-none' : ''}`}>
                       {selectedPunishment.appealForm?.sections
                         ?.sort((a, b) => a.order - b.order)
-                        .map((section) => (
-                          <div key={section.id} className="border rounded-lg p-4 bg-card space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h6 className="font-medium">{section.title}</h6>
-                                    {section.hideByDefault && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        Hidden by default
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {section.description && (
-                                    <p className="text-sm text-muted-foreground">{section.description}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSelectedAppealSection(section);
-                                    setNewAppealSectionTitle(section.title);
-                                    setNewAppealSectionDescription(section.description || '');
-                                    setNewAppealSectionHideByDefault(section.hideByDefault || false);
-                                    setIsAddAppealSectionDialogOpen(true);
-                                  }}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => removeAppealFormSection(section.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Fields in this section */}
-                            <div className="space-y-2">
-                              {selectedPunishment.appealForm?.fields
-                                ?.filter(field => field.sectionId === section.id)
-                                ?.sort((a, b) => a.order - b.order)
-                                .map((field) => (
-                                  <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">
-                                          {field.type}
-                                        </Badge>
-                                        <span className="font-medium">{field.label}</span>
-                                        {field.required && (
-                                          <Badge variant="destructive" className="text-xs">Required</Badge>
-                                        )}
-                                      </div>
-                                      {field.description && (
-                                        <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
-                                      )}
-                                      {field.options && field.options.length > 0 && (
-                                        <div className="flex gap-1 mt-2">
-                                          {field.options.map((option, idx) => (
-                                            <Badge key={idx} variant="outline" className="text-xs">
-                                              {option}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedAppealField(field);
-                                          setNewAppealFieldLabel(field.label);
-                                          setNewAppealFieldType(field.type);
-                                          setNewAppealFieldDescription(field.description || '');
-                                          setNewAppealFieldRequired(field.required);
-                                          setNewAppealFieldOptions(field.options || []);
-                                          setNewAppealFieldSectionId(field.sectionId || '__none__');
-                                          setNewAppealFieldOptionSectionMapping(field.optionSectionMapping || {});
-                                          setIsAddAppealFieldDialogOpen(true);
-                                        }}
-                                        className="text-xs px-2 h-7"
-                                      >
-                                        Edit
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => removeAppealFormField(field.id)}
-                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setNewAppealFieldSectionId(section.id);
-                                  setIsAddAppealFieldDialogOpen(true);
-                                }}
-                                className="w-full"
-                              >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Field to Section
-                              </Button>
-                            </div>
-                          </div>
+                        .map((section, index) => (
+                          <DraggableAppealFormSectionCard
+                            key={section.id}
+                            section={section}
+                            index={index}
+                            moveSection={moveAppealFormSection}
+                            selectedPunishment={selectedPunishment}
+                            onEditSection={onEditAppealFormSection}
+                            onDeleteSection={onDeleteAppealFormSection}
+                            onEditField={onEditAppealFormField}
+                            onDeleteField={onDeleteAppealFormField}
+                            onAddField={onAddAppealFormField}
+                            moveField={moveAppealFormField}
+                            moveFieldBetweenSections={moveAppealFormFieldBetweenSections}
+                          />
                         ))}
 
                       {/* Fields not in any section */}
                       {selectedPunishment.appealForm?.fields
                         ?.filter(field => !field.sectionId)
                         ?.sort((a, b) => a.order - b.order)
-                        .map((field) => (
-                          <div key={field.id} className="flex items-center justify-between p-3 border rounded-md bg-card">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {field.type}
-                                </Badge>
-                                <span className="font-medium">{field.label}</span>
-                                {field.required && (
-                                  <Badge variant="secondary" className="text-xs">Required</Badge>
-                                )}
-                                <Badge variant="outline" className="text-xs">No section</Badge>
-                              </div>
-                              {field.description && (
-                                <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedAppealField(field);
-                                  setNewAppealFieldLabel(field.label);
-                                  setNewAppealFieldType(field.type);
-                                  setNewAppealFieldDescription(field.description || '');
-                                  setNewAppealFieldRequired(field.required);
-                                  setNewAppealFieldOptions(field.options || []);
-                                  setNewAppealFieldSectionId('__none__');
-                                  setNewAppealFieldOptionSectionMapping(field.optionSectionMapping || {});
-                                  setIsAddAppealFieldDialogOpen(true);
-                                }}
-                                className="text-xs px-2 h-7"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeAppealFormField(field.id)}
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
+                        .map((field, index) => (
+                          <DraggableAppealFormFieldCard
+                            key={field.id}
+                            field={field}
+                            index={index}
+                            sectionId=""
+                            moveField={moveAppealFormField}
+                            moveFieldBetweenSections={moveAppealFormFieldBetweenSections}
+                            onEditField={onEditAppealFormField}
+                            onDeleteField={onDeleteAppealFormField}
+                          />
                         ))}
 
                       {(!selectedPunishment.appealForm?.fields || selectedPunishment.appealForm.fields.length === 0) && 
@@ -3555,19 +3812,22 @@ const Settings = () => {
 
                 {/* Per-Option Section Navigation for Dropdown/Multiple Choice Fields */}
                 {(newAppealFieldType === 'dropdown' || newAppealFieldType === 'multiple_choice') && newAppealFieldOptions.length > 0 && (
-                  <Collapsible open={isAppealOptionNavigationExpanded} onOpenChange={setIsAppealOptionNavigationExpanded}>
-                    <div className="space-y-3">
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-between p-0 h-auto">
-                          <Label className="text-sm font-medium cursor-pointer">Option Navigation (Optional)</Label>
-                          {isAppealOptionNavigationExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-3">
+                  <div className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsAppealOptionNavigationExpanded(!isAppealOptionNavigationExpanded)}
+                      className="flex items-center gap-2 hover:bg-muted/50 p-1 rounded -ml-1 transition-colors"
+                    >
+                      {isAppealOptionNavigationExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                      <Label className="text-sm font-medium cursor-pointer">Option Navigation (Optional)</Label>
+                    </button>
+                    
+                    {isAppealOptionNavigationExpanded && (
+                      <div className="pl-6 space-y-3">
                         <p className="text-xs text-muted-foreground">
                           Configure which section to show when each option is selected.
                         </p>
@@ -3604,9 +3864,9 @@ const Settings = () => {
                             </div>
                           </div>
                         ))}
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
