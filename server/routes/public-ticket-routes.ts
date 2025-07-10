@@ -190,6 +190,17 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
     if (priority) ticketData.data.set('priority', priority);
     if (creatorEmail) ticketData.data.set('creatorEmail', creatorEmail);
     
+    // Store formData in ticket.data Map
+    if (formData && Object.keys(formData).length > 0) {
+      Object.entries(formData).forEach(([key, value]) => {
+        ticketData.data.set(key, value);
+        // Map contact_email to creatorEmail for email notifications
+        if (key === 'contact_email') {
+          ticketData.data.set('creatorEmail', value);
+        }
+      });
+    }
+    
     // Add initial message if there's content
     if (contentString.trim()) {
       const initialMessage = {
@@ -362,6 +373,17 @@ router.post('/tickets/unfinished', async (req: Request, res: Response) => {
     if (chatMessages) ticketData.chatMessages = chatMessages;
     if (priority) ticketData.data.set('priority', priority);
     if (creatorEmail) ticketData.data.set('creatorEmail', creatorEmail);
+    
+    // Store formData in ticket.data Map
+    if (formData && Object.keys(formData).length > 0) {
+      Object.entries(formData).forEach(([key, value]) => {
+        ticketData.data.set(key, value);
+        // Map contact_email to creatorEmail for email notifications
+        if (key === 'contact_email') {
+          ticketData.data.set('creatorEmail', value);
+        }
+      });
+    }
     
     // Add initial message if there's content
     if (contentString.trim()) {
@@ -695,6 +717,10 @@ router.post('/tickets/:id/submit', async (req: Request, res: Response) => {
       // Store form data
       Object.entries(formData).forEach(([key, value]) => {
         ticket.data.set(key, value);
+        // Map contact_email to creatorEmail for email notifications
+        if (key === 'contact_email') {
+          ticket.data.set('creatorEmail', value);
+        }
       });
       ticket.formData = formData;
       

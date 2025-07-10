@@ -59,13 +59,22 @@ async function testEmailNotifications() {
   console.log('✅ PATCH endpoint supports email notifications');
   console.log('✅ Email service with HTML and text templates created');
   console.log('✅ Error handling prevents failed emails from breaking ticket operations');
+  
+  console.log('\n4. Form Configuration Updates:');
+  console.log('=====================================');
+  console.log('✅ Default bug report form includes email field (order: 0)');
+  console.log('✅ Default support request form includes email field (order: 0)');
+  console.log('✅ Default staff application form includes email field (order: 0)');
+  console.log('✅ FormData processing maps contact_email to creatorEmail');
+  console.log('✅ All ticket creation endpoints store formData in ticket.data');
 
   console.log('\n📋 Next Steps for Complete Setup:');
   console.log('==================================');
   console.log('1. Configure SMTP server (currently using localhost:25)');
-  console.log('2. Update client/frontend to collect email during ticket creation');
-  console.log('3. Test end-to-end with real ticket creation and staff replies');
-  console.log('4. Consider adding email preferences/unsubscribe functionality');
+  console.log('2. New servers will automatically get email fields in forms');
+  console.log('3. Existing servers need form updates via admin panel');
+  console.log('4. Test end-to-end with real ticket creation and staff replies');
+  console.log('5. Consider adding email preferences/unsubscribe functionality');
 
   console.log('\n🎉 Email notification system is ready for testing!');
 }

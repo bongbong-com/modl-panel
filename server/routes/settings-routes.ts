@@ -1379,6 +1379,16 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
     const defaultTicketForms = {
       bug: {
         fields: [
+          // Contact Information
+          {
+            id: 'contact_email',
+            type: 'text',
+            label: 'Email Address',
+            description: 'Your email address for updates on this bug report',
+            required: true,
+            order: 0,
+            sectionId: 'basic_info'
+          },
           // Basic Information Section
           {
             id: 'bug_title',
@@ -1533,6 +1543,16 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
       },
       support: {
         fields: [
+          // Contact Information
+          {
+            id: 'contact_email',
+            type: 'text',
+            label: 'Email Address',
+            description: 'Your email address for updates on this support request',
+            required: true,
+            order: 0,
+            sectionId: 'request_info'
+          },
           // Request Information Section
           {
             id: 'support_category',
@@ -1670,6 +1690,16 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
       },
       application: {
         fields: [
+          // Contact Information
+          {
+            id: 'contact_email',
+            type: 'text',
+            label: 'Email Address',
+            description: 'Your email address for updates on this application',
+            required: true,
+            order: 0,
+            sectionId: 'basic_application'
+          },
           // Basic Application Info
           {
             id: 'position_type',
