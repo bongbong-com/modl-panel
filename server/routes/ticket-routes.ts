@@ -419,6 +419,9 @@ interface UpdateTicketBody {
 
 // General PATCH route for ticket updates
 router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ id: string }, {}, UpdateTicketBody>, res: Response) => {
+  console.log(`[Ticket PATCH] Updating ticket ${req.params.id}`);
+  console.log(`[Ticket PATCH] Request body:`, JSON.stringify(req.body, null, 2));
+  
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -452,6 +455,8 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
 
       // Add notification for staff replies
       if (newReply.staff && ticket.creator) {
+        console.log(`[Ticket PATCH] Staff reply detected from ${newReply.name}`);
+        
         const notificationId = createTicketReplyNotification(
           req.params.id, 
           newReply.name, 
@@ -460,7 +465,11 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
         await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
         
         // Send email notification if ticket has creator email
-        if (ticket.data && ticket.data.get('creatorEmail')) {
+        const emailField = ticket.data?.get('creatorEmail') || ticket.data?.get('contactEmail') || ticket.data?.get('contact_email');
+        console.log(`[Ticket PATCH] Checking for email field. Found: ${emailField}`);
+        console.log(`[Ticket PATCH] ticket.data keys:`, ticket.data ? Array.from(ticket.data.keys()) : 'No data');
+        
+        if (ticket.data && emailField) {
           try {
             const TicketEmailService = (await import('../services/ticket-email-service')).default;
             const emailService = new TicketEmailService();
@@ -470,12 +479,13 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
               ticketSubject: ticket.subject,
               ticketType: ticket.type,
               playerName: ticket.creator,
-              playerEmail: ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'),
+              playerEmail: emailField,
               replyContent: newReply.content,
               replyAuthor: newReply.name,
               isStaffReply: newReply.staff,
               serverName: req.serverName
             });
+            console.log(`[Ticket PATCH] Email notification sent successfully to ${emailField}`);
           } catch (emailError) {
             console.error(`[Staff PATCH Reply] Failed to send email notification for ticket ${req.params.id}:`, emailError);
             // Don't fail the reply if email fails
