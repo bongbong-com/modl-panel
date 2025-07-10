@@ -465,7 +465,20 @@ const Settings = () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('session_id') && user?.role === 'Super Admin') {
       setActiveTab('billing');
-    }  }, [user]);
+    }
+  }, [user]);
+
+  // Redirect users to accessible tabs if they don't have permission for current tab
+  useEffect(() => {
+    if (!user) return;
+    
+    const restrictedTabs = ['general', 'punishment', 'staff', 'homepage'];
+    const isAdmin = user.role === 'Super Admin' || user.role === 'Admin';
+    
+    if (restrictedTabs.includes(activeTab) && !isAdmin) {
+      setActiveTab('account'); // Redirect to account tab which everyone can access
+    }
+  }, [user, activeTab]);
   
   // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -2098,20 +2111,24 @@ const Settings = () => {
                 <UserIcon className="h-4 w-4 mr-2" />
                 Account
               </TabsTrigger>
-              <TabsTrigger
-                value="general"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <SettingsIcon className="h-4 w-4 mr-2" />
-                Server & Billing
-              </TabsTrigger>
-              <TabsTrigger
-                value="punishment"
-                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
-              >
-                <Scale className="h-4 w-4 mr-2" />
-                Punishment Types
-              </TabsTrigger>
+              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+                <TabsTrigger
+                  value="general"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <SettingsIcon className="h-4 w-4 mr-2" />
+                  Server & Billing
+                </TabsTrigger>
+              )}
+              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+                <TabsTrigger
+                  value="punishment"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
+                >
+                  <Scale className="h-4 w-4 mr-2" />
+                  Punishment Types
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="tags"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
@@ -2155,49 +2172,53 @@ const Settings = () => {
               />
             </TabsContent>
 
-            <TabsContent value="general">
-              <GeneralSettings
-                serverDisplayName={serverDisplayName}
-                setServerDisplayName={setServerDisplayName}
-                homepageIconUrl={homepageIconUrl}
-                panelIconUrl={panelIconUrl}
-                uploadingHomepageIcon={uploadingHomepageIcon}
-                uploadingPanelIcon={uploadingPanelIcon}
-                handleHomepageIconUpload={handleHomepageIconUpload}
-                handlePanelIconUpload={handlePanelIconUpload}
-                apiKey={apiKey}
-                fullApiKey={fullApiKey}
-                showApiKey={showApiKey}
-                apiKeyCopied={apiKeyCopied}
-                isGeneratingApiKey={isGeneratingApiKey}
-                isRevokingApiKey={isRevokingApiKey}
-                generateApiKey={generateApiKey}
-                revokeApiKey={revokeApiKey}
-                revealApiKey={revealApiKey}
-                copyApiKey={copyApiKey}
-                maskApiKey={maskApiKey}
-                usageData={usageData}
-                getBillingSummary={getBillingSummary}
-                getUsageSummary={getUsageSummary}
-                getServerConfigSummary={getServerConfigSummary}
-                getDomainSummary={getDomainSummary}
-              />
-            </TabsContent>
+            {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              <TabsContent value="general">
+                <GeneralSettings
+                  serverDisplayName={serverDisplayName}
+                  setServerDisplayName={setServerDisplayName}
+                  homepageIconUrl={homepageIconUrl}
+                  panelIconUrl={panelIconUrl}
+                  uploadingHomepageIcon={uploadingHomepageIcon}
+                  uploadingPanelIcon={uploadingPanelIcon}
+                  handleHomepageIconUpload={handleHomepageIconUpload}
+                  handlePanelIconUpload={handlePanelIconUpload}
+                  apiKey={apiKey}
+                  fullApiKey={fullApiKey}
+                  showApiKey={showApiKey}
+                  apiKeyCopied={apiKeyCopied}
+                  isGeneratingApiKey={isGeneratingApiKey}
+                  isRevokingApiKey={isRevokingApiKey}
+                  generateApiKey={generateApiKey}
+                  revokeApiKey={revokeApiKey}
+                  revealApiKey={revealApiKey}
+                  copyApiKey={copyApiKey}
+                  maskApiKey={maskApiKey}
+                  usageData={usageData}
+                  getBillingSummary={getBillingSummary}
+                  getUsageSummary={getUsageSummary}
+                  getServerConfigSummary={getServerConfigSummary}
+                  getDomainSummary={getDomainSummary}
+                />
+              </TabsContent>
+            )}
 
-            <TabsContent value="punishment">
-              <PunishmentSettings
-                statusThresholds={statusThresholds}
-                setStatusThresholds={setStatusThresholds}
-                punishmentTypes={punishmentTypes}
-                newPunishmentName={newPunishmentName}
-                setNewPunishmentName={setNewPunishmentName}
-                newPunishmentCategory={newPunishmentCategory}
-                setNewPunishmentCategory={setNewPunishmentCategory}
-                addPunishmentType={addPunishmentType}
-                removePunishmentType={removePunishmentType}
-                setSelectedPunishment={setSelectedPunishment}
-              />
-            </TabsContent>
+            {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              <TabsContent value="punishment">
+                <PunishmentSettings
+                  statusThresholds={statusThresholds}
+                  setStatusThresholds={setStatusThresholds}
+                  punishmentTypes={punishmentTypes}
+                  newPunishmentName={newPunishmentName}
+                  setNewPunishmentName={setNewPunishmentName}
+                  newPunishmentCategory={newPunishmentCategory}
+                  setNewPunishmentCategory={setNewPunishmentCategory}
+                  addPunishmentType={addPunishmentType}
+                  removePunishmentType={removePunishmentType}
+                  setSelectedPunishment={setSelectedPunishment}
+                />
+              </TabsContent>
+            )}
 
             <TabsContent value="tags">
               <TicketSettings
