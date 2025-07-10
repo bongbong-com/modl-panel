@@ -1266,7 +1266,7 @@ const TicketDetail = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-2 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Reported By:</span>
+                    <span className="text-muted-foreground">Opened by:</span>
                     <span className="ml-1">
                       <ClickablePlayer 
                         playerText={ticketDetails.reportedBy}
@@ -2119,6 +2119,13 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
               </span>
             </div>
             
+            {punishmentData.started && (
+              <div>
+                <span className="text-muted-foreground font-medium">Started:</span>
+                <span className="ml-2">{formatDate(punishmentData.started)}</span>
+              </div>
+            )}
+            
             <div>
               <span className="text-muted-foreground font-medium">Expiry:</span>
               <span className="ml-2">{formatExpiryStatus(punishmentData.expires, punishmentData.active)}</span>
@@ -2128,13 +2135,6 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
               <span className="text-muted-foreground font-medium">Issued by:</span>
               <span className="ml-2">{punishmentData.issuerName}</span>
             </div>
-
-            {punishmentData.started && (
-              <div>
-                <span className="text-muted-foreground font-medium">Started:</span>
-                <span className="ml-2">{formatDate(punishmentData.started)}</span>
-              </div>
-            )}
           </div>
 
           {/* Badges matching PlayerWindow exactly */}
