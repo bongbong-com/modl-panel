@@ -548,9 +548,65 @@ const AppealsPage = () => {
     }
   };
 
+  // Avatar component for messages (copied from player-ticket)
+  const MessageAvatar = ({ message, creatorUuid }: { message: AppealMessage, creatorUuid?: string }) => {
+    const [avatarError, setAvatarError] = useState(false);
+    const [avatarLoading, setAvatarLoading] = useState(true);
+
+    // For player messages, use the player's UUID if available
+    if (message.sender === 'player') {
+      if (banInfo?.playerUuid && !avatarError) {
+        return (
+          <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img 
+              src={`https://crafatar.com/avatars/${banInfo.playerUuid}?size=32&default=MHF_Steve&overlay`}
+              alt={`${message.senderName} Avatar`}
+              className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
+              onError={() => {
+                setAvatarError(true);
+                setAvatarLoading(false);
+              }}
+              onLoad={() => {
+                setAvatarError(false);
+                setAvatarLoading(false);
+              }}
+            />
+            {avatarLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-bold text-primary">{message.senderName?.substring(0, 2) || 'P'}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+      // Fallback for player without UUID
+      return (
+        <div className="h-8 w-8 bg-blue-100 rounded-md flex items-center justify-center flex-shrink-0">
+          <span className="text-xs font-bold text-blue-600">{message.senderName?.substring(0, 2) || 'P'}</span>
+        </div>
+      );
+    }
+
+    // For staff messages
+    if (message.sender === 'staff') {
+      return (
+        <div className="h-8 w-8 bg-green-100 rounded-md flex items-center justify-center flex-shrink-0">
+          <span className="text-xs font-bold text-green-600">{message.senderName?.substring(0, 2) || 'S'}</span>
+        </div>
+      );
+    }
+
+    // System messages
+    return (
+      <div className="h-8 w-8 bg-gray-100 rounded-md flex items-center justify-center flex-shrink-0">
+        <span className="text-xs font-bold text-gray-600">SY</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto">
         {/* Header section */}
         <div className="flex flex-col space-y-2 mb-8 text-center">
           <h1 className="text-3xl font-bold">Punishment Appeal</h1>
@@ -692,81 +748,81 @@ const AppealsPage = () => {
                 
                 {/* Messages Section */}
                 {appealInfo.messages && appealInfo.messages.length > 0 && (
-                  <div className="mt-6 space-y-4">
+                  <div className="mt-6">
                     <Separator />
-                    <h4 className="text-md font-semibold">Conversation</h4>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto p-2">
-                      {appealInfo.messages
-                        .filter(message => !message.isStaffNote)
-                        .map((message) => (
-                          <div 
-                            key={message.id} 
-                            className={`flex flex-col ${
-                              message.sender === 'player' 
-                                ? 'items-end' 
-                                : message.sender === 'staff'
-                                  ? 'items-start'
-                                  : 'items-center'
-                            }`}
-                          >
-                            <div 
-                              className={`max-w-[85%] rounded-lg p-3 ${
-                                message.sender === 'player' 
-                                  ? 'bg-primary text-primary-foreground' 
-                                  : message.sender === 'staff'
-                                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                                    : 'bg-muted/50 text-xs w-full text-center'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-xs font-medium ${
-                                  message.sender === 'player' 
-                                    ? 'text-primary-foreground/80' 
-                                    : message.sender === 'staff'
-                                      ? 'text-blue-700 dark:text-blue-300'
-                                      : 'text-muted-foreground'
-                                }`}>
-                                  {message.senderName}
-                                </span>
-                              </div>
-                              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                              <div className="text-xs opacity-70 mt-1 text-right">
-                                {formatDate(message.timestamp)}
+                    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mt-4">
+                      <div className="p-3 bg-muted/30">
+                        <h4 className="font-semibold">Appeal Conversation</h4>
+                      </div>
+                      <div className="divide-y max-h-[400px] overflow-y-auto">
+                        {appealInfo.messages
+                          .filter(message => !message.isStaffNote)
+                          .map((message) => (
+                            <div key={message.id} className="p-4">
+                              <div className="flex items-start gap-3">
+                                <MessageAvatar message={message} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm">{message.senderName}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatDate(message.timestamp)}
+                                    </span>
+                                    {message.sender === 'staff' && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        Staff
+                                      </Badge>
+                                    )}
+                                    {message.sender === 'system' && (
+                                      <Badge variant="outline" className="text-xs">
+                                        System
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-sm">
+                                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                      </div>
                     </div>
                     
                     {/* Reply input */}
                     {appealInfo.status !== 'Approved' && appealInfo.status !== 'Rejected' && appealInfo.status !== 'Closed' && appealInfo.status !== 'Denied' && (
-                      <div className="mt-4">
-                        <div className="flex flex-col space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="reply">Add a reply</Label>
-                            <div className="text-xs text-muted-foreground">
-                              Your reply will be visible to staff
+                      <Card className="mt-4">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Reply to Appeal</CardTitle>
+                          <CardDescription>
+                            Add a reply to your appeal. This will be visible to staff reviewing your case.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="reply">Reply</Label>
+                              <Textarea
+                                id="reply"
+                                value={newReply}
+                                onChange={(e) => setNewReply(e.target.value)}
+                                placeholder="Type your reply here..."
+                                className="min-h-[100px]"
+                              />
+                            </div>
+                            
+                            <div className="flex justify-end">
+                              <Button
+                                onClick={handleSendReply}
+                                disabled={!newReply.trim()}
+                                className="flex items-center"
+                              >
+                                <Send className="mr-2 h-4 w-4" />
+                                Send Reply
+                              </Button>
                             </div>
                           </div>
-                          <Textarea
-                            id="reply"
-                            placeholder="Type your message here..."
-                            rows={3}
-                            value={newReply}
-                            onChange={(e) => setNewReply(e.target.value)}
-                          />
-                          <div className="flex justify-end">
-                            <Button 
-                              onClick={handleSendReply}
-                              disabled={!newReply.trim()}
-                              size="sm"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              Send Reply
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+                        </CardContent>
+                      </Card>
                     )}
                   </div>
                 )}

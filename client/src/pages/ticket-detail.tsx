@@ -1297,6 +1297,11 @@ const TicketDetail = () => {
               </div>
             </div>
 
+            {/* Punishment Details Section for Appeals */}
+            {ticketDetails.category === 'Punishment Appeal' && ticketData?.data?.punishmentId && (
+              <PunishmentDetailsCard punishmentId={ticketData.data.punishmentId} />
+            )}
+
             {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis */}
             {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -1916,6 +1921,189 @@ const TicketDetail = () => {
         )}
       </div>
     </PageContainer>
+  );
+};
+
+// Component to display punishment details for appeals
+const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
+  const [punishmentData, setPunishmentData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPunishmentDetails = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch punishment details from the player API
+        const response = await fetch(`/api/panel/players/punishment/${punishmentId}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch punishment details');
+        }
+        
+        const data = await response.json();
+        setPunishmentData(data);
+      } catch (err) {
+        console.error('Error fetching punishment details:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (punishmentId) {
+      fetchPunishmentDetails();
+    }
+  }, [punishmentId]);
+
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-purple-100 rounded-full">
+            <Axe className="h-5 w-5 text-purple-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-purple-900 mb-2">Punishment Details</h3>
+            <div className="text-sm text-purple-800">Loading punishment information...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-red-100 rounded-full">
+            <Axe className="h-5 w-5 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-red-900 mb-2">Punishment Details</h3>
+            <div className="text-sm text-red-800">Failed to load punishment information</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!punishmentData) {
+    return null;
+  }
+
+  return (
+    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+      <div className="flex items-start gap-3">
+        <div className="p-2 bg-purple-100 rounded-full">
+          <Axe className="h-5 w-5 text-purple-600" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-purple-900">Punishment Details</h3>
+            <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300">
+              ID: {punishmentData.id}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+              <span className="text-purple-600 font-medium">Player:</span>
+              <span className="ml-2">
+                <ClickablePlayer 
+                  playerText={punishmentData.playerUsername}
+                  uuid={punishmentData.playerUuid}
+                  showIcon={true}
+                  className="text-sm"
+                >
+                  {punishmentData.playerUsername}
+                </ClickablePlayer>
+              </span>
+            </div>
+            
+            <div>
+              <span className="text-purple-600 font-medium">Type:</span>
+              <span className="ml-2">{punishmentData.type}</span>
+            </div>
+            
+            <div>
+              <span className="text-purple-600 font-medium">Issued:</span>
+              <span className="ml-2">{formatDate(punishmentData.issued)}</span>
+            </div>
+            
+            <div>
+              <span className="text-purple-600 font-medium">Status:</span>
+              <span className="ml-2">
+                <Badge 
+                  variant="outline" 
+                  className={
+                    punishmentData.active 
+                      ? "bg-red-100 text-red-700 border-red-300" 
+                      : "bg-gray-100 text-gray-700 border-gray-300"
+                  }
+                >
+                  {punishmentData.active ? 'Active' : 'Inactive'}
+                </Badge>
+              </span>
+            </div>
+            
+            {punishmentData.expires && (
+              <div>
+                <span className="text-purple-600 font-medium">Expires:</span>
+                <span className="ml-2">{formatDate(punishmentData.expires)}</span>
+              </div>
+            )}
+            
+            <div>
+              <span className="text-purple-600 font-medium">Issued by:</span>
+              <span className="ml-2">{punishmentData.issuerName}</span>
+            </div>
+          </div>
+
+          {punishmentData.reason && (
+            <div className="mt-3 p-3 bg-white rounded-md border border-purple-200">
+              <div className="text-purple-600 font-medium text-sm mb-1">Reason:</div>
+              <div className="text-sm text-gray-900">{punishmentData.reason}</div>
+            </div>
+          )}
+
+          {punishmentData.severity && (
+            <div className="mt-2">
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  punishmentData.severity.toLowerCase() === 'lenient' || punishmentData.severity.toLowerCase() === 'low' ? 
+                    'bg-green-100 text-green-800 border-green-300' :
+                  punishmentData.severity.toLowerCase() === 'regular' || punishmentData.severity.toLowerCase() === 'medium' ?
+                    'bg-orange-100 text-orange-800 border-orange-300' :
+                    'bg-red-100 text-red-800 border-red-300'
+                }`}
+              >
+                {punishmentData.severity}
+              </Badge>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
