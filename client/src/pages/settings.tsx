@@ -551,6 +551,7 @@ const Settings = () => {
   const [newAppealFieldOptions, setNewAppealFieldOptions] = useState<string[]>([]);
   const [newAppealFieldSectionId, setNewAppealFieldSectionId] = useState('__none__');
   const [newAppealFieldOptionSectionMapping, setNewAppealFieldOptionSectionMapping] = useState<Record<string, string>>({});
+  const [isAppealOptionNavigationExpanded, setIsAppealOptionNavigationExpanded] = useState(false);
   const [newAppealSectionTitle, setNewAppealSectionTitle] = useState('');
   const [newAppealSectionDescription, setNewAppealSectionDescription] = useState('');
   const [newAppealSectionHideByDefault, setNewAppealSectionHideByDefault] = useState(false);
@@ -3554,45 +3555,58 @@ const Settings = () => {
 
                 {/* Per-Option Section Navigation for Dropdown/Multiple Choice Fields */}
                 {(newAppealFieldType === 'dropdown' || newAppealFieldType === 'multiple_choice') && newAppealFieldOptions.length > 0 && (
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Option Navigation (Optional)</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Configure which section to show when each option is selected.
-                    </p>
-                    {newAppealFieldOptions.map((option, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <Label className="text-sm font-medium">{option}</Label>
-                        </div>
-                        <div className="flex-1">
-                          <Select
-                            value={newAppealFieldOptionSectionMapping[option] || '__none__'}
-                            onValueChange={(value) => 
-                              setNewAppealFieldOptionSectionMapping(prev => ({
-                                ...prev,
-                                [option]: value === '__none__' ? '' : value
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="No navigation" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">No navigation</SelectItem>
-                              {selectedPunishment?.appealForm?.sections
-                                ?.filter(section => section.id !== newAppealFieldSectionId || newAppealFieldSectionId === '__none__')
-                                ?.sort((a, b) => a.order - b.order)
-                                .map(section => (
-                                  <SelectItem key={section.id} value={section.id}>
-                                    {section.title}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <Collapsible open={isAppealOptionNavigationExpanded} onOpenChange={setIsAppealOptionNavigationExpanded}>
+                    <div className="space-y-3">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between p-0 h-auto">
+                          <Label className="text-sm font-medium cursor-pointer">Option Navigation (Optional)</Label>
+                          {isAppealOptionNavigationExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                          Configure which section to show when each option is selected.
+                        </p>
+                        {newAppealFieldOptions.map((option, index) => (
+                          <div key={index} className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <Label className="text-sm font-medium">{option}</Label>
+                            </div>
+                            <div className="flex-1">
+                              <Select
+                                value={newAppealFieldOptionSectionMapping[option] || '__none__'}
+                                onValueChange={(value) => 
+                                  setNewAppealFieldOptionSectionMapping(prev => ({
+                                    ...prev,
+                                    [option]: value === '__none__' ? '' : value
+                                  }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="No navigation" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">No navigation</SelectItem>
+                                  {selectedPunishment?.appealForm?.sections
+                                    ?.filter(section => section.id !== newAppealFieldSectionId || newAppealFieldSectionId === '__none__')
+                                    ?.sort((a, b) => a.order - b.order)
+                                    .map(section => (
+                                      <SelectItem key={section.id} value={section.id}>
+                                        {section.title}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        ))}
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
                 )}
               </div>
 
