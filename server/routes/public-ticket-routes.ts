@@ -645,7 +645,7 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
     await ticket.save();
     
     // Send email notification if staff replied and ticket has creator email
-    if (staff && ticket.data && ticket.data.get('creatorEmail')) {
+    if (staff && ticket.data && (ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'))) {
       try {
         const TicketEmailService = (await import('../services/ticket-email-service')).default;
         const emailService = new TicketEmailService();
@@ -655,7 +655,7 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
           ticketSubject: ticket.subject,
           ticketType: ticket.type,
           playerName: ticket.creator,
-          playerEmail: ticket.data.get('creatorEmail'),
+          playerEmail: ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'),
           replyContent: content,
           replyAuthor: name,
           isStaffReply: staff,

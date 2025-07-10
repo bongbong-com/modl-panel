@@ -316,7 +316,7 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
       await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
       
       // Send email notification if ticket has creator email
-      if (ticket.data && ticket.data.get('creatorEmail')) {
+      if (ticket.data && (ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'))) {
         try {
           const TicketEmailService = (await import('../services/ticket-email-service')).default;
           const emailService = new TicketEmailService();
@@ -326,7 +326,7 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
             ticketSubject: ticket.subject,
             ticketType: ticket.type,
             playerName: ticket.creator,
-            playerEmail: ticket.data.get('creatorEmail'),
+            playerEmail: ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'),
             replyContent: newReply.content,
             replyAuthor: newReply.name,
             isStaffReply: newReply.staff,
@@ -470,7 +470,7 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
               ticketSubject: ticket.subject,
               ticketType: ticket.type,
               playerName: ticket.creator,
-              playerEmail: ticket.data.get('creatorEmail'),
+              playerEmail: ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'),
               replyContent: newReply.content,
               replyAuthor: newReply.name,
               isStaffReply: newReply.staff,
