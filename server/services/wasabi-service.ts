@@ -58,6 +58,7 @@ export interface MediaUploadOptions {
   contentType: string;
   folder: 'evidence' | 'tickets' | 'articles' | 'server-icons';
   subFolder?: string; // For organizing files within folders
+  serverName?: string; // Server name for folder hierarchy
   maxSizeBytes?: number;
   allowedTypes?: string[];
 }
@@ -87,8 +88,15 @@ export const FILE_SIZE_LIMITS = {
 
 /**
  * Generate a secure file name with timestamp and random UUID
+ * 
+ * Folder structure: serverName/folder/subFolder/fileName
+ * Examples:
+ * - myserver/evidence/player-123/screenshot-1234567890-abc123.png
+ * - testserver/tickets/support-456/document-1234567890-def456.pdf
+ * - gameserver/articles/article-789/banner-1234567890-ghi789.jpg
+ * - coolserver/server-icons/homepage/logo-1234567890-jkl012.png
  */
-function generateSecureFileName(originalName: string, folder: string, subFolder?: string): string {
+function generateSecureFileName(originalName: string, folder: string, subFolder?: string, serverName?: string): string {
   const timestamp = Date.now();
   const uuid = uuidv4();
   const ext = path.extname(originalName).toLowerCase();
@@ -96,11 +104,22 @@ function generateSecureFileName(originalName: string, folder: string, subFolder?
   
   const fileName = `${baseName}-${timestamp}-${uuid}${ext}`;
   
-  if (subFolder) {
-    return `${folder}/${subFolder}/${fileName}`;
+  // Build path with server name hierarchy: serverName/folder/subFolder/fileName
+  let fullPath = '';
+  
+  if (serverName) {
+    fullPath = `${serverName}/`;
   }
   
-  return `${folder}/${fileName}`;
+  fullPath += folder;
+  
+  if (subFolder) {
+    fullPath += `/${subFolder}`;
+  }
+  
+  fullPath += `/${fileName}`;
+  
+  return fullPath;
 }
 
 /**
@@ -146,8 +165,8 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
       return { success: false, error: validationError };
     }
 
-    // Generate secure file name
-    const key = generateSecureFileName(options.fileName, options.folder, options.subFolder);
+    // Generate secure file name with server hierarchy
+    const key = generateSecureFileName(options.fileName, options.folder, options.subFolder, options.serverName);
 
     // Upload to Wasabi
     const uploadCommand = new PutObjectCommand({
@@ -160,7 +179,8 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
         'original-name': options.fileName,
         'uploaded-at': new Date().toISOString(),
         'folder': options.folder,
-        'sub-folder': options.subFolder || ''
+        'sub-folder': options.subFolder || '',
+        'server-name': options.serverName || ''
       }
     });
 

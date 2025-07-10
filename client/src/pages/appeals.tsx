@@ -811,17 +811,17 @@ const AppealsPage = () => {
                               />
                             </div>
                             
-                            {/* Attachment Upload Section */}
-                            <div className="border rounded-lg p-4 bg-muted/50">
-                              <h4 className="text-sm font-medium mb-2">Attachments</h4>
-                              <TicketAttachments
-                                ticketId={appealInfo.id}
-                                ticketType="appeal"
-                                showTitle={false}
-                              />
-                            </div>
-                            
-                            <div className="flex justify-end">
+                            {/* Reply Actions */}
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <TicketAttachments
+                                  ticketId={appealInfo.id}
+                                  ticketType="appeal"
+                                  showTitle={false}
+                                  compact={true}
+                                />
+                              </div>
+                              
                               <Button
                                 onClick={handleSendReply}
                                 disabled={!newReply.trim()}

@@ -1744,17 +1744,7 @@ const TicketDetail = () => {
                         <MarkdownHelp />
                       </div>
                       
-                      {/* Attachment Upload Section */}
-                      <div className="border rounded-lg p-4 bg-muted/50 mb-4">
-                        <h4 className="text-sm font-medium mb-2">Attachments</h4>
-                        <TicketAttachments
-                          ticketId={ticketDetails.id}
-                          ticketType={ticketDetails.category}
-                          showTitle={false}
-                        />
-                      </div>
-                      
-                      <div className="relative">
+                      <div className="space-y-3">
                         <textarea
                           className="min-h-[120px] w-full resize-none rounded-lg border border-input bg-background p-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                           placeholder={getPlaceholderText()}
@@ -1766,15 +1756,27 @@ const TicketDetail = () => {
                             }));
                           }}
                         />
-                        <Button 
-                          size="sm" 
-                          className="absolute bottom-3 right-3" 
-                          onClick={handleSendReply}
-                          disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}
-                        >
-                          <Send className="h-4 w-4 mr-1.5" />
-                          Send
-                        </Button>
+                        
+                        {/* Reply Actions */}
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <TicketAttachments
+                              ticketId={ticketDetails.id}
+                              ticketType={ticketDetails.category}
+                              showTitle={false}
+                              compact={true}
+                            />
+                          </div>
+                          
+                          <Button 
+                            size="sm" 
+                            onClick={handleSendReply}
+                            disabled={!ticketDetails.newReply?.trim() && !ticketDetails.selectedAction}
+                          >
+                            <Send className="h-4 w-4 mr-1.5" />
+                            Send
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ) : (

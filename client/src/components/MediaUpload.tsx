@@ -8,7 +8,7 @@ import { cn } from 'modl-shared-web/lib/utils';
 
 interface MediaUploadProps {
   uploadType: 'evidence' | 'ticket' | 'article' | 'server-icon';
-  onUploadComplete?: (result: { url: string; key: string }) => void;
+  onUploadComplete?: (result: { url: string; key: string }, file?: File) => void;
   onUploadStart?: () => void;
   onUploadError?: (error: string) => void;
   maxFiles?: number;
@@ -175,7 +175,7 @@ export function MediaUpload({
               : f
           ));
           
-          onUploadComplete?.(result);
+          onUploadComplete?.(result, file);
           
           toast({
             title: "Upload Successful",
@@ -247,7 +247,8 @@ export function MediaUpload({
           size="sm"
           variant="outline"
         >
-          <Upload className="h-4 w-4" />
+          <Upload className="h-4 w-4 mr-1.5" />
+          Attach Files
         </Button>
         <input
           ref={fileInputRef}

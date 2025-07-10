@@ -35,6 +35,7 @@ router.post('/upload/evidence', isAuthenticated, requireWasabiConfig, upload.sin
     }
 
     const { playerId, ticketId, category } = req.body;
+    const serverName = req.serverName || 'unknown';
     
     // Create subfolder structure for organization
     let subFolder = '';
@@ -52,6 +53,7 @@ router.post('/upload/evidence', isAuthenticated, requireWasabiConfig, upload.sin
       contentType: req.file.mimetype,
       folder: 'evidence',
       subFolder,
+      serverName,
     };
 
     const result = await uploadMedia(uploadOptions);
@@ -89,6 +91,7 @@ router.post('/upload/ticket', isAuthenticated, requireWasabiConfig, upload.singl
     }
 
     const { ticketId, ticketType } = req.body;
+    const serverName = req.serverName || 'unknown';
     
     if (!ticketId) {
       return res.status(400).json({ error: 'Ticket ID is required' });
@@ -100,6 +103,7 @@ router.post('/upload/ticket', isAuthenticated, requireWasabiConfig, upload.singl
       contentType: req.file.mimetype,
       folder: 'tickets',
       subFolder: `${ticketType || 'general'}-${ticketId}`,
+      serverName,
     };
 
     const result = await uploadMedia(uploadOptions);
@@ -137,6 +141,7 @@ router.post('/upload/article', isAuthenticated, requireWasabiConfig, upload.sing
     }
 
     const { articleId, articleSlug } = req.body;
+    const serverName = req.serverName || 'unknown';
     
     const subFolder = articleId ? `article-${articleId}` : (articleSlug ? `article-${articleSlug}` : 'general');
 
@@ -146,6 +151,7 @@ router.post('/upload/article', isAuthenticated, requireWasabiConfig, upload.sing
       contentType: req.file.mimetype,
       folder: 'articles',
       subFolder,
+      serverName,
     };
 
     const result = await uploadMedia(uploadOptions);
@@ -183,6 +189,7 @@ router.post('/upload/server-icon', isAuthenticated, requireWasabiConfig, upload.
     }
 
     const { iconType } = req.body;
+    const serverName = req.serverName || 'unknown';
     
     if (!iconType || !['homepage', 'panel'].includes(iconType)) {
       return res.status(400).json({ error: 'Invalid icon type. Must be "homepage" or "panel"' });
@@ -194,6 +201,7 @@ router.post('/upload/server-icon', isAuthenticated, requireWasabiConfig, upload.
       contentType: req.file.mimetype,
       folder: 'server-icons',
       subFolder: iconType,
+      serverName,
     };
 
     const result = await uploadMedia(uploadOptions);

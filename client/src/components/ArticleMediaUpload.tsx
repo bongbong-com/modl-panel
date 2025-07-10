@@ -42,16 +42,19 @@ export function ArticleMediaUpload({
   const { config, deleteMedia } = useMediaUpload();
   const { toast } = useToast();
 
-  const handleUploadComplete = (result: { url: string; key: string }, originalFile: File) => {
+  const handleUploadComplete = (result: { url: string; key: string }, file?: File) => {
+    // Use actual file info if available, otherwise extract from URL
+    const fileName = file?.name || result.url.split('/').pop() || 'uploaded-file';
+    
     const newMedia: ArticleMedia = {
       id: Date.now().toString(),
       url: result.url,
       key: result.key,
-      fileName: originalFile.name,
-      fileType: originalFile.type,
-      fileSize: originalFile.size,
+      fileName: fileName,
+      fileType: file?.type || 'image/jpeg',
+      fileSize: file?.size || 0,
       uploadedAt: new Date().toISOString(),
-      altText: originalFile.name.split('.')[0] // Use filename without extension as default alt text
+      altText: fileName.split('.')[0] // Use filename without extension as default alt text
     };
 
     const updatedMedia = [...media, newMedia];
@@ -60,7 +63,7 @@ export function ArticleMediaUpload({
 
     toast({
       title: "Media Uploaded",
-      description: `${originalFile.name} has been uploaded successfully.`,
+      description: `${fileName} has been uploaded successfully.`,
     });
   };
 
@@ -165,12 +168,7 @@ export function ArticleMediaUpload({
         {!readonly && (
           <MediaUpload
             uploadType="article"
-            onUploadComplete={(result) => {
-              // We need to store the original file info somehow
-              // For now, we'll create a mock file info
-              const mockFile = new File([''], 'uploaded-file', { type: 'image/jpeg' });
-              handleUploadComplete(result, mockFile);
-            }}
+            onUploadComplete={handleUploadComplete}
             metadata={{
               articleId,
               articleSlug

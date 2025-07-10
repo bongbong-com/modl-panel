@@ -34,20 +34,24 @@ export function TicketAttachments({
   existingAttachments = [],
   onAttachmentsUpdate,
   readonly = false,
-  showTitle = true
-}: TicketAttachmentsProps) {
+  showTitle = true,
+  compact = false
+}: TicketAttachmentsProps & { compact?: boolean }) {
   const [attachments, setAttachments] = useState<TicketAttachment[]>(existingAttachments);
   const { config, deleteMedia } = useMediaUpload();
   const { toast } = useToast();
 
-  const handleUploadComplete = (result: { url: string; key: string }, originalFile: File) => {
+  const handleUploadComplete = (result: { url: string; key: string }, file?: File) => {
+    // Use actual file info if available, otherwise extract from URL
+    const fileName = file?.name || result.url.split('/').pop() || 'uploaded-file';
+    
     const newAttachment: TicketAttachment = {
       id: Date.now().toString(),
       url: result.url,
       key: result.key,
-      fileName: originalFile.name,
-      fileType: originalFile.type,
-      fileSize: originalFile.size,
+      fileName: fileName,
+      fileType: file?.type || 'application/octet-stream',
+      fileSize: file?.size || 0,
       uploadedAt: new Date().toISOString(),
       uploadedBy: 'Current User' // This should come from auth context
     };
@@ -58,7 +62,7 @@ export function TicketAttachments({
 
     toast({
       title: "Attachment Uploaded",
-      description: `${originalFile.name} has been uploaded successfully.`,
+      description: `${fileName} has been uploaded successfully.`,
     });
   };
 
@@ -112,29 +116,31 @@ export function TicketAttachments({
   }
 
   const content = (
-    <div className="space-y-4">
+    <div className={compact ? "flex items-center gap-2" : "space-y-4"}>
       {!readonly && (
         <MediaUpload
           uploadType="ticket"
-          onUploadComplete={(result) => {
-            // We need to store the original file info somehow
-            // For now, we'll create a mock file info
-            const mockFile = new File([''], 'uploaded-file', { type: 'application/octet-stream' });
-            handleUploadComplete(result, mockFile);
-          }}
+          onUploadComplete={handleUploadComplete}
           metadata={{
             ticketId,
             ticketType
           }}
-          variant="compact"
+          variant={compact ? "button-only" : "compact"}
           maxFiles={10}
         />
       )}
 
       {attachments.length > 0 && (
-        <div className="space-y-2">
-          {showTitle && <h4 className="text-sm font-medium">Attachments</h4>}
-          {attachments.map((attachment) => (
+        <div className={compact ? "flex items-center gap-2 flex-wrap" : "space-y-2"}>
+          {!compact && showTitle && <h4 className="text-sm font-medium">Attachments</h4>}
+          {compact ? (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Paperclip className="h-3 w-3" />
+              {attachments.length} file{attachments.length > 1 ? 's' : ''}
+            </Badge>
+          ) : (
+            <>
+              {attachments.map((attachment) => (
             <div
               key={attachment.id}
               className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
@@ -214,7 +220,9 @@ export function TicketAttachments({
                 )}
               </div>
             </div>
-          ))}
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
