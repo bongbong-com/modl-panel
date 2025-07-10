@@ -467,18 +467,41 @@ const AppealsPage = () => {
         }
       });
 
-      // Create appeal data with structured content
+      // Extract main reason field (look for common reason field names)
+      const reasonFieldNames = ['reason', 'appeal_reason', 'why_appeal', 'explanation'];
+      const reasonField = appealFormSettings?.fields?.find(field => 
+        reasonFieldNames.includes(field.id.toLowerCase()) || 
+        field.label.toLowerCase().includes('reason') ||
+        field.label.toLowerCase().includes('why')
+      );
+      const mainReason = reasonField ? values[reasonField.id] : '';
+      
+      // Extract evidence field
+      const evidenceFieldNames = ['evidence', 'proof', 'screenshots', 'links'];
+      const evidenceField = appealFormSettings?.fields?.find(field => 
+        evidenceFieldNames.includes(field.id.toLowerCase()) ||
+        field.label.toLowerCase().includes('evidence') ||
+        field.label.toLowerCase().includes('proof')
+      );
+      const evidence = evidenceField ? values[evidenceField.id] : '';
+      
+      // All other form data goes to additionalData
+      const additionalData = Object.fromEntries(
+        Object.entries(values).filter(([key]) => 
+          !['banId', 'email'].includes(key) && 
+          key !== reasonField?.id && 
+          key !== evidenceField?.id
+        )
+      );
+
+      // Create appeal data matching server expectations
       const appealData = {
         punishmentId: values.banId,
         playerUuid: banInfo.playerUuid,
         email: values.email,
-        formData: Object.fromEntries(
-          Object.entries(values).filter(([key]) => 
-            !['banId', 'email'].includes(key)
-          )
-        ),
-        initialMessage: contentString.trim(),
-        attachments: attachments // Include attachment data
+        reason: mainReason,
+        evidence: evidence,
+        additionalData: additionalData
       };
 
       await createAppealMutation.mutateAsync(appealData);
@@ -506,7 +529,7 @@ const AppealsPage = () => {
   // Fetch full appeal details when an existing appeal is found
   const fetchAppealDetails = async (appealId: string) => {
     try {
-      const response = await fetch(`/api/public/tickets/${appealId}`);
+      const response = await fetch(`/api/panel/appeals/${appealId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch appeal details');
       }
@@ -543,7 +566,7 @@ const AppealsPage = () => {
     if (!newReply.trim() || !appealInfo) return;
 
     try {
-      const response = await fetch(`/api/public/tickets/${appealInfo.id}/replies`, {
+      const response = await fetch(`/api/panel/appeals/${appealInfo.id}/replies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -551,7 +574,7 @@ const AppealsPage = () => {
         body: JSON.stringify({
           name: 'You',
           content: newReply,
-          type: 'user',
+          type: 'player',
           staff: false,
           attachments: replyAttachments, // Include full attachment data
         }),
@@ -1314,26 +1337,6 @@ const AppealsPage = () => {
                       
                     </form>
                   </Form>
-                      
-                  {/* File Attachments (outside form to prevent auto-submit) */}
-                  <div className="space-y-2 mt-4">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      <Paperclip className="h-4 w-4" />
-                      Attachments (Optional)
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      You can attach screenshots, videos, or documents to support your appeal
-                    </p>
-                    <TicketAttachments
-                      ticketId={banInfo?.id || 'unknown'}
-                      ticketType="appeal"
-                      existingAttachments={attachments}
-                      onAttachmentsUpdate={setAttachments}
-                      showTitle={false}
-                      compact={false}
-                      publicMode={true}
-                    />
-                  </div>
                     </CardContent>
                     <CardFooter>
                       <Button 

@@ -219,7 +219,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/:id/replies', async (req: Request, res: Response) => {
   const Ticket: Model<ITicket> = req.serverDbConnection!.model<ITicket>('Ticket');
   try {
-    const { name, content, type, staff, action, avatar } = req.body;
+    const { name, content, type, staff, action, avatar, attachments } = req.body;
     
     const appeal = await Ticket.findById(req.params.id);
     if (!appeal) {
@@ -241,7 +241,8 @@ router.post('/:id/replies', async (req: Request, res: Response) => {
       created: new Date(),
       staff: staff || false,
       action: action,
-      avatar: avatar
+      avatar: avatar,
+      attachments: attachments || []
     });
     
     appeal.updatedAt = new Date();

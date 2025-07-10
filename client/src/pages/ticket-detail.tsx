@@ -32,7 +32,12 @@ import {
   Ticket,
   ChevronDown,
   ChevronRight,
-  Settings
+  Settings,
+  Image,
+  Video,
+  File,
+  Eye,
+  Paperclip
 } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
@@ -48,6 +53,7 @@ import MarkdownRenderer from '@/components/ui/markdown-renderer';
 import MarkdownHelp from '@/components/ui/markdown-help';
 import { ClickablePlayer } from '@/components/ui/clickable-player';
 import PlayerPunishment, { PlayerPunishmentData } from '@/components/ui/player-punishment';
+import MediaUpload from '@/components/MediaUpload';
 import TicketAttachments from '@/components/TicketAttachments';
 
 // Define PunishmentType interface
@@ -194,6 +200,7 @@ const TicketDetail = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formSubject, setFormSubject] = useState('');
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [replyAttachments, setReplyAttachments] = useState<Array<{id: string, url: string, key: string, fileName: string, fileType: string, fileSize: number, uploadedAt: string, uploadedBy: string}>>([]);
   
   // Format date to MM/dd/yy HH:mm in browser's timezone
   const formatDate = (dateString: string): string => {
@@ -224,7 +231,25 @@ const TicketDetail = () => {
       return 'Unknown'; // Return a more user-friendly fallback
     }
   };
-    // More robust parsing of ticket ID from URL
+
+  // Helper function to get file icon
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <Image className="h-3 w-3" />;
+    if (type.startsWith('video/')) return <Video className="h-3 w-3" />;
+    if (type === 'application/pdf') return <FileText className="h-3 w-3" />;
+    return <File className="h-3 w-3" />;
+  };
+
+  // Helper function to truncate filename
+  const truncateFileName = (fileName: string, maxLength: number = 15) => {
+    if (fileName.length <= maxLength) return fileName;
+    const extension = fileName.split('.').pop();
+    const name = fileName.substring(0, fileName.lastIndexOf('.'));
+    const truncatedName = name.substring(0, maxLength - extension!.length - 4) + '...';
+    return `${truncatedName}.${extension}`;
+  };
+
+  // More robust parsing of ticket ID from URL
   const path = location[0];
   const pathParts = path.split('/');
   
@@ -829,7 +854,8 @@ const TicketDetail = () => {
         content: messageContent,
         created: new Date(),
         staff: true,
-        action: ticketDetails.selectedAction
+        action: ticketDetails.selectedAction,
+        attachments: replyAttachments
       };
       
       const clientMessage: TicketMessage = {
@@ -840,6 +866,7 @@ const TicketDetail = () => {
         content: newMessage.content,
         timestamp: timestamp,
         staff: newMessage.staff,
+        attachments: replyAttachments.map(a => a.url),
         closedAs: ticketDetails.selectedAction && ticketDetails.selectedAction !== 'Comment' && ticketDetails.selectedAction !== 'Reopen' ? ticketDetails.selectedAction : undefined
       };
       
@@ -854,6 +881,9 @@ const TicketDetail = () => {
         status: isClosing ? status : prev.status,
         locked: isClosing || status === 'Closed' ? true : prev.locked
       }));
+      
+      // Clear reply attachments after successful submission
+      setReplyAttachments([]);
       
       try {
         // Prepare update data
@@ -1540,13 +1570,25 @@ const TicketDetail = () => {
 
                             {/* Show attachments if any */}
                             {message.attachments && message.attachments.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {message.attachments.map((attachment, idx) => (
-                                  <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Link2 className="h-4 w-4" />
-                                    <span>{attachment}</span>
-                                  </div>
-                                ))}
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {message.attachments.map((attachment: any, idx: number) => {
+                                  // Handle both attachment objects and URL strings
+                                  const attachmentData = typeof attachment === 'string' ? 
+                                    { url: attachment, fileName: attachment.split('/').pop() || 'file', fileType: 'application/octet-stream' } : 
+                                    attachment;
+                                  
+                                  return (
+                                    <Badge 
+                                      key={idx} 
+                                      variant="outline" 
+                                      className="flex items-center gap-1 cursor-pointer hover:bg-muted/50"
+                                      onClick={() => window.open(attachmentData.url, '_blank')}
+                                    >
+                                      {getFileIcon(attachmentData.fileType)}
+                                      <span className="text-xs">{truncateFileName(attachmentData.fileName || attachmentData.url.split('/').pop() || 'file')}</span>
+                                    </Badge>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -1757,17 +1799,66 @@ const TicketDetail = () => {
                           }}
                         />
                         
-                        {/* Reply Actions */}
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <TicketAttachments
-                              ticketId={ticketDetails.id}
-                              ticketType={ticketDetails.category}
-                              showTitle={false}
-                              compact={true}
+                        {/* Reply Attachments */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-muted-foreground">Attachments (Optional)</label>
+                            <MediaUpload
+                              uploadType="ticket"
+                              onUploadComplete={(result, file) => {
+                                if (file) {
+                                  const newAttachment = {
+                                    id: Date.now().toString(),
+                                    url: result.url,
+                                    key: result.key,
+                                    fileName: file.name,
+                                    fileType: file.type,
+                                    fileSize: file.size,
+                                    uploadedAt: new Date().toISOString(),
+                                    uploadedBy: user?.username || 'Staff'
+                                  };
+                                  setReplyAttachments(prev => [...prev, newAttachment]);
+                                }
+                              }}
+                              metadata={{
+                                ticketId: ticketDetails.id,
+                                fieldId: 'reply'
+                              }}
+                              variant="button-only"
+                              maxFiles={5}
                             />
                           </div>
                           
+                          {/* Attachment Badges */}
+                          {replyAttachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {replyAttachments.map((attachment) => (
+                                <Badge 
+                                  key={attachment.id} 
+                                  variant="secondary" 
+                                  className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
+                                  onClick={() => window.open(attachment.url, '_blank')}
+                                >
+                                  {getFileIcon(attachment.fileType)}
+                                  <span className="text-xs">{truncateFileName(attachment.fileName)}</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReplyAttachments(prev => prev.filter(a => a.id !== attachment.id));
+                                    }}
+                                    className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
+                                    title={`Remove ${attachment.fileName}`}
+                                  >
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Reply Actions */}
+                        <div className="flex items-center justify-end gap-4">
                           <Button 
                             size="sm" 
                             onClick={handleSendReply}
