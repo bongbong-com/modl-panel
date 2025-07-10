@@ -18,7 +18,7 @@ export function useProvisioningStatusCheck() {
       '/pending-verification',
       '/resend-verification',
       '/verify-email',
-      '/player-ticket',
+      '/ticket',
       '/tickets',
       '/appeal',
       '/knowledgebase',

@@ -45,7 +45,7 @@ function Router() {
   const isAdminPanelRoute = location.startsWith("/panel");
   const isAuthPage = location === '/auth' || location === '/panel/auth';
   const isAppealsPage = location === '/appeal'; // Assuming appeals is not under /panel
-  const isPlayerTicketPage = location.startsWith('/player-ticket/'); // Assuming player-ticket is not under /panel
+  const isPlayerTicketPage = location.startsWith('/ticket/'); // Assuming player-ticket is not under /panel
   const isProvisioningPage = location === '/provisioning-in-progress';
   const isAcceptInvitationPage = location.startsWith('/accept-invitation');
 
@@ -72,7 +72,7 @@ function Router() {
           <AuthRoute path="/auth" component={AuthPage} />
           <AuthRoute path="/panel/auth" component={AuthPage} />
           <Route path="/appeal" component={AppealsPage} />
-          <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
           <Route path="/accept-invitation" component={AcceptInvitationPage} />
         </Switch>
@@ -98,7 +98,7 @@ function Router() {
             {/* These routes are assumed to be outside /panel */}
             <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
             <Route path="/appeal" component={AppealsPage} />
-            <Route path="/player-ticket/:id" component={PlayerTicket} />
+            <Route path="/ticket/:id" component={PlayerTicket} />
             <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />          <Route path="/accept-invitation" component={AcceptInvitationPage} />
             {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
             <Route path="/knowledgebase" component={KnowledgebasePage} />
@@ -129,7 +129,7 @@ function Router() {
            {/* These routes are assumed to be outside /panel */}
           <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
           <Route path="/appeal" component={AppealsPage} />
-          <Route path="/player-ticket/:id" component={PlayerTicket} />
+          <Route path="/ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
           <Route path="/accept-invitation" component={AcceptInvitationPage} />
           {/* Public KB routes for desktop, if accessed directly and not caught by earlier block */}
@@ -158,7 +158,7 @@ function AppContent() {
     
     const excludedPages = ['/auth', '/panel/auth', '/appeal', '/provisioning-in-progress'];
     const isOnExcludedPage = excludedPages.some(page => location.startsWith(page));
-    const isOnPlayerTicketPage = location.startsWith('/player-ticket/');
+    const isOnPlayerTicketPage = location.startsWith('/ticket/');
     const isOnAcceptInvitationPage = location.startsWith('/accept-invitation');
     
     if (!isOnPanelHomePage) {

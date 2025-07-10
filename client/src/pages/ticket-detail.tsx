@@ -1104,14 +1104,14 @@ const TicketDetail = () => {
                       <input 
                         type="text" 
                         readOnly 
-                        value={`${window.location.origin}/player-ticket/${ticketDetails.id}`}
+                        value={`${window.location.origin}/ticket/${ticketDetails.id}`}
                         className="text-xs p-2 bg-muted rounded border border-border flex-1 mr-2"
                       />
                       <Button 
                         size="sm" 
                         variant="secondary"
                         onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/player-ticket/${ticketDetails.id}`);
+                          navigator.clipboard.writeText(`${window.location.origin}/ticket/${ticketDetails.id}`);
                         }}
                       >
                         Copy
