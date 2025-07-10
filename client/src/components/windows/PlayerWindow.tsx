@@ -76,6 +76,12 @@ interface PlayerInfo {
   isAddingPunishmentEvidence?: boolean;
   punishmentEvidenceTarget?: string | null;
   newPunishmentEvidence?: string;
+  uploadedEvidenceFile?: {
+    url: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+  } | null;
   isModifyingPunishment?: boolean;
   modifyPunishmentTarget?: string | null;  modifyPunishmentAction?: 'modify' | null;
   modifyPunishmentReason?: string;
@@ -2121,59 +2127,33 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                             <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
                             <div className="flex items-center space-x-2">
                               <textarea
-                                className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                                className={`flex-1 rounded-md border border-border px-3 py-2 text-sm h-16 resize-none ${
+                                  playerInfo.uploadedEvidenceFile ? 'bg-muted text-muted-foreground' : 'bg-background'
+                                }`}
                                 placeholder="Enter evidence URL or description..."
-                                value={playerInfo.newPunishmentEvidence || ''}
-                                onChange={(e) => setPlayerInfo(prev => ({...prev, newPunishmentEvidence: e.target.value}))}
+                                value={playerInfo.uploadedEvidenceFile ? `📁 ${playerInfo.uploadedEvidenceFile.fileName}` : (playerInfo.newPunishmentEvidence || '')}
+                                onChange={(e) => {
+                                  // Don't allow editing if a file is uploaded
+                                  if (playerInfo.uploadedEvidenceFile) return;
+                                  setPlayerInfo(prev => ({...prev, newPunishmentEvidence: e.target.value}));
+                                }}
+                                readOnly={!!playerInfo.uploadedEvidenceFile}
                               />
                               
                               {/* Upload button */}
                               <MediaUpload
                                 uploadType="evidence"
                                 onUploadComplete={(result, file) => {
-                                  // Add the file as evidence
-                                  const evidenceData = {
-                                    text: file?.name || 'Uploaded file',
-                                    issuerName: user?.username || 'Admin',
-                                    date: new Date().toISOString(),
-                                    type: 'file',
-                                    fileUrl: result.url,
-                                    fileName: file?.name || 'Unknown file',
-                                    fileType: file?.type || 'application/octet-stream',
-                                    fileSize: file?.size || 0
-                                  };
-                                  
-                                  // Submit the evidence directly
-                                  fetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify(evidenceData)
-                                  })
-                                  .then(response => {
-                                    if (!response.ok) {
-                                      throw new Error('Failed to add evidence');
+                                  // Store the uploaded file info
+                                  setPlayerInfo(prev => ({
+                                    ...prev,
+                                    uploadedEvidenceFile: {
+                                      url: result.url,
+                                      fileName: file?.name || 'Unknown file',
+                                      fileType: file?.type || 'application/octet-stream',
+                                      fileSize: file?.size || 0
                                     }
-                                    return response.json();
-                                  })
-                                  .then(() => {
-                                    toast({
-                                      title: 'Evidence Added',
-                                      description: `File evidence has been added to the punishment successfully`
-                                    });
-                                    
-                                    // Refetch player data to update the UI
-                                    refetch();
-                                  })
-                                  .catch(error => {
-                                    console.error('Error adding evidence to punishment:', error);
-                                    toast({
-                                      title: "Failed to add evidence",
-                                      description: error instanceof Error ? error.message : "An unknown error occurred",
-                                      variant: "destructive"
-                                    });
-                                  });
+                                  }));
                                 }}
                                 metadata={{
                                   playerId: playerId,
@@ -2192,24 +2172,42 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                   ...prev,
                                   isAddingPunishmentEvidence: false,
                                   punishmentEvidenceTarget: null,
-                                  newPunishmentEvidence: ''
+                                  newPunishmentEvidence: '',
+                                  uploadedEvidenceFile: null
                                 }))}
                               >
                                 Cancel
                               </Button>
                               <Button
                                 size="sm"
-                                disabled={!playerInfo.newPunishmentEvidence?.trim()}
+                                disabled={!playerInfo.newPunishmentEvidence?.trim() && !playerInfo.uploadedEvidenceFile}
                                 onClick={async () => {
-                                  if (!playerInfo.newPunishmentEvidence?.trim()) return;
+                                  if (!playerInfo.newPunishmentEvidence?.trim() && !playerInfo.uploadedEvidenceFile) return;
                                   
                                   try {
-                                    // Add evidence to punishment via API
-                                    const evidenceData = {
-                                      text: playerInfo.newPunishmentEvidence.trim(),
-                                      issuerName: user?.username || 'Admin',
-                                      date: new Date().toISOString()
-                                    };
+                                    // Prepare evidence data based on whether it's a file or text
+                                    let evidenceData: any;
+                                    
+                                    if (playerInfo.uploadedEvidenceFile) {
+                                      // File evidence
+                                      evidenceData = {
+                                        text: playerInfo.uploadedEvidenceFile.fileName,
+                                        issuerName: user?.username || 'Admin',
+                                        date: new Date().toISOString(),
+                                        type: 'file',
+                                        fileUrl: playerInfo.uploadedEvidenceFile.url,
+                                        fileName: playerInfo.uploadedEvidenceFile.fileName,
+                                        fileType: playerInfo.uploadedEvidenceFile.fileType,
+                                        fileSize: playerInfo.uploadedEvidenceFile.fileSize
+                                      };
+                                    } else {
+                                      // Text evidence
+                                      evidenceData = {
+                                        text: playerInfo.newPunishmentEvidence.trim(),
+                                        issuerName: user?.username || 'Admin',
+                                        date: new Date().toISOString()
+                                      };
+                                    }
                                     
                                     const response = await fetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
                                       method: 'POST',
@@ -2236,7 +2234,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                       ...prev,
                                       isAddingPunishmentEvidence: false,
                                       punishmentEvidenceTarget: null,
-                                      newPunishmentEvidence: ''
+                                      newPunishmentEvidence: '',
+                                      uploadedEvidenceFile: null
                                     }));
                                   } catch (error) {
                                     console.error('Error adding evidence to punishment:', error);

@@ -2052,6 +2052,12 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
   const [error, setError] = useState<string | null>(null);
   const [isAddingEvidence, setIsAddingEvidence] = useState(false);
   const [newEvidence, setNewEvidence] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<{
+    url: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+  } | null>(null);
   const [showAdditionalData, setShowAdditionalData] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -2586,68 +2592,29 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                 <p className="text-xs font-medium mb-2">Add Evidence to Punishment</p>
                 <div className="flex items-center space-x-2">
                   <textarea
-                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm h-16 resize-none"
+                    className={`flex-1 rounded-md border border-border px-3 py-2 text-sm h-16 resize-none ${
+                      uploadedFile ? 'bg-muted text-muted-foreground' : 'bg-background'
+                    }`}
                     placeholder="Enter evidence URL or description..."
-                    value={newEvidence}
-                    onChange={(e) => setNewEvidence(e.target.value)}
+                    value={uploadedFile ? `📁 ${uploadedFile.fileName}` : newEvidence}
+                    onChange={(e) => {
+                      // Don't allow editing if a file is uploaded
+                      if (uploadedFile) return;
+                      setNewEvidence(e.target.value);
+                    }}
+                    readOnly={!!uploadedFile}
                   />
                   
                   {/* Upload button */}
                   <MediaUpload
                     uploadType="evidence"
                     onUploadComplete={(result, file) => {
-                      // Add the file as evidence
-                      const evidenceData = {
-                        text: file?.name || 'Uploaded file',
-                        issuerName: user?.username || 'Staff',
-                        date: new Date().toISOString(),
-                        type: 'file',
-                        fileUrl: result.url,
+                      // Store the uploaded file info
+                      setUploadedFile({
+                        url: result.url,
                         fileName: file?.name || 'Unknown file',
                         fileType: file?.type || 'application/octet-stream',
                         fileSize: file?.size || 0
-                      };
-                      
-                      // Submit the evidence directly
-                      fetch(`/api/panel/players/${punishmentData.playerUuid}/punishments/${punishmentId}/evidence`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(evidenceData)
-                      })
-                      .then(response => {
-                        if (!response.ok) {
-                          throw new Error('Failed to add evidence');
-                        }
-                        return response.json();
-                      })
-                      .then(() => {
-                        toast({
-                          title: 'Evidence Added',
-                          description: 'File evidence has been added to the punishment successfully'
-                        });
-                        
-                        // Refresh punishment data
-                        fetch(`/api/panel/players/punishment/${punishmentId}`)
-                          .then(refreshResponse => {
-                            if (refreshResponse.ok) {
-                              return refreshResponse.json();
-                            }
-                          })
-                          .then(refreshedData => {
-                            if (refreshedData) {
-                              setPunishmentData(refreshedData);
-                            }
-                          });
-                      })
-                      .catch(error => {
-                        console.error('Error adding evidence to punishment:', error);
-                        toast({
-                          title: "Failed to add evidence",
-                          description: error instanceof Error ? error.message : "An unknown error occurred",
-                          variant: "destructive"
-                        });
                       });
                     }}
                     metadata={{
@@ -2666,22 +2633,41 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                     onClick={() => {
                       setIsAddingEvidence(false);
                       setNewEvidence('');
+                      setUploadedFile(null);
                     }}
                   >
                     Cancel
                   </Button>
                   <Button
                     size="sm"
-                    disabled={!newEvidence.trim()}
+                    disabled={!newEvidence.trim() && !uploadedFile}
                     onClick={async () => {
-                      if (!newEvidence.trim()) return;
+                      if (!newEvidence.trim() && !uploadedFile) return;
                       
                       try {
-                        const evidenceData = {
-                          text: newEvidence.trim(),
-                          issuerName: user?.username || 'Staff',
-                          date: new Date().toISOString()
-                        };
+                        // Prepare evidence data based on whether it's a file or text
+                        let evidenceData: any;
+                        
+                        if (uploadedFile) {
+                          // File evidence
+                          evidenceData = {
+                            text: uploadedFile.fileName,
+                            issuerName: user?.username || 'Staff',
+                            date: new Date().toISOString(),
+                            type: 'file',
+                            fileUrl: uploadedFile.url,
+                            fileName: uploadedFile.fileName,
+                            fileType: uploadedFile.fileType,
+                            fileSize: uploadedFile.fileSize
+                          };
+                        } else {
+                          // Text evidence
+                          evidenceData = {
+                            text: newEvidence.trim(),
+                            issuerName: user?.username || 'Staff',
+                            date: new Date().toISOString()
+                          };
+                        }
                         
                         const response = await fetch(`/api/panel/players/${punishmentData.playerUuid}/punishments/${punishmentId}/evidence`, {
                           method: 'POST',
@@ -2710,6 +2696,7 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                         // Reset form
                         setIsAddingEvidence(false);
                         setNewEvidence('');
+                        setUploadedFile(null);
                       } catch (error) {
                         console.error('Error adding evidence to punishment:', error);
                         toast({
