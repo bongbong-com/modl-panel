@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, SettingsIcon, Globe, Key, Upload, Eye, EyeOff, Check, Copy, RefreshCw, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { CreditCard, SettingsIcon, Globe, Key, Upload, Eye, EyeOff, Check, Copy, RefreshCw, Trash2, Plus, ChevronDown, ChevronRight, HardDrive } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Label } from 'modl-shared-web/components/ui/label';
@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'modl-shared
 import { useAuth } from '@/hooks/use-auth';
 import BillingSettings from './BillingSettings';
 import DomainSettings from './DomainSettings';
+import UsageSettings from './UsageSettings';
 
 interface GeneralSettingsProps {
   // Server Configuration
@@ -74,6 +75,7 @@ const GeneralSettings = ({
   
   // Collapsible state
   const [isBillingExpanded, setIsBillingExpanded] = useState(false);
+  const [isUsageExpanded, setIsUsageExpanded] = useState(false);
   const [isServerConfigExpanded, setIsServerConfigExpanded] = useState(false);
   const [isDomainExpanded, setIsDomainExpanded] = useState(false);
 
@@ -132,6 +134,27 @@ const GeneralSettings = ({
             </CollapsibleContent>
           </Collapsible>
         )}
+
+        {/* Usage Section */}
+        <Collapsible open={isUsageExpanded} onOpenChange={setIsUsageExpanded}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
+            <div className="flex items-center">
+              <HardDrive className="h-4 w-4 mr-2" />
+              <h4 className="text-base font-medium">Usage</h4>
+            </div>
+            <div className="flex items-center space-x-2">
+              {!isUsageExpanded && (
+                <span className="text-sm text-muted-foreground">
+                  Storage & File Management
+                </span>
+              )}
+              {isUsageExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4">
+            <UsageSettings />
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Server Configuration */}
         <Collapsible open={isServerConfigExpanded} onOpenChange={setIsServerConfigExpanded}>
