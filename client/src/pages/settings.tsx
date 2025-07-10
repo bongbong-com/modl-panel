@@ -23,6 +23,7 @@ import { useBeforeUnload } from 'react-router-dom';
 import { useLocation } from "wouter"; // For wouter navigation
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "modl-shared-web/components/ui/tooltip";
 import { useAuth } from '@/hooks/use-auth';
+import { usePermissions } from '@/hooks/use-permissions';
 import StaffManagementPanel from '@/components/settings/StaffManagementPanel';
 import StaffRolesCard from '@/components/settings/StaffRolesCard';
 import BillingSettings from '@/components/settings/BillingSettings';
@@ -458,6 +459,7 @@ const Settings = () => {
   const { } = useSidebar();
   const [, navigateWouter] = useLocation();
   const { user, logout } = useAuth();
+  const { canAccessSettingsTab, getAccessibleSettingsTabs } = usePermissions();
   const mainContentClass = "ml-[32px] pl-8";
   const [activeTab, setActiveTab] = useState('account');
 
@@ -472,13 +474,11 @@ const Settings = () => {
   useEffect(() => {
     if (!user) return;
     
-    const restrictedTabs = ['general', 'punishment', 'staff', 'homepage'];
-    const isAdmin = user.role === 'Super Admin' || user.role === 'Admin';
-    
-    if (restrictedTabs.includes(activeTab) && !isAdmin) {
+    // Check if user can access the current tab
+    if (!canAccessSettingsTab(activeTab as any)) {
       setActiveTab('account'); // Redirect to account tab which everyone can access
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, canAccessSettingsTab]);
   
   // Auto-save state
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -2111,7 +2111,7 @@ const Settings = () => {
                 <UserIcon className="h-4 w-4 mr-2" />
                 Account
               </TabsTrigger>
-              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              {canAccessSettingsTab('general') && (
                 <TabsTrigger
                   value="general"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
@@ -2120,7 +2120,7 @@ const Settings = () => {
                   Server & Billing
                 </TabsTrigger>
               )}
-              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              {canAccessSettingsTab('punishment') && (
                 <TabsTrigger
                   value="punishment"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
@@ -2136,7 +2136,7 @@ const Settings = () => {
                 <Tag className="h-4 w-4 mr-2" />
                 Tickets
               </TabsTrigger>
-              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              {canAccessSettingsTab('staff') && (
                 <TabsTrigger
                   value="staff"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
@@ -2152,7 +2152,7 @@ const Settings = () => {
                 <BookOpen className="h-4 w-4 mr-2" />
                 Knowledgebase
               </TabsTrigger>
-              {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+              {canAccessSettingsTab('homepage') && (
                 <TabsTrigger
                   value="homepage"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none px-6 py-2"
@@ -2172,7 +2172,7 @@ const Settings = () => {
               />
             </TabsContent>
 
-            {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+            {canAccessSettingsTab('general') && (
               <TabsContent value="general">
                 <GeneralSettings
                   serverDisplayName={serverDisplayName}
@@ -2203,7 +2203,7 @@ const Settings = () => {
               </TabsContent>
             )}
 
-            {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+            {canAccessSettingsTab('punishment') && (
               <TabsContent value="punishment">
                 <PunishmentSettings
                   statusThresholds={statusThresholds}
@@ -2257,7 +2257,7 @@ const Settings = () => {
 
 
             <TabsContent value="staff" className="p-6">
-              {(user?.role === 'Super Admin' || user?.role === 'Admin') ? (
+              {canAccessSettingsTab('staff') ? (
                 <Tabs defaultValue="staff-management" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="staff-management" className="flex items-center gap-2">
@@ -2290,7 +2290,7 @@ const Settings = () => {
               <KnowledgebaseSettings />
             </TabsContent>
 
-            {(user?.role === 'Super Admin' || user?.role === 'Admin') && (
+            {canAccessSettingsTab('homepage') && (
               <TabsContent value="homepage" className="space-y-6 p-6">
                 <HomepageCardSettings />
               </TabsContent>
