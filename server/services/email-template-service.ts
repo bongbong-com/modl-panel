@@ -63,9 +63,7 @@ class EmailTemplateService {
   }
 
   private generateAuthTextEmail(data: AuthEmailData): string {
-    return `Hello,
-
-Your login verification code for ${data.serverDisplayName} is: ${data.code}
+    return `Your login verification code for ${data.serverDisplayName} is: ${data.code}
 
 This code will expire in 15 minutes.
 
@@ -81,8 +79,6 @@ This is an automated message. Please do not reply to this email.`;
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 20px;">
       <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <h2 style="color: #333; margin-bottom: 20px;">Login Verification Code</h2>
-        
-        <p style="color: #555; font-size: 16px;">Hello,</p>
         
         <p style="color: #555; font-size: 16px;">
           Your login verification code for <strong>${data.serverDisplayName}</strong> is:
@@ -110,9 +106,7 @@ This is an automated message. Please do not reply to this email.`;
   }
 
   private generateInviteTextEmail(data: InviteEmailData): string {
-    return `Hello,
-
-You have been invited to join the ${data.serverDisplayName} team as a ${data.role}!
+    return `You have been invited to join the ${data.serverDisplayName} team as a ${data.role}!
 
 Please accept your invitation by clicking the following link:
 ${data.invitationLink}
@@ -131,8 +125,6 @@ This is an automated message. Please do not reply to this email.`;
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 20px;">
       <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <h2 style="color: #333; margin-bottom: 20px;">Team Invitation</h2>
-        
-        <p style="color: #555; font-size: 16px;">Hello,</p>
         
         <p style="color: #555; font-size: 16px;">
           You have been invited to join the <strong>${data.serverDisplayName}</strong> team as a <strong>${data.role}</strong>!
