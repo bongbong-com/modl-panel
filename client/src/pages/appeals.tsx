@@ -461,12 +461,40 @@ const AppealsPage = () => {
         });
       }
       
+      // Collect all attachments from file upload fields
+      const allAttachments: any[] = [];
+      
       // Convert form data to structured message content
       Object.entries(values).forEach(([key, value]) => {
-        if (value && value.toString().trim() && !['banId', 'email'].includes(key)) {
-          // Get the field label from form configuration or format the key as fallback
-          const fieldLabel = fieldLabels[key] || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
-          contentString += `**${fieldLabel}:**\n${value}\n\n`;
+        if (value && !['banId', 'email'].includes(key)) {
+          // Get the field from form configuration
+          const field = appealFormSettings?.fields?.find(f => f.id === key);
+          const fieldLabel = field?.label || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+          
+          // Handle file upload fields differently
+          if (field?.type === 'file_upload') {
+            const files = Array.isArray(value) ? value : (value ? [value] : []);
+            if (files.length > 0) {
+              // Add files to attachments array
+              files.forEach((file: any) => {
+                if (typeof file === 'object' && file.url) {
+                  allAttachments.push(file);
+                } else if (typeof file === 'string') {
+                  allAttachments.push({
+                    url: file,
+                    fileName: file.split('/').pop() || 'file',
+                    fileType: 'application/octet-stream'
+                  });
+                }
+              });
+              
+              // Show attachment count in message
+              contentString += `**${fieldLabel}:** [${files.length} file${files.length > 1 ? 's' : ''} attached]\n\n`;
+            }
+          } else if (value.toString().trim()) {
+            // Handle regular fields
+            contentString += `**${fieldLabel}:**\n${value}\n\n`;
+          }
         }
       });
 
@@ -504,7 +532,8 @@ const AppealsPage = () => {
         email: values.email,
         reason: mainReason,
         evidence: evidence,
-        additionalData: additionalData
+        additionalData: additionalData,
+        attachments: allAttachments
       };
 
       await createAppealMutation.mutateAsync(appealData);

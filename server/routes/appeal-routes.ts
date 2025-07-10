@@ -106,7 +106,8 @@ router.post('/', async (req: Request, res: Response) => {
       email,
       reason,
       evidence,
-      additionalData
+      additionalData,
+      attachments
     } = req.body;
     
     if (!punishmentId || !playerUuid || !email) {
@@ -195,7 +196,8 @@ router.post('/', async (req: Request, res: Response) => {
       content: initialReplyContent,
       type: 'player',
       created: new Date(),
-      staff: false
+      staff: false,
+      attachments: attachments || []
     });
     
 
