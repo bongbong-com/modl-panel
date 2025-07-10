@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 // Email service configuration
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   host: 'localhost',
   port: 25,
   secure: false,
