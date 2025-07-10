@@ -466,34 +466,53 @@ const AppealsPage = () => {
       
       // Convert form data to structured message content
       Object.entries(values).forEach(([key, value]) => {
-        if (value && !['banId', 'email'].includes(key)) {
-          // Get the field from form configuration
-          const field = appealFormSettings?.fields?.find(f => f.id === key);
-          const fieldLabel = field?.label || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
-          
-          // Handle file upload fields differently
-          if (field?.type === 'file_upload') {
-            const files = Array.isArray(value) ? value : (value ? [value] : []);
+        // Skip system fields
+        if (['banId', 'email'].includes(key)) return;
+        
+        // Get the field from form configuration
+        const field = appealFormSettings?.fields?.find(f => f.id === key);
+        const fieldLabel = field?.label || key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+        
+        // Handle file upload fields differently
+        if (field?.type === 'file_upload') {
+          const files = Array.isArray(value) ? value : (value && typeof value === 'string' ? [value] : []);
+          if (files.length > 0) {
+            // Add files to attachments array
+            files.forEach((file: any) => {
+              if (typeof file === 'object' && file.url) {
+                allAttachments.push(file);
+              } else if (typeof file === 'string' && file.trim()) {
+                allAttachments.push({
+                  url: file,
+                  fileName: file.split('/').pop() || 'file',
+                  fileType: 'application/octet-stream'
+                });
+              }
+            });
+            
+            // Show attachment count in message only if there are files
             if (files.length > 0) {
-              // Add files to attachments array
-              files.forEach((file: any) => {
-                if (typeof file === 'object' && file.url) {
-                  allAttachments.push(file);
-                } else if (typeof file === 'string') {
-                  allAttachments.push({
-                    url: file,
-                    fileName: file.split('/').pop() || 'file',
-                    fileType: 'application/octet-stream'
-                  });
-                }
-              });
-              
-              // Show attachment count in message
               contentString += `**${fieldLabel}:** [${files.length} file${files.length > 1 ? 's' : ''} attached]\n\n`;
             }
-          } else if (value.toString().trim()) {
-            // Handle regular fields
-            contentString += `**${fieldLabel}:**\n${value}\n\n`;
+          }
+        } else {
+          // Handle regular fields - only include if they have actual content
+          const hasValue = value !== null && value !== undefined && 
+            (typeof value === 'string' ? value.trim() !== '' : 
+             Array.isArray(value) ? value.length > 0 : 
+             typeof value === 'boolean' ? true : 
+             value.toString().trim() !== '');
+          
+          if (hasValue) {
+            // Format the value properly
+            let displayValue = value;
+            if (Array.isArray(value)) {
+              displayValue = value.join(', ');
+            } else if (typeof value === 'boolean') {
+              displayValue = value ? 'Yes' : 'No';
+            }
+            
+            contentString += `**${fieldLabel}:**\n${displayValue}\n\n`;
           }
         }
       });
@@ -720,7 +739,21 @@ const AppealsPage = () => {
             render={({ field: formField }) => (
               <FormItem>
                 <FormLabel>{field.label}</FormLabel>
-                <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                <Select 
+                  onValueChange={(value) => {
+                    formField.onChange(value);
+                    
+                    // Handle section navigation
+                    if (field.optionSectionMapping && field.optionSectionMapping[value]) {
+                      // Show target section by updating form values to trigger re-render
+                      appealForm.trigger();
+                    } else if (field.goToSection) {
+                      // Navigate to specific section
+                      appealForm.trigger();
+                    }
+                  }} 
+                  defaultValue={formField.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder={field.description || "Select an option"} />
@@ -754,7 +787,18 @@ const AppealsPage = () => {
                 <FormLabel>{field.label}</FormLabel>
                 <FormControl>
                   <RadioGroup
-                    onValueChange={formField.onChange}
+                    onValueChange={(value) => {
+                      formField.onChange(value);
+                      
+                      // Handle section navigation
+                      if (field.optionSectionMapping && field.optionSectionMapping[value]) {
+                        // Show target section by updating form values to trigger re-render
+                        appealForm.trigger();
+                      } else if (field.goToSection) {
+                        // Navigate to specific section
+                        appealForm.trigger();
+                      }
+                    }}
                     defaultValue={formField.value}
                     className="flex flex-col space-y-1"
                   >
@@ -854,27 +898,6 @@ const AppealsPage = () => {
                 formField.onChange(updatedFiles);
               };
               
-              const handleFileRemove = (fileToRemove: any) => {
-                const updatedFiles = currentFiles.filter((file: any) => 
-                  (typeof file === 'string' ? file : file.url) !== (typeof fileToRemove === 'string' ? fileToRemove : fileToRemove.url)
-                );
-                formField.onChange(updatedFiles.length > 0 ? updatedFiles : '');
-              };
-              
-              const getFileIcon = (type: string) => {
-                if (type.startsWith('image/')) return <Image className="h-3 w-3" />;
-                if (type.startsWith('video/')) return <Video className="h-3 w-3" />;
-                if (type === 'application/pdf') return <FileText className="h-3 w-3" />;
-                return <File className="h-3 w-3" />;
-              };
-              
-              const truncateFileName = (name: string, maxLength: number = 20) => {
-                if (name.length <= maxLength) return name;
-                const extension = name.split('.').pop();
-                const nameWithoutExt = name.substring(0, name.lastIndexOf('.'));
-                const truncated = nameWithoutExt.substring(0, maxLength - extension!.length - 4) + '...';
-                return truncated + '.' + extension;
-              };
               
               return (
                 <FormItem>
@@ -891,38 +914,6 @@ const AppealsPage = () => {
                         variant="compact"
                         maxFiles={5}
                       />
-                      {currentFiles.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {currentFiles.map((file: any, idx: number) => {
-                            const fileData = typeof file === 'string' ? 
-                              { url: file, fileName: file.split('/').pop() || 'file', fileType: 'application/octet-stream' } : 
-                              file;
-                            
-                            return (
-                              <Badge 
-                                key={idx} 
-                                variant="secondary" 
-                                className="flex items-center gap-1 cursor-pointer hover:bg-secondary/80"
-                                onClick={() => window.open(fileData.url, '_blank')}
-                              >
-                                {getFileIcon(fileData.fileType)}
-                                <span className="text-xs">{truncateFileName(fileData.fileName)}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleFileRemove(file);
-                                  }}
-                                  className="ml-1 hover:bg-destructive/10 rounded-sm p-0.5"
-                                  title={`Remove ${fileData.fileName}`}
-                                >
-                                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                </button>
-                              </Badge>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
                   </FormControl>
                   {field.description && (
