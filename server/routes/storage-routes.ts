@@ -1,22 +1,85 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { S3Client, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const router = Router();
 
-// Wasabi S3 client configuration
-const s3Client = new S3Client({
-  endpoint: process.env.WASABI_ENDPOINT || 'https://s3.wasabisys.com',
-  region: process.env.WASABI_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.WASABI_ACCESS_KEY || '',
-    secretAccessKey: process.env.WASABI_SECRET_KEY || '',
-  },
-});
+// Wasabi S3 Configuration
+const WASABI_ENDPOINT = 'https://s3.wasabisys.com';
+const WASABI_REGION = 'us-east-1';
 
-const BUCKET_NAME = process.env.WASABI_BUCKET_NAME || 'modl-storage';
+// Dynamic imports for AWS SDK to avoid constructor issues
+let S3Client: any;
+let DeleteObjectCommand: any;
+let DeleteObjectsCommand: any;
+let ListObjectsV2Command: any;
+let HeadObjectCommand: any;
+let GetObjectCommand: any;
+let getSignedUrl: any;
+let s3Client: any;
+
+// Initialize AWS SDK components
+async function initializeAwsSdk() {
+  if (S3Client) return; // Already initialized
+  
+  try {
+    const { 
+      S3Client: S3, 
+      DeleteObjectCommand: Delete, 
+      DeleteObjectsCommand: DeleteMultiple,
+      ListObjectsV2Command: List,
+      HeadObjectCommand: Head,
+      GetObjectCommand: Get 
+    } = await import('@aws-sdk/client-s3');
+    const { getSignedUrl: signUrl } = await import('@aws-sdk/s3-request-presigner');
+    
+    S3Client = S3;
+    DeleteObjectCommand = Delete;
+    DeleteObjectsCommand = DeleteMultiple;
+    ListObjectsV2Command = List;
+    HeadObjectCommand = Head;
+    GetObjectCommand = Get;
+    getSignedUrl = signUrl;
+    
+    s3Client = new S3Client({
+      region: WASABI_REGION,
+      endpoint: WASABI_ENDPOINT,
+      credentials: {
+        accessKeyId: process.env.WASABI_ACCESS_KEY || '',
+        secretAccessKey: process.env.WASABI_SECRET_KEY || '',
+      },
+      forcePathStyle: true, // Required for Wasabi compatibility
+    });
+  } catch (error) {
+    console.error('Failed to initialize AWS SDK:', error);
+    throw error;
+  }
+}
+
+const BUCKET_NAME = process.env.WASABI_BUCKET_NAME || '';
+
+// Debug endpoint to check configuration
+router.get('/debug', async (req: Request, res: Response) => {
+  try {
+    const serverName = getServerName(req);
+    const hasCredentials = !!(process.env.WASABI_ACCESS_KEY && process.env.WASABI_SECRET_KEY);
+    
+    res.json({
+      configured: hasCredentials && !!BUCKET_NAME,
+      serverName,
+      bucketName: BUCKET_NAME || 'Not configured',
+      hasAccessKey: !!process.env.WASABI_ACCESS_KEY,
+      hasSecretKey: !!process.env.WASABI_SECRET_KEY,
+      endpoint: WASABI_ENDPOINT,
+      region: WASABI_REGION,
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Debug failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 // Validation schemas
 const deleteFilesSchema = z.object({
@@ -56,21 +119,29 @@ const getFileType = (path: string): StorageFile['type'] => {
   return 'other';
 };
 
-// Helper function to get tenant prefix from subdomain
-const getTenantPrefix = (req: Request): string => {
-  const subdomain = req.headers.host?.split('.')[0] || 'default';
-  return `tenants/${subdomain}`;
+// Helper function to get server name from request
+const getServerName = (req: Request): string => {
+  // Extract server name from session or subdomain
+  const serverName = (req as any).session?.serverName || req.headers.host?.split('.')[0] || 'default';
+  return serverName;
 };
 
 // Get storage usage statistics
 router.get('/usage', async (req: Request, res: Response) => {
   try {
-    const tenantPrefix = getTenantPrefix(req);
+    // Initialize AWS SDK
+    await initializeAwsSdk();
     
-    // List all objects for the tenant
+    if (!BUCKET_NAME) {
+      return res.status(500).json({ error: 'Wasabi storage not configured' });
+    }
+
+    const serverName = getServerName(req);
+    
+    // List all objects for the server
     const listParams = {
       Bucket: BUCKET_NAME,
-      Prefix: tenantPrefix,
+      Prefix: serverName,
       MaxKeys: 1000,
     };
 
@@ -103,18 +174,30 @@ router.get('/usage', async (req: Request, res: Response) => {
     res.json(usage);
   } catch (error) {
     console.error('Error fetching storage usage:', error);
-    res.status(500).json({ error: 'Failed to fetch storage usage' });
+    console.error('Server name:', getServerName(req));
+    console.error('Bucket name:', BUCKET_NAME);
+    res.status(500).json({ 
+      error: 'Failed to fetch storage usage',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
 // Get list of files
 router.get('/files', async (req: Request, res: Response) => {
   try {
-    const tenantPrefix = getTenantPrefix(req);
+    // Initialize AWS SDK
+    await initializeAwsSdk();
+    
+    if (!BUCKET_NAME) {
+      return res.status(500).json({ error: 'Wasabi storage not configured' });
+    }
+
+    const serverName = getServerName(req);
     
     const listParams = {
       Bucket: BUCKET_NAME,
-      Prefix: tenantPrefix,
+      Prefix: serverName,
       MaxKeys: 1000,
     };
 
@@ -126,8 +209,8 @@ router.get('/files', async (req: Request, res: Response) => {
     const files: StorageFile[] = await Promise.all(
       objects.map(async (obj) => {
         const key = obj.Key || '';
-        const pathWithoutTenant = key.replace(`${tenantPrefix}/`, '');
-        const fileName = pathWithoutTenant.split('/').pop() || '';
+        const pathWithoutServer = key.replace(`${serverName}/`, '');
+        const fileName = pathWithoutServer.split('/').pop() || '';
         
         // Generate presigned URL for download
         const getObjectCommand = new GetObjectCommand({
@@ -140,7 +223,7 @@ router.get('/files', async (req: Request, res: Response) => {
         return {
           id: key,
           name: fileName,
-          path: pathWithoutTenant,
+          path: pathWithoutServer,
           size: obj.Size || 0,
           type: getFileType(key),
           createdAt: obj.LastModified?.toISOString() || new Date().toISOString(),
@@ -153,18 +236,30 @@ router.get('/files', async (req: Request, res: Response) => {
     res.json(files);
   } catch (error) {
     console.error('Error fetching files:', error);
-    res.status(500).json({ error: 'Failed to fetch files' });
+    console.error('Server name:', getServerName(req));
+    console.error('Bucket name:', BUCKET_NAME);
+    res.status(500).json({ 
+      error: 'Failed to fetch files',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
 // Delete single file
-router.delete('/files/:fileId', async (req: Request, res: Response) => {
+router.delete('/files/:fileId(*)', async (req: Request, res: Response) => {
   try {
-    const { fileId } = req.params;
-    const tenantPrefix = getTenantPrefix(req);
+    // Initialize AWS SDK
+    await initializeAwsSdk();
     
-    // Ensure the file belongs to the current tenant
-    if (!fileId.startsWith(tenantPrefix)) {
+    if (!BUCKET_NAME) {
+      return res.status(500).json({ error: 'Wasabi storage not configured' });
+    }
+
+    const fileId = req.params.fileId;
+    const serverName = getServerName(req);
+    
+    // Ensure the file belongs to the current server
+    if (!fileId.startsWith(serverName)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -186,11 +281,18 @@ router.delete('/files/:fileId', async (req: Request, res: Response) => {
 // Delete multiple files
 router.delete('/files/batch', async (req: Request, res: Response) => {
   try {
-    const { fileIds } = deleteFilesSchema.parse(req.body);
-    const tenantPrefix = getTenantPrefix(req);
+    // Initialize AWS SDK
+    await initializeAwsSdk();
     
-    // Ensure all files belong to the current tenant
-    const invalidFiles = fileIds.filter(id => !id.startsWith(tenantPrefix));
+    if (!BUCKET_NAME) {
+      return res.status(500).json({ error: 'Wasabi storage not configured' });
+    }
+
+    const { fileIds } = deleteFilesSchema.parse(req.body);
+    const serverName = getServerName(req);
+    
+    // Ensure all files belong to the current server
+    const invalidFiles = fileIds.filter(id => !id.startsWith(serverName));
     if (invalidFiles.length > 0) {
       return res.status(403).json({ error: 'Access denied to some files' });
     }
@@ -231,13 +333,20 @@ router.delete('/files/batch', async (req: Request, res: Response) => {
 });
 
 // Get file metadata
-router.get('/files/:fileId/metadata', async (req: Request, res: Response) => {
+router.get('/files/:fileId(*)/metadata', async (req: Request, res: Response) => {
   try {
-    const { fileId } = req.params;
-    const tenantPrefix = getTenantPrefix(req);
+    // Initialize AWS SDK
+    await initializeAwsSdk();
     
-    // Ensure the file belongs to the current tenant
-    if (!fileId.startsWith(tenantPrefix)) {
+    if (!BUCKET_NAME) {
+      return res.status(500).json({ error: 'Wasabi storage not configured' });
+    }
+
+    const fileId = req.params.fileId;
+    const serverName = getServerName(req);
+    
+    // Ensure the file belongs to the current server
+    if (!fileId.startsWith(serverName)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -249,13 +358,13 @@ router.get('/files/:fileId/metadata', async (req: Request, res: Response) => {
     const command = new HeadObjectCommand(headParams);
     const response = await s3Client.send(command);
     
-    const pathWithoutTenant = fileId.replace(`${tenantPrefix}/`, '');
-    const fileName = pathWithoutTenant.split('/').pop() || '';
+    const pathWithoutServer = fileId.replace(`${serverName}/`, '');
+    const fileName = pathWithoutServer.split('/').pop() || '';
     
     const metadata = {
       id: fileId,
       name: fileName,
-      path: pathWithoutTenant,
+      path: pathWithoutServer,
       size: response.ContentLength || 0,
       type: getFileType(fileId),
       contentType: response.ContentType,
