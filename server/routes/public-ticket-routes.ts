@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { verifyTicketApiKey } from '../middleware/ticket-api-auth';
+import { getSettingsValue } from './settings-routes';
 
 const router = express.Router();
 
@@ -650,6 +651,10 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
         const TicketEmailService = (await import('../services/ticket-email-service')).default;
         const emailService = new TicketEmailService();
         
+        // Get server display name from settings
+        const generalSettings = await getSettingsValue(req.serverDbConnection!, 'general');
+        const serverDisplayName = generalSettings?.serverDisplayName || 'modl';
+        
         await emailService.sendTicketReplyNotification({
           ticketId: ticket._id,
           ticketSubject: ticket.subject,
@@ -659,7 +664,8 @@ router.post('/tickets/:id/replies', async (req: Request, res: Response) => {
           replyContent: content,
           replyAuthor: name,
           isStaffReply: staff,
-          serverName: req.serverName
+          serverName: req.serverName,
+          serverDisplayName: serverDisplayName
         });
       } catch (emailError) {
         console.error(`[Public Reply] Failed to send email notification for ticket ${id}:`, emailError);

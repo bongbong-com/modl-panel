@@ -20,23 +20,24 @@ interface TicketEmailData {
   replyAuthor: string;
   isStaffReply: boolean;
   serverName?: string;
+  serverDisplayName?: string;
 }
 
 class TicketEmailService {
-  private fromAddress = '"modl" <noreply@cobl.gg>';
-
   async sendTicketReplyNotification(data: TicketEmailData): Promise<void> {
     try {
       const domain = process.env.DOMAIN || 'modl.gg';
       const ticketUrl = `https://${data.serverName || 'app'}.${domain}/ticket/${data.ticketId}`;
+      const displayName = data.serverDisplayName || 'modl';
+      const fromAddress = `"${displayName}" <noreply@cobl.gg>`;
       
       const subject = `Reply to Your ${data.ticketType} Ticket #${data.ticketId}`;
       
-      const textContent = this.generateTextEmail(data, ticketUrl);
-      const htmlContent = this.generateHtmlEmail(data, ticketUrl);
+      const textContent = this.generateTextEmail(data, ticketUrl, displayName);
+      const htmlContent = this.generateHtmlEmail(data, ticketUrl, displayName);
 
       const mailOptions = {
-        from: this.fromAddress,
+        from: fromAddress,
         to: data.playerEmail,
         subject: subject,
         text: textContent,
@@ -51,7 +52,7 @@ class TicketEmailService {
     }
   }
 
-  private generateTextEmail(data: TicketEmailData, ticketUrl: string): string {
+  private generateTextEmail(data: TicketEmailData, ticketUrl: string, displayName: string): string {
     return `Hello ${data.playerName},
 
 ${data.isStaffReply ? 'A staff member' : 'Someone'} has replied to your ${data.ticketType} ticket #${data.ticketId}: "${data.ticketSubject}"
@@ -62,13 +63,13 @@ ${data.replyContent}
 You can view the full conversation and reply at: ${ticketUrl}
 
 Thank you,
-The MODL Team
+The ${displayName} Team
 
 ---
 This is an automated message. Please do not reply to this email.`;
   }
 
-  private generateHtmlEmail(data: TicketEmailData, ticketUrl: string): string {
+  private generateHtmlEmail(data: TicketEmailData, ticketUrl: string, displayName: string): string {
     return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 20px;">
       <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -96,7 +97,7 @@ This is an automated message. Please do not reply to this email.`;
         <div style="border-top: 1px solid #e9ecef; padding-top: 20px; margin-top: 30px;">
           <p style="color: #6c757d; font-size: 14px; margin: 0;">
             Thank you,<br>
-            <strong>The MODL Team</strong>
+            <strong>The ${displayName} Team</strong>
           </p>
           <p style="color: #6c757d; font-size: 12px; margin: 15px 0 0 0;">
             This is an automated message. Please do not reply to this email.

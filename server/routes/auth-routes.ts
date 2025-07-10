@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import nodemailer from 'nodemailer';
 import { randomBytes } from 'crypto';
+import { getSettingsValue } from './settings-routes';
+import EmailTemplateService from '../services/email-template-service';
 import { authenticator } from 'otplib';
 import {
   generateAuthenticationOptions,
@@ -21,14 +23,7 @@ const expectedOrigin = process.env.NODE_ENV === 'production'
 
 const router = Router();
 
-const transporter = nodemailer.createTransport({
-  host: 'localhost',
-  port: 25,
-  secure: false,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+// Email transporter moved to EmailTemplateService
 
 interface EmailCodeEntry {
   code: string;
@@ -110,16 +105,20 @@ router.post('/send-email-code', strictRateLimit, async (req: Request, res: Respo
 
   emailVerificationCodes.set(email, { code, email, expiresAt });
 
-  const mailOptions = {
-    from: '"modl" <noreply@cobl.gg>',
-    to: email,
-    subject: 'Your MODL Login Code',
-    text: `Your login code is: ${code}`,
-    html: `<p>Your login code is: <strong>${code}</strong></p>`,
-  };
-
   try {
-    await transporter.sendMail(mailOptions);
+    // Get server display name from settings
+    const generalSettings = await getSettingsValue(req.serverDbConnection!, 'general');
+    const serverDisplayName = generalSettings?.serverDisplayName || 'modl';
+    
+    const emailService = new EmailTemplateService();
+    await emailService.sendAuthVerificationEmail({
+      to: email,
+      subject: `Your ${serverDisplayName} Login Code`,
+      serverDisplayName: serverDisplayName,
+      serverName: req.serverName,
+      code: code
+    });
+    
     return res.status(200).json({ message: 'Verification code sent to your email.' });
   } catch (error) {
     console.error('Error sending verification email via Postfix:', error);

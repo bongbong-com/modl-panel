@@ -4,6 +4,7 @@ import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkPermission } from '../middleware/permission-middleware';
 import AIModerationService from '../services/ai-moderation-service';
 import { IReply, ITicket } from 'modl-shared-web/types';
+import { getSettingsValue } from './settings-routes';
 
 interface INote {
   text: string;
@@ -321,6 +322,10 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
           const TicketEmailService = (await import('../services/ticket-email-service')).default;
           const emailService = new TicketEmailService();
           
+          // Get server display name from settings
+          const generalSettings = await getSettingsValue(req.serverDbConnection!, 'general');
+          const serverDisplayName = generalSettings?.serverDisplayName || 'modl';
+          
           await emailService.sendTicketReplyNotification({
             ticketId: ticket._id,
             ticketSubject: ticket.subject,
@@ -330,7 +335,8 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
             replyContent: newReply.content,
             replyAuthor: newReply.name,
             isStaffReply: newReply.staff,
-            serverName: req.serverName
+            serverName: req.serverName,
+            serverDisplayName: serverDisplayName
           });
         } catch (emailError) {
           console.error(`[Staff Reply] Failed to send email notification for ticket ${req.params.id}:`, emailError);
@@ -474,6 +480,10 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
             const TicketEmailService = (await import('../services/ticket-email-service')).default;
             const emailService = new TicketEmailService();
             
+            // Get server display name from settings
+            const generalSettings = await getSettingsValue(req.serverDbConnection!, 'general');
+            const serverDisplayName = generalSettings?.serverDisplayName || 'modl';
+            
             await emailService.sendTicketReplyNotification({
               ticketId: ticket._id,
               ticketSubject: ticket.subject,
@@ -483,7 +493,8 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
               replyContent: newReply.content,
               replyAuthor: newReply.name,
               isStaffReply: newReply.staff,
-              serverName: req.serverName
+              serverName: req.serverName,
+              serverDisplayName: serverDisplayName
             });
             console.log(`[Ticket PATCH] Email notification sent successfully to ${emailField}`);
           } catch (emailError) {

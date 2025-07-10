@@ -7,6 +7,8 @@ import { IPasskey, IStaff, IModlServer, Invitation } from 'modl-shared-web';
 import nodemailer from 'nodemailer';
 import { getModlServersModel } from '../db/connectionManager';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
+import { getSettingsValue } from './settings-routes';
+import EmailTemplateService from '../services/email-template-service';
 
 const router = express.Router();
 
@@ -69,14 +71,7 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-const transporter = nodemailer.createTransport({
-  host: 'localhost',
-  port: 25,
-  secure: false,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+// Email transporter moved to EmailTemplateService
 
 router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   const { email, role } = req.body;
@@ -119,15 +114,19 @@ router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async
     const appDomain = process.env.DOMAIN || "modl.gg";
     const invitationLink = `https://${req.modlServer?.customDomain}.${appDomain}/accept-invitation?token=${token}`;
     
-    const mailOptions = {
-      from: '"modl" <noreply@cobl.gg>',
+    // Get server display name from settings
+    const generalSettings = await getSettingsValue(req.serverDbConnection!, 'general');
+    const serverDisplayName = generalSettings?.serverDisplayName || 'modl';
+    
+    const emailService = new EmailTemplateService();
+    await emailService.sendStaffInviteEmail({
       to: email,
-      subject: 'You have been invited to join the team!',
-      text: `Please accept your invitation by clicking the following link: ${invitationLink}`,
-      html: `<p>Please accept your invitation by clicking the following link: <a href="${invitationLink}">${invitationLink}</a></p>`,
-    };
-
-    await transporter.sendMail(mailOptions);
+      subject: `You have been invited to join the ${serverDisplayName} team!`,
+      serverDisplayName: serverDisplayName,
+      serverName: req.serverName,
+      invitationLink: invitationLink,
+      role: role
+    });
 
     res.status(201).json({ message: 'Invitation sent successfully.' });
   } catch (error) {
@@ -151,19 +150,23 @@ router.post('/invitations/:id/resend', authRateLimit, checkRole(['Super Admin', 
         invitation.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
         await invitation.save();
 
-        // Resend email logic (copy from the invite route)
+        // Resend email logic
         const appDomain = process.env.DOMAIN || 'modl.gg';
         const invitationLink = `https://${req.modlServer?.customDomain}.${appDomain}/accept-invitation?token=${invitation.token}`;
         
-        const mailOptions = {
-          from: '"modl" <noreply@cobl.gg>',
+        // Get server display name from settings
+        const generalSettings = await getSettingsValue(req.serverDbConnection!, 'general');
+        const serverDisplayName = generalSettings?.serverDisplayName || 'modl';
+        
+        const emailService = new EmailTemplateService();
+        await emailService.sendStaffInviteEmail({
           to: invitation.email,
-          subject: 'You have been invited to join the team!',
-          text: `Please accept your invitation by clicking the following link: ${invitationLink}`,
-          html: `<p>Please accept your invitation by clicking the following link: <a href="${invitationLink}">${invitationLink}</a></p>`,
-        };
-    
-        await transporter.sendMail(mailOptions);
+          subject: `You have been invited to join the ${serverDisplayName} team!`,
+          serverDisplayName: serverDisplayName,
+          serverName: req.serverName,
+          invitationLink: invitationLink,
+          role: invitation.role
+        });
 
         res.status(200).send('Invitation resent successfully');
       } catch (error) {
