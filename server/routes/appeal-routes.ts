@@ -180,21 +180,48 @@ router.post('/', async (req: Request, res: Response) => {
     if (additionalData && typeof additionalData === 'object') {
       initialReplyContent += '\nAdditional Information:\n';
       for (const [key, value] of Object.entries(additionalData)) {
-        // Skip file upload fields and system fields in initial content
-        if (typeof value === 'object' || Array.isArray(value)) {
-          // Handle arrays (checkboxes, multiple selections)
-          if (Array.isArray(value) && value.length > 0) {
+        if (Array.isArray(value)) {
+          // Handle arrays (checkboxes, multiple selections, file uploads)
+          if (value.length > 0) {
             const fieldLabel = (fieldLabels && fieldLabels[key]) || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase());
-            const listItems = value.map(item => `• ${item}`).join('\n');
-            initialReplyContent += `${fieldLabel}:\n${listItems}\n`;
+            
+            // Check if this is a file upload field
+            const isFileUpload = value.some(item => 
+              typeof item === 'object' && (item.url || item.fileName) ||
+              typeof item === 'string' && (item.includes('/') || item.includes('http'))
+            );
+            
+            if (isFileUpload) {
+              // Handle file uploads - show file names
+              const fileNames = value.map(file => {
+                if (typeof file === 'object' && file.fileName) {
+                  return `• ${file.fileName}`;
+                } else if (typeof file === 'string') {
+                  return `• ${file.split('/').pop() || 'file'}`;
+                }
+                return '• file';
+              }).join('\n');
+              initialReplyContent += `${fieldLabel}:\n${fileNames}\n`;
+            } else {
+              // Handle regular arrays (checkboxes, multiple selections)
+              const listItems = value.map(item => `• ${item}`).join('\n');
+              initialReplyContent += `${fieldLabel}:\n${listItems}\n`;
+            }
           }
-          continue;
+        } else if (typeof value === 'object' && value !== null) {
+          // Handle single file upload objects
+          const fieldLabel = (fieldLabels && fieldLabels[key]) || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase());
+          const fileObj = value as { fileName?: string; url?: string };
+          if (fileObj.fileName || fileObj.url) {
+            const fileName = fileObj.fileName || (fileObj.url && fileObj.url.split('/').pop()) || 'file';
+            initialReplyContent += `${fieldLabel}:\n• ${fileName}\n`;
+          }
+        } else if (value !== null && value !== undefined) {
+          // Handle regular fields
+          const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
+          const fieldLabel = (fieldLabels && fieldLabels[key]) || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase());
+          initialReplyContent += `${fieldLabel}: ${displayValue}\n`;
         }
-        
-        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value;
-        // Use field label if available, otherwise convert field ID to readable format
-        const fieldLabel = (fieldLabels && fieldLabels[key]) || key.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase());
-        initialReplyContent += `${fieldLabel}: ${displayValue}\n`;
       }
     }
     
@@ -213,17 +240,6 @@ router.post('/', async (req: Request, res: Response) => {
       staff: false,
       attachments: attachments || []
     });
-
-    // Add attachment info to initial content if files were uploaded
-    if (attachments && attachments.length > 0) {
-      let attachmentText = '\n\nAttached Files:\n';
-      attachments.forEach((attachment: any) => {
-        const fileName = attachment.fileName || attachment.url?.split('/').pop() || 'file';
-        attachmentText += `• ${fileName}\n`;
-      });
-      // Update the content to include attachment info
-      appealTicketDocument.replies[appealTicketDocument.replies.length - 1].content += attachmentText;
-    }
     
 
     punishment.attachedTicketIds = punishment.attachedTicketIds || [];

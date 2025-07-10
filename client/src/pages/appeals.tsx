@@ -36,7 +36,6 @@ import {
 } from "modl-shared-web/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from 'modl-shared-web/components/ui/separator';
-import { Textarea } from 'modl-shared-web/components/ui/textarea';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useSettings, useCreateAppeal } from '@/hooks/use-data';
 import TicketAttachments from '@/components/TicketAttachments';
@@ -478,7 +477,7 @@ const AppealsPage = () => {
         if (field?.type === 'file_upload') {
           const files = Array.isArray(value) ? value : (value && typeof value === 'string' ? [value] : []);
           if (files.length > 0) {
-            // Add files to attachments array
+            // Add files to attachments array for actual file uploads
             files.forEach((file: any) => {
               if (typeof file === 'object' && file.url) {
                 allAttachments.push({
@@ -496,7 +495,7 @@ const AppealsPage = () => {
               }
             });
             
-            // Show attachment file names in message as a list
+            // Show uploaded file names in the content (not as separate attachments list)
             if (files.length > 0) {
               const fileNames = files.map((file: any) => {
                 if (typeof file === 'object' && file.fileName) {
@@ -922,6 +921,10 @@ const AppealsPage = () => {
                 formField.onChange(updatedFiles);
               };
               
+              const handleRemoveFile = (fileToRemove: any) => {
+                const updatedFiles = currentFiles.filter((file: any) => file.id !== fileToRemove.id);
+                formField.onChange(updatedFiles);
+              };
               
               return (
                 <FormItem>
@@ -938,6 +941,28 @@ const AppealsPage = () => {
                         variant="compact"
                         maxFiles={5}
                       />
+                      
+                      {/* Display uploaded files */}
+                      {currentFiles.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <div className="text-sm font-medium text-muted-foreground">Uploaded files:</div>
+                          {currentFiles.map((file: any) => (
+                            <div key={file.id} className="flex items-center justify-between p-2 bg-muted/50 rounded border">
+                              <div className="flex items-center gap-2">
+                                {getFileIcon(file.fileType)}
+                                <span className="text-sm">{file.fileName}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFile(file)}
+                                className="text-destructive hover:text-destructive/80 text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </FormControl>
                   {field.description && (
@@ -1186,7 +1211,7 @@ const AppealsPage = () => {
                                     )}
                                   </div>
                                   <div className="text-sm">
-                                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                                    <div className="whitespace-pre-wrap break-words" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
                                     
                                     {/* Display message attachments */}
                                     {message.attachments && message.attachments.length > 0 && (
