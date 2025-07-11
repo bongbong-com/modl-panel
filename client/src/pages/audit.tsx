@@ -566,6 +566,279 @@ const PunishmentRollbackModal = () => {
   );
 };
 
+// Staff detail modal for comprehensive analytics
+const StaffDetailModal = ({ staff, isOpen, onClose }: { 
+  staff: StaffMember, 
+  isOpen: boolean, 
+  onClose: () => void 
+}) => {
+  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  
+  // Fetch detailed staff data including punishments, tickets, evidence
+  const { data: staffDetails, isLoading } = useQuery({
+    queryKey: ['staff-details', staff.username, selectedPeriod],
+    queryFn: () => fetchStaffDetails(staff.username, selectedPeriod),
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000
+  });
+  
+  // Use real data from API
+  const staffActivityData = staffDetails?.dailyActivity || [];
+  const punishmentTypeData = staffDetails?.punishmentTypeBreakdown || [];
+  const recentPunishments = staffDetails?.punishments || [];
+  const recentTickets = staffDetails?.tickets || [];
+  const evidenceCount = staffDetails?.evidenceUploads || 0;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            <User className="h-6 w-6" />
+            {staff.username} - Detailed Analytics
+            <Badge variant="outline">{staff.role}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Period Selector */}
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">Time Period:</span>
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">7 days</SelectItem>
+                <SelectItem value="30d">30 days</SelectItem>
+                <SelectItem value="90d">90 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <Gavel className="h-8 w-8 mx-auto mb-2 text-red-600" />
+                  <p className="text-2xl font-bold">{staff.punishmentsIssued}</p>
+                  <p className="text-xs text-muted-foreground">Punishments Issued</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                  <p className="text-2xl font-bold">{staff.ticketResponses}</p>
+                  <p className="text-xs text-muted-foreground">Tickets Handled</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <Eye className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                  <p className="text-2xl font-bold">{evidenceCount}</p>
+                  <p className="text-xs text-muted-foreground">Evidence Uploaded</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <Clock className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+                  <p className="text-2xl font-bold">{staff.avgResponseTime}m</p>
+                  <p className="text-xs text-muted-foreground">Avg Response Time</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Activity Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Daily Activity Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={staffActivityData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="punishments" stackId="1" stroke="#ef4444" fill="#ef4444" />
+                    <Area type="monotone" dataKey="tickets" stackId="1" stroke="#3b82f6" fill="#3b82f6" />
+                    <Area type="monotone" dataKey="evidence" stackId="1" stroke="#10b981" fill="#10b981" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Punishment Types Issued</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={punishmentTypeData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                      label={({ type, percent }) => `${type} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {punishmentTypeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Actions Tables */}
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Punishments Issued</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Player</th>
+                        <th className="text-left p-2">Type</th>
+                        <th className="text-left p-2">Reason</th>
+                        <th className="text-left p-2">Duration</th>
+                        <th className="text-left p-2">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentPunishments.length > 0 ? recentPunishments.map((punishment, index) => (
+                        <tr key={index} className="border-b">
+                          <td className="p-2 font-medium">{punishment.playerName || 'Unknown'}</td>
+                          <td className="p-2">
+                            <Badge variant={punishment.type === 'Permanent Ban' ? 'destructive' : 'secondary'}>
+                              {punishment.type}
+                            </Badge>
+                          </td>
+                          <td className="p-2">{punishment.reason || 'No reason specified'}</td>
+                          <td className="p-2">{punishment.duration || 'Permanent'}</td>
+                          <td className="p-2">{format(new Date(punishment.issued), 'MMM d, yyyy')}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                            No recent punishments found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Ticket Responses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Ticket ID</th>
+                        <th className="text-left p-2">Subject</th>
+                        <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Response Time</th>
+                        <th className="text-left p-2">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentTickets.length > 0 ? recentTickets.map((ticket, index) => (
+                        <tr key={index} className="border-b">
+                          <td className="p-2 font-medium">#{ticket.ticketId}</td>
+                          <td className="p-2">{ticket.subject}</td>
+                          <td className="p-2">
+                            <Badge variant={ticket.status === 'Resolved' ? 'outline' : 'secondary'}>
+                              {ticket.status}
+                            </Badge>
+                          </td>
+                          <td className="p-2">{ticket.responseTime}m</td>
+                          <td className="p-2">{format(new Date(ticket.created), 'MMM d, yyyy')}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                            No recent ticket responses found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Staff row component with click to open detail modal
+const StaffDetailRow = ({ staff }: { staff: StaffMember }) => {
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  return (
+    <>
+      <tr 
+        key={staff.id} 
+        className="border-b hover:bg-muted/50 cursor-pointer transition-colors" 
+        onClick={() => setIsDetailModalOpen(true)}
+      >
+        <td className="p-2 font-medium flex items-center gap-2">
+          {staff.username}
+          <Eye className="h-4 w-4 text-muted-foreground" />
+        </td>
+        <td className="p-2">
+          <Badge variant="outline">{staff.role}</Badge>
+        </td>
+        <td className="p-2">{staff.ticketResponses}</td>
+        <td className="p-2">{staff.punishmentsIssued}</td>
+        <td className="p-2">{staff.notesAdded || 0}</td>
+        <td className="p-2 font-medium">{staff.totalActions}</td>
+      </tr>
+      
+      <StaffDetailModal 
+        staff={staff}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+      />
+    </>
+  );
+};
+
+// API function to fetch detailed staff data
+const fetchStaffDetails = async (username: string, period: string) => {
+  const response = await fetch(`/api/panel/audit/staff/${username}/details?period=${period}`);
+  if (!response.ok) throw new Error('Failed to fetch staff details');
+  return response.json();
+};
+
 const AuditLog = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -1038,16 +1311,7 @@ const AuditLog = () => {
                     </thead>
                     <tbody>
                       {staffPerformanceData.map((staff) => (
-                        <tr key={staff.id} className="border-b">
-                          <td className="p-2 font-medium">{staff.username}</td>
-                          <td className="p-2">
-                            <Badge variant="outline">{staff.role}</Badge>
-                          </td>
-                          <td className="p-2">{staff.ticketResponses}</td>
-                          <td className="p-2">{staff.punishmentsIssued}</td>
-                          <td className="p-2">{staff.notesAdded || 0}</td>
-                          <td className="p-2 font-medium">{staff.totalActions}</td>
-                        </tr>
+                        <StaffDetailRow key={staff.id} staff={staff} />
                       ))}
                     </tbody>
                   </table>

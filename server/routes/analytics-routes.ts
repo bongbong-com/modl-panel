@@ -252,24 +252,47 @@ router.get('/punishments', async (req, res) => {
         break;
     }
 
-    // Get punishments by type
+    // Get punishments by type using both type field and type_ordinal as fallback
     const punishmentTypes = await Player.aggregate([
       { $unwind: '$punishments' },
       { $match: { 'punishments.issued': { $gte: startDate } } },
-      { $group: { _id: '$punishments.type_ordinal', count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: {
+            type: '$punishments.type',
+            type_ordinal: '$punishments.type_ordinal'
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          type: {
+            $cond: {
+              if: { $and: [{ $ne: ['$_id.type', null] }, { $ne: ['$_id.type', ''] }] },
+              then: '$_id.type',
+              else: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ['$_id.type_ordinal', 0] }, then: 'Warning' },
+                    { case: { $eq: ['$_id.type_ordinal', 1] }, then: 'Mute' },
+                    { case: { $eq: ['$_id.type_ordinal', 2] }, then: 'Kick' },
+                    { case: { $eq: ['$_id.type_ordinal', 3] }, then: 'Temporary Ban' },
+                    { case: { $eq: ['$_id.type_ordinal', 4] }, then: 'Permanent Ban' }
+                  ],
+                  default: { $concat: ['Type ', { $toString: '$_id.type_ordinal' }] }
+                }
+              }
+            }
+          },
+          count: 1
+        }
+      }
     ]);
 
-    // Map type_ordinal to punishment names
-    const typeMap: { [key: number]: string } = {
-      0: 'Warning',
-      1: 'Mute',
-      2: 'Kick',
-      3: 'Temporary Ban',
-      4: 'Permanent Ban'
-    };
-
     const punishmentsByType = punishmentTypes.map(item => ({
-      type: typeMap[item._id] || `Type ${item._id}`,
+      type: item.type,
       count: item.count
     }));
 

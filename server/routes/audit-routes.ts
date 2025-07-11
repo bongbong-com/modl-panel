@@ -122,6 +122,252 @@ router.get('/staff-performance', async (req, res) => {
   }
 });
 
+// Get detailed staff member analytics
+router.get('/staff/:username/details', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { period = '30d' } = req.query;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (period) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const Log = db.model('Log');
+    const Player = db.model('Player');
+    const Ticket = db.model('Ticket');
+
+    // Get detailed punishment data for this staff member
+    const punishments = await Player.aggregate([
+      { $unwind: '$punishments' },
+      { 
+        $match: { 
+          'punishments.issuerName': username,
+          'punishments.issued': { $gte: startDate }
+        }
+      },
+      {
+        $lookup: {
+          from: 'players',
+          localField: 'minecraftUuid',
+          foreignField: 'minecraftUuid',
+          as: 'playerInfo'
+        }
+      },
+      {
+        $project: {
+          playerId: '$minecraftUuid',
+          playerName: { 
+            $cond: {
+              if: { $gt: [{ $size: { $ifNull: ['$usernames', []] } }, 0] },
+              then: { $arrayElemAt: ['$usernames.username', -1] },
+              else: 'Unknown'
+            }
+          },
+          type: {
+            $cond: {
+              if: { $and: [{ $ne: ['$punishments.type', null] }, { $ne: ['$punishments.type', ''] }] },
+              then: '$punishments.type',
+              else: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ['$punishments.type_ordinal', 0] }, then: 'Warning' },
+                    { case: { $eq: ['$punishments.type_ordinal', 1] }, then: 'Mute' },
+                    { case: { $eq: ['$punishments.type_ordinal', 2] }, then: 'Kick' },
+                    { case: { $eq: ['$punishments.type_ordinal', 3] }, then: 'Temporary Ban' },
+                    { case: { $eq: ['$punishments.type_ordinal', 4] }, then: 'Permanent Ban' }
+                  ],
+                  default: 'Unknown'
+                }
+              }
+            }
+          },
+          reason: '$punishments.data.reason',
+          duration: '$punishments.data.duration',
+          issued: '$punishments.issued',
+          active: '$punishments.active'
+        }
+      },
+      { $sort: { issued: -1 } },
+      { $limit: 20 }
+    ]);
+
+    // Get tickets handled by this staff member
+    const tickets = await Ticket.find({
+      $or: [
+        { assignedTo: username },
+        { 'messages.sender': username }
+      ],
+      created: { $gte: startDate }
+    })
+    .sort({ created: -1 })
+    .limit(20)
+    .select('_id subject category status created priority messages');
+
+    // Calculate response times for tickets
+    const ticketResponseTimes = tickets.map(ticket => {
+      if (ticket.messages && ticket.messages.length > 0) {
+        const staffMessages = ticket.messages.filter(msg => msg.sender === username);
+        if (staffMessages.length > 0) {
+          const firstResponse = staffMessages[0];
+          const responseTime = new Date(firstResponse.timestamp).getTime() - new Date(ticket.created).getTime();
+          return {
+            ticketId: ticket._id,
+            subject: ticket.subject,
+            status: ticket.status,
+            responseTime: Math.round(responseTime / (1000 * 60)), // in minutes
+            created: ticket.created
+          };
+        }
+      }
+      return null;
+    }).filter(Boolean);
+
+    // Get daily activity breakdown
+    const dailyActivity = await Log.aggregate([
+      {
+        $match: {
+          source: username,
+          created: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: { $dateFromString: { dateString: '$created' } }
+            }
+          },
+          punishments: {
+            $sum: {
+              $cond: [
+                { $or: [
+                  { $eq: ['$level', 'moderation'] },
+                  { $regexMatch: { input: '$description', regex: /ban|mute|kick|warn/i } }
+                ]},
+                1,
+                0
+              ]
+            }
+          },
+          tickets: {
+            $sum: {
+              $cond: [
+                { $regexMatch: { input: '$description', regex: /ticket/i } },
+                1,
+                0
+              ]
+            }
+          },
+          evidence: {
+            $sum: {
+              $cond: [
+                { $regexMatch: { input: '$description', regex: /evidence|upload|file/i } },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Get punishment type breakdown for this staff member
+    const punishmentTypeBreakdown = await Player.aggregate([
+      { $unwind: '$punishments' },
+      { 
+        $match: { 
+          'punishments.issuerName': username,
+          'punishments.issued': { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $cond: {
+              if: { $and: [{ $ne: ['$punishments.type', null] }, { $ne: ['$punishments.type', ''] }] },
+              then: '$punishments.type',
+              else: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ['$punishments.type_ordinal', 0] }, then: 'Warning' },
+                    { case: { $eq: ['$punishments.type_ordinal', 1] }, then: 'Mute' },
+                    { case: { $eq: ['$punishments.type_ordinal', 2] }, then: 'Kick' },
+                    { case: { $eq: ['$punishments.type_ordinal', 3] }, then: 'Temporary Ban' },
+                    { case: { $eq: ['$punishments.type_ordinal', 4] }, then: 'Permanent Ban' }
+                  ],
+                  default: 'Unknown'
+                }
+              }
+            }
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Count evidence uploads (from logs)
+    const evidenceUploads = await Log.countDocuments({
+      source: username,
+      created: { $gte: startDate },
+      $or: [
+        { description: { $regex: /evidence|upload|file/i } },
+        { level: 'info', description: { $regex: /uploaded|attachment/i } }
+      ]
+    });
+
+    res.json({
+      username,
+      period,
+      punishments: punishments,
+      tickets: ticketResponseTimes,
+      dailyActivity: dailyActivity.map(day => ({
+        date: day._id,
+        punishments: day.punishments,
+        tickets: day.tickets,
+        evidence: day.evidence
+      })),
+      punishmentTypeBreakdown: punishmentTypeBreakdown.map(item => ({
+        type: item._id,
+        count: item.count
+      })),
+      evidenceUploads,
+      summary: {
+        totalPunishments: punishments.length,
+        totalTickets: tickets.length,
+        avgResponseTime: ticketResponseTimes.length > 0 
+          ? Math.round(ticketResponseTimes.reduce((sum, t) => sum + t.responseTime, 0) / ticketResponseTimes.length)
+          : 0,
+        evidenceUploads
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching staff details:', error);
+    res.status(500).json({ error: 'Failed to fetch staff details' });
+  }
+});
+
 // Get punishment analytics for rollback functionality
 router.get('/punishments', async (req, res) => {
   try {
