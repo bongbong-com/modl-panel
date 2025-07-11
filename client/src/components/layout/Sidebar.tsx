@@ -38,9 +38,10 @@ const Sidebar = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [isHoveringSearch, setIsHoveringSearch] = useState(false);
   
-  // Detect if search query looks like a punishment ID (alphanumeric with possible hyphens)
-  const isPunishmentId = /^[A-Za-z0-9-]{6,}$/.test(searchQuery.trim());
-  const debouncedPunishmentQuery = isPunishmentId ? searchQuery.trim() : "";
+  // Detect if search query starts with # for punishment lookup
+  const isPunishmentLookup = searchQuery.trim().startsWith('#');
+  const punishmentQuery = isPunishmentLookup ? searchQuery.trim().substring(1) : '';
+  const debouncedPunishmentQuery = isPunishmentLookup && punishmentQuery.length > 0 ? punishmentQuery : "";
   
   // Lookup punishment if the query looks like a punishment ID
   const { 
@@ -372,14 +373,17 @@ const Sidebar = () => {
           >
             <div className="p-3 pt-4 w-[240px]">
               <Input
-                placeholder="Search players or punishment ID..."
-                className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-3"
+                placeholder="Search players..."
+                className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-2"
                 value={searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                 autoFocus
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
               />
+              <div className="text-xs text-muted-foreground mb-3 px-1">
+                Use <span className="font-mono bg-muted px-1 rounded">#</span> prefix to search punishment IDs
+              </div>
 
               {(isLoading || isPunishmentLoading) ? (
                 <div className="py-8 flex justify-center items-center">
@@ -387,8 +391,8 @@ const Sidebar = () => {
                 </div>
               ) : searchQuery ? (
                 <div className="max-h-[220px] overflow-y-auto pr-1">
-                  {/* Show punishment lookup result first if it's a punishment ID */}
-                  {isPunishmentId && punishmentLookupResult && (
+                  {/* Show punishment lookup result first if using # prefix */}
+                  {isPunishmentLookup && punishmentLookupResult && (
                     <div className="mb-3">
                       <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                         Punishment Found
@@ -429,19 +433,19 @@ const Sidebar = () => {
                   )}
                   
                   {/* Show punishment not found message */}
-                  {isPunishmentId && punishmentError && (
+                  {isPunishmentLookup && punishmentError && (
                     <div className="mb-3">
                       <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                         Punishment Lookup
                       </div>
                       <div className="py-3 px-3 text-center text-xs text-red-600 bg-red-50 border border-red-200 rounded">
-                        Punishment ID '{searchQuery}' not found
+                        Punishment ID '{punishmentQuery}' not found
                       </div>
                     </div>
                   )}
                   
                   {/* Show player search results */}
-                  {!isPunishmentId && filteredLookups.length > 0 && (
+                  {!isPunishmentLookup && filteredLookups.length > 0 && (
                     <div>
                       <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                         Players Found
@@ -473,8 +477,15 @@ const Sidebar = () => {
                     </div>
                   )}
                   
+                  {/* Show punishment ID prompt when # is typed but no ID yet */}
+                  {isPunishmentLookup && punishmentQuery.length === 0 && (
+                    <div className="py-3 px-3 text-center text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded">
+                      Enter a punishment ID after the # symbol
+                    </div>
+                  )}
+                  
                   {/* Show no results message */}
-                  {!isPunishmentId && filteredLookups.length === 0 && !punishmentLookupResult && (
+                  {!isPunishmentLookup && filteredLookups.length === 0 && !punishmentLookupResult && (
                     <div className="py-3 text-center text-xs text-muted-foreground">
                       No players found matching '{searchQuery}'
                     </div>

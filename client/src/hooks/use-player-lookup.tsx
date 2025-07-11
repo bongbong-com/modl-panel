@@ -76,7 +76,7 @@ export function usePunishmentLookup(punishmentId: string) {
     queryFn: async (): Promise<PunishmentLookupResult> => {
       if (!punishmentId) throw new Error('No punishment ID provided');
       
-      const res = await fetch(`/api/panel/punishment-lookup/${punishmentId}`);
+      const res = await fetch(`/api/panel/players/punishment-lookup/${punishmentId}`);
       if (!res.ok) {
         if (res.status === 404) {
           throw new Error('Punishment not found');
