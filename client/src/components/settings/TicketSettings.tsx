@@ -143,6 +143,12 @@ const TicketSettings = ({
   const [newTicketFormSectionHideByDefault, setNewTicketFormSectionHideByDefault] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  
+  // AI Punishment Types states
+  const [isAddAIPunishmentDialogOpen, setIsAddAIPunishmentDialogOpen] = useState(false);
+  const [selectedAIPunishmentType, setSelectedAIPunishmentType] = useState<any | null>(null);
+  const [newAIPunishmentName, setNewAIPunishmentName] = useState('');
+  const [newAIPunishmentDescription, setNewAIPunishmentDescription] = useState('');
 
   // Ticket form management functions
   const addTicketFormField = () => {
@@ -945,95 +951,88 @@ const TicketSettings = ({
                     </p>
                   </div>
 
-                  {/* AI Punishment Types */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-sm font-medium">AI Punishment Types</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Define what types of violations the AI should detect and recommend punishments for.
-                        </p>
+                  {/* AI Punishment Types Management Section */}
+                  <div className="space-y-4">
+                    <h4 className="text-base font-medium">AI Punishment Types</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Manage which punishment types the AI can reference when analyzing reports. Only enabled punishment types will be available to the AI moderation system.
+                    </p>
+
+                    <div className="space-y-4">
+                      {/* Current AI Punishment Types */}
+                      <div className="space-y-3">
+                        {Object.values(aiPunishmentConfigs || {}).map((punishmentType: any) => (
+                          <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-3">
+                                <Switch
+                                  checked={punishmentType.enabled}
+                                  onCheckedChange={(checked) => {
+                                    setAiPunishmentConfigs({
+                                      ...aiPunishmentConfigs,
+                                      [punishmentType.id]: {
+                                        ...punishmentType,
+                                        enabled: checked
+                                      }
+                                    });
+                                  }}
+                                />
+                                <div>
+                                  <h5 className="font-medium">{punishmentType.name}</h5>
+                                </div>
+                              </div>
+                              <p className="text-sm text-muted-foreground ml-10">
+                                {punishmentType.aiDescription}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAIPunishmentType(punishmentType);
+                                  setNewAIPunishmentName(punishmentType.name);
+                                  setNewAIPunishmentDescription(punishmentType.aiDescription);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  const newConfigs = { ...aiPunishmentConfigs };
+                                  delete newConfigs[punishmentType.id];
+                                  setAiPunishmentConfigs(newConfigs);
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {Object.keys(aiPunishmentConfigs || {}).length === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <p className="text-sm">No AI punishment types configured.</p>
+                            <p className="text-xs">Add punishment types for the AI to reference when analyzing reports.</p>
+                          </div>
+                        )}
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+
+                      {/* Add New AI Punishment Type Button */}
+                      <Button
+                        variant="outline"
                         onClick={() => {
-                          const newId = Date.now().toString();
-                          const currentConfigs = aiPunishmentConfigs || {};
-                          setAiPunishmentConfigs({
-                            ...currentConfigs,
-                            [newId]: {
-                              id: newId,
-                              name: '',
-                              aiDescription: '',
-                              enabled: true
-                            }
-                          });
+                          setNewAIPunishmentName('');
+                          setNewAIPunishmentDescription('');
+                          setIsAddAIPunishmentDialogOpen(true);
                         }}
                       >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Type
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add AI Punishment Type
                       </Button>
                     </div>
-
-                    <div className="space-y-3">
-                      {Object.values(aiPunishmentConfigs || {}).map((config: any) => (
-                        <div key={config.id} className="space-y-3 p-4 border rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <Input
-                              value={config.name || ''}
-                              onChange={(e) => {
-                                setAiPunishmentConfigs({
-                                  ...aiPunishmentConfigs,
-                                  [config.id]: {
-                                    ...aiPunishmentConfigs[config.id],
-                                    name: e.target.value
-                                  }
-                                });
-                              }}
-                              placeholder="Punishment type name (e.g., Chat Abuse)"
-                              className="flex-1 mr-2"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const newConfigs = { ...aiPunishmentConfigs };
-                                delete newConfigs[config.id];
-                                setAiPunishmentConfigs(newConfigs);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label className="text-sm">AI Description</Label>
-                            <Textarea
-                              value={config.aiDescription || ''}
-                              onChange={(e) => {
-                                setAiPunishmentConfigs({
-                                  ...aiPunishmentConfigs,
-                                  [config.id]: {
-                                    ...aiPunishmentConfigs[config.id],
-                                    aiDescription: e.target.value
-                                  }
-                                });
-                              }}
-                              placeholder="Describe what behavior the AI should detect for this punishment type..."
-                              className="min-h-[80px]"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {Object.keys(aiPunishmentConfigs || {}).length === 0 && (
-                      <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
-                        <p className="text-sm">No AI punishment types configured.</p>
-                        <p className="text-xs">Click "Add Type" to create your first AI punishment type.</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1041,6 +1040,156 @@ const TicketSettings = ({
           </Collapsible>
         </div>
       </div>
+
+      {/* Add AI Punishment Type Dialog */}
+      {isAddAIPunishmentDialogOpen && (
+        <Dialog open={isAddAIPunishmentDialogOpen} onOpenChange={setIsAddAIPunishmentDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add AI Punishment Type</DialogTitle>
+              <DialogDescription>
+                Create a new punishment type that the AI can detect and recommend.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Name */}
+              <div className="space-y-2">
+                <Label htmlFor="ai-punishment-name">Name</Label>
+                <Input
+                  id="ai-punishment-name"
+                  placeholder="e.g., Chat Abuse, Anti Social"
+                  value={newAIPunishmentName}
+                  onChange={(e) => setNewAIPunishmentName(e.target.value)}
+                />
+              </div>
+
+              {/* AI Description */}
+              <div className="space-y-2">
+                <Label htmlFor="ai-punishment-desc">AI Description</Label>
+                <Textarea
+                  id="ai-punishment-desc"
+                  className="min-h-[100px]"
+                  placeholder="Describe when this punishment type should be used. Be specific about the behaviors or violations it covers."
+                  value={newAIPunishmentDescription}
+                  onChange={(e) => setNewAIPunishmentDescription(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This description helps the AI understand when to suggest this punishment type.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAddAIPunishmentDialogOpen(false);
+                  setNewAIPunishmentName('');
+                  setNewAIPunishmentDescription('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (newAIPunishmentName.trim() && newAIPunishmentDescription.trim()) {
+                    const newId = Date.now().toString();
+                    setAiPunishmentConfigs({
+                      ...aiPunishmentConfigs,
+                      [newId]: {
+                        id: newId,
+                        name: newAIPunishmentName.trim(),
+                        aiDescription: newAIPunishmentDescription.trim(),
+                        enabled: true
+                      }
+                    });
+                    setIsAddAIPunishmentDialogOpen(false);
+                    setNewAIPunishmentName('');
+                    setNewAIPunishmentDescription('');
+                  }
+                }}
+                disabled={!newAIPunishmentName.trim() || !newAIPunishmentDescription.trim()}
+              >
+                Add Type
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit AI Punishment Type Dialog */}
+      {selectedAIPunishmentType && (
+        <Dialog open={Boolean(selectedAIPunishmentType)} onOpenChange={() => setSelectedAIPunishmentType(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit AI Punishment Configuration</DialogTitle>
+              <DialogDescription>
+                Modify the AI punishment type configuration.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Name */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-ai-punishment-name">Name</Label>
+                <Input
+                  id="edit-ai-punishment-name"
+                  value={newAIPunishmentName}
+                  onChange={(e) => setNewAIPunishmentName(e.target.value)}
+                />
+              </div>
+
+              {/* AI Description */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-ai-punishment-desc">AI Description</Label>
+                <Textarea
+                  id="edit-ai-punishment-desc"
+                  className="min-h-[100px]"
+                  value={newAIPunishmentDescription}
+                  onChange={(e) => setNewAIPunishmentDescription(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This description helps the AI understand when to suggest this punishment type.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedAIPunishmentType(null);
+                  setNewAIPunishmentName('');
+                  setNewAIPunishmentDescription('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedAIPunishmentType && newAIPunishmentName.trim() && newAIPunishmentDescription.trim()) {
+                    setAiPunishmentConfigs({
+                      ...aiPunishmentConfigs,
+                      [selectedAIPunishmentType.id]: {
+                        ...selectedAIPunishmentType,
+                        name: newAIPunishmentName.trim(),
+                        aiDescription: newAIPunishmentDescription.trim()
+                      }
+                    });
+                    setSelectedAIPunishmentType(null);
+                    setNewAIPunishmentName('');
+                    setNewAIPunishmentDescription('');
+                  }
+                }}
+                disabled={!newAIPunishmentName.trim() || !newAIPunishmentDescription.trim()}
+              >
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Quick Response Action Dialog */}
       <Dialog open={showActionDialog} onOpenChange={setShowActionDialog}>
