@@ -382,7 +382,7 @@ const Sidebar = () => {
                 onBlur={() => setIsFocused(false)}
               />
               <div className="text-xs text-muted-foreground mb-3 px-1">
-                Use <span className="font-mono bg-muted px-1 rounded">#</span> prefix to search punishment IDs
+                Use <span className="font-mono bg-muted px-1 rounded">#</span> to search punishment IDs
               </div>
 
               {(isLoading || isPunishmentLoading) ? (
@@ -399,7 +399,7 @@ const Sidebar = () => {
                       </div>
                       <Button
                         variant="ghost"
-                        className="w-full justify-start text-xs py-3 px-3 h-auto mb-1 bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                        className="w-full justify-start text-xs py-3 px-3 h-auto mb-1 bg-primary/10 hover:bg-primary/20 border border-primary/20"
                         onClick={() => {
                           // Set URL parameter for player with punishment ID
                           const url = new URL(window.location.href);
@@ -414,17 +414,17 @@ const Sidebar = () => {
                       >
                         <div className="flex flex-col items-start w-full">
                           <div className="flex items-center gap-2 w-full">
-                            <span className="font-medium text-blue-700">
+                            <span className="font-medium text-primary">
                               {punishmentLookupResult.playerUsername}
                             </span>
-                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                               {punishmentLookupResult.punishment.type}
                             </Badge>
                           </div>
                           <span className="text-muted-foreground text-[10px] truncate w-full">
                             {punishmentLookupResult.punishment.reason}
                           </span>
-                          <span className="text-blue-600 text-[10px] font-medium">
+                          <span className="text-primary text-[10px] font-medium">
                             ID: {punishmentLookupResult.punishment.id}
                           </span>
                         </div>
@@ -438,7 +438,7 @@ const Sidebar = () => {
                       <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                         Punishment Lookup
                       </div>
-                      <div className="py-3 px-3 text-center text-xs text-red-600 bg-red-50 border border-red-200 rounded">
+                      <div className="py-3 px-3 text-center text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded">
                         Punishment ID '{punishmentQuery}' not found
                       </div>
                     </div>
@@ -479,7 +479,7 @@ const Sidebar = () => {
                   
                   {/* Show punishment ID prompt when # is typed but no ID yet */}
                   {isPunishmentLookup && punishmentQuery.length === 0 && (
-                    <div className="py-3 px-3 text-center text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded">
+                    <div className="py-3 px-3 text-center text-xs text-muted-foreground bg-muted/10 border border-muted/20 rounded">
                       Enter a punishment ID after the # symbol
                     </div>
                   )}
