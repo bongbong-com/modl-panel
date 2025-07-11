@@ -9,7 +9,8 @@ import {
   FileText,
   Settings,
   Loader2,
-  BookOpen
+  BookOpen,
+  BarChart3
 } from "lucide-react";
 import {
   Tooltip,
@@ -24,6 +25,7 @@ import PlayerWindow from "../../components/windows/PlayerWindow";
 import serverLogo from "../../assets/server-logo.png";
 import { usePublicSettings } from "@/hooks/use-public-settings";
 import { usePunishmentLookup } from "@/hooks/use-player-lookup";
+import { usePermissions, PERMISSIONS } from "@/hooks/use-permissions";
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
@@ -31,6 +33,7 @@ const Sidebar = () => {
   const [location, navigate] = useLocation();
   const { data: billingStatus } = useBillingStatus();
   const { data: publicSettings } = usePublicSettings();
+  const { hasPermission } = usePermissions();
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [isLookupClosing, setIsLookupClosing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -153,7 +156,7 @@ const Sidebar = () => {
   }, []);
 
   // Define nav items
-  const navItems = [
+  const allNavItems = [
     {
       name: "Home",
       path: "/panel",
@@ -195,6 +198,16 @@ const Sidebar = () => {
       },
     },
     {
+      name: "Analytics",
+      path: "/panel/analytics",
+      icon: <BarChart3 className="h-5 w-5" />,
+      permission: PERMISSIONS.ADMIN_ANALYTICS_VIEW,
+      onClick: () => {
+        if (isLookupOpen) closeLookup();
+        navigate("/panel/analytics");
+      },
+    },
+    {
       name: "Settings",
       path: "/panel/settings",
       icon: <Settings className="h-5 w-5" />,
@@ -204,6 +217,11 @@ const Sidebar = () => {
       },
     },
   ];
+
+  // Filter nav items based on permissions
+  const navItems = allNavItems.filter(item => 
+    !item.permission || hasPermission(item.permission)
+  );
 
   // Fetch players from API using React Query
   const { data: players, isLoading } = usePlayers();

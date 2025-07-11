@@ -26,6 +26,8 @@ import publicPunishmentRoutes from './routes/public-punishment-routes'; // Impor
 import { setupMinecraftRoutes } from './routes/minecraft-routes';
 import mediaRoutes from './routes/media-routes'; // Import media routes
 import storageRoutes from './routes/storage-routes'; // Import storage routes
+import analyticsRoutes from './routes/analytics-routes'; // Import analytics routes
+import auditRoutes from './routes/audit-routes'; // Import audit routes
 
 export async function registerRoutes(app: Express): Promise<Server> {
   let globalDbConnection: MongooseConnection | undefined = undefined;
@@ -162,6 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/', homepageCardRoutes); // Add homepage card routes to panel
   panelRouter.use('/media', mediaRoutes); // Add media upload routes to panel
   panelRouter.use('/storage', storageRoutes); // Add storage management routes to panel
+  panelRouter.use('/analytics', analyticsRoutes); // Add analytics routes to panel
+  panelRouter.use('/audit', auditRoutes); // Add audit routes to panel
 
   panelRouter.get('/activity/recent', async (req: any, res) => {
     try {

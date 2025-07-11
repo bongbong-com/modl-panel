@@ -6,11 +6,14 @@ import {
   Ticket, 
   Settings, 
   AlertCircle,
-  BookOpen
+  BookOpen,
+  BarChart3
 } from 'lucide-react';
+import { usePermissions, PERMISSIONS } from '@/hooks/use-permissions';
 
 const MobileNavbar = () => {
   const [location, navigate] = useLocation();
+  const { hasPermission } = usePermissions();
   
   const isActive = (path: string) => {
     return location === path 
@@ -18,39 +21,57 @@ const MobileNavbar = () => {
       : "text-muted-foreground";
   };
 
+  // Define nav items with conditional analytics
+  const navItems = [
+    {
+      icon: <Home className="h-5 w-5" />,
+      label: "Home",
+      path: "/panel",
+      onClick: () => navigate('/panel')
+    },
+    {
+      icon: <Search className="h-5 w-5" />,
+      label: "Lookup",
+      path: "/panel/lookup",
+      onClick: () => navigate('/panel/lookup')
+    },
+    {
+      icon: <Ticket className="h-5 w-5" />,
+      label: "Tickets",
+      path: "/panel/tickets",
+      onClick: () => navigate('/panel/tickets')
+    },
+    ...(hasPermission(PERMISSIONS.ADMIN_ANALYTICS_VIEW) ? [{
+      icon: <BarChart3 className="h-5 w-5" />,
+      label: "Analytics",
+      path: "/panel/analytics",
+      onClick: () => navigate('/panel/analytics')
+    }] : [{
+      icon: <AlertCircle className="h-5 w-5" />,
+      label: "Audit",
+      path: "/panel/audit",
+      onClick: () => navigate('/panel/audit')
+    }]),
+    {
+      icon: <Settings className="h-5 w-5" />,
+      label: "Settings",
+      path: "/panel/settings",
+      onClick: () => navigate('/panel/settings')
+    }
+  ];
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50 shadow-md">
       <div className="grid grid-cols-5 h-16">
-        <NavItem 
-          icon={<Home className="h-5 w-5" />} 
-          label="Home" 
-          isActive={isActive('/')} 
-          onClick={() => navigate('/')} 
-        />
-        <NavItem 
-          icon={<Search className="h-5 w-5" />} 
-          label="Lookup" 
-          isActive={isActive('/lookup')} 
-          onClick={() => navigate('/lookup')} 
-        />
-        <NavItem 
-          icon={<Ticket className="h-5 w-5" />} 
-          label="Tickets" 
-          isActive={isActive('/tickets')} 
-          onClick={() => navigate('/tickets')} 
-        />
-        <NavItem 
-          icon={<AlertCircle className="h-5 w-5" />} 
-          label="Audit" 
-          isActive={isActive('/audit')} 
-          onClick={() => navigate('/audit')} 
-        />
-        <NavItem 
-          icon={<Settings className="h-5 w-5" />} 
-          label="Settings" 
-          isActive={isActive('/settings')} 
-          onClick={() => navigate('/settings')} 
-        />
+        {navItems.map((item, index) => (
+          <NavItem 
+            key={index}
+            icon={item.icon} 
+            label={item.label} 
+            isActive={isActive(item.path)} 
+            onClick={item.onClick} 
+          />
+        ))}
       </div>
     </div>
   );
