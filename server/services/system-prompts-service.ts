@@ -8,10 +8,9 @@ interface ISystemPrompt extends Document {
   updatedAt: Date;
 }
 
-interface PunishmentType {
-  id: number;
+interface AIPunishmentType {
+  id: string;
   name: string;
-  category: string;
   aiDescription: string;
   enabled: boolean;
 }
@@ -55,7 +54,7 @@ export class SystemPromptsService {
    */
   async getPromptForStrictnessLevel(
     strictnessLevel: 'lenient' | 'standard' | 'strict',
-    punishmentTypes?: PunishmentType[]
+    punishmentTypes?: AIPunishmentType[]
   ): Promise<string> {
     try {
       const SystemPromptModel = this.dbConnection.model<ISystemPrompt>('SystemPrompt', SystemPromptSchema);
@@ -84,7 +83,7 @@ export class SystemPromptsService {
   /**
    * Inject placeholders into prompt text
    */
-  private injectPlaceholders(promptText: string, punishmentTypes?: PunishmentType[]): string {
+  private injectPlaceholders(promptText: string, punishmentTypes?: AIPunishmentType[]): string {
     let injectedPrompt = promptText;
 
     // Inject JSON format placeholder
@@ -92,7 +91,7 @@ export class SystemPromptsService {
 {
   "analysis": "Brief explanation of what rule violations (if any) were found in the chat",
   "suggestedAction": {
-    "punishmentTypeId": <punishment_type_id_number>,
+    "punishmentTypeId": "<punishment_type_id_string>",
     "severity": "low|regular|severe"
   } OR null if no action needed
 }`;
@@ -103,8 +102,7 @@ export class SystemPromptsService {
       const punishmentTypesJson = JSON.stringify(punishmentTypes.map(pt => ({
         id: pt.id,
         name: pt.name,
-        category: pt.category,
-        description: pt.aiDescription || `${pt.name} punishment in ${pt.category} category`
+        description: pt.aiDescription
       })), null, 2);
       injectedPrompt = injectedPrompt.replace(/\{\{PUNISHMENT_TYPES\}\}/g, punishmentTypesJson);
     } else {

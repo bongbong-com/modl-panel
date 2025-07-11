@@ -6,10 +6,9 @@ interface ChatMessage {
   timestamp: string;
 }
 
-interface PunishmentType {
-  id: number;
+interface AIPunishmentType {
+  id: string;
   name: string;
-  category: string;
   aiDescription: string; // Description provided to AI for context when analyzing reports
   enabled: boolean;
 }
@@ -17,7 +16,7 @@ interface PunishmentType {
 interface GeminiAnalysisResponse {
   analysis: string;
   suggestedAction: {
-    punishmentTypeId: number;
+    punishmentTypeId: string;
     severity: 'low' | 'regular' | 'severe';
   } | null;
   confidence: number;

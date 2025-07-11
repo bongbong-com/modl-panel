@@ -10,49 +10,17 @@ interface ChatMessage {
   timestamp: string;
 }
 
-interface PunishmentType {
-  id: number;
-  ordinal: number;
+interface AIPunishmentType {
+  id: string;
   name: string;
-  category: string;
   aiDescription: string;
   enabled: boolean;
-  durations?: {
-    low: { 
-      first: { value: number; unit: string; };
-      medium: { value: number; unit: string; };
-      habitual: { value: number; unit: string; };
-    };
-    regular: { 
-      first: { value: number; unit: string; };
-      medium: { value: number; unit: string; };
-      habitual: { value: number; unit: string; };
-    };
-    severe: { 
-      first: { value: number; unit: string; };
-      medium: { value: number; unit: string; };
-      habitual: { value: number; unit: string; };
-    };
-  };
-  singleSeverityDurations?: {
-    first: { value: number; unit: string; type: 'mute' | 'ban'; };
-    medium: { value: number; unit: string; type: 'mute' | 'ban'; };
-    habitual: { value: number; unit: string; type: 'mute' | 'ban'; };
-  };
-  singleSeverityPunishment?: boolean;
-  points?: {
-    low: number;
-    regular: number;
-    severe: number;
-  };
-  customPoints?: number;
-  singleSeverityPoints?: number;
 }
 
 interface AIAnalysisResult {
   analysis: string;
   suggestedAction: {
-    punishmentTypeId: number;
+    punishmentTypeId: string;
     severity: 'low' | 'regular' | 'severe';
   } | null;
   wasAppliedAutomatically: boolean;
@@ -127,9 +95,16 @@ export class AIModerationService {
       // Apply punishment automatically if enabled and action is suggested
       if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && playerIdentifier) {
         try {
+          // Map AI punishment type ID to actual punishment type ID
+          const mappedPunishmentTypeId = await this.mapAIPunishmentTypeToActual(geminiResponse.suggestedAction.punishmentTypeId);
+          if (!mappedPunishmentTypeId) {
+            console.error(`[AI Moderation] No mapping found for AI punishment type ${geminiResponse.suggestedAction.punishmentTypeId}`);
+            throw new Error(`No mapping found for AI punishment type ${geminiResponse.suggestedAction.punishmentTypeId}`);
+          }
+
           const punishmentResult = await this.punishmentService.applyPunishment(
             playerIdentifier,
-            geminiResponse.suggestedAction.punishmentTypeId,
+            mappedPunishmentTypeId,
             geminiResponse.suggestedAction.severity,
             `Automated AI moderation - ${geminiResponse.analysis}`,
             ticketId
@@ -185,17 +160,16 @@ export class AIModerationService {
   private async getAISettings(): Promise<AISettings | null> {
     try {
       const SettingsModel = this.dbConnection.model('Settings');
-      const settingsDoc = await SettingsModel.findOne({});
+      const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
 
-      if (!settingsDoc || !settingsDoc.settings) {
-        return null;
+      if (!aiSettingsDoc || !aiSettingsDoc.data) {
+        return {
+          enableAutomatedActions: true,
+          strictnessLevel: 'standard'
+        };
       }
 
-      const aiSettings = settingsDoc.settings.get('aiModerationSettings');
-      return aiSettings || {
-        enableAutomatedActions: true,
-        strictnessLevel: 'standard'
-      };
+      return aiSettingsDoc.data;
     } catch (error) {
       console.error('[AI Moderation] Error fetching AI settings:', error);
       return null;
@@ -203,41 +177,28 @@ export class AIModerationService {
   }
 
   /**
-   * Get punishment types from AI moderation settings (enabled types only)
+   * Get AI punishment types from AI moderation settings (enabled types only)
    */
-  private async getPunishmentTypes(): Promise<PunishmentType[]> {
+  private async getPunishmentTypes(): Promise<AIPunishmentType[]> {
     try {
       const SettingsModel = this.dbConnection.model('Settings');
-      const settingsDoc = await SettingsModel.findOne({});
-
-      if (!settingsDoc || !settingsDoc.settings) {
-        console.error('[AI Moderation] Settings document not found.');
-        return [];
-      }
-
-      const aiModerationSettings = settingsDoc.settings.get('aiModerationSettings');
-      const allPunishmentTypes = settingsDoc.settings.get('punishmentTypes') || [];
+      const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
       
-      if (!aiModerationSettings || !aiModerationSettings.aiPunishmentConfigs) {
+      if (!aiSettingsDoc || !aiSettingsDoc.data || !aiSettingsDoc.data.aiPunishmentConfigs) {
         console.error('[AI Moderation] AI moderation settings or punishment configs not found.');
         return [];
       }
 
-      const aiPunishmentConfigs = aiModerationSettings.aiPunishmentConfigs;
+      const aiPunishmentConfigs = aiSettingsDoc.data.aiPunishmentConfigs;
 
-      // Combine punishment types with AI configurations for enabled types only
-      const enabledAIPunishmentTypes = allPunishmentTypes
-        .filter((pt: any) => 
-          aiPunishmentConfigs[pt.id] && 
-          aiPunishmentConfigs[pt.id].enabled === true
-        )
-        .map((pt: any) => ({
-          id: pt.id,
-          ordinal: pt.ordinal,
-          name: pt.name,
-          category: pt.category,
-          aiDescription: aiPunishmentConfigs[pt.id].aiDescription || `${pt.name} punishment in ${pt.category} category`,
-          enabled: true
+      // Get enabled AI punishment types from the standalone configuration
+      const enabledAIPunishmentTypes = Object.values(aiPunishmentConfigs)
+        .filter((config: any) => config.enabled === true)
+        .map((config: any) => ({
+          id: config.id,
+          name: config.name,
+          aiDescription: config.aiDescription,
+          enabled: config.enabled
         }));
 
       console.log(`[AI Moderation] Found ${enabledAIPunishmentTypes.length} enabled AI punishment types.`);
@@ -246,6 +207,39 @@ export class AIModerationService {
     } catch (error) {
       console.error('[AI Moderation] Error fetching AI punishment types from settings:', error);
       return [];
+    }
+  }
+
+  /**
+   * Map AI punishment type ID to actual punishment type ID
+   */
+  private async mapAIPunishmentTypeToActual(aiPunishmentTypeId: string): Promise<number | null> {
+    try {
+      // Define mapping from AI punishment types to actual punishment types
+      const mappings: Record<string, number> = {
+        'chat-abuse': 6,    // Chat Abuse punishment type ID
+        'anti-social': 7    // Anti Social punishment type ID
+      };
+
+      const mappedId = mappings[aiPunishmentTypeId];
+      if (mappedId) {
+        // Verify the punishment type exists in the database
+        const SettingsModel = this.dbConnection.model('Settings');
+        const punishmentTypesDoc = await SettingsModel.findOne({ type: 'punishmentTypes' });
+        
+        if (punishmentTypesDoc?.data) {
+          const punishmentType = punishmentTypesDoc.data.find((pt: any) => pt.id === mappedId);
+          if (punishmentType) {
+            return mappedId;
+          }
+        }
+      }
+
+      console.error(`[AI Moderation] No valid mapping found for AI punishment type: ${aiPunishmentTypeId}`);
+      return null;
+    } catch (error) {
+      console.error(`[AI Moderation] Error mapping AI punishment type ${aiPunishmentTypeId}:`, error);
+      return null;
     }
   }
 

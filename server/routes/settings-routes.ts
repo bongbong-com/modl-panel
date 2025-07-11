@@ -901,13 +901,17 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
           enableAutomatedActions: true,
           strictnessLevel: 'standard',
           aiPunishmentConfigs: {
-            6: { // Chat Abuse
-              enabled: true,
-              aiDescription: 'Inappropriate language, excessive caps, spam, or disruptive chat behavior that violates community standards.'
+            'chat-abuse': {
+              id: 'chat-abuse',
+              name: 'Chat Abuse',
+              aiDescription: 'Inappropriate language, excessive caps, spam, harassment, or disruptive chat behavior that violates community standards.',
+              enabled: true
             },
-            7: { // Anti Social
-              enabled: true,
-              aiDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment for other players.'
+            'anti-social': {
+              id: 'anti-social',
+              name: 'Anti Social',
+              aiDescription: 'Hostile, toxic, bullying, or antisocial behavior that creates a negative environment for other players.',
+              enabled: true
             }
           }
         }
@@ -1529,13 +1533,17 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {
-        6: { // Chat Abuse
-          enabled: true,
-          aiDescription: 'Inappropriate language, excessive caps, spam, or disruptive chat behavior that violates community standards.'
+        'chat-abuse': {
+          id: 'chat-abuse',
+          name: 'Chat Abuse',
+          aiDescription: 'Inappropriate language, excessive caps, spam, harassment, or disruptive chat behavior that violates community standards and creates a negative environment.',
+          enabled: true
         },
-        7: { // Anti Social
-          enabled: true,
-          aiDescription: 'Hostile, toxic, or antisocial behavior that creates a negative environment for other players.'
+        'anti-social': {
+          id: 'anti-social',
+          name: 'Anti Social',
+          aiDescription: 'Hostile, toxic, bullying, or antisocial behavior including personal attacks, threats, discrimination, or actions that deliberately harm the community atmosphere.',
+          enabled: true
         }
       }
     });
@@ -3989,5 +3997,188 @@ export async function addDefaultPunishmentTypes(dbConnection: Connection): Promi
     throw error;
   }
 }
+
+// AI Punishment Types CRUD Routes
+
+// Get all AI punishment types
+router.get('/ai-punishment-types', async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const SettingsModel = req.serverDbConnection.model('Settings');
+    const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
+
+    if (!aiSettingsDoc?.data?.aiPunishmentConfigs) {
+      return res.json({ success: true, data: {} });
+    }
+
+    res.json({ 
+      success: true, 
+      data: aiSettingsDoc.data.aiPunishmentConfigs 
+    });
+  } catch (error) {
+    console.error('Error fetching AI punishment types:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create new AI punishment type
+router.post('/ai-punishment-types', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { name, aiDescription } = req.body;
+
+    if (!name || !aiDescription) {
+      return res.status(400).json({ error: 'Name and AI description are required' });
+    }
+
+    const SettingsModel = req.serverDbConnection.model('Settings');
+    const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
+
+    if (!aiSettingsDoc) {
+      return res.status(404).json({ error: 'AI moderation settings not found' });
+    }
+
+    const currentConfigs = aiSettingsDoc.data?.aiPunishmentConfigs || {};
+    
+    // Generate unique ID
+    const id = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    // Check if ID already exists
+    if (currentConfigs[id]) {
+      return res.status(409).json({ error: 'A punishment type with this name already exists' });
+    }
+
+    // Add new AI punishment type
+    currentConfigs[id] = {
+      id,
+      name,
+      aiDescription,
+      enabled: true
+    };
+
+    await SettingsModel.findOneAndUpdate(
+      { type: 'aiModerationSettings' },
+      { 
+        $set: { 
+          'data.aiPunishmentConfigs': currentConfigs 
+        } 
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      data: currentConfigs[id],
+      message: 'AI punishment type created successfully' 
+    });
+  } catch (error) {
+    console.error('Error creating AI punishment type:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update AI punishment type
+router.put('/ai-punishment-types/:id', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { id } = req.params;
+    const { name, aiDescription, enabled } = req.body;
+
+    if (!name || !aiDescription || typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'Name, AI description, and enabled status are required' });
+    }
+
+    const SettingsModel = req.serverDbConnection.model('Settings');
+    const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
+
+    if (!aiSettingsDoc?.data?.aiPunishmentConfigs) {
+      return res.status(404).json({ error: 'AI punishment type not found' });
+    }
+
+    const currentConfigs = aiSettingsDoc.data.aiPunishmentConfigs;
+
+    if (!currentConfigs[id]) {
+      return res.status(404).json({ error: 'AI punishment type not found' });
+    }
+
+    // Update the AI punishment type
+    currentConfigs[id] = {
+      id,
+      name,
+      aiDescription,
+      enabled
+    };
+
+    await SettingsModel.findOneAndUpdate(
+      { type: 'aiModerationSettings' },
+      { 
+        $set: { 
+          'data.aiPunishmentConfigs': currentConfigs 
+        } 
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      data: currentConfigs[id],
+      message: 'AI punishment type updated successfully' 
+    });
+  } catch (error) {
+    console.error('Error updating AI punishment type:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete AI punishment type
+router.delete('/ai-punishment-types/:id', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+  try {
+    if (!req.serverDbConnection) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+
+    const { id } = req.params;
+
+    const SettingsModel = req.serverDbConnection.model('Settings');
+    const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
+
+    if (!aiSettingsDoc?.data?.aiPunishmentConfigs) {
+      return res.status(404).json({ error: 'AI punishment type not found' });
+    }
+
+    const currentConfigs = aiSettingsDoc.data.aiPunishmentConfigs;
+
+    if (!currentConfigs[id]) {
+      return res.status(404).json({ error: 'AI punishment type not found' });
+    }
+
+    // Remove the AI punishment type
+    delete currentConfigs[id];
+
+    await SettingsModel.findOneAndUpdate(
+      { type: 'aiModerationSettings' },
+      { 
+        $set: { 
+          'data.aiPunishmentConfigs': currentConfigs 
+        } 
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'AI punishment type deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Error deleting AI punishment type:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;
