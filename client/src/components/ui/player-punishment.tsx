@@ -101,47 +101,76 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       preview += ` (${levelMap[data.selectedOffenseLevel]} Offense)`;
     }
     
-    // Determine the punishment action type (ban/mute/kick)
+    // Determine the punishment action type and duration
     let actionType = '';
+    let durationValue: number | undefined;
+    let durationUnit: string | undefined;
+    let isPermanentPunishment = false;
     
     // Handle administrative punishments
     if (punishmentType.name === 'Kick') {
       actionType = 'kick';
     } else if (punishmentType.name === 'Manual Mute') {
       actionType = 'mute';
+      if (data.isPermanent) {
+        isPermanentPunishment = true;
+      } else if (data.duration) {
+        durationValue = data.duration.value;
+        durationUnit = data.duration.unit;
+      }
     } else if (punishmentType.name === 'Manual Ban' || punishmentType.name === 'Security Ban' || punishmentType.name === 'Linked Ban') {
       actionType = 'ban';
+      if (data.isPermanent) {
+        isPermanentPunishment = true;
+      } else if (data.duration) {
+        durationValue = data.duration.value;
+        durationUnit = data.duration.unit;
+      }
     } else if (punishmentType.name === 'Blacklist') {
       actionType = 'blacklist';
+      isPermanentPunishment = true;
     } else {
-      // For configured punishment types, determine based on duration configuration
+      // For configured punishment types, get duration from the configuration
       if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations && data.selectedOffenseLevel) {
         const durationConfig = punishmentType.singleSeverityDurations[data.selectedOffenseLevel];
-        actionType = durationConfig?.type || 'ban';
+        if (durationConfig) {
+          actionType = durationConfig.type?.includes('ban') ? 'ban' : 'mute';
+          if (durationConfig.type?.includes('permanent')) {
+            isPermanentPunishment = true;
+          } else {
+            durationValue = durationConfig.value;
+            durationUnit = durationConfig.unit;
+          }
+        }
       } else if (punishmentType.durations && data.selectedSeverity) {
-        const severityKey = data.selectedSeverity.toLowerCase() as 'low' | 'regular' | 'severe';
         const severityMap = { 'lenient': 'low', 'regular': 'regular', 'aggravated': 'severe' };
         const mappedSeverity = severityMap[data.selectedSeverity.toLowerCase() as keyof typeof severityMap] || 'regular';
         
-        const offenseLevel = 'first'; // Default to first offense for preview
+        const offenseLevel = data.selectedOffenseLevel || 'first';
         const durationConfig = punishmentType.durations[mappedSeverity as keyof typeof punishmentType.durations]?.[offenseLevel];
         
-        // Check if it has banValue/banUnit (indicates mute with escalation to ban)
-        if (durationConfig?.banValue !== undefined) {
-          actionType = 'mute'; // Primary action is mute
-        } else {
-          actionType = 'ban'; // Default to ban for most punishment types
+        if (durationConfig) {
+          actionType = durationConfig.type?.includes('ban') ? 'ban' : 'mute';
+          if (durationConfig.type?.includes('permanent')) {
+            isPermanentPunishment = true;
+          } else {
+            durationValue = durationConfig.value;
+            durationUnit = durationConfig.unit;
+          }
         }
-      } else {
-        actionType = 'ban'; // Default fallback
+      }
+      
+      // Default fallback
+      if (!actionType) {
+        actionType = 'ban';
       }
     }
     
     // Add duration and action type
-    if (data.isPermanent) {
+    if (isPermanentPunishment) {
       preview += ` - Permanent ${actionType}`;
-    } else if (data.duration && data.duration.value > 0) {
-      preview += ` - ${data.duration.value} ${data.duration.unit} ${actionType}`;
+    } else if (durationValue && durationUnit) {
+      preview += ` - ${durationValue} ${durationUnit} ${actionType}`;
     } else if (actionType === 'kick') {
       // Kicks don't have duration
       preview += ` - ${actionType}`;
