@@ -3,6 +3,55 @@ import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, eachDayOfInt
 
 const router = express.Router();
 
+// Helper function to get punishment types from settings
+async function getPunishmentTypesConfig(db: any) {
+  try {
+    const Settings = db.model('Settings');
+    const settings = await Settings.findOne({});
+    
+    if (!settings?.settings?.punishmentTypes) {
+      return [];
+    }
+    
+    return typeof settings.settings.punishmentTypes === 'string' 
+      ? JSON.parse(settings.settings.punishmentTypes) 
+      : settings.settings.punishmentTypes;
+  } catch (error) {
+    console.warn('Failed to load punishment types from settings:', error.message);
+    return [];
+  }
+}
+
+// Helper function to map punishment type using settings
+function mapPunishmentType(type: string, typeOrdinal: number, punishmentTypesConfig: any[]) {
+  // First try to use the direct type name if it exists
+  if (type && type.trim() !== '') {
+    return type;
+  }
+  
+  // Fall back to using ordinal with settings lookup
+  if (typeof typeOrdinal === 'number') {
+    const punishmentType = punishmentTypesConfig.find(pt => 
+      pt.ordinal === typeOrdinal || pt.id === typeOrdinal
+    );
+    if (punishmentType) {
+      return punishmentType.name;
+    }
+    
+    // Final fallback to hardcoded mapping
+    const fallbackMap = {
+      0: 'Warning',
+      1: 'Mute', 
+      2: 'Kick',
+      3: 'Temporary Ban',
+      4: 'Permanent Ban'
+    };
+    return fallbackMap[typeOrdinal] || `Type ${typeOrdinal}`;
+  }
+  
+  return 'Unknown';
+}
+
 // Since this router is mounted under `/panel/analytics` and the panel router already applies authentication,
 // we don't need additional auth middleware here. The isAuthenticated middleware is already applied.
 
@@ -252,8 +301,11 @@ router.get('/punishments', async (req, res) => {
         break;
     }
 
-    // Get punishments by type using both type field and type_ordinal as fallback
-    const punishmentTypes = await Player.aggregate([
+    // Get punishment type settings from database
+    const punishmentTypesConfig = await getPunishmentTypesConfig(db);
+
+    // Get punishments by type using proper type mapping
+    const punishmentTypesData = await Player.aggregate([
       { $unwind: '$punishments' },
       { $match: { 'punishments.issued': { $gte: startDate } } },
       {
@@ -264,35 +316,12 @@ router.get('/punishments', async (req, res) => {
           },
           count: { $sum: 1 }
         }
-      },
-      {
-        $project: {
-          _id: 0,
-          type: {
-            $cond: {
-              if: { $and: [{ $ne: ['$_id.type', null] }, { $ne: ['$_id.type', ''] }] },
-              then: '$_id.type',
-              else: {
-                $switch: {
-                  branches: [
-                    { case: { $eq: ['$_id.type_ordinal', 0] }, then: 'Warning' },
-                    { case: { $eq: ['$_id.type_ordinal', 1] }, then: 'Mute' },
-                    { case: { $eq: ['$_id.type_ordinal', 2] }, then: 'Kick' },
-                    { case: { $eq: ['$_id.type_ordinal', 3] }, then: 'Temporary Ban' },
-                    { case: { $eq: ['$_id.type_ordinal', 4] }, then: 'Permanent Ban' }
-                  ],
-                  default: { $concat: ['Type ', { $toString: '$_id.type_ordinal' }] }
-                }
-              }
-            }
-          },
-          count: 1
-        }
       }
     ]);
 
-    const punishmentsByType = punishmentTypes.map(item => ({
-      type: item.type,
+    // Map punishment types using settings configuration
+    const punishmentsByType = punishmentTypesData.map(item => ({
+      type: mapPunishmentType(item._id.type, item._id.type_ordinal, punishmentTypesConfig),
       count: item.count
     }));
 

@@ -156,6 +156,46 @@ router.get('/staff/:username/details', async (req, res) => {
     const Log = db.model('Log');
     const Player = db.model('Player');
     const Ticket = db.model('Ticket');
+    const Settings = db.model('Settings');
+
+    // Get punishment type settings for proper type mapping
+    const settings = await Settings.findOne({});
+    let punishmentTypesConfig = [];
+    if (settings?.settings?.punishmentTypes) {
+      punishmentTypesConfig = typeof settings.settings.punishmentTypes === 'string' 
+        ? JSON.parse(settings.settings.punishmentTypes) 
+        : settings.settings.punishmentTypes;
+    }
+
+    // Helper function to map punishment type
+    const mapPunishmentType = (type: string, typeOrdinal: number) => {
+      // First try to use the direct type name if it exists
+      if (type && type.trim() !== '') {
+        return type;
+      }
+      
+      // Fall back to using ordinal with settings lookup
+      if (typeof typeOrdinal === 'number') {
+        const punishmentType = punishmentTypesConfig.find(pt => 
+          pt.ordinal === typeOrdinal || pt.id === typeOrdinal
+        );
+        if (punishmentType) {
+          return punishmentType.name;
+        }
+        
+        // Final fallback to hardcoded mapping
+        const fallbackMap = {
+          0: 'Warning',
+          1: 'Mute', 
+          2: 'Kick',
+          3: 'Temporary Ban',
+          4: 'Permanent Ban'
+        };
+        return fallbackMap[typeOrdinal] || `Type ${typeOrdinal}`;
+      }
+      
+      return 'Unknown';
+    };
 
     // Get detailed punishment data for this staff member
     const punishments = await Player.aggregate([
@@ -184,24 +224,8 @@ router.get('/staff/:username/details', async (req, res) => {
               else: 'Unknown'
             }
           },
-          type: {
-            $cond: {
-              if: { $and: [{ $ne: ['$punishments.type', null] }, { $ne: ['$punishments.type', ''] }] },
-              then: '$punishments.type',
-              else: {
-                $switch: {
-                  branches: [
-                    { case: { $eq: ['$punishments.type_ordinal', 0] }, then: 'Warning' },
-                    { case: { $eq: ['$punishments.type_ordinal', 1] }, then: 'Mute' },
-                    { case: { $eq: ['$punishments.type_ordinal', 2] }, then: 'Kick' },
-                    { case: { $eq: ['$punishments.type_ordinal', 3] }, then: 'Temporary Ban' },
-                    { case: { $eq: ['$punishments.type_ordinal', 4] }, then: 'Permanent Ban' }
-                  ],
-                  default: 'Unknown'
-                }
-              }
-            }
-          },
+          type: '$punishments.type',
+          type_ordinal: '$punishments.type_ordinal',
           reason: '$punishments.data.reason',
           duration: '$punishments.data.duration',
           issued: '$punishments.issued',
@@ -211,6 +235,12 @@ router.get('/staff/:username/details', async (req, res) => {
       { $sort: { issued: -1 } },
       { $limit: 20 }
     ]);
+
+    // Map punishment types using the helper function
+    const mappedPunishments = punishments.map(punishment => ({
+      ...punishment,
+      type: mapPunishmentType(punishment.type, punishment.type_ordinal)
+    }));
 
     // Get tickets handled by this staff member
     const tickets = await Ticket.find({
@@ -344,7 +374,7 @@ router.get('/staff/:username/details', async (req, res) => {
     }
 
     // Get punishment type breakdown for this staff member
-    const punishmentTypeBreakdown = await Player.aggregate([
+    const punishmentTypeBreakdownData = await Player.aggregate([
       { $unwind: '$punishments' },
       { 
         $match: { 
@@ -355,27 +385,19 @@ router.get('/staff/:username/details', async (req, res) => {
       {
         $group: {
           _id: {
-            $cond: {
-              if: { $and: [{ $ne: ['$punishments.type', null] }, { $ne: ['$punishments.type', ''] }] },
-              then: '$punishments.type',
-              else: {
-                $switch: {
-                  branches: [
-                    { case: { $eq: ['$punishments.type_ordinal', 0] }, then: 'Warning' },
-                    { case: { $eq: ['$punishments.type_ordinal', 1] }, then: 'Mute' },
-                    { case: { $eq: ['$punishments.type_ordinal', 2] }, then: 'Kick' },
-                    { case: { $eq: ['$punishments.type_ordinal', 3] }, then: 'Temporary Ban' },
-                    { case: { $eq: ['$punishments.type_ordinal', 4] }, then: 'Permanent Ban' }
-                  ],
-                  default: 'Unknown'
-                }
-              }
-            }
+            type: '$punishments.type',
+            type_ordinal: '$punishments.type_ordinal'
           },
           count: { $sum: 1 }
         }
       }
     ]);
+
+    // Map punishment type breakdown using the helper function
+    const punishmentTypeBreakdown = punishmentTypeBreakdownData.map(item => ({
+      type: mapPunishmentType(item._id.type, item._id.type_ordinal),
+      count: item.count
+    }));
 
     // Count evidence uploads (from logs)
     const evidenceUploads = await Log.countDocuments({
@@ -390,7 +412,7 @@ router.get('/staff/:username/details', async (req, res) => {
     res.json({
       username,
       period,
-      punishments: punishments,
+      punishments: mappedPunishments,
       tickets: ticketResponseTimes,
       dailyActivity: dailyActivity.map(day => ({
         date: day._id,
@@ -398,13 +420,10 @@ router.get('/staff/:username/details', async (req, res) => {
         tickets: day.tickets,
         evidence: day.evidence
       })),
-      punishmentTypeBreakdown: punishmentTypeBreakdown.map(item => ({
-        type: item._id,
-        count: item.count
-      })),
+      punishmentTypeBreakdown: punishmentTypeBreakdown,
       evidenceUploads,
       summary: {
-        totalPunishments: punishments.length,
+        totalPunishments: mappedPunishments.length,
         totalTickets: tickets.length,
         avgResponseTime: ticketResponseTimes.length > 0 
           ? Math.round(ticketResponseTimes.reduce((sum, t) => sum + t.responseTime, 0) / ticketResponseTimes.length)
