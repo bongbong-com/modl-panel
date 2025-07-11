@@ -388,7 +388,7 @@ const TicketSettings = ({
 
   // AI Moderation computed values
   const availablePunishmentTypes = punishmentTypesState?.filter(pt => 
-    pt.isCustomizable && (!aiPunishmentConfigs[pt.id] || !aiPunishmentConfigs[pt.id].enabled)
+    pt.isCustomizable && (!aiModerationSettings.aiPunishmentConfigs?.[pt.id] || !aiModerationSettings.aiPunishmentConfigs[pt.id].enabled)
   ) || [];
 
   return (
@@ -1116,7 +1116,7 @@ const TicketSettings = ({
                     </SelectTrigger>
                     <SelectContent>
                       {punishmentTypesState
-                        .filter(pt => !Object.values(aiPunishmentConfigs || {}).some((config: any) => config.name === pt.name))
+                        .filter(pt => !Object.values(aiModerationSettings.aiPunishmentConfigs || {}).some((config: any) => config.name === pt.name))
                         .map((punishmentType) => (
                           <SelectItem key={punishmentType.id} value={punishmentType.id.toString()}>
                             {punishmentType.name} ({punishmentType.category})
@@ -1162,15 +1162,18 @@ const TicketSettings = ({
                     const selectedType = punishmentTypesState.find(t => t.id === selectedPunishmentTypeId);
                     if (selectedType) {
                       const newId = Date.now().toString();
-                      setAiPunishmentConfigs({
-                        ...aiPunishmentConfigs,
-                        [newId]: {
-                          id: newId,
-                          name: selectedType.name,
-                          aiDescription: newAIPunishmentDescription.trim(),
-                          enabled: true
+                      setAiModerationSettings((prev: any) => ({
+                        ...prev,
+                        aiPunishmentConfigs: {
+                          ...prev.aiPunishmentConfigs,
+                          [newId]: {
+                            id: newId,
+                            name: selectedType.name,
+                            aiDescription: newAIPunishmentDescription.trim(),
+                            enabled: true
+                          }
                         }
-                      });
+                      }));
                     }
                     setIsAddAIPunishmentDialogOpen(false);
                     setSelectedPunishmentTypeId(null);
@@ -1235,13 +1238,16 @@ const TicketSettings = ({
               <Button
                 onClick={() => {
                   if (selectedAIPunishmentType && newAIPunishmentDescription.trim()) {
-                    setAiPunishmentConfigs({
-                      ...aiPunishmentConfigs,
-                      [selectedAIPunishmentType.id]: {
-                        ...selectedAIPunishmentType,
-                        aiDescription: newAIPunishmentDescription.trim()
+                    setAiModerationSettings((prev: any) => ({
+                      ...prev,
+                      aiPunishmentConfigs: {
+                        ...prev.aiPunishmentConfigs,
+                        [selectedAIPunishmentType.id]: {
+                          ...selectedAIPunishmentType,
+                          aiDescription: newAIPunishmentDescription.trim()
+                        }
                       }
-                    });
+                    }));
                     setSelectedAIPunishmentType(null);
                     setNewAIPunishmentDescription('');
                   }

@@ -179,9 +179,10 @@ interface IAIPunishmentConfig {
 }
 
 interface IAIModerationSettings {
+  enableAIReview: boolean;
   enableAutomatedActions: boolean;
   strictnessLevel: 'lenient' | 'standard' | 'strict';
-  aiPunishmentConfigs: Record<number, IAIPunishmentConfig>;
+  aiPunishmentConfigs: Record<string, IAIPunishmentConfig>;
 }
 
 interface AvailablePunishmentType {
@@ -1359,7 +1360,6 @@ const Settings = () => {
           title: "AI Punishment Type Added",
           description: "The punishment type has been configured for AI services.",
         });
-        await loadAiPunishmentTypes();
         await loadAvailablePunishmentTypes();
       } else {
         const errorData = await response.json();
@@ -1391,7 +1391,6 @@ const Settings = () => {
       });
       
       if (response.ok) {
-        loadAiPunishmentTypes();
         if (updates.enabled === false) {
           loadAvailablePunishmentTypes();
         }
@@ -1420,7 +1419,6 @@ const Settings = () => {
       });
       
       if (response.ok) {
-        loadAiPunishmentTypes();
         loadAvailablePunishmentTypes();
         toast({
           title: "AI Punishment Type Removed",
@@ -1439,10 +1437,9 @@ const Settings = () => {
     }
   };
 
-  // Load AI moderation settings and AI punishment types on component mount
+  // Load AI moderation settings on component mount
   useEffect(() => {
     loadAiModerationSettings();
-    loadAiPunishmentTypes();
     loadAvailablePunishmentTypes();
   }, []);
 
