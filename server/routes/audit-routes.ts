@@ -1,18 +1,30 @@
-import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
-import { hasPermission } from '../middleware/permissions';
+import express from 'express';
 
-const router = Router();
+const router = express.Router();
 
-// Apply authentication and permission middleware to all routes
-router.use(requireAuth);
-router.use(hasPermission('ADMIN_ANALYTICS_VIEW'));
+// Since this router is mounted under `/panel/audit` and the panel router already applies authentication,
+// we don't need additional auth middleware here. The isAuthenticated middleware is already applied.
+
+// Middleware to ensure only admins can access audit routes
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (!req.currentUser || (req.currentUser.role !== 'Admin' && req.currentUser.role !== 'Super Admin')) {
+    return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+  }
+  next();
+};
+
+router.use(requireAdmin);
 
 // Get staff performance analytics
 router.get('/staff-performance', async (req, res) => {
   try {
     const { period = '30d' } = req.query;
-    const { db } = req;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
     
     // Calculate date range based on period
     const now = new Date();
@@ -32,8 +44,9 @@ router.get('/staff-performance', async (req, res) => {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Aggregate staff performance data
-    const staffPerformance = await db.collection('logs').aggregate([
+    // Aggregate staff performance data using mongoose model
+    const Log = db.model('Log');
+    const staffPerformance = await Log.aggregate([
       {
         $match: {
           created: { $gte: startDate },
@@ -82,12 +95,13 @@ router.get('/staff-performance', async (req, res) => {
       {
         $sort: { totalActions: -1 }
       }
-    ]).toArray();
+    ]);
 
-    // Get staff roles from users collection
+    // Get staff roles from staff collection
+    const Staff = db.model('Staff');
     const staffWithRoles = await Promise.all(
       staffPerformance.map(async (staff) => {
-        const userDoc = await db.collection('users').findOne({ username: staff.username });
+        const userDoc = await Staff.findOne({ username: staff.username });
         return {
           id: staff._id,
           username: staff.username,
@@ -112,12 +126,18 @@ router.get('/staff-performance', async (req, res) => {
 router.get('/punishments', async (req, res) => {
   try {
     const { limit = 50, canRollback } = req.query;
-    const { db } = req;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
 
     // Get punishment logs from the last 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     
-    const punishments = await db.collection('logs').find({
+    const Log = db.model('Log');
+    const punishments = await Log.find({
       created: { $gte: thirtyDaysAgo },
       $or: [
         { level: 'moderation' },
@@ -128,8 +148,7 @@ router.get('/punishments', async (req, res) => {
       })
     })
     .sort({ created: -1 })
-    .limit(parseInt(limit as string))
-    .toArray();
+    .limit(parseInt(limit as string));
 
     const formattedPunishments = punishments.map(log => ({
       id: log._id,
@@ -156,10 +175,16 @@ router.post('/punishments/:id/rollback', async (req, res) => {
   try {
     const { id } = req.params;
     const { reason = 'Admin rollback' } = req.body;
-    const { db } = req;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
 
     // Find the original punishment
-    const punishment = await db.collection('logs').findOne({ _id: id });
+    const Log = db.model('Log');
+    const punishment = await Log.findById(id);
     
     if (!punishment) {
       return res.status(404).json({ error: 'Punishment not found' });
@@ -173,7 +198,7 @@ router.post('/punishments/:id/rollback', async (req, res) => {
     const rollbackLog = {
       created: new Date().toISOString(),
       level: 'moderation',
-      source: req.user?.username || 'system',
+      source: req.currentUser?.username || 'system',
       description: `Rolled back ${extractPunishmentType(punishment.description)} for ${punishment.metadata?.playerName || 'unknown player'}`,
       metadata: {
         originalPunishmentId: id,
@@ -188,19 +213,16 @@ router.post('/punishments/:id/rollback', async (req, res) => {
     };
 
     // Insert rollback log
-    await db.collection('logs').insertOne(rollbackLog);
+    await Log.create(rollbackLog);
 
     // Mark original punishment as rolled back
-    await db.collection('logs').updateOne(
-      { _id: id },
-      { 
-        $set: { 
-          'metadata.rolledBack': true,
-          'metadata.rollbackDate': new Date().toISOString(),
-          'metadata.rollbackBy': req.user?.username
-        }
+    await Log.findByIdAndUpdate(id, { 
+      $set: { 
+        'metadata.rolledBack': true,
+        'metadata.rollbackDate': new Date().toISOString(),
+        'metadata.rollbackBy': req.currentUser?.username
       }
-    );
+    });
 
     // TODO: Integrate with Minecraft server to actually reverse the punishment
     // This would involve calling the Minecraft API to unban/unmute the player
@@ -208,7 +230,7 @@ router.post('/punishments/:id/rollback', async (req, res) => {
     res.json({ 
       success: true, 
       message: 'Punishment rolled back successfully',
-      rollbackId: rollbackLog._id
+      rollbackId: rollbackLog.id
     });
   } catch (error) {
     console.error('Error rolling back punishment:', error);
@@ -221,7 +243,12 @@ router.get('/database/:table', async (req, res) => {
   try {
     const { table } = req.params;
     const { limit = 100, skip = 0 } = req.query;
-    const { db } = req;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
 
     // Validate table name for security
     const allowedTables = ['players', 'tickets', 'staff', 'punishments', 'logs', 'settings'];
@@ -229,55 +256,40 @@ router.get('/database/:table', async (req, res) => {
       return res.status(400).json({ error: 'Invalid table name' });
     }
 
-    let collection = table;
+    let modelName = '';
     let pipeline: any[] = [];
 
     // Special handling for different "tables" (collections)
     switch (table) {
       case 'players':
-        collection = 'users';
+        modelName = 'Player';
         pipeline = [
-          { $match: { role: { $in: [null, 'User'] } } },
-          {
-            $lookup: {
-              from: 'logs',
-              let: { username: '$username' },
-              pipeline: [
-                { $match: { $expr: { $eq: ['$metadata.playerName', '$$username'] } } },
-                { $match: { level: 'moderation' } }
-              ],
-              as: 'punishments'
-            }
-          },
-          {
-            $lookup: {
-              from: 'tickets',
-              localField: 'username',
-              foreignField: 'creator',
-              as: 'tickets'
-            }
-          },
           {
             $project: {
-              username: 1,
-              joinDate: '$createdAt',
-              lastSeen: '$lastActive',
-              punishments: { $size: '$punishments' },
-              tickets: { $size: '$tickets' },
-              email: 1,
-              verified: 1
+              uuid: '$minecraftUuid',
+              username: { 
+                $cond: {
+                  if: { $gt: [{ $size: { $ifNull: ['$usernames', []] } }, 0] },
+                  then: { $arrayElemAt: ['$usernames.username', -1] },
+                  else: 'Unknown'
+                }
+              },
+              joinDate: { $arrayElemAt: ['$usernames.date', 0] },
+              lastSeen: '$lastSeen',
+              punishmentCount: { $size: { $ifNull: ['$punishments', []] } },
+              noteCount: { $size: { $ifNull: ['$notes', []] } }
             }
           }
         ];
         break;
 
       case 'staff':
-        collection = 'users';
+        modelName = 'Staff';
         pipeline = [
-          { $match: { role: { $in: ['Admin', 'Moderator', 'Helper', 'Owner'] } } },
           {
             $project: {
               username: 1,
+              email: 1,
               role: 1,
               joinDate: '$createdAt',
               lastActive: 1,
@@ -288,7 +300,7 @@ router.get('/database/:table', async (req, res) => {
         break;
 
       case 'punishments':
-        collection = 'logs';
+        modelName = 'Log';
         pipeline = [
           {
             $match: {
@@ -300,13 +312,7 @@ router.get('/database/:table', async (req, res) => {
           },
           {
             $project: {
-              type: { $function: { body: `function(desc) { 
-                if (desc.includes('ban')) return 'ban';
-                if (desc.includes('mute')) return 'mute';
-                if (desc.includes('kick')) return 'kick';
-                if (desc.includes('warn')) return 'warn';
-                return 'unknown';
-              }`, args: ['$description'], lang: 'js' } },
+              description: 1,
               player: '$metadata.playerName',
               staff: '$source',
               reason: '$metadata.reason',
@@ -318,8 +324,39 @@ router.get('/database/:table', async (req, res) => {
         ];
         break;
 
+      case 'tickets':
+        modelName = 'Ticket';
+        pipeline = [
+          {
+            $project: {
+              subject: 1,
+              category: 1,
+              status: 1,
+              creator: 1,
+              assignedTo: 1,
+              created: 1,
+              priority: 1
+            }
+          }
+        ];
+        break;
+
+      case 'logs':
+        modelName = 'Log';
+        pipeline = [
+          {
+            $project: {
+              level: 1,
+              source: 1,
+              description: 1,
+              created: 1
+            }
+          }
+        ];
+        break;
+
       default:
-        // For other collections, just return basic data
+        modelName = 'Settings';
         pipeline = [
           { $project: { password: 0, sensitiveData: 0 } } // Exclude sensitive fields
         ];
@@ -331,8 +368,9 @@ router.get('/database/:table', async (req, res) => {
       { $limit: parseInt(limit as string) }
     );
 
-    const data = await db.collection(collection).aggregate(pipeline).toArray();
-    const total = await db.collection(collection).countDocuments(
+    const Model = db.model(modelName);
+    const data = await Model.aggregate(pipeline);
+    const total = await Model.countDocuments(
       pipeline[0]?.$match || {}
     );
 
@@ -352,7 +390,12 @@ router.get('/database/:table', async (req, res) => {
 router.get('/analytics', async (req, res) => {
   try {
     const { period = '7d' } = req.query;
-    const { db } = req;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
 
     // Calculate date range
     const now = new Date();
@@ -378,7 +421,8 @@ router.get('/analytics', async (req, res) => {
     }
 
     // Daily activity trends
-    const dailyActivity = await db.collection('logs').aggregate([
+    const Log = db.model('Log');
+    const dailyActivity = await Log.aggregate([
       {
         $match: { created: { $gte: startDate } }
       },
@@ -420,10 +464,10 @@ router.get('/analytics', async (req, res) => {
         }
       },
       { $sort: { _id: 1 } }
-    ]).toArray();
+    ]);
 
     // Action type distribution
-    const actionDistribution = await db.collection('logs').aggregate([
+    const actionDistribution = await Log.aggregate([
       {
         $match: { created: { $gte: startDate } }
       },
@@ -485,7 +529,7 @@ router.get('/analytics', async (req, res) => {
           }
         }
       }
-    ]).toArray();
+    ]);
 
     res.json({
       dailyActivity: dailyActivity.map(day => ({

@@ -10,7 +10,6 @@ import {
   Settings,
   Loader2,
   BookOpen,
-  BarChart3
 } from "lucide-react";
 import {
   Tooltip,
@@ -195,16 +194,6 @@ const Sidebar = () => {
       onClick: () => {
         if (isLookupOpen) closeLookup();
         navigate("/panel/audit");
-      },
-    },
-    {
-      name: "Analytics",
-      path: "/panel/analytics",
-      icon: <BarChart3 className="h-5 w-5" />,
-      permission: PERMISSIONS.ADMIN_ANALYTICS_VIEW,
-      onClick: () => {
-        if (isLookupOpen) closeLookup();
-        navigate("/panel/analytics");
       },
     },
     {

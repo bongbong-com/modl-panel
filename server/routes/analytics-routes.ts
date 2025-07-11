@@ -1,31 +1,34 @@
 import express from 'express';
-import { getServerDb } from '../middleware/subdomain-db.js';
-import { checkAuth } from '../middleware/auth.js';
-import { StaffSchema, TicketSchema, PlayerSchema, LogSchema } from 'modl-shared-web';
 import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, eachDayOfInterval, format } from 'date-fns';
 
 const router = express.Router();
 
+// Since this router is mounted under `/panel/analytics` and the panel router already applies authentication,
+// we don't need additional auth middleware here. The isAuthenticated middleware is already applied.
+
 // Middleware to ensure only admins can access analytics
 const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!req.user || (req.user.role !== 'Admin' && req.user.role !== 'Super Admin')) {
+  if (!req.currentUser || (req.currentUser.role !== 'Admin' && req.currentUser.role !== 'Super Admin')) {
     return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
   }
   next();
 };
 
-router.use(checkAuth);
 router.use(requireAdmin);
 
 // Get overview statistics
 router.get('/overview', async (req, res) => {
   try {
-    const db = await getServerDb(req);
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
     
-    const Ticket = db.model('Ticket', TicketSchema);
-    const Player = db.model('Player', PlayerSchema);
-    const Staff = db.model('Staff', StaffSchema);
-    const Log = db.model('Log', LogSchema);
+    const db = req.serverDbConnection;
+    
+    const Ticket = db.model('Ticket');
+    const Player = db.model('Player');
+    const Staff = db.model('Staff');
+    const Log = db.model('Log');
 
     const now = new Date();
     const thirtyDaysAgo = subMonths(now, 1);
@@ -74,8 +77,12 @@ router.get('/overview', async (req, res) => {
 // Get ticket analytics
 router.get('/tickets', async (req, res) => {
   try {
-    const db = await getServerDb(req);
-    const Ticket = db.model('Ticket', TicketSchema);
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Ticket = db.model('Ticket');
     
     const { period = '30d' } = req.query;
     let startDate = new Date();
@@ -150,10 +157,14 @@ router.get('/tickets', async (req, res) => {
 // Get staff performance analytics
 router.get('/staff-performance', async (req, res) => {
   try {
-    const db = await getServerDb(req);
-    const Ticket = db.model('Ticket', TicketSchema);
-    const Player = db.model('Player', PlayerSchema);
-    const Staff = db.model('Staff', StaffSchema);
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Ticket = db.model('Ticket');
+    const Player = db.model('Player');
+    const Staff = db.model('Staff');
     
     const { period = '30d' } = req.query;
     let startDate = new Date();
@@ -216,8 +227,12 @@ router.get('/staff-performance', async (req, res) => {
 // Get punishment analytics
 router.get('/punishments', async (req, res) => {
   try {
-    const db = await getServerDb(req);
-    const Player = db.model('Player', PlayerSchema);
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Player = db.model('Player');
     
     const { period = '30d' } = req.query;
     let startDate = new Date();
@@ -297,8 +312,12 @@ router.get('/punishments', async (req, res) => {
 // Get player activity analytics
 router.get('/player-activity', async (req, res) => {
   try {
-    const db = await getServerDb(req);
-    const Player = db.model('Player', PlayerSchema);
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Player = db.model('Player');
     
     const { period = '30d' } = req.query;
     let startDate = new Date();
@@ -379,8 +398,12 @@ router.get('/player-activity', async (req, res) => {
 // Get audit log analytics
 router.get('/audit-logs', async (req, res) => {
   try {
-    const db = await getServerDb(req);
-    const Log = db.model('Log', LogSchema);
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Log = db.model('Log');
     
     const { period = '7d' } = req.query;
     let startDate = new Date();

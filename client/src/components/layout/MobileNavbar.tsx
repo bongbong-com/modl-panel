@@ -7,7 +7,6 @@ import {
   Settings, 
   AlertCircle,
   BookOpen,
-  BarChart3
 } from 'lucide-react';
 import { usePermissions, PERMISSIONS } from '@/hooks/use-permissions';
 
@@ -41,17 +40,12 @@ const MobileNavbar = () => {
       path: "/panel/tickets",
       onClick: () => navigate('/panel/tickets')
     },
-    ...(hasPermission(PERMISSIONS.ADMIN_ANALYTICS_VIEW) ? [{
-      icon: <BarChart3 className="h-5 w-5" />,
-      label: "Analytics",
-      path: "/panel/analytics",
-      onClick: () => navigate('/panel/analytics')
-    }] : [{
+    {
       icon: <AlertCircle className="h-5 w-5" />,
       label: "Audit",
       path: "/panel/audit",
       onClick: () => navigate('/panel/audit')
-    }]),
+    },
     {
       icon: <Settings className="h-5 w-5" />,
       label: "Settings",

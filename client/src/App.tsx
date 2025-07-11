@@ -25,7 +25,6 @@ import Settings from "@/pages/settings";
 import AuthPage from "@/pages/auth-page";
 import AppealsPage from "@/pages/appeals";
 import ApiDocs from "@/pages/api-docs";
-import AnalyticsPage from "@/pages/analytics";
 import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 import { WelcomeModal } from "@/components/layout/WelcomeModal";
@@ -93,7 +92,6 @@ function Router() {
             <ProtectedRoute path="/panel/tickets" component={Tickets} />
             <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
             <ProtectedRoute path="/panel/audit" component={Audit} />
-            <ProtectedRoute path="/panel/analytics" component={AnalyticsPage} />
             <ProtectedRoute path="/panel/settings" component={Settings} />
             <ProtectedRoute path="/panel/api-docs" component={ApiDocs} />
             <AuthRoute path="/panel/auth" component={AuthPage} />
@@ -125,7 +123,6 @@ function Router() {
           <ProtectedRoute path="/panel/tickets" component={Tickets} />
           <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
           <ProtectedRoute path="/panel/audit" component={Audit} />
-          <ProtectedRoute path="/panel/analytics" component={AnalyticsPage} />
           <ProtectedRoute path="/panel/settings" component={Settings} />
           <ProtectedRoute path="/panel/api-docs" component={ApiDocs} />
           <AuthRoute path="/panel/auth" component={AuthPage} />
