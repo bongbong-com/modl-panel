@@ -1565,6 +1565,13 @@ const Settings = () => {
       if (settingsObject.panelIconUrl !== undefined) setPanelIconUrl(settingsObject.panelIconUrl);
     }
 
+    // Handle AI moderation settings
+    if (settingsObject.aiModerationSettings) {
+      const aiSettings = settingsObject.aiModerationSettings;
+      const parsedAiSettings = typeof aiSettings === 'string' ? JSON.parse(aiSettings) : JSON.parse(JSON.stringify(aiSettings));
+      setAiModerationSettings(parsedAiSettings);
+    }
+
     // After a short delay, reset the flag to allow auto-saving
     setTimeout(() => {
       justLoadedFromServerRef.current = false;
@@ -2767,8 +2774,6 @@ const Settings = () => {
                 setSelectedTicketFormType={setSelectedTicketFormType}
                 aiModerationSettings={aiModerationSettings}
                 setAiModerationSettings={setAiModerationSettings}
-                aiPunishmentConfigs={aiModerationSettings.aiPunishmentConfigs}
-                setAiPunishmentConfigs={(configs) => setAiModerationSettings(prev => ({ ...prev, aiPunishmentConfigs: configs }))}
                 punishmentTypesState={punishmentTypes}
                 onEditSection={onEditSection}
                 onDeleteSection={onDeleteSection}

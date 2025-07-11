@@ -80,8 +80,6 @@ interface TicketSettingsProps {
   // AI Moderation State
   aiModerationSettings: any;
   setAiModerationSettings: (value: any) => void;
-  aiPunishmentConfigs: any;
-  setAiPunishmentConfigs: (value: any) => void;
   punishmentTypesState: any[];
 }
 
@@ -106,8 +104,6 @@ const TicketSettings = ({
   setSelectedTicketFormType,
   aiModerationSettings,
   setAiModerationSettings,
-  aiPunishmentConfigs,
-  setAiPunishmentConfigs,
   punishmentTypesState
 }: TicketSettingsProps) => {
   // Collapsible state
@@ -1001,20 +997,23 @@ const TicketSettings = ({
                     <div className="space-y-4">
                       {/* Current AI Punishment Types */}
                       <div className="space-y-3">
-                        {Object.values(aiPunishmentConfigs || {}).map((punishmentType: any) => (
+                        {Object.values(aiModerationSettings.aiPunishmentConfigs || {}).map((punishmentType: any) => (
                           <div key={punishmentType.id} className="flex items-start justify-between p-4 border rounded-lg bg-card">
                             <div className="flex-1 space-y-2">
                               <div className="flex items-center gap-3">
                                 <Switch
                                   checked={punishmentType.enabled}
                                   onCheckedChange={(checked) => {
-                                    setAiPunishmentConfigs({
-                                      ...aiPunishmentConfigs,
-                                      [punishmentType.id]: {
-                                        ...punishmentType,
-                                        enabled: checked
+                                    setAiModerationSettings((prev: any) => ({
+                                      ...prev,
+                                      aiPunishmentConfigs: {
+                                        ...prev.aiPunishmentConfigs,
+                                        [punishmentType.id]: {
+                                          ...punishmentType,
+                                          enabled: checked
+                                        }
                                       }
-                                    });
+                                    }));
                                   }}
                                 />
                                 <div>
@@ -1040,9 +1039,11 @@ const TicketSettings = ({
                                 variant="destructive"
                                 size="sm"
                                 onClick={() => {
-                                  const newConfigs = { ...aiPunishmentConfigs };
-                                  delete newConfigs[punishmentType.id];
-                                  setAiPunishmentConfigs(newConfigs);
+                                  setAiModerationSettings((prev: any) => {
+                                    const newConfigs = { ...prev.aiPunishmentConfigs };
+                                    delete newConfigs[punishmentType.id];
+                                    return { ...prev, aiPunishmentConfigs: newConfigs };
+                                  });
                                 }}
                               >
                                 Remove
@@ -1051,7 +1052,7 @@ const TicketSettings = ({
                           </div>
                         ))}
 
-                        {Object.keys(aiPunishmentConfigs || {}).length === 0 && (
+                        {Object.keys(aiModerationSettings.aiPunishmentConfigs || {}).length === 0 && (
                           <div className="text-center py-8 text-muted-foreground">
                             <p className="text-sm">No AI punishment types configured.</p>
                             <p className="text-xs">Add punishment types for the AI to reference when analyzing reports.</p>
