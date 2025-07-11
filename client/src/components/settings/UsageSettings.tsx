@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HardDrive, Search, Filter, Trash2, Download, FolderOpen, Calendar, AlertCircle } from 'lucide-react';
+import { HardDrive, Search, Filter, Trash2, Download, FolderOpen, Calendar, AlertCircle, Settings, CreditCard, TrendingUp } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Label } from 'modl-shared-web/components/ui/label';
@@ -33,13 +33,48 @@ interface StorageUsage {
     backup: number;
     other: number;
   };
+  quota?: {
+    totalUsed: number;
+    totalUsedFormatted: string;
+    baseLimit: number;
+    baseLimitFormatted: string;
+    overageLimit: number;
+    overageLimitFormatted: string;
+    totalLimit: number;
+    totalLimitFormatted: string;
+    overageUsed: number;
+    overageUsedFormatted: string;
+    overageCost: number;
+    isPaid: boolean;
+    canUpload: boolean;
+    usagePercentage: number;
+    baseUsagePercentage: number;
+  };
+  pricing?: {
+    overagePricePerGB: number;
+    currency: string;
+    period: string;
+  };
+}
+
+interface StorageSettings {
+  overageLimit: number;
+  overageEnabled: boolean;
+  isPaid: boolean;
+  limits: {
+    freeLimit: number;
+    paidLimit: number;
+    defaultOverageLimit: number;
+  };
 }
 
 const UsageSettings = () => {
   const { toast } = useToast();
   const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
+  const [storageSettings, setStorageSettings] = useState<StorageSettings | null>(null);
   const [files, setFiles] = useState<StorageFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -48,9 +83,12 @@ const UsageSettings = () => {
   const [fileToDelete, setFileToDelete] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'date'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showStorageSettings, setShowStorageSettings] = useState(false);
+  const [newOverageLimit, setNewOverageLimit] = useState<number>(0);
 
   useEffect(() => {
     fetchStorageData();
+    fetchStorageSettings();
   }, []);
 
   const fetchStorageData = async () => {
@@ -75,6 +113,54 @@ const UsageSettings = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStorageSettings = async () => {
+    try {
+      const response = await fetch('/api/panel/storage/settings');
+      const settings = await response.json();
+      setStorageSettings(settings);
+      setNewOverageLimit(settings.overageLimit);
+    } catch (error) {
+      console.error('Error fetching storage settings:', error);
+    }
+  };
+
+  const updateStorageSettings = async () => {
+    try {
+      setSettingsLoading(true);
+      
+      const response = await fetch('/api/panel/storage/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          overageLimit: newOverageLimit,
+          overageEnabled: true,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update settings');
+      }
+      
+      await fetchStorageSettings();
+      await fetchStorageData(); // Refresh usage data
+      setShowStorageSettings(false);
+      
+      toast({
+        title: "Success",
+        description: "Storage settings updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating storage settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update storage settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -207,41 +293,104 @@ const UsageSettings = () => {
     <div className="space-y-6">
       {/* Storage Overview */}
       {storageUsage && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <HardDrive className="h-5 w-5 mr-2" />
-                Storage Usage
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <HardDrive className="h-5 w-5 mr-2" />
+                  Storage Usage
+                </div>
+                {storageUsage.quota?.isPaid && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowStorageSettings(true)}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Used: {formatFileSize(storageUsage.totalUsed)}</span>
-                    <span>Total: {formatFileSize(storageUsage.totalQuota)}</span>
-                  </div>
-                  <Progress 
-                    value={(storageUsage.totalUsed / storageUsage.totalQuota) * 100}
-                    className="h-2"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  {Object.entries(storageUsage.byType).map(([type, size]) => (
-                    <div key={type} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center space-x-2">
-                        {getTypeIcon(type)}
-                        <span className="capitalize">{type}</span>
+                {storageUsage.quota ? (
+                  <>
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>Used: {storageUsage.quota.totalUsedFormatted}</span>
+                        <span>Limit: {storageUsage.quota.totalLimitFormatted}</span>
                       </div>
-                      <span>{formatFileSize(size)}</span>
+                      <Progress 
+                        value={storageUsage.quota.usagePercentage}
+                        className="h-2"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {storageUsage.quota.usagePercentage}% used
+                      </div>
                     </div>
-                  ))}
-                </div>
+                    
+                    {storageUsage.quota.isPaid && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Base Storage:</span>
+                          <span>{storageUsage.quota.baseLimitFormatted}</span>
+                        </div>
+                        {storageUsage.quota.overageUsed > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span>Overage Used:</span>
+                            <span>{storageUsage.quota.overageUsedFormatted}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm">
+                          <span>Overage Limit:</span>
+                          <span>{storageUsage.quota.overageLimitFormatted}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span>Used: {formatFileSize(storageUsage.totalUsed)}</span>
+                      <span>Total: {formatFileSize(storageUsage.totalQuota)}</span>
+                    </div>
+                    <Progress 
+                      value={(storageUsage.totalUsed / storageUsage.totalQuota) * 100}
+                      className="h-2"
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {storageUsage.quota?.isPaid && storageUsage.quota.overageUsed > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Overage Billing
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Overage Used:</span>
+                    <span>{storageUsage.quota.overageUsedFormatted}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Cost This Month:</span>
+                    <span className="font-semibold">${storageUsage.quota.overageCost}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    ${storageUsage.pricing?.overagePricePerGB}/GB/month
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -261,10 +410,41 @@ const UsageSettings = () => {
                   <span>Filtered:</span>
                   <span>{filteredAndSortedFiles.length}</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span>Can Upload:</span>
+                  <span className={storageUsage.quota?.canUpload ? 'text-green-600' : 'text-red-600'}>
+                    {storageUsage.quota?.canUpload ? 'Yes' : 'No'}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Storage Breakdown */}
+      {storageUsage && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <TrendingUp className="h-5 w-5 mr-2" />
+              Storage Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(storageUsage.byType).map(([type, size]) => (
+                <div key={type} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2">
+                    {getTypeIcon(type)}
+                    <span className="capitalize">{type}</span>
+                  </div>
+                  <span>{formatFileSize(size)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* File Management Controls */}
@@ -463,6 +643,72 @@ const UsageSettings = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Storage Settings Dialog */}
+      <AlertDialog open={showStorageSettings} onOpenChange={setShowStorageSettings}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Storage Settings</AlertDialogTitle>
+            <AlertDialogDescription>
+              Configure your storage overage limits. You'll be charged ${storageUsage?.pricing?.overagePricePerGB}/GB/month for storage above your base limit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="overage-limit">Overage Limit</Label>
+              <div className="mt-2">
+                <Input
+                  id="overage-limit"
+                  type="number"
+                  placeholder="Enter overage limit in GB"
+                  value={Math.round(newOverageLimit / (1024 * 1024 * 1024))}
+                  onChange={(e) => setNewOverageLimit(parseInt(e.target.value) * 1024 * 1024 * 1024)}
+                  min="0"
+                  max="1000"
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Maximum additional storage allowed beyond your base {storageUsage?.quota?.baseLimitFormatted} limit
+                </p>
+              </div>
+            </div>
+
+            {storageSettings && (
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <h4 className="font-medium text-sm mb-2">Current Limits</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Base Storage:</span>
+                    <span>{storageUsage?.quota?.baseLimitFormatted}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Overage Limit:</span>
+                    <span>{formatFileSize(newOverageLimit)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>Total Limit:</span>
+                    <span>{formatFileSize((storageUsage?.quota?.baseLimit || 0) + newOverageLimit)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Important:</strong> Setting a higher overage limit will allow more storage usage, which may result in additional charges. Monitor your usage regularly.
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={updateStorageSettings}
+              disabled={settingsLoading}
+            >
+              {settingsLoading ? 'Saving...' : 'Save Settings'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

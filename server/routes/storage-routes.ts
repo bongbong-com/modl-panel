@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { getStorageQuota, getStorageBreakdown, formatBytes, STORAGE_LIMITS } from '../services/storage-quota-service';
 
 const router = Router();
 
@@ -86,6 +87,11 @@ const deleteFilesSchema = z.object({
   fileIds: z.array(z.string()).min(1).max(100),
 });
 
+const updateStorageSettingsSchema = z.object({
+  overageLimit: z.number().min(0).max(1000 * 1024 * 1024 * 1024), // Max 1TB overage
+  overageEnabled: z.boolean(),
+});
+
 interface StorageFile {
   id: string;
   name: string;
@@ -126,52 +132,70 @@ const getServerName = (req: Request): string => {
   return serverName;
 };
 
-// Get storage usage statistics
+// Get storage usage statistics with quota information
 router.get('/usage', async (req: Request, res: Response) => {
   try {
-    // Initialize AWS SDK
-    await initializeAwsSdk();
-    
     if (!BUCKET_NAME) {
       return res.status(500).json({ error: 'Wasabi storage not configured' });
     }
 
     const serverName = getServerName(req);
     
-    // List all objects for the server
-    const listParams = {
-      Bucket: BUCKET_NAME,
-      Prefix: serverName,
-      MaxKeys: 1000,
-    };
-
-    const command = new ListObjectsV2Command(listParams);
-    const response = await s3Client.send(command);
+    // Get user's billing status to determine if they're paid
+    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
     
-    const objects = response.Contents || [];
+    // Get custom overage limit from user settings (implement this based on your settings storage)
+    const customOverageLimit = undefined; // TODO: Get from user settings
     
-    // Calculate usage by type
-    const usage: StorageUsage = {
-      totalUsed: 0,
-      totalQuota: 10 * 1024 * 1024 * 1024, // 10GB default quota
+    // Get storage quota information
+    const quota = await getStorageQuota(serverName, isPaidUser, customOverageLimit);
+    
+    // Get detailed breakdown
+    const breakdown = await getStorageBreakdown(serverName);
+    
+    const response = {
+      // Quota information
+      quota: {
+        totalUsed: quota.totalUsed,
+        totalUsedFormatted: formatBytes(quota.totalUsed),
+        baseLimit: quota.baseLimit,
+        baseLimitFormatted: formatBytes(quota.baseLimit),
+        overageLimit: quota.overageLimit,
+        overageLimitFormatted: formatBytes(quota.overageLimit),
+        totalLimit: quota.totalLimit,
+        totalLimitFormatted: formatBytes(quota.totalLimit),
+        overageUsed: quota.overageUsed,
+        overageUsedFormatted: formatBytes(quota.overageUsed),
+        overageCost: quota.overageCost,
+        isPaid: quota.isPaid,
+        canUpload: quota.canUpload,
+        usagePercentage: Math.round((quota.totalUsed / quota.totalLimit) * 100),
+        baseUsagePercentage: Math.round((quota.totalUsed / quota.baseLimit) * 100),
+      },
+      
+      // Legacy format for backward compatibility
+      totalUsed: quota.totalUsed,
+      totalQuota: quota.totalLimit,
       byType: {
-        ticket: 0,
-        evidence: 0,
-        logs: 0,
-        backup: 0,
-        other: 0,
+        ticket: breakdown.byType.tickets || 0,
+        evidence: breakdown.byType.evidence || 0,
+        logs: breakdown.byType.other || 0, // Map other to logs for compatibility
+        backup: 0, // Not used currently
+        other: breakdown.byType.articles + breakdown.byType.appeals + breakdown.byType['server-icons'],
+      },
+      
+      // Detailed breakdown
+      breakdown: breakdown.byType,
+      
+      // Pricing information
+      pricing: {
+        overagePricePerGB: 0.05,
+        currency: 'USD',
+        period: 'month',
       },
     };
 
-    objects.forEach(obj => {
-      const size = obj.Size || 0;
-      const type = getFileType(obj.Key || '');
-      
-      usage.totalUsed += size;
-      usage.byType[type] += size;
-    });
-
-    res.json(usage);
+    res.json(response);
   } catch (error) {
     console.error('Error fetching storage usage:', error);
     console.error('Server name:', getServerName(req));
@@ -376,6 +400,106 @@ router.get('/files/:fileId(*)/metadata', async (req: Request, res: Response) => 
   } catch (error) {
     console.error('Error fetching file metadata:', error);
     res.status(500).json({ error: 'Failed to fetch file metadata' });
+  }
+});
+
+// Get storage settings for the current user
+router.get('/settings', async (req: Request, res: Response) => {
+  try {
+    const serverName = getServerName(req);
+    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    
+    // TODO: Get actual settings from database
+    // For now, return defaults
+    const settings = {
+      overageLimit: STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT,
+      overageEnabled: isPaidUser,
+      isPaid: isPaidUser,
+      limits: {
+        freeLimit: STORAGE_LIMITS.FREE_TIER,
+        paidLimit: STORAGE_LIMITS.PAID_TIER,
+        defaultOverageLimit: STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT,
+      },
+    };
+    
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching storage settings:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch storage settings',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Update storage settings (paid users only)
+router.put('/settings', async (req: Request, res: Response) => {
+  try {
+    const serverName = getServerName(req);
+    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    
+    if (!isPaidUser) {
+      return res.status(403).json({ error: 'Storage settings are only available for paid users' });
+    }
+    
+    const { overageLimit, overageEnabled } = updateStorageSettingsSchema.parse(req.body);
+    
+    // TODO: Save settings to database
+    // For now, just validate and return success
+    console.log(`Updating storage settings for ${serverName}:`, { overageLimit, overageEnabled });
+    
+    res.json({
+      success: true,
+      message: 'Storage settings updated successfully',
+      settings: {
+        overageLimit,
+        overageEnabled,
+        overageLimitFormatted: formatBytes(overageLimit),
+      },
+    });
+  } catch (error) {
+    console.error('Error updating storage settings:', error);
+    res.status(500).json({ 
+      error: 'Failed to update storage settings',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Check if a file can be uploaded
+router.post('/check-upload', async (req: Request, res: Response) => {
+  try {
+    const { fileSize } = z.object({ fileSize: z.number().min(0) }).parse(req.body);
+    
+    const serverName = getServerName(req);
+    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    
+    // TODO: Get custom overage limit from user settings
+    const customOverageLimit = undefined;
+    
+    const { canUploadFile } = await import('../services/storage-quota-service');
+    const result = await canUploadFile(serverName, isPaidUser, fileSize, customOverageLimit);
+    
+    res.json({
+      allowed: result.allowed,
+      reason: result.reason,
+      quota: result.quota ? {
+        totalUsed: result.quota.totalUsed,
+        totalUsedFormatted: formatBytes(result.quota.totalUsed),
+        totalLimit: result.quota.totalLimit,
+        totalLimitFormatted: formatBytes(result.quota.totalLimit),
+        canUpload: result.quota.canUpload,
+        isPaid: result.quota.isPaid,
+        afterUpload: result.quota.totalUsed + fileSize,
+        afterUploadFormatted: formatBytes(result.quota.totalUsed + fileSize),
+      } : undefined,
+    });
+  } catch (error) {
+    console.error('Error checking upload permission:', error);
+    res.status(500).json({ 
+      error: 'Failed to check upload permission',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
