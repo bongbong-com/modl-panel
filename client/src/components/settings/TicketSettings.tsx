@@ -147,7 +147,7 @@ const TicketSettings = ({
   // AI Punishment Types states
   const [isAddAIPunishmentDialogOpen, setIsAddAIPunishmentDialogOpen] = useState(false);
   const [selectedAIPunishmentType, setSelectedAIPunishmentType] = useState<any | null>(null);
-  const [newAIPunishmentName, setNewAIPunishmentName] = useState('');
+  const [selectedPunishmentTypeId, setSelectedPunishmentTypeId] = useState<number | null>(null);
   const [newAIPunishmentDescription, setNewAIPunishmentDescription] = useState('');
 
   // Ticket form management functions
@@ -953,10 +953,26 @@ const TicketSettings = ({
 
                   {/* AI Punishment Types Management Section */}
                   <div className="space-y-4">
-                    <h4 className="text-base font-medium">AI Punishment Types</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Manage which punishment types the AI can reference when analyzing reports. Only enabled punishment types will be available to the AI moderation system.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-base font-medium">AI Punishment Types</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Manage which punishment types the AI can reference when analyzing reports. Only enabled punishment types will be available to the AI moderation system.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPunishmentTypeId(null);
+                          setNewAIPunishmentDescription('');
+                          setIsAddAIPunishmentDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Type
+                      </Button>
+                    </div>
 
                     <div className="space-y-4">
                       {/* Current AI Punishment Types */}
@@ -991,7 +1007,6 @@ const TicketSettings = ({
                                 size="sm"
                                 onClick={() => {
                                   setSelectedAIPunishmentType(punishmentType);
-                                  setNewAIPunishmentName(punishmentType.name);
                                   setNewAIPunishmentDescription(punishmentType.aiDescription);
                                 }}
                               >
@@ -1019,19 +1034,6 @@ const TicketSettings = ({
                           </div>
                         )}
                       </div>
-
-                      {/* Add New AI Punishment Type Button */}
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setNewAIPunishmentName('');
-                          setNewAIPunishmentDescription('');
-                          setIsAddAIPunishmentDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add AI Punishment Type
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1046,38 +1048,75 @@ const TicketSettings = ({
         <Dialog open={isAddAIPunishmentDialogOpen} onOpenChange={setIsAddAIPunishmentDialogOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Add AI Punishment Type</DialogTitle>
+              <DialogTitle>Enable AI Punishment Type</DialogTitle>
               <DialogDescription>
-                Create a new punishment type that the AI can detect and recommend.
+                {selectedPunishmentTypeId ? (() => {
+                  const selectedType = punishmentTypesState.find(t => t.id === selectedPunishmentTypeId);
+                  return selectedType ? `Configure AI description for "${selectedType.name}" punishment type.` : 'Configure AI description for the selected punishment type.';
+                })() : 'Select a punishment type to enable for AI analysis.'}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="ai-punishment-name">Name</Label>
-                <Input
-                  id="ai-punishment-name"
-                  placeholder="e.g., Chat Abuse, Anti Social"
-                  value={newAIPunishmentName}
-                  onChange={(e) => setNewAIPunishmentName(e.target.value)}
-                />
-              </div>
+              {/* Show selected punishment type details */}
+              {selectedPunishmentTypeId && (() => {
+                const selectedType = punishmentTypesState.find(t => t.id === selectedPunishmentTypeId);
+                return selectedType ? (
+                  <div className="bg-muted/30 p-3 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h5 className="font-medium">{selectedType.name}</h5>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {selectedType.category}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            Ordinal: {selectedType.ordinal}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Punishment Type Selection */}
+              {!selectedPunishmentTypeId && (
+                <div className="space-y-2">
+                  <Label>Select Punishment Type</Label>
+                  <Select value={selectedPunishmentTypeId?.toString() || ''} onValueChange={(value) => setSelectedPunishmentTypeId(parseInt(value))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a punishment type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {punishmentTypesState
+                        .filter(pt => !Object.values(aiPunishmentConfigs || {}).some((config: any) => config.name === pt.name))
+                        .map((punishmentType) => (
+                          <SelectItem key={punishmentType.id} value={punishmentType.id.toString()}>
+                            {punishmentType.name} ({punishmentType.category})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* AI Description */}
-              <div className="space-y-2">
-                <Label htmlFor="ai-punishment-desc">AI Description</Label>
-                <Textarea
-                  id="ai-punishment-desc"
-                  className="min-h-[100px]"
-                  placeholder="Describe when this punishment type should be used. Be specific about the behaviors or violations it covers."
-                  value={newAIPunishmentDescription}
-                  onChange={(e) => setNewAIPunishmentDescription(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  This description helps the AI understand when to suggest this punishment type.
-                </p>
-              </div>
+              {selectedPunishmentTypeId && (
+                <div className="space-y-2">
+                  <Label htmlFor="ai-punishment-desc">AI Description</Label>
+                  <Textarea
+                    id="ai-punishment-desc"
+                    className="min-h-[100px]"
+                    placeholder="Describe when this punishment type should be used. Be specific about the behaviors or violations it covers."
+                    value={newAIPunishmentDescription}
+                    onChange={(e) => setNewAIPunishmentDescription(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This description helps the AI understand when to suggest this punishment type.
+                  </p>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
@@ -1085,7 +1124,7 @@ const TicketSettings = ({
                 variant="outline"
                 onClick={() => {
                   setIsAddAIPunishmentDialogOpen(false);
-                  setNewAIPunishmentName('');
+                  setSelectedPunishmentTypeId(null);
                   setNewAIPunishmentDescription('');
                 }}
               >
@@ -1093,25 +1132,28 @@ const TicketSettings = ({
               </Button>
               <Button
                 onClick={() => {
-                  if (newAIPunishmentName.trim() && newAIPunishmentDescription.trim()) {
-                    const newId = Date.now().toString();
-                    setAiPunishmentConfigs({
-                      ...aiPunishmentConfigs,
-                      [newId]: {
-                        id: newId,
-                        name: newAIPunishmentName.trim(),
-                        aiDescription: newAIPunishmentDescription.trim(),
-                        enabled: true
-                      }
-                    });
+                  if (selectedPunishmentTypeId && newAIPunishmentDescription.trim()) {
+                    const selectedType = punishmentTypesState.find(t => t.id === selectedPunishmentTypeId);
+                    if (selectedType) {
+                      const newId = Date.now().toString();
+                      setAiPunishmentConfigs({
+                        ...aiPunishmentConfigs,
+                        [newId]: {
+                          id: newId,
+                          name: selectedType.name,
+                          aiDescription: newAIPunishmentDescription.trim(),
+                          enabled: true
+                        }
+                      });
+                    }
                     setIsAddAIPunishmentDialogOpen(false);
-                    setNewAIPunishmentName('');
+                    setSelectedPunishmentTypeId(null);
                     setNewAIPunishmentDescription('');
                   }
                 }}
-                disabled={!newAIPunishmentName.trim() || !newAIPunishmentDescription.trim()}
+                disabled={!selectedPunishmentTypeId || !newAIPunishmentDescription.trim()}
               >
-                Add Type
+                Enable for AI
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1125,19 +1167,18 @@ const TicketSettings = ({
             <DialogHeader>
               <DialogTitle>Edit AI Punishment Configuration</DialogTitle>
               <DialogDescription>
-                Modify the AI punishment type configuration.
+                Modify the AI description for "{selectedAIPunishmentType.name}" punishment type.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="edit-ai-punishment-name">Name</Label>
-                <Input
-                  id="edit-ai-punishment-name"
-                  value={newAIPunishmentName}
-                  onChange={(e) => setNewAIPunishmentName(e.target.value)}
-                />
+              {/* Show punishment type details */}
+              <div className="bg-muted/30 p-3 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h5 className="font-medium">{selectedAIPunishmentType.name}</h5>
+                  </div>
+                </div>
               </div>
 
               {/* AI Description */}
@@ -1160,7 +1201,6 @@ const TicketSettings = ({
                 variant="outline"
                 onClick={() => {
                   setSelectedAIPunishmentType(null);
-                  setNewAIPunishmentName('');
                   setNewAIPunishmentDescription('');
                 }}
               >
@@ -1168,21 +1208,19 @@ const TicketSettings = ({
               </Button>
               <Button
                 onClick={() => {
-                  if (selectedAIPunishmentType && newAIPunishmentName.trim() && newAIPunishmentDescription.trim()) {
+                  if (selectedAIPunishmentType && newAIPunishmentDescription.trim()) {
                     setAiPunishmentConfigs({
                       ...aiPunishmentConfigs,
                       [selectedAIPunishmentType.id]: {
                         ...selectedAIPunishmentType,
-                        name: newAIPunishmentName.trim(),
                         aiDescription: newAIPunishmentDescription.trim()
                       }
                     });
                     setSelectedAIPunishmentType(null);
-                    setNewAIPunishmentName('');
                     setNewAIPunishmentDescription('');
                   }
                 }}
-                disabled={!newAIPunishmentName.trim() || !newAIPunishmentDescription.trim()}
+                disabled={!newAIPunishmentDescription.trim()}
               >
                 Save Changes
               </Button>
