@@ -12,13 +12,33 @@ export interface StorageQuotaRequest extends Request {
 /**
  * Middleware to check storage quotas before file uploads
  */
+// Helper function to check if user has premium subscription
+const isPremiumUser = (req: Request): boolean => {
+  const server = (req as any).modlServer;
+  if (!server) return false;
+  
+  // Check for active premium subscription
+  if (server.subscription_status === 'active' && server.plan === 'premium') {
+    return true;
+  }
+  
+  // Check for canceled subscription within grace period
+  if (server.subscription_status === 'canceled' && server.plan === 'premium' && server.current_period_end) {
+    const periodEnd = new Date(server.current_period_end);
+    const now = new Date();
+    return periodEnd > now; // Still within grace period
+  }
+  
+  return false;
+};
+
 export const checkStorageQuota = async (req: StorageQuotaRequest, res: Response, next: NextFunction) => {
   try {
     // Get server name from request
-    const serverName = (req as any).session?.serverName || req.headers.host?.split('.')[0] || 'default';
+    const serverName = (req as any).modlServer?.customDomain || req.headers.host?.split('.')[0] || 'default';
     
-    // Get user's billing status
-    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    // Get user's subscription status
+    const isPaidUser = isPremiumUser(req);
     
     // Get file size from request
     let fileSize = 0;
@@ -90,8 +110,8 @@ export const checkStorageQuota = async (req: StorageQuotaRequest, res: Response,
 export const checkStorageQuotaBySize = (fileSizeField: string = 'fileSize') => {
   return async (req: StorageQuotaRequest, res: Response, next: NextFunction) => {
     try {
-      const serverName = (req as any).session?.serverName || req.headers.host?.split('.')[0] || 'default';
-      const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+      const serverName = (req as any).modlServer?.customDomain || req.headers.host?.split('.')[0] || 'default';
+      const isPaidUser = isPremiumUser(req);
       
       const fileSize = parseInt(req.body[fileSizeField] || '0', 10);
       
@@ -137,8 +157,8 @@ export const checkStorageQuotaBySize = (fileSizeField: string = 'fileSize') => {
  */
 export const getStorageQuotaInfo = async (req: StorageQuotaRequest, res: Response, next: NextFunction) => {
   try {
-    const serverName = (req as any).session?.serverName || req.headers.host?.split('.')[0] || 'default';
-    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    const serverName = (req as any).modlServer?.customDomain || req.headers.host?.split('.')[0] || 'default';
+    const isPaidUser = isPremiumUser(req);
     
     const { getStorageQuota } = await import('../services/storage-quota-service');
     const quota = await getStorageQuota(serverName, isPaidUser);

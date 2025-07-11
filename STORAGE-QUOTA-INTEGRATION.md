@@ -63,12 +63,28 @@ router.post('/upload/evidence',
 
 ### Step 2: Update User Billing Status Detection
 
-In your routes, ensure user billing status is properly detected:
+The system automatically detects premium subscriptions from `req.modlServer`:
 
 ```typescript
-// Example: How to determine if user is paid
-const isPaidUser = req.session?.user?.billingStatus === 'active' || 
-                  req.session?.user?.subscriptionStatus === 'active';
+// Correct way to check for premium subscription
+const isPremiumUser = (req: Request): boolean => {
+  const server = req.modlServer;
+  if (!server) return false;
+  
+  // Check for active premium subscription
+  if (server.subscription_status === 'active' && server.plan === 'premium') {
+    return true;
+  }
+  
+  // Check for canceled subscription within grace period
+  if (server.subscription_status === 'canceled' && server.plan === 'premium' && server.current_period_end) {
+    const periodEnd = new Date(server.current_period_end);
+    const now = new Date();
+    return periodEnd > now; // Still within grace period
+  }
+  
+  return false;
+};
 ```
 
 ### Step 3: Store User Storage Settings

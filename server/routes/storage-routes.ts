@@ -63,7 +63,9 @@ const BUCKET_NAME = process.env.WASABI_BUCKET_NAME || '';
 router.get('/debug', async (req: Request, res: Response) => {
   try {
     const serverName = getServerName(req);
+    const isPaidUser = isPremiumUser(req);
     const hasCredentials = !!(process.env.WASABI_ACCESS_KEY && process.env.WASABI_SECRET_KEY);
+    const server = (req as any).modlServer;
     
     res.json({
       configured: hasCredentials && !!BUCKET_NAME,
@@ -73,6 +75,14 @@ router.get('/debug', async (req: Request, res: Response) => {
       hasSecretKey: !!process.env.WASABI_SECRET_KEY,
       endpoint: WASABI_ENDPOINT,
       region: WASABI_REGION,
+      // Billing/subscription debug info
+      billing: {
+        isPremium: isPaidUser,
+        subscriptionStatus: server?.subscription_status || 'unknown',
+        plan: server?.plan || 'unknown',
+        currentPeriodEnd: server?.current_period_end || null,
+        hasModlServer: !!server,
+      },
     });
   } catch (error) {
     res.status(500).json({ 
@@ -127,9 +137,29 @@ const getFileType = (path: string): StorageFile['type'] => {
 
 // Helper function to get server name from request
 const getServerName = (req: Request): string => {
-  // Extract server name from session or subdomain
-  const serverName = (req as any).session?.serverName || req.headers.host?.split('.')[0] || 'default';
+  // Extract server name from modlServer or subdomain
+  const serverName = (req as any).modlServer?.customDomain || req.headers.host?.split('.')[0] || 'default';
   return serverName;
+};
+
+// Helper function to check if user has premium subscription
+const isPremiumUser = (req: Request): boolean => {
+  const server = (req as any).modlServer;
+  if (!server) return false;
+  
+  // Check for active premium subscription
+  if (server.subscription_status === 'active' && server.plan === 'premium') {
+    return true;
+  }
+  
+  // Check for canceled subscription within grace period
+  if (server.subscription_status === 'canceled' && server.plan === 'premium' && server.current_period_end) {
+    const periodEnd = new Date(server.current_period_end);
+    const now = new Date();
+    return periodEnd > now; // Still within grace period
+  }
+  
+  return false;
 };
 
 // Get storage usage statistics with quota information
@@ -141,8 +171,8 @@ router.get('/usage', async (req: Request, res: Response) => {
 
     const serverName = getServerName(req);
     
-    // Get user's billing status to determine if they're paid
-    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    // Get user's subscription status to determine if they're premium
+    const isPaidUser = isPremiumUser(req);
     
     // Get custom overage limit from user settings (implement this based on your settings storage)
     const customOverageLimit = undefined; // TODO: Get from user settings
@@ -407,7 +437,7 @@ router.get('/files/:fileId(*)/metadata', async (req: Request, res: Response) => 
 router.get('/settings', async (req: Request, res: Response) => {
   try {
     const serverName = getServerName(req);
-    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    const isPaidUser = isPremiumUser(req);
     
     // TODO: Get actual settings from database
     // For now, return defaults
@@ -436,7 +466,7 @@ router.get('/settings', async (req: Request, res: Response) => {
 router.put('/settings', async (req: Request, res: Response) => {
   try {
     const serverName = getServerName(req);
-    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    const isPaidUser = isPremiumUser(req);
     
     if (!isPaidUser) {
       return res.status(403).json({ error: 'Storage settings are only available for paid users' });
@@ -472,7 +502,7 @@ router.post('/check-upload', async (req: Request, res: Response) => {
     const { fileSize } = z.object({ fileSize: z.number().min(0) }).parse(req.body);
     
     const serverName = getServerName(req);
-    const isPaidUser = (req as any).session?.user?.billingStatus === 'active' || false;
+    const isPaidUser = isPremiumUser(req);
     
     // TODO: Get custom overage limit from user settings
     const customOverageLimit = undefined;
