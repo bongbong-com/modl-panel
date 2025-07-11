@@ -1253,11 +1253,7 @@ const Settings = () => {
       const response = await fetch('/api/panel/settings/ai-moderation-settings');
       if (response.ok) {
         const data = await response.json();
-        const { aiPunishmentConfigs, ...baseSettings } = data.data;
-        setAiModerationSettings(baseSettings);
-        if (aiPunishmentConfigs) {
-          setAiPunishmentConfigs(aiPunishmentConfigs);
-        }
+        setAiModerationSettings(data.data);
       } else {
         console.error('Failed to load AI moderation settings:', response.status);
       }
@@ -1273,7 +1269,7 @@ const Settings = () => {
     try {
       const payload = {
         ...settings,
-        aiPunishmentConfigs: configs || aiPunishmentConfigs
+        aiPunishmentConfigs: configs || settings.aiPunishmentConfigs
       };
       
       const response = await fetch('/api/panel/settings/ai-moderation-settings', {
@@ -1311,14 +1307,23 @@ const Settings = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setAiPunishmentConfigs(data.data);
+        setAiModerationSettings(prev => ({
+          ...prev,
+          aiPunishmentConfigs: data.data
+        }));
       } else {
         console.error('Failed to load AI punishment types:', response.status);
-        setAiPunishmentConfigs({});
+        setAiModerationSettings(prev => ({
+          ...prev,
+          aiPunishmentConfigs: {}
+        }));
       }
     } catch (error) {
       console.error('Error loading AI punishment types:', error);
-      setAiPunishmentConfigs({});
+      setAiModerationSettings(prev => ({
+        ...prev,
+        aiPunishmentConfigs: {}
+      }));
     }
   };
 
@@ -1452,13 +1457,13 @@ const Settings = () => {
 
   // Auto-save AI punishment configs when they change
   useEffect(() => {
-    if (!isLoadingAiSettings && initialLoadCompletedRef.current && aiPunishmentConfigs) {
+    if (!isLoadingAiSettings && initialLoadCompletedRef.current && aiModerationSettings.aiPunishmentConfigs) {
       const saveTimeout = setTimeout(() => {
-        saveAiModerationSettings(aiModerationSettings, aiPunishmentConfigs);
+        saveAiModerationSettings(aiModerationSettings);
       }, 1000);
       return () => clearTimeout(saveTimeout);
     }
-  }, [aiPunishmentConfigs, aiModerationSettings, isLoadingAiSettings]);
+  }, [aiModerationSettings.aiPunishmentConfigs, aiModerationSettings, isLoadingAiSettings]);
 
   // Define captureInitialSettings first, before it's used anywhere else
   const captureInitialSettings = useCallback(() => {
