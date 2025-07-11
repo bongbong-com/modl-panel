@@ -1471,7 +1471,8 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
           label: 'Appeal Reason',
           description: 'Please explain why you believe this punishment should be reviewed',
           required: true,
-          order: 1
+          order: 1,
+          sectionId: 'appeal_details'
         },
         {
           id: 'evidence',
@@ -1479,7 +1480,8 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
           label: 'Evidence Links (Optional)',
           description: 'Provide links to any screenshots, videos, or other evidence',
           required: false,
-          order: 2
+          order: 2,
+          sectionId: 'supporting_evidence'
         },
         {
           id: 'acknowledge_error',
@@ -1487,6 +1489,27 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
           label: 'I believe this punishment was issued in error',
           description: 'Check this box if you believe you were wrongfully punished',
           required: false,
+          order: 3,
+          sectionId: 'acknowledgment'
+        }
+      ],
+      sections: [
+        {
+          id: 'appeal_details',
+          title: 'Appeal Details',
+          description: 'Provide information about why this punishment should be reviewed',
+          order: 1
+        },
+        {
+          id: 'supporting_evidence',
+          title: 'Supporting Evidence',
+          description: 'Any additional evidence to support your appeal',
+          order: 2
+        },
+        {
+          id: 'acknowledgment',
+          title: 'Acknowledgment',
+          description: 'Please confirm your understanding',
           order: 3
         }
       ]

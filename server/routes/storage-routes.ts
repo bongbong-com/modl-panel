@@ -166,26 +166,10 @@ const isPremiumUser = (req: Request): boolean => {
 // Get storage usage statistics with quota information
 router.get('/usage', async (req: Request, res: Response) => {
   try {
-    if (!BUCKET_NAME) {
-      return res.status(500).json({ error: 'Wasabi storage not configured' });
-    }
-
     const serverName = getServerName(req);
     
-    // Get user's subscription status to determine if they're premium
+    // Always get AI usage data, even if Wasabi is not configured
     const isPaidUser = isPremiumUser(req);
-    
-    // Get custom overage limit from user settings
-    const storageSettings = await getStorageSettings(serverName);
-    const customOverageLimit = storageSettings.overageEnabled ? storageSettings.overageLimit : undefined;
-    
-    // Get storage quota information
-    const quota = await getStorageQuota(serverName, isPaidUser, customOverageLimit);
-    
-    // Get detailed breakdown
-    const breakdown = await getStorageBreakdown(serverName);
-    
-    // Get AI usage for current month
     const aiUsage = await getCurrentMonthAIUsage(serverName);
     
     // Calculate AI quota and costs
@@ -197,6 +181,69 @@ router.get('/usage', async (req: Request, res: Response) => {
       canUseAI: isPaidUser || aiUsage.totalRequests === 0,
       usagePercentage: isPaidUser ? Math.round((aiUsage.totalRequests / 1000) * 100) : 0,
     };
+
+    if (!BUCKET_NAME) {
+      // Return minimal response with AI quota when Wasabi is not configured
+      return res.json({
+        totalUsed: 0,
+        totalQuota: isPaidUser ? STORAGE_LIMITS.PAID_TIER : STORAGE_LIMITS.FREE_TIER,
+        byType: {
+          ticket: 0,
+          evidence: 0,
+          logs: 0,
+          backup: 0,
+          other: 0,
+        },
+        quota: {
+          totalUsed: 0,
+          totalUsedFormatted: '0 B',
+          baseLimit: isPaidUser ? STORAGE_LIMITS.PAID_TIER : STORAGE_LIMITS.FREE_TIER,
+          baseLimitFormatted: formatBytes(isPaidUser ? STORAGE_LIMITS.PAID_TIER : STORAGE_LIMITS.FREE_TIER),
+          overageLimit: isPaidUser ? STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT : 0,
+          overageLimitFormatted: formatBytes(isPaidUser ? STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT : 0),
+          totalLimit: isPaidUser ? STORAGE_LIMITS.PAID_TIER + STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT : STORAGE_LIMITS.FREE_TIER,
+          totalLimitFormatted: formatBytes(isPaidUser ? STORAGE_LIMITS.PAID_TIER + STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT : STORAGE_LIMITS.FREE_TIER),
+          overageUsed: 0,
+          overageUsedFormatted: '0 B',
+          overageCost: 0,
+          isPaid: isPaidUser,
+          canUpload: true,
+          usagePercentage: 0,
+          baseUsagePercentage: 0,
+        },
+        aiQuota: {
+          totalUsed: aiQuota.totalUsed,
+          baseLimit: aiQuota.baseLimit,
+          overageUsed: aiQuota.overageUsed,
+          overageCost: aiQuota.overageCost,
+          canUseAI: aiQuota.canUseAI,
+          usagePercentage: aiQuota.usagePercentage,
+          byService: aiUsage.byService,
+        },
+        pricing: {
+          storage: {
+            overagePricePerGB: 0.05,
+            currency: 'USD',
+            period: 'month',
+          },
+          ai: {
+            overagePricePerRequest: 0.01,
+            currency: 'USD',
+            period: 'month',
+          },
+        },
+      });
+    }
+    
+    // Get custom overage limit from user settings
+    const storageSettings = await getStorageSettings(serverName);
+    const customOverageLimit = storageSettings.overageEnabled ? storageSettings.overageLimit : undefined;
+    
+    // Get storage quota information
+    const quota = await getStorageQuota(serverName, isPaidUser, customOverageLimit);
+    
+    // Get detailed breakdown
+    const breakdown = await getStorageBreakdown(serverName);
     
     const response = {
       // Quota information

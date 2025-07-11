@@ -4,7 +4,7 @@ import { Button } from 'modl-shared-web/components/ui/button';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
-import { useBillingStatus, useCancelSubscription, useUsageData, useUpdateUsageBillingSettings, useResubscribe } from '@/hooks/use-data';
+import { useBillingStatus, useCancelSubscription, useResubscribe } from '@/hooks/use-data';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from 'modl-shared-web/components/ui/skeleton';
 import { 
@@ -92,10 +92,8 @@ const plans: Plan[] = [
 
 const BillingSettings = () => {
   const { data: billingStatus, isLoading: isBillingLoading } = useBillingStatus();
-  const { data: usageData, isLoading: isUsageLoading } = useUsageData();
   const cancelSubscriptionMutation = useCancelSubscription();
   const resubscribeMutation = useResubscribe();
-  const updateUsageBillingMutation = useUpdateUsageBillingSettings();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -186,11 +184,7 @@ const BillingSettings = () => {
   const handleRefreshBillingStatus = async () => {
     setIsSpinning(true);
     try {
-      // Using Promise.all to run both refresh and sync in parallel
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/usage'] })
-      ]);
+      await queryClient.invalidateQueries({ queryKey: ['/api/panel/billing/status'] });
 
       toast({
         title: 'Billing Status Refreshed',
@@ -246,30 +240,6 @@ const BillingSettings = () => {
     }
   };
 
-  const handleUsageBillingToggle = async (enabled: boolean) => {
-    try {
-      const response = await updateUsageBillingMutation.mutateAsync({ enabled });
-      
-      toast({
-        title: enabled ? 'Usage Billing Enabled' : 'Usage Billing Disabled',
-        description: response.message,
-        variant: 'default',
-      });
-      
-      // Force a fresh data fetch to ensure UI is up to date
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['/api/panel/billing/usage'] }),
-        queryClient.refetchQueries({ queryKey: ['/api/panel/billing/status'] })
-      ]);
-    } catch (error: any) {
-      console.error('Error updating usage billing:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to update usage billing settings.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const getCurrentPlan = () => {
     if (!billingStatus) return 'free';
@@ -477,21 +447,6 @@ const BillingSettings = () => {
   const PremiumBillingView = () => {
     const { subscription_status, current_period_end } = billingStatus || {};
 
-    if (isUsageLoading) {
-      return (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-64" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-32 w-full" />
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
 
     return (
       <div className="space-y-6">
@@ -618,112 +573,6 @@ const BillingSettings = () => {
               )}
             </div>
 
-            {/* Usage & Overages Section */}
-            <div className="border-t pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <HardDrive className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Usage & Overages</h3>
-              </div>
-              <p className="text-sm text-muted-foreground mb-6">
-                Track your CDN and AI usage. Enable usage billing to automatically pay for overages.
-              </p>
-              
-              <div className="space-y-6">
-                {/* CDN Usage */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <HardDrive className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">CDN Storage</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {usageData?.cdn?.used || 0} GB / {usageData?.cdn?.limit || 200} GB
-                    </div>
-                  </div>
-                  <Progress 
-                    value={usageData?.cdn?.percentage || 0} 
-                    className="h-2"
-                  />
-                  {usageData?.cdn?.overage > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-orange-600">Overage: {usageData.cdn.overage} GB</span>
-                      <span className="font-medium text-orange-600">${usageData.cdn.overageCost.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground">
-                    Additional storage: $0.05/GB per month
-                  </div>
-                </div>
-
-                {/* AI Usage */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Brain className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">AI Requests</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {usageData?.ai?.used || 0} / {usageData?.ai?.limit || 10000} requests
-                    </div>
-                  </div>
-                  <Progress 
-                    value={usageData?.ai?.percentage || 0} 
-                    className="h-2"
-                  />
-                  {usageData?.ai?.overage > 0 && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-orange-600">Overage: {usageData.ai.overage} requests</span>
-                      <span className="font-medium text-orange-600">${usageData.ai.overageCost.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground">
-                    Additional requests: $0.01 per request
-                  </div>
-                </div>
-
-                {/* Total Overage Cost */}
-                {usageData?.totalOverageCost > 0 && (
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between text-lg font-semibold">
-                      <span>Total Overage Cost</span>
-                      <span className="text-orange-600">${usageData.totalOverageCost.toFixed(2)}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Will be added to your next invoice
-                    </div>
-                  </div>
-                )}
-
-                {/* Usage Billing Settings */}
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <Label htmlFor="usage-billing" className="text-sm font-medium">
-                        Enable Usage Billing
-                      </Label>
-                      <div className="text-xs text-muted-foreground">
-                        Automatically charge for overages on your next invoice
-                      </div>
-                    </div>
-                    <Switch
-                      id="usage-billing"
-                      checked={usageData?.usageBillingEnabled || false}
-                      onCheckedChange={handleUsageBillingToggle}
-                      disabled={updateUsageBillingMutation.isPending}
-                    />
-                  </div>
-                  
-                  {!usageData?.usageBillingEnabled && usageData?.totalOverageCost > 0 && (
-                    <Alert className="mt-4">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        You have ${usageData.totalOverageCost.toFixed(2)} in overages. Enable usage billing to be automatically charged for these overages.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -793,7 +642,7 @@ const BillingSettings = () => {
     );
   };
 
-  if (isBillingLoading || (isPremiumUser() && isUsageLoading)) {
+  if (isBillingLoading) {
     return (
       <div className="space-y-8">
         <div>
