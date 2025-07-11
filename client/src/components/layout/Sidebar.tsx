@@ -392,7 +392,9 @@ const Sidebar = () => {
               ) : searchQuery ? (
                 <div className="max-h-[220px] overflow-y-auto pr-1">
                   {/* Show punishment lookup result first if using # prefix */}
-                  {isPunishmentLookup && punishmentLookupResult && (
+                  {isPunishmentLookup && punishmentLookupResult && (() => {
+                    console.log('Rendering punishment lookup result:', punishmentLookupResult);
+                    return (
                     <div className="mb-3">
                       <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                         Punishment Found
@@ -415,14 +417,14 @@ const Sidebar = () => {
                         <div className="flex flex-col items-start w-full">
                           <div className="flex items-center gap-2 w-full">
                             <span className="font-medium text-primary">
-                              {punishmentLookupResult.playerUsername}
+                              {punishmentLookupResult.playerUsername || punishmentLookupResult.playerUuid || 'Unknown Player'}
                             </span>
                             <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                               {punishmentLookupResult.punishment.type}
                             </Badge>
                           </div>
                           <span className="text-muted-foreground text-[10px] truncate w-full">
-                            {punishmentLookupResult.punishment.reason}
+                            {punishmentLookupResult.punishment.reason || 'No reason provided'}
                           </span>
                           <span className="text-primary text-[10px] font-medium">
                             ID: {punishmentLookupResult.punishment.id}
@@ -430,7 +432,8 @@ const Sidebar = () => {
                         </div>
                       </Button>
                     </div>
-                  )}
+                    );
+                  })()}
                   
                   {/* Show punishment not found message */}
                   {isPunishmentLookup && punishmentError && (
