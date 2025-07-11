@@ -158,13 +158,23 @@ router.get('/staff/:username/details', async (req, res) => {
     const Ticket = db.model('Ticket');
     const Settings = db.model('Settings');
 
-    // Get punishment type settings for proper type mapping
-    const settings = await Settings.findOne({});
+    // Get punishment type settings for proper type mapping (using both storage methods)
     let punishmentTypesConfig = [];
-    if (settings?.settings?.punishmentTypes) {
-      punishmentTypesConfig = typeof settings.settings.punishmentTypes === 'string' 
-        ? JSON.parse(settings.settings.punishmentTypes) 
-        : settings.settings.punishmentTypes;
+    
+    // First try the dedicated punishmentTypes document
+    const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+    if (punishmentTypesDoc?.data) {
+      punishmentTypesConfig = typeof punishmentTypesDoc.data === 'string' 
+        ? JSON.parse(punishmentTypesDoc.data) 
+        : punishmentTypesDoc.data;
+    } else {
+      // Fallback to settings.punishmentTypes
+      const settings = await Settings.findOne({});
+      if (settings?.settings?.punishmentTypes) {
+        punishmentTypesConfig = typeof settings.settings.punishmentTypes === 'string' 
+          ? JSON.parse(settings.settings.punishmentTypes) 
+          : settings.settings.punishmentTypes;
+      }
     }
 
     // Helper function to map punishment type
@@ -183,13 +193,14 @@ router.get('/staff/:username/details', async (req, res) => {
           return punishmentType.name;
         }
         
-        // Final fallback to hardcoded mapping
+        // Final fallback to hardcoded mapping (core administrative types)
         const fallbackMap = {
-          0: 'Warning',
-          1: 'Mute', 
-          2: 'Kick',
-          3: 'Temporary Ban',
-          4: 'Permanent Ban'
+          0: 'Kick',
+          1: 'Manual Mute', 
+          2: 'Manual Ban',
+          3: 'Security Ban',
+          4: 'Linked Ban',
+          5: 'Blacklist'
         };
         return fallbackMap[typeOrdinal] || `Type ${typeOrdinal}`;
       }
@@ -239,7 +250,7 @@ router.get('/staff/:username/details', async (req, res) => {
     // Map punishment types using the helper function
     const mappedPunishments = punishments.map(punishment => ({
       ...punishment,
-      type: mapPunishmentType(punishment.type, punishment.type_ordinal)
+      type: mapPunishmentType(null, punishment.type_ordinal)
     }));
 
     // Get tickets handled by this staff member
@@ -384,10 +395,7 @@ router.get('/staff/:username/details', async (req, res) => {
       },
       {
         $group: {
-          _id: {
-            type: '$punishments.type',
-            type_ordinal: '$punishments.type_ordinal'
-          },
+          _id: '$punishments.type_ordinal',
           count: { $sum: 1 }
         }
       }
@@ -395,7 +403,7 @@ router.get('/staff/:username/details', async (req, res) => {
 
     // Map punishment type breakdown using the helper function
     const punishmentTypeBreakdown = punishmentTypeBreakdownData.map(item => ({
-      type: mapPunishmentType(item._id.type, item._id.type_ordinal),
+      type: mapPunishmentType(null, item._id),
       count: item.count
     }));
 

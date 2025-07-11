@@ -3,19 +3,31 @@ import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, eachDayOfInt
 
 const router = express.Router();
 
-// Helper function to get punishment types from settings
+// Helper function to get punishment types from settings (using both storage methods)
 async function getPunishmentTypesConfig(db: any) {
   try {
     const Settings = db.model('Settings');
-    const settings = await Settings.findOne({});
+    let punishmentTypes = null;
     
-    if (!settings?.settings?.punishmentTypes) {
-      return [];
+    // First try the dedicated punishmentTypes document
+    const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+    if (punishmentTypesDoc?.data) {
+      punishmentTypes = typeof punishmentTypesDoc.data === 'string' 
+        ? JSON.parse(punishmentTypesDoc.data) 
+        : punishmentTypesDoc.data;
+    } else {
+      // Fallback to settings.punishmentTypes
+      const settings = await Settings.findOne({});
+      if (settings?.settings?.punishmentTypes) {
+        punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
+          ? JSON.parse(settings.settings.punishmentTypes) 
+          : settings.settings.punishmentTypes;
+      } else {
+      }
     }
     
-    return typeof settings.settings.punishmentTypes === 'string' 
-      ? JSON.parse(settings.settings.punishmentTypes) 
-      : settings.settings.punishmentTypes;
+    
+    return punishmentTypes || [];
   } catch (error) {
     console.warn('Failed to load punishment types from settings:', error.message);
     return [];
@@ -38,13 +50,14 @@ function mapPunishmentType(type: string, typeOrdinal: number, punishmentTypesCon
       return punishmentType.name;
     }
     
-    // Final fallback to hardcoded mapping
+    // Final fallback to hardcoded mapping (core administrative types)
     const fallbackMap = {
-      0: 'Warning',
-      1: 'Mute', 
-      2: 'Kick',
-      3: 'Temporary Ban',
-      4: 'Permanent Ban'
+      0: 'Kick',
+      1: 'Manual Mute', 
+      2: 'Manual Ban',
+      3: 'Security Ban',
+      4: 'Linked Ban',
+      5: 'Blacklist'
     };
     return fallbackMap[typeOrdinal] || `Type ${typeOrdinal}`;
   }
@@ -310,10 +323,7 @@ router.get('/punishments', async (req, res) => {
       { $match: { 'punishments.issued': { $gte: startDate } } },
       {
         $group: {
-          _id: {
-            type: '$punishments.type',
-            type_ordinal: '$punishments.type_ordinal'
-          },
+          _id: '$punishments.type_ordinal',
           count: { $sum: 1 }
         }
       }
@@ -321,7 +331,7 @@ router.get('/punishments', async (req, res) => {
 
     // Map punishment types using settings configuration
     const punishmentsByType = punishmentTypesData.map(item => ({
-      type: mapPunishmentType(item._id.type, item._id.type_ordinal, punishmentTypesConfig),
+      type: mapPunishmentType(null, item._id, punishmentTypesConfig),
       count: item.count
     }));
 
