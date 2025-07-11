@@ -3215,7 +3215,7 @@ router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
-    const { enableAutomatedActions, strictnessLevel } = req.body;
+    const { enableAutomatedActions, strictnessLevel, aiPunishmentConfigs } = req.body;
 
     // Validate input
     if (typeof enableAutomatedActions !== 'boolean') {
@@ -3226,30 +3226,31 @@ router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'strictnessLevel must be lenient, standard, or strict' });
     }
 
-    const SettingsModel = req.serverDbConnection.model<ISettingsDocument>('Settings');
-    const settingsDoc = await SettingsModel.findOne({});
-
-    if (!settingsDoc || !settingsDoc.settings) {
-      return res.status(404).json({ error: 'Settings not found' });
-    }
-
-    const currentSettings = settingsDoc.settings.get('aiModerationSettings') || {
+    const SettingsModel = req.serverDbConnection.model('Settings');
+    
+    // Get current AI moderation settings
+    const currentDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
+    const currentSettings = currentDoc?.data || {
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
     };
 
-    // Update only the specified fields, preserving aiPunishmentConfigs
-    settingsDoc.settings.set('aiModerationSettings', {
-      ...currentSettings,
+    // Update with new values, preserving aiPunishmentConfigs if not provided
+    const updatedSettings = {
       enableAutomatedActions,
-      strictnessLevel
-    });
+      strictnessLevel,
+      aiPunishmentConfigs: aiPunishmentConfigs || currentSettings.aiPunishmentConfigs || {}
+    };
 
-    await settingsDoc.save();
-
-    // Clean up any orphaned AI punishment configs
-    await cleanupOrphanedAIPunishmentConfigs(req.serverDbConnection);
+    await SettingsModel.findOneAndUpdate(
+      { type: 'aiModerationSettings' },
+      { 
+        type: 'aiModerationSettings',
+        data: updatedSettings 
+      },
+      { upsert: true }
+    );
 
     res.json({ success: true, message: 'AI moderation settings updated successfully' });
   } catch (error) {
