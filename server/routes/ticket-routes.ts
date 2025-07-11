@@ -134,20 +134,96 @@ function getCategoryFromType(type: string): string {
 router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Response) => {
   try {
     const Ticket = req.serverDbConnection!.model('Ticket');
-    const tickets = await Ticket.find({ status: { $ne: 'Unfinished' } }).lean();
+    
+    // Parse query parameters
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string || '';
+    const status = req.query.status as string || '';
+    const type = req.query.type as string || '';
+    
+    // Calculate skip value for pagination
+    const skip = (page - 1) * limit;
+    
+    // Build search query
+    const query: any = { status: { $ne: 'Unfinished' } };
+    
+    // Add search filters
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { _id: searchRegex }, // Search by ticket ID
+        { subject: searchRegex }, // Search by subject
+        { creator: searchRegex }, // Search by creator UUID
+        { creatorName: searchRegex }, // Search by creator name
+        { 'replies.name': searchRegex }, // Search by staff member who replied
+        { 'replies.content': searchRegex }, // Search by message content
+        { reason: searchRegex }, // Search by reason
+      ];
+    }
+    
+    // Add status filter
+    if (status && status !== 'all') {
+      if (status === 'open') {
+        query.locked = { $ne: true };
+      } else if (status === 'closed') {
+        query.locked = true;
+      }
+    }
+    
+    // Add type filter
+    if (type && type !== 'all') {
+      query.type = type;
+    }
+    
+    // Get total count for pagination
+    const totalTickets = await Ticket.countDocuments(query);
+    
+    // Fetch tickets with pagination and sorting
+    const tickets = await Ticket.find(query)
+      .sort({ created: -1 }) // Sort by creation date, newest first
+      .skip(skip)
+      .limit(limit)
+      .lean();
     
     const transformedTickets = tickets.map((ticket: any) => ({
       id: ticket._id,
       subject: ticket.subject || 'No Subject',
       status: ticket.status,
       reportedBy: ticket.creator,
+      reportedByName: ticket.creatorName || ticket.creator,
       date: ticket.created,
       category: getCategoryFromType(ticket.type),
       locked: ticket.locked || false,
-      type: ticket.type
+      type: ticket.type,
+      // Add additional fields for search results
+      lastReply: ticket.replies && ticket.replies.length > 0 
+        ? ticket.replies[ticket.replies.length - 1] 
+        : null,
+      replyCount: ticket.replies ? ticket.replies.length : 0,
     }));
     
-    res.json(transformedTickets);
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalTickets / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+    
+    res.json({
+      tickets: transformedTickets,
+      pagination: {
+        current: page,
+        total: totalPages,
+        limit: limit,
+        totalTickets: totalTickets,
+        hasNext: hasNextPage,
+        hasPrev: hasPrevPage,
+      },
+      filters: {
+        search,
+        status,
+        type,
+      },
+    });
   } catch (error) {
     console.error('Error fetching tickets:', error);
     res.status(500).json({ error: 'Internal server error' });

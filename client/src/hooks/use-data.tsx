@@ -84,18 +84,33 @@ export function useFindLinkedAccounts() {
 }
 
 // Ticket-related hooks
-export function useTickets() {
+export function useTickets(options?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  type?: string;
+}) {
+  const { page = 1, limit = 10, search = '', status = '', type = '' } = options || {};
+  
   return useQuery({
-    queryKey: ['/api/panel/tickets'],
+    queryKey: ['/api/panel/tickets', { page, limit, search, status, type }],
     queryFn: async () => {
-      const res = await fetch('/api/panel/tickets');
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      if (search) params.append('search', search);
+      if (status) params.append('status', status);
+      if (type) params.append('type', type);
+      
+      const res = await fetch(`/api/panel/tickets?${params.toString()}`);
       if (!res.ok) {
         throw new Error('Failed to fetch tickets');
       }
       return res.json();
     },
-    // Disabled cache to ensure we always get fresh data
-    staleTime: 0,
+    // Keep data fresh but allow some caching for better UX
+    staleTime: 30000, // 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });

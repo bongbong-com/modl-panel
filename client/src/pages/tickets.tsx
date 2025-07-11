@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { 
   Bug, 
@@ -7,7 +7,10 @@ import {
   LockKeyhole, 
   Filter, 
   Eye,
-  Loader2
+  Loader2,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -79,6 +82,7 @@ const formatTimeAgo = (dateString: string): string => {
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Card, CardContent, CardHeader } from 'modl-shared-web/components/ui/card';
 import { Badge } from 'modl-shared-web/components/ui/badge';
+import { Input } from 'modl-shared-web/components/ui/input';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'modl-shared-web/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
@@ -131,12 +135,43 @@ const Tickets = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("support");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [, setLocation] = useLocation();
-  const { data: tickets, isLoading, error } = useTickets();
+  
+  // Debounced search query to avoid too many API calls
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to first page when search changes
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  
+  const { data: ticketsResponse, isLoading, error } = useTickets({
+    page: currentPage,
+    limit: 10,
+    search: debouncedSearchQuery,
+    status: statusFilter === "all" ? "" : statusFilter,
+    type: activeTab,
+  });
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
 
+  // Extract data from the paginated response
+  const tickets = ticketsResponse?.tickets || [];
+  const pagination = ticketsResponse?.pagination || {
+    current: 1,
+    total: 1,
+    totalTickets: 0,
+    hasNext: false,
+    hasPrev: false,
+  };
+  
   // Convert ticket status to simplified Open/Closed
   const getSimplifiedStatus = (ticket: Ticket): 'open' | 'closed' => {
     // Using simplified status system - if it's not Open or it's locked, it's closed
@@ -146,18 +181,10 @@ const Tickets = () => {
     return 'open';
   };
   
-  // Filter tickets by type and simplified status
-  const filteredTickets = tickets ? tickets.filter((ticket: Ticket) => {
-    // Skip "Unfinished" tickets entirely - they should only appear in their creation flow
-    if (ticket.status === 'Unfinished') {
-      return false;
-    }
-    
-    const typeMatch = ticket.type === activeTab;
-    const simplifiedStatus = getSimplifiedStatus(ticket);
-    const statusMatch = statusFilter === "all" || simplifiedStatus === statusFilter;
-    return typeMatch && statusMatch;
-  }) : [];
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, statusFilter]);
     const handleNavigateToTicket = (ticketId: string) => {
     // Navigate to the ticket detail page
     // Navigate to ticket
@@ -252,8 +279,8 @@ const Tickets = () => {
       return renderLoadingRow();
     }
     
-    if (filteredTickets.length > 0) {
-      return filteredTickets.map((ticket: Ticket, index: number) => renderTicketRow(ticket, index));
+    if (tickets.length > 0) {
+      return tickets.map((ticket: Ticket, index: number) => renderTicketRow(ticket, index));
     }
     
     return renderEmptyRow();
@@ -278,27 +305,53 @@ const Tickets = () => {
     </Table>
   );
 
+  // Handle pagination navigation
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+  
   // Render pagination controls
   const renderPagination = () => (
     <div className="flex justify-between items-center pt-4">
       <div className="text-sm text-muted-foreground">
-        Showing {filteredTickets.length} of {tickets ? tickets.filter((t: Ticket) => t.type === activeTab).length : 0} entries
+        Showing {((pagination.current - 1) * 10) + 1}-{Math.min(pagination.current * 10, pagination.totalTickets)} of {pagination.totalTickets} entries
       </div>
       <div className="flex space-x-1">
-        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-          &lt;
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="px-3 py-1"
+          disabled={!pagination.hasPrev}
+          onClick={() => handlePageChange(pagination.current - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="default" size="sm" className="px-3 py-1">
-          1
-        </Button>
-        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-          2
-        </Button>
-        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-          3
-        </Button>
-        <Button variant="outline" size="sm" className="px-3 py-1 text-muted-foreground">
-          &gt;
+        {/* Page numbers */}
+        {Array.from({ length: Math.min(5, pagination.total) }, (_, i) => {
+          const page = Math.max(1, pagination.current - 2) + i;
+          if (page > pagination.total) return null;
+          
+          return (
+            <Button
+              key={page}
+              variant={page === pagination.current ? "default" : "outline"}
+              size="sm"
+              className="px-3 py-1"
+              onClick={() => handlePageChange(page)}
+            >
+              {page}
+            </Button>
+          );
+        })}
+        
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="px-3 py-1"
+          disabled={!pagination.hasNext}
+          onClick={() => handlePageChange(pagination.current + 1)}
+        >
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -310,10 +363,16 @@ const Tickets = () => {
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Tickets</h2>
           <div className="flex space-x-2 items-center">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" /> Filter
-            </Button>
-            <Select defaultValue="all" onValueChange={setStatusFilter}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tickets, players, staff, or content..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-80"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px] bg-background border border-border text-sm">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>

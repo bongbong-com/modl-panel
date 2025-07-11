@@ -923,6 +923,41 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     setAvatarLoading(true);
   }, [playerId]);
   
+  // Handle punishment ID lookup and scroll to punishment
+  useEffect(() => {
+    if (isOpen && playerInfo?.warnings) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const punishmentIdParam = urlParams.get('punishment');
+      
+      if (punishmentIdParam) {
+        // Switch to history tab first
+        setActiveTab('history');
+        
+        // Wait a bit for the tab to render, then scroll to the punishment
+        setTimeout(() => {
+          const punishmentElement = document.querySelector(`[data-punishment-id="${punishmentIdParam}"]`);
+          if (punishmentElement) {
+            punishmentElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+            
+            // Add a highlight effect
+            punishmentElement.classList.add('bg-blue-100', 'border-2', 'border-blue-400');
+            setTimeout(() => {
+              punishmentElement.classList.remove('bg-blue-100', 'border-2', 'border-blue-400');
+            }, 3000);
+          }
+        }, 100);
+        
+        // Clean up the URL parameter after handling it
+        urlParams.delete('punishment');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [isOpen, playerInfo?.warnings, setActiveTab]);
+  
   // Show loading state
   if (isLoading) {
     return (
@@ -1436,10 +1471,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                 
                 return (                  <div 
                     key={warning.id || `warning-${index}`} 
+                    data-punishment-id={warning.id}
                     className={`${
                       isPunishmentCurrentlyActive(warning, effectiveState) ? 'bg-muted/30 border-l-4 border-red-500' : 
                       'bg-muted/30'
-                    } p-3 rounded-lg`}
+                    } p-3 rounded-lg transition-all duration-300`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">                        <div className="flex items-center gap-2 mb-1">

@@ -53,3 +53,40 @@ export function usePlayerLookup(identifier: string) {
     retry: false // Don't retry failed lookups
   });
 }
+
+interface PunishmentLookupResult {
+  playerUuid: string;
+  playerUsername: string;
+  punishment: {
+    id: string;
+    type: string;
+    reason: string;
+    severity?: string;
+    status?: string;
+    issued: string;
+    expiry?: string;
+    active: boolean;
+  };
+}
+
+// Hook to lookup punishment by ID and get the player who has it
+export function usePunishmentLookup(punishmentId: string) {
+  return useQuery({
+    queryKey: ['punishment-lookup', punishmentId],
+    queryFn: async (): Promise<PunishmentLookupResult> => {
+      if (!punishmentId) throw new Error('No punishment ID provided');
+      
+      const res = await fetch(`/api/panel/punishment-lookup/${punishmentId}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Punishment not found');
+        }
+        throw new Error('Failed to lookup punishment');
+      }
+      return res.json();
+    },
+    enabled: !!punishmentId && punishmentId.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: false // Don't retry failed lookups
+  });
+}

@@ -1426,4 +1426,53 @@ router.post('/:uuid/punishments/:punishmentId/evidence', async (req: Request<{ u
   }
 });
 
+// Lookup punishment by ID across all players
+router.get('/punishment-lookup/:punishmentId', async (req: Request<{ punishmentId: string }>, res: Response): Promise<void> => {
+  try {
+    const punishmentId = req.params.punishmentId;
+    
+    if (!req.serverDbConnection) {
+      res.status(500).json({ error: 'Database connection not available' });
+      return;
+    }
+    
+    const Player = req.serverDbConnection.model<IPlayer>('Player');
+    
+    // Search for the punishment across all players
+    const player = await Player.findOne({ 'punishments.id': punishmentId });
+    
+    if (!player) {
+      res.status(404).json({ error: 'Punishment not found' });
+      return;
+    }
+    
+    // Find the specific punishment within the player's punishments
+    const punishment = player.punishments?.find((p: any) => p.id === punishmentId);
+    
+    if (!punishment) {
+      res.status(404).json({ error: 'Punishment not found' });
+      return;
+    }
+    
+    // Return simplified punishment data with player info
+    res.json({
+      playerUuid: player.minecraftUuid,
+      playerUsername: player.username,
+      punishment: {
+        id: punishment.id,
+        type: punishment.type,
+        reason: punishment.reason,
+        severity: punishment.severity,
+        status: punishment.status,
+        issued: punishment.issued,
+        expiry: punishment.expiry,
+        active: punishment.active,
+      }
+    });
+  } catch (error) {
+    console.error('Error looking up punishment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

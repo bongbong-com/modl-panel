@@ -24,6 +24,7 @@ import { useDashboard } from "@/contexts/DashboardContext";
 import PlayerWindow from "../../components/windows/PlayerWindow";
 import serverLogo from "../../assets/server-logo.png";
 import { usePublicSettings } from "@/hooks/use-public-settings";
+import { usePunishmentLookup } from "@/hooks/use-player-lookup";
 
 const Sidebar = () => {
   const { isSearchActive, setIsSearchActive } = useSidebar();
@@ -36,6 +37,17 @@ const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isHoveringSearch, setIsHoveringSearch] = useState(false);
+  
+  // Detect if search query looks like a punishment ID (alphanumeric with possible hyphens)
+  const isPunishmentId = /^[A-Za-z0-9-]{6,}$/.test(searchQuery.trim());
+  const debouncedPunishmentQuery = isPunishmentId ? searchQuery.trim() : "";
+  
+  // Lookup punishment if the query looks like a punishment ID
+  const { 
+    data: punishmentLookupResult, 
+    isLoading: isPunishmentLoading, 
+    error: punishmentError 
+  } = usePunishmentLookup(debouncedPunishmentQuery);
   // Track multiple windows with a map of id -> isOpen state
   const [playerWindows, setPlayerWindows] = useState<Record<string, boolean>>(
     {},
@@ -360,7 +372,7 @@ const Sidebar = () => {
           >
             <div className="p-3 pt-4 w-[240px]">
               <Input
-                placeholder="Search players..."
+                placeholder="Search players or punishment ID..."
                 className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-3"
                 value={searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
@@ -369,38 +381,100 @@ const Sidebar = () => {
                 onBlur={() => setIsFocused(false)}
               />
 
-              {isLoading ? (
+              {(isLoading || isPunishmentLoading) ? (
                 <div className="py-8 flex justify-center items-center">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : searchQuery ? (
                 <div className="max-h-[220px] overflow-y-auto pr-1">
-                  {filteredLookups.length > 0 ? (
-                    filteredLookups.map((player: Player, index: number) => (
+                  {/* Show punishment lookup result first if it's a punishment ID */}
+                  {isPunishmentId && punishmentLookupResult && (
+                    <div className="mb-3">
+                      <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
+                        Punishment Found
+                      </div>
                       <Button
-                        key={index}
                         variant="ghost"
-                        className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
+                        className="w-full justify-start text-xs py-3 px-3 h-auto mb-1 bg-blue-50 hover:bg-blue-100 border border-blue-200"
                         onClick={() => {
-                          // Set the URL parameter without changing the page
+                          // Set URL parameter for player with punishment ID
                           const url = new URL(window.location.href);
-                          url.searchParams.set("player", player.uuid);
+                          url.searchParams.set("player", punishmentLookupResult.playerUuid);
+                          url.searchParams.set("punishment", punishmentLookupResult.punishment.id);
                           window.history.pushState({}, "", url.toString());
 
                           // Open the player window
-                          openPlayerWindow(player.uuid);
+                          openPlayerWindow(punishmentLookupResult.playerUuid);
                           closeLookup();
                         }}
                       >
-                        <div className="flex flex-col items-start">
-                          <span className="font-medium">{player.username || 'Unknown'}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            {player.status}
+                        <div className="flex flex-col items-start w-full">
+                          <div className="flex items-center gap-2 w-full">
+                            <span className="font-medium text-blue-700">
+                              {punishmentLookupResult.playerUsername}
+                            </span>
+                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                              {punishmentLookupResult.punishment.type}
+                            </Badge>
+                          </div>
+                          <span className="text-muted-foreground text-[10px] truncate w-full">
+                            {punishmentLookupResult.punishment.reason}
+                          </span>
+                          <span className="text-blue-600 text-[10px] font-medium">
+                            ID: {punishmentLookupResult.punishment.id}
                           </span>
                         </div>
                       </Button>
-                    ))
-                  ) : (
+                    </div>
+                  )}
+                  
+                  {/* Show punishment not found message */}
+                  {isPunishmentId && punishmentError && (
+                    <div className="mb-3">
+                      <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
+                        Punishment Lookup
+                      </div>
+                      <div className="py-3 px-3 text-center text-xs text-red-600 bg-red-50 border border-red-200 rounded">
+                        Punishment ID '{searchQuery}' not found
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show player search results */}
+                  {!isPunishmentId && filteredLookups.length > 0 && (
+                    <div>
+                      <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
+                        Players Found
+                      </div>
+                      {filteredLookups.map((player: Player, index: number) => (
+                        <Button
+                          key={index}
+                          variant="ghost"
+                          className="w-full justify-start text-xs py-2 px-3 h-auto mb-1"
+                          onClick={() => {
+                            // Set the URL parameter without changing the page
+                            const url = new URL(window.location.href);
+                            url.searchParams.set("player", player.uuid);
+                            window.history.pushState({}, "", url.toString());
+
+                            // Open the player window
+                            openPlayerWindow(player.uuid);
+                            closeLookup();
+                          }}
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium">{player.username || 'Unknown'}</span>
+                            <span className="text-muted-foreground text-[10px]">
+                              {player.status}
+                            </span>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Show no results message */}
+                  {!isPunishmentId && filteredLookups.length === 0 && !punishmentLookupResult && (
                     <div className="py-3 text-center text-xs text-muted-foreground">
                       No players found matching '{searchQuery}'
                     </div>
