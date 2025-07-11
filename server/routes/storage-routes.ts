@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { getStorageQuota, getStorageBreakdown, formatBytes, STORAGE_LIMITS } from '../services/storage-quota-service';
+import { getStorageSettings, updateStorageSettings, getCurrentMonthAIUsage } from '../services/storage-settings-service';
 
 const router = Router();
 
@@ -174,14 +175,28 @@ router.get('/usage', async (req: Request, res: Response) => {
     // Get user's subscription status to determine if they're premium
     const isPaidUser = isPremiumUser(req);
     
-    // Get custom overage limit from user settings (implement this based on your settings storage)
-    const customOverageLimit = undefined; // TODO: Get from user settings
+    // Get custom overage limit from user settings
+    const storageSettings = await getStorageSettings(serverName);
+    const customOverageLimit = storageSettings.overageEnabled ? storageSettings.overageLimit : undefined;
     
     // Get storage quota information
     const quota = await getStorageQuota(serverName, isPaidUser, customOverageLimit);
     
     // Get detailed breakdown
     const breakdown = await getStorageBreakdown(serverName);
+    
+    // Get AI usage for current month
+    const aiUsage = await getCurrentMonthAIUsage(serverName);
+    
+    // Calculate AI quota and costs
+    const aiQuota = {
+      totalUsed: aiUsage.totalRequests,
+      baseLimit: isPaidUser ? 1000 : 0, // 1000 for premium, 0 for free
+      overageUsed: Math.max(0, aiUsage.totalRequests - (isPaidUser ? 1000 : 0)),
+      overageCost: Math.max(0, (aiUsage.totalRequests - (isPaidUser ? 1000 : 0)) * 0.01),
+      canUseAI: isPaidUser || aiUsage.totalRequests === 0,
+      usagePercentage: isPaidUser ? Math.round((aiUsage.totalRequests / 1000) * 100) : 0,
+    };
     
     const response = {
       // Quota information
@@ -217,11 +232,29 @@ router.get('/usage', async (req: Request, res: Response) => {
       // Detailed breakdown
       breakdown: breakdown.byType,
       
+      // AI usage information
+      aiQuota: {
+        totalUsed: aiQuota.totalUsed,
+        baseLimit: aiQuota.baseLimit,
+        overageUsed: aiQuota.overageUsed,
+        overageCost: aiQuota.overageCost,
+        canUseAI: aiQuota.canUseAI,
+        usagePercentage: aiQuota.usagePercentage,
+        byService: aiUsage.byService,
+      },
+      
       // Pricing information
       pricing: {
-        overagePricePerGB: 0.05,
-        currency: 'USD',
-        period: 'month',
+        storage: {
+          overagePricePerGB: 0.05,
+          currency: 'USD',
+          period: 'month',
+        },
+        ai: {
+          overagePricePerRequest: 0.01,
+          currency: 'USD',
+          period: 'month',
+        },
       },
     };
 
@@ -439,17 +472,19 @@ router.get('/settings', async (req: Request, res: Response) => {
     const serverName = getServerName(req);
     const isPaidUser = isPremiumUser(req);
     
-    // TODO: Get actual settings from database
-    // For now, return defaults
+    // Get actual settings from database
+    const storageSettings = await getStorageSettings(serverName);
+    
     const settings = {
-      overageLimit: STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT,
-      overageEnabled: isPaidUser,
+      overageLimit: storageSettings.overageLimit,
+      overageEnabled: storageSettings.overageEnabled && isPaidUser,
       isPaid: isPaidUser,
       limits: {
         freeLimit: STORAGE_LIMITS.FREE_TIER,
         paidLimit: STORAGE_LIMITS.PAID_TIER,
         defaultOverageLimit: STORAGE_LIMITS.DEFAULT_OVERAGE_LIMIT,
       },
+      lastUpdated: storageSettings.updatedAt,
     };
     
     res.json(settings);
@@ -474,17 +509,20 @@ router.put('/settings', async (req: Request, res: Response) => {
     
     const { overageLimit, overageEnabled } = updateStorageSettingsSchema.parse(req.body);
     
-    // TODO: Save settings to database
-    // For now, just validate and return success
-    console.log(`Updating storage settings for ${serverName}:`, { overageLimit, overageEnabled });
+    // Save settings to database
+    const updatedSettings = await updateStorageSettings(serverName, {
+      overageLimit,
+      overageEnabled,
+    });
     
     res.json({
       success: true,
       message: 'Storage settings updated successfully',
       settings: {
-        overageLimit,
-        overageEnabled,
-        overageLimitFormatted: formatBytes(overageLimit),
+        overageLimit: updatedSettings.overageLimit,
+        overageEnabled: updatedSettings.overageEnabled,
+        overageLimitFormatted: formatBytes(updatedSettings.overageLimit),
+        lastUpdated: updatedSettings.updatedAt,
       },
     });
   } catch (error) {
@@ -504,8 +542,9 @@ router.post('/check-upload', async (req: Request, res: Response) => {
     const serverName = getServerName(req);
     const isPaidUser = isPremiumUser(req);
     
-    // TODO: Get custom overage limit from user settings
-    const customOverageLimit = undefined;
+    // Get custom overage limit from user settings
+    const storageSettings = await getStorageSettings(serverName);
+    const customOverageLimit = storageSettings.overageEnabled ? storageSettings.overageLimit : undefined;
     
     const { canUploadFile } = await import('../services/storage-quota-service');
     const result = await canUploadFile(serverName, isPaidUser, fileSize, customOverageLimit);
@@ -528,6 +567,86 @@ router.post('/check-upload', async (req: Request, res: Response) => {
     console.error('Error checking upload permission:', error);
     res.status(500).json({ 
       error: 'Failed to check upload permission',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get AI usage history
+router.get('/ai-usage', async (req: Request, res: Response) => {
+  try {
+    const serverName = getServerName(req);
+    const isPaidUser = isPremiumUser(req);
+    
+    if (!isPaidUser) {
+      return res.status(403).json({ error: 'AI usage tracking is only available for premium users' });
+    }
+    
+    const { getAIUsage } = await import('../services/storage-settings-service');
+    const { startDate, endDate } = req.query;
+    
+    const usage = await getAIUsage(
+      serverName, 
+      startDate as string, 
+      endDate as string
+    );
+    
+    const currentMonth = await getCurrentMonthAIUsage(serverName);
+    
+    res.json({
+      currentMonth: {
+        totalRequests: currentMonth.totalRequests,
+        totalCost: currentMonth.totalCost,
+        byService: currentMonth.byService,
+        baseLimit: 1000,
+        overageRequests: Math.max(0, currentMonth.totalRequests - 1000),
+        overageCost: Math.max(0, (currentMonth.totalRequests - 1000) * 0.01),
+      },
+      history: usage,
+      pricing: {
+        baseRequests: 1000,
+        overagePricePerRequest: 0.01,
+        currency: 'USD',
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching AI usage:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch AI usage',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Manual AI request logging endpoint (for testing)
+router.post('/log-ai-request', async (req: Request, res: Response) => {
+  try {
+    const serverName = getServerName(req);
+    const isPaidUser = isPremiumUser(req);
+    
+    if (!isPaidUser) {
+      return res.status(403).json({ error: 'AI features are only available for premium users' });
+    }
+    
+    const { service, tokensUsed } = z.object({
+      service: z.enum(['moderation', 'ticket_analysis', 'appeal_analysis', 'other']),
+      tokensUsed: z.number().min(1).max(1000).optional().default(1),
+    }).parse(req.body);
+    
+    const { logAIRequest } = await import('../services/storage-settings-service');
+    await logAIRequest(serverName, service, tokensUsed, 0.01);
+    
+    res.json({
+      success: true,
+      message: 'AI request logged successfully',
+      service,
+      tokensUsed,
+      cost: 0.01,
+    });
+  } catch (error) {
+    console.error('Error logging AI request:', error);
+    res.status(500).json({ 
+      error: 'Failed to log AI request',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }

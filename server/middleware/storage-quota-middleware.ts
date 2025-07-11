@@ -66,8 +66,10 @@ export const checkStorageQuota = async (req: StorageQuotaRequest, res: Response,
       return next();
     }
     
-    // TODO: Get custom overage limit from user settings
-    const customOverageLimit = undefined;
+    // Get custom overage limit from user settings
+    const { getStorageSettings } = await import('../services/storage-settings-service');
+    const storageSettings = await getStorageSettings(serverName);
+    const customOverageLimit = storageSettings.overageEnabled ? storageSettings.overageLimit : undefined;
     
     // Check if upload is allowed
     const result = await canUploadFile(serverName, isPaidUser, fileSize, customOverageLimit);
@@ -119,7 +121,9 @@ export const checkStorageQuotaBySize = (fileSizeField: string = 'fileSize') => {
         return next();
       }
       
-      const customOverageLimit = undefined;
+      const { getStorageSettings } = await import('../services/storage-settings-service');
+      const storageSettings = await getStorageSettings(serverName);
+      const customOverageLimit = storageSettings.overageEnabled ? storageSettings.overageLimit : undefined;
       const result = await canUploadFile(serverName, isPaidUser, fileSize, customOverageLimit);
       
       req.storageQuotaCheck = {

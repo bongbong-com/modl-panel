@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HardDrive, Search, Filter, Trash2, Download, FolderOpen, Calendar, AlertCircle, Settings, CreditCard, TrendingUp } from 'lucide-react';
+import { HardDrive, Search, Filter, Trash2, Download, FolderOpen, Calendar, AlertCircle, Settings, CreditCard, TrendingUp, Brain, Zap } from 'lucide-react';
 import { Button } from 'modl-shared-web/components/ui/button';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Label } from 'modl-shared-web/components/ui/label';
@@ -50,10 +50,31 @@ interface StorageUsage {
     usagePercentage: number;
     baseUsagePercentage: number;
   };
+  aiQuota?: {
+    totalUsed: number;
+    baseLimit: number;
+    overageUsed: number;
+    overageCost: number;
+    canUseAI: boolean;
+    usagePercentage: number;
+    byService: {
+      moderation: number;
+      ticket_analysis: number;
+      appeal_analysis: number;
+      other: number;
+    };
+  };
   pricing?: {
-    overagePricePerGB: number;
-    currency: string;
-    period: string;
+    storage: {
+      overagePricePerGB: number;
+      currency: string;
+      period: string;
+    };
+    ai: {
+      overagePricePerRequest: number;
+      currency: string;
+      period: string;
+    };
   };
 }
 
@@ -366,12 +387,74 @@ const UsageSettings = () => {
             </CardContent>
           </Card>
 
+          {/* AI Usage Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Brain className="h-5 w-5 mr-2" />
+                AI Usage
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {storageUsage.aiQuota ? (
+                  <>
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>Used: {storageUsage.aiQuota.totalUsed} requests</span>
+                        <span>Limit: {storageUsage.aiQuota.baseLimit} requests</span>
+                      </div>
+                      <Progress 
+                        value={storageUsage.aiQuota.usagePercentage}
+                        className="h-2"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {storageUsage.aiQuota.usagePercentage}% used
+                      </div>
+                    </div>
+                    
+                    {storageUsage.aiQuota.overageUsed > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Overage Used:</span>
+                          <span>{storageUsage.aiQuota.overageUsed} requests</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Overage Cost:</span>
+                          <span className="font-semibold">${storageUsage.aiQuota.overageCost.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-muted-foreground">By Service:</div>
+                      {Object.entries(storageUsage.aiQuota.byService).map(([service, count]) => (
+                        <div key={service} className="flex justify-between text-xs">
+                          <span className="capitalize">{service.replace('_', ' ')}: </span>
+                          <span>{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Status:</span>
+                      <span className="text-muted-foreground">Loading...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Storage Overage Billing Card */}
           {storageUsage.quota?.isPaid && storageUsage.quota.overageUsed > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <CreditCard className="h-5 w-5 mr-2" />
-                  Overage Billing
+                  Storage Overage
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -385,7 +468,7 @@ const UsageSettings = () => {
                     <span className="font-semibold">${storageUsage.quota.overageCost}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    ${storageUsage.pricing?.overagePricePerGB}/GB/month
+                    ${storageUsage.pricing?.storage?.overagePricePerGB}/GB/month
                   </div>
                 </div>
               </CardContent>
@@ -394,7 +477,7 @@ const UsageSettings = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>File Statistics</CardTitle>
+              <CardTitle>System Status</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -414,6 +497,12 @@ const UsageSettings = () => {
                   <span>Can Upload:</span>
                   <span className={storageUsage.quota?.canUpload ? 'text-green-600' : 'text-red-600'}>
                     {storageUsage.quota?.canUpload ? 'Yes' : 'No'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>AI Available:</span>
+                  <span className={storageUsage.aiQuota?.canUseAI ? 'text-green-600' : 'text-red-600'}>
+                    {storageUsage.aiQuota?.canUseAI ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>
