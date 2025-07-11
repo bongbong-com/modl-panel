@@ -959,15 +959,16 @@ const TicketSettings = ({
                         size="sm" 
                         onClick={() => {
                           const newId = Date.now().toString();
-                          setAiPunishmentConfigs((prev: any) => ({
-                            ...prev,
+                          const currentConfigs = aiPunishmentConfigs || {};
+                          setAiPunishmentConfigs({
+                            ...currentConfigs,
                             [newId]: {
                               id: newId,
                               name: '',
                               aiDescription: '',
                               enabled: true
                             }
-                          }));
+                          });
                         }}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -982,13 +983,13 @@ const TicketSettings = ({
                             <Input
                               value={config.name || ''}
                               onChange={(e) => {
-                                setAiPunishmentConfigs((prev: any) => ({
-                                  ...prev,
+                                setAiPunishmentConfigs({
+                                  ...aiPunishmentConfigs,
                                   [config.id]: {
-                                    ...prev[config.id],
+                                    ...aiPunishmentConfigs[config.id],
                                     name: e.target.value
                                   }
-                                }));
+                                });
                               }}
                               placeholder="Punishment type name (e.g., Chat Abuse)"
                               className="flex-1 mr-2"
@@ -997,11 +998,9 @@ const TicketSettings = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => {
-                                setAiPunishmentConfigs((prev: any) => {
-                                  const newConfigs = { ...prev };
-                                  delete newConfigs[config.id];
-                                  return newConfigs;
-                                });
+                                const newConfigs = { ...aiPunishmentConfigs };
+                                delete newConfigs[config.id];
+                                setAiPunishmentConfigs(newConfigs);
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1013,13 +1012,13 @@ const TicketSettings = ({
                             <Textarea
                               value={config.aiDescription || ''}
                               onChange={(e) => {
-                                setAiPunishmentConfigs((prev: any) => ({
-                                  ...prev,
+                                setAiPunishmentConfigs({
+                                  ...aiPunishmentConfigs,
                                   [config.id]: {
-                                    ...prev[config.id],
+                                    ...aiPunishmentConfigs[config.id],
                                     aiDescription: e.target.value
                                   }
-                                }));
+                                });
                               }}
                               placeholder="Describe what behavior the AI should detect for this punishment type..."
                               className="min-h-[80px]"
