@@ -898,6 +898,7 @@ export async function createDefaultSettings(dbConnection: Connection, serverName
       {
         type: 'aiModerationSettings',
         data: {
+          enableAIReview: true,
           enableAutomatedActions: true,
           strictnessLevel: 'standard',
           aiPunishmentConfigs: {
@@ -1530,6 +1531,7 @@ export async function createDefaultSettingsDocument(dbConnection: Connection, se
     
     // AI Moderation settings with default enabled punishment types
     defaultSettingsMap.set('aiModerationSettings', {
+      enableAIReview: true,
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {
@@ -3197,6 +3199,7 @@ router.get('/ai-moderation-settings', checkPermission('admin.settings.view'), as
     }
 
     const aiSettings = await getSettingsValue(req.serverDbConnection, 'aiModerationSettings') || {
+      enableAIReview: true,
       enableAutomatedActions: true,
       strictnessLevel: 'standard'
     };
@@ -3215,9 +3218,13 @@ router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
-    const { enableAutomatedActions, strictnessLevel, aiPunishmentConfigs } = req.body;
+    const { enableAIReview, enableAutomatedActions, strictnessLevel, aiPunishmentConfigs } = req.body;
 
     // Validate input
+    if (enableAIReview !== undefined && typeof enableAIReview !== 'boolean') {
+      return res.status(400).json({ error: 'enableAIReview must be a boolean' });
+    }
+
     if (typeof enableAutomatedActions !== 'boolean') {
       return res.status(400).json({ error: 'enableAutomatedActions must be a boolean' });
     }
@@ -3231,6 +3238,7 @@ router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
     // Get current AI moderation settings
     const currentDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
     const currentSettings = currentDoc?.data || {
+      enableAIReview: true,
       enableAutomatedActions: true,
       strictnessLevel: 'standard',
       aiPunishmentConfigs: {}
@@ -3238,6 +3246,7 @@ router.put('/ai-moderation-settings', async (req: Request, res: Response) => {
 
     // Update with new values, preserving aiPunishmentConfigs if not provided
     const updatedSettings = {
+      enableAIReview: enableAIReview !== undefined ? enableAIReview : currentSettings.enableAIReview,
       enableAutomatedActions,
       strictnessLevel,
       aiPunishmentConfigs: aiPunishmentConfigs || currentSettings.aiPunishmentConfigs || {}

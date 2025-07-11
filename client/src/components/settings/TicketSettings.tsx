@@ -903,8 +903,32 @@ const TicketSettings = ({
                 </p>
 
                 <div className="space-y-6">
-                  {/* Enable Automated Actions Toggle */}
+                  {/* Enable AI Review Toggle */}
                   <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label htmlFor="enable-ai-review" className="text-sm font-medium">
+                        Enable AI Review
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Enable AI-powered analysis and moderation of chat reports. When disabled, all AI features are turned off.
+                      </p>
+                    </div>
+                    <Switch
+                      id="enable-ai-review"
+                      checked={aiModerationSettings.enableAIReview !== false}
+                      onCheckedChange={(checked) => {
+                        setAiModerationSettings((prev: any) => ({
+                          ...prev,
+                          enableAIReview: checked
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  {/* AI Settings Content - Disabled when AI Review is off */}
+                  <div className={`space-y-6 ${aiModerationSettings.enableAIReview === false ? 'opacity-50 pointer-events-none' : ''}`}>
+                    {/* Enable Automated Actions Toggle */}
+                    <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <Label htmlFor="enable-automated-actions" className="text-sm font-medium">
                         Enable Automated Actions
@@ -1035,6 +1059,7 @@ const TicketSettings = ({
                         )}
                       </div>
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>

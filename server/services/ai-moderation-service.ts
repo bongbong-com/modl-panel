@@ -28,6 +28,7 @@ interface AIAnalysisResult {
 }
 
 interface AISettings {
+  enableAIReview: boolean;
   enableAutomatedActions: boolean;
   strictnessLevel: 'lenient' | 'standard' | 'strict';
 }
@@ -164,6 +165,7 @@ export class AIModerationService {
 
       if (!aiSettingsDoc || !aiSettingsDoc.data) {
         return {
+          enableAIReview: true,
           enableAutomatedActions: true,
           strictnessLevel: 'standard'
         };
@@ -270,6 +272,13 @@ export class AIModerationService {
    */
   async processNewTicket(ticketId: string, ticketData: any): Promise<void> {
     try {
+      // Check if AI review is enabled
+      const aiSettings = await this.getAISettings();
+      if (!aiSettings || !aiSettings.enableAIReview) {
+        console.log(`[AI Moderation] AI review is disabled, skipping analysis for ticket ${ticketId}`);
+        return;
+      }
+
       // Only process Chat Report tickets with chat messages
       if (ticketData.category !== 'chat' && ticketData.type !== 'chat') {
         return;
