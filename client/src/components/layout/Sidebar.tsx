@@ -17,7 +17,6 @@ import {
   TooltipTrigger,
 } from "modl-shared-web/components/ui/tooltip";
 import { Button } from "modl-shared-web/components/ui/button";
-import { Badge } from "modl-shared-web/components/ui/badge";
 import { Input } from "modl-shared-web/components/ui/input";
 import { usePlayers, useBillingStatus } from "@/hooks/use-data";
 import { useDashboard } from "@/contexts/DashboardContext";
@@ -415,16 +414,8 @@ const Sidebar = () => {
                         }}
                       >
                         <div className="flex flex-col items-start w-full">
-                          <div className="flex items-center gap-2 w-full">
-                            <span className="font-medium text-primary">
-                              {punishmentLookupResult.playerUsername || punishmentLookupResult.playerUuid || 'Unknown Player'}
-                            </span>
-                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                              {punishmentLookupResult.punishment.type}
-                            </Badge>
-                          </div>
-                          <span className="text-muted-foreground text-[10px] truncate w-full">
-                            {punishmentLookupResult.punishment.reason || 'No reason provided'}
+                          <span className="font-medium text-primary">
+                            {punishmentLookupResult.playerUsername || punishmentLookupResult.playerUuid || 'Unknown Player'}
                           </span>
                           <span className="text-primary text-[10px] font-medium">
                             ID: {punishmentLookupResult.punishment.id}
