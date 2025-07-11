@@ -1,4 +1,5 @@
 import express from 'express';
+import { format } from 'date-fns';
 
 const router = express.Router();
 
@@ -242,56 +243,105 @@ router.get('/staff/:username/details', async (req, res) => {
       return null;
     }).filter(Boolean);
 
-    // Get daily activity breakdown
-    const dailyActivity = await Log.aggregate([
-      {
-        $match: {
-          source: username,
-          created: { $gte: startDate }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: '%Y-%m-%d',
-              date: { $dateFromString: { dateString: '$created' } }
-            }
-          },
-          punishments: {
-            $sum: {
-              $cond: [
-                { $or: [
-                  { $eq: ['$level', 'moderation'] },
-                  { $regexMatch: { input: '$description', regex: /ban|mute|kick|warn/i } }
-                ]},
-                1,
-                0
-              ]
-            }
-          },
-          tickets: {
-            $sum: {
-              $cond: [
-                { $regexMatch: { input: '$description', regex: /ticket/i } },
-                1,
-                0
-              ]
-            }
-          },
-          evidence: {
-            $sum: {
-              $cond: [
-                { $regexMatch: { input: '$description', regex: /evidence|upload|file/i } },
-                1,
-                0
-              ]
+    // Get daily activity breakdown with error handling
+    let dailyActivity = [];
+    try {
+      dailyActivity = await Log.aggregate([
+        {
+          $match: {
+            source: username,
+            created: { $gte: startDate }
+          }
+        },
+        {
+          $addFields: {
+            parsedDate: {
+              $cond: {
+                if: { $eq: [{ $type: '$created' }, 'date'] },
+                then: '$created',
+                else: {
+                  $cond: {
+                    if: { $eq: [{ $type: '$created' }, 'string'] },
+                    then: { 
+                      $dateFromString: { 
+                        dateString: '$created',
+                        onError: new Date()
+                      }
+                    },
+                    else: new Date()
+                  }
+                }
+              }
             }
           }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: '%Y-%m-%d',
+                date: '$parsedDate'
+              }
+            },
+            punishments: {
+              $sum: {
+                $cond: [
+                  { $or: [
+                    { $eq: ['$level', 'moderation'] },
+                    { $regexMatch: { input: '$description', regex: /ban|mute|kick|warn/i } }
+                  ]},
+                  1,
+                  0
+                ]
+              }
+            },
+            tickets: {
+              $sum: {
+                $cond: [
+                  { $regexMatch: { input: '$description', regex: /ticket/i } },
+                  1,
+                  0
+                ]
+              }
+            },
+            evidence: {
+              $sum: {
+                $cond: [
+                  { $regexMatch: { input: '$description', regex: /evidence|upload|file/i } },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+    } catch (error) {
+      console.warn('Failed to aggregate daily activity, using fallback:', error.message);
+      // Fallback: get simple counts without daily breakdown
+      const totalLogs = await Log.countDocuments({
+        source: username,
+        created: { $gte: startDate }
+      });
+      
+      const moderationLogs = await Log.countDocuments({
+        source: username,
+        created: { $gte: startDate },
+        $or: [
+          { level: 'moderation' },
+          { description: { $regex: /ban|mute|kick|warn/i } }
+        ]
+      });
+      
+      // Create a simple single-day entry for the current period
+      dailyActivity = [{
+        _id: format(new Date(), 'yyyy-MM-dd'),
+        punishments: moderationLogs,
+        tickets: totalLogs - moderationLogs,
+        evidence: 0
+      }];
+    }
 
     // Get punishment type breakdown for this staff member
     const punishmentTypeBreakdown = await Player.aggregate([
