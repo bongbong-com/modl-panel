@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Button } from 'modl-shared-web/components/ui/button';
-import { Bell, Clock, User, MessageSquare, X } from 'lucide-react';
+import { Bell, Clock, User, MessageSquare, X, UserMinus } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 
@@ -152,7 +152,6 @@ export function TicketSubscriptionsSection({
                     className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer bg-blue-500/5 border-blue-500/20"
                     onClick={() => {
                       handleTicketClick(update.ticketId);
-                      handleMarkAsRead(update.id);
                     }}
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -174,13 +173,26 @@ export function TicketSubscriptionsSection({
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-blue-500"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsRead(update.id);
+                          }}
+                          title="Mark as read"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleUnsubscribe(update.ticketId, update.ticketTitle);
                           }}
+                          title="Unsubscribe"
                         >
-                          <X className="h-3 w-3" />
+                          <UserMinus className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
