@@ -449,11 +449,12 @@ const TicketSettings = ({
             
             <CollapsibleContent className="pt-4">
               <div className="border rounded-lg p-4">
-                <p className="text-sm text-muted-foreground mb-6">
-                  Configure pre-written responses for different ticket categories and actions.
-                </p>
-                
-                <div className="space-y-6">
+                <DndProvider backend={HTML5Backend}>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Configure pre-written responses for different ticket categories and actions.
+                  </p>
+                  
+                  <div className="space-y-6">
                   {quickResponsesState?.categories?.length > 0 ? quickResponsesState.categories.map((category) => (
                     <Card key={category.id} className="border-l-4 border-l-blue-500">
                       <CardHeader className="pb-3">
@@ -540,7 +541,8 @@ const TicketSettings = ({
                       <p className="text-sm">Loading quick response configuration...</p>
                     </div>
                   )}
-                </div>
+                  </div>
+                </DndProvider>
               </div>
             </CollapsibleContent>
           </Collapsible>
