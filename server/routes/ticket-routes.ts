@@ -565,6 +565,20 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
       };
       ticket.replies.push(newReply);
 
+      // Auto-subscribe staff member to ticket when they reply
+      if (newReply.staff && req.session?.username) {
+        console.log(`[Ticket PATCH] Auto-subscribing ${req.session.username} to ticket ${req.params.id}`);
+        try {
+          const { ensureTicketSubscription } = await import('./ticket-subscription-routes');
+          
+          // Auto-subscribe the staff member who replied
+          await ensureTicketSubscription(req.serverDbConnection!, req.params.id, req.session.username);
+        } catch (subscriptionError) {
+          console.error(`[Ticket PATCH] Failed to handle ticket subscription for ticket ${req.params.id}:`, subscriptionError);
+          // Don't fail the reply if subscription fails
+        }
+      }
+
       // Add notification for staff replies
       if (newReply.staff && ticket.creator) {
         console.log(`[Ticket PATCH] Staff reply detected from ${newReply.name}`);
