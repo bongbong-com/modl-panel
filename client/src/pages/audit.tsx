@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/compon
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Input } from 'modl-shared-web/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
+import { Checkbox } from 'modl-shared-web/components/ui/checkbox';
 import { Separator } from 'modl-shared-web/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from 'modl-shared-web/components/ui/popover';
 import { Calendar as CalendarComponent } from 'modl-shared-web/components/ui/calendar';
@@ -1250,10 +1251,30 @@ const fetchStaffDetails = async (username: string, period: string) => {
 
 // Ticket Analytics Section Component
 const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }) => {
-  const [visibleLines, setVisibleLines] = useState({
-    responseTime: { overall: true, bug: true, support: true, feature: true, other: true },
-    opened: { overall: true, bug: true, support: true, feature: true, other: true },
-    closed: { overall: true, bug: true, support: true, feature: true, other: true }
+  // Define the correct ticket categories
+  const ticketCategories = ['Overall', 'Bug', 'Support', 'Appeal', 'Player Report', 'Chat Report', 'Application'];
+  
+  // Normalize category names for data keys (lowercase, spaces to underscores)
+  const normalizeCategory = (category: string) => {
+    return category.toLowerCase().replace(/\s+/g, '_');
+  };
+
+  // Initialize with all categories selected
+  const [visibleLines, setVisibleLines] = useState(() => {
+    const initialState = {
+      responseTime: {} as Record<string, boolean>,
+      opened: {} as Record<string, boolean>,
+      closed: {} as Record<string, boolean>
+    };
+    
+    ticketCategories.forEach(category => {
+      const key = normalizeCategory(category);
+      initialState.responseTime[key] = true;
+      initialState.opened[key] = true;
+      initialState.closed[key] = true;
+    });
+    
+    return initialState;
   });
 
   const { data: ticketAnalytics } = useQuery({
@@ -1271,7 +1292,8 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
     // Process daily trend data
     ticketAnalytics.dailyTrendByCategory?.forEach(item => {
       const date = item._id.date;
-      const category = item._id.category || 'other';
+      const rawCategory = item._id.category || 'Other';
+      const category = normalizeCategory(rawCategory);
       const status = item._id.status?.toLowerCase();
       
       if (!dateMap.has(date)) {
@@ -1294,7 +1316,8 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
     // Process response time data
     ticketAnalytics.responseTimeByCategory?.forEach(item => {
       const date = item._id.date;
-      const category = item._id.category || 'other';
+      const rawCategory = item._id.category || 'Other';
+      const category = normalizeCategory(rawCategory);
       const responseTimeHours = item.avgResponseTimeMs / (1000 * 60 * 60);
       
       if (!dateMap.has(date)) {
@@ -1318,13 +1341,24 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
     }));
   };
 
-  const categories = ['overall', 'bug', 'support', 'feature', 'other'];
+  const toggleAllLines = (type: string, checked: boolean) => {
+    setVisibleLines(prev => ({
+      ...prev,
+      [type]: ticketCategories.reduce((acc, category) => {
+        acc[normalizeCategory(category)] = checked;
+        return acc;
+      }, {} as Record<string, boolean>)
+    }));
+  };
+
   const categoryColors = {
     overall: '#000000',
     bug: '#ef4444',
     support: '#3b82f6', 
-    feature: '#10b981',
-    other: '#f59e0b'
+    appeal: '#8b5cf6',
+    player_report: '#f59e0b',
+    chat_report: '#10b981',
+    application: '#ec4899'
   };
 
   return (
@@ -1366,30 +1400,71 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
         <CardHeader>
           <CardTitle className="text-base">Ticket Trends</CardTitle>
           <div className="space-y-4">
-            {/* Line toggles */}
-            {['responseTime', 'opened', 'closed'].map(type => (
-              <div key={type} className="space-y-2">
-                <h4 className="text-sm font-medium capitalize">{type.replace('Time', ' Time')}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map(category => (
-                    <Button
-                      key={`${type}-${category}`}
-                      variant={visibleLines[type][category] ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-6"
-                      style={{
-                        backgroundColor: visibleLines[type][category] ? categoryColors[category] : 'transparent',
-                        borderColor: categoryColors[category],
-                        color: visibleLines[type][category] ? 'white' : categoryColors[category]
-                      }}
-                      onClick={() => toggleLine(type, category)}
-                    >
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </Button>
-                  ))}
+            {/* Line type dropdowns with checkboxes */}
+            {['responseTime', 'opened', 'closed'].map(type => {
+              const allSelected = ticketCategories.every(category => 
+                visibleLines[type][normalizeCategory(category)]
+              );
+              
+              return (
+                <div key={type} className="space-y-2">
+                  <h4 className="text-sm font-medium capitalize">{type.replace('Time', ' Time')}</h4>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-48 justify-between">
+                        Select Categories
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2">
+                      <div className="space-y-2">
+                        {/* Select All checkbox */}
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`select-all-${type}`}
+                            checked={allSelected}
+                            onCheckedChange={(checked) => toggleAllLines(type, checked as boolean)}
+                          />
+                          <label 
+                            htmlFor={`select-all-${type}`}
+                            className="text-sm font-medium cursor-pointer"
+                          >
+                            Select All
+                          </label>
+                        </div>
+                        <Separator />
+                        
+                        {/* Individual category checkboxes */}
+                        {ticketCategories.map(category => {
+                          const normalizedCategory = normalizeCategory(category);
+                          const isChecked = visibleLines[type][normalizedCategory];
+                          
+                          return (
+                            <div key={category} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${type}-${normalizedCategory}`}
+                                checked={isChecked}
+                                onCheckedChange={() => toggleLine(type, normalizedCategory)}
+                              />
+                              <label 
+                                htmlFor={`${type}-${normalizedCategory}`}
+                                className="text-sm cursor-pointer flex items-center gap-2"
+                              >
+                                <div 
+                                  className="w-3 h-3 rounded" 
+                                  style={{ backgroundColor: categoryColors[normalizedCategory] || '#666' }}
+                                />
+                                {category}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardHeader>
         <CardContent>
@@ -1401,47 +1476,50 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
               <Tooltip />
               
               {/* Response Time Lines */}
-              {categories.map(category => 
-                visibleLines.responseTime[category] && (
+              {ticketCategories.map(category => {
+                const normalizedCategory = normalizeCategory(category);
+                return visibleLines.responseTime[normalizedCategory] && (
                   <Line
-                    key={`responseTime_${category}`}
+                    key={`responseTime_${normalizedCategory}`}
                     type="monotone"
-                    dataKey={`responseTime_${category}`}
-                    stroke={categoryColors[category]}
+                    dataKey={`responseTime_${normalizedCategory}`}
+                    stroke={categoryColors[normalizedCategory] || '#666'}
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     name={`${category} Response Time (hours)`}
                   />
-                )
-              )}
+                );
+              })}
               
               {/* Opened Lines */}
-              {categories.map(category => 
-                visibleLines.opened[category] && (
+              {ticketCategories.map(category => {
+                const normalizedCategory = normalizeCategory(category);
+                return visibleLines.opened[normalizedCategory] && (
                   <Line
-                    key={`opened_${category}`}
+                    key={`opened_${normalizedCategory}`}
                     type="monotone"
-                    dataKey={`opened_${category}`}
-                    stroke={categoryColors[category]}
+                    dataKey={`opened_${normalizedCategory}`}
+                    stroke={categoryColors[normalizedCategory] || '#666'}
                     strokeWidth={2}
                     name={`${category} Opened`}
                   />
-                )
-              )}
+                );
+              })}
               
               {/* Closed Lines */}
-              {categories.map(category => 
-                visibleLines.closed[category] && (
+              {ticketCategories.map(category => {
+                const normalizedCategory = normalizeCategory(category);
+                return visibleLines.closed[normalizedCategory] && (
                   <Line
-                    key={`closed_${category}`}
+                    key={`closed_${normalizedCategory}`}
                     type="monotone"
-                    dataKey={`closed_${category}`}
-                    stroke={categoryColors[category]}
+                    dataKey={`closed_${normalizedCategory}`}
+                    stroke={categoryColors[normalizedCategory] || '#666'}
                     strokeWidth={3}
                     name={`${category} Closed`}
                   />
-                )
-              )}
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
