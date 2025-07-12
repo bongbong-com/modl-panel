@@ -12,7 +12,6 @@ import {
   useDashboardMetrics,
   useRecentTickets,
   useRecentPunishments,
-  useTicketSubscriptions,
   useTicketSubscriptionUpdates,
   useUnsubscribeFromTicket,
   useMarkSubscriptionUpdateAsRead
@@ -35,7 +34,6 @@ const Home = () => {
   const { data: metricsData, isLoading: isLoadingMetrics, refetch: refetchMetrics } = useDashboardMetrics(metricsPeriod);
   const { data: recentTicketsData, isLoading: isLoadingTickets, refetch: refetchTickets } = useRecentTickets(5);
   const { data: recentPunishmentsData, isLoading: isLoadingPunishments, refetch: refetchPunishments } = useRecentPunishments(8);
-  const { data: subscriptionsData, isLoading: isLoadingSubscriptions, refetch: refetchSubscriptions } = useTicketSubscriptions();
   const { data: subscriptionUpdatesData, isLoading: isLoadingUpdates, refetch: refetchUpdates } = useTicketSubscriptionUpdates(10);
   
   // Mutations for subscription management
@@ -50,7 +48,6 @@ const Home = () => {
         refetchMetrics(),
         refetchTickets(),
         refetchPunishments(),
-        refetchSubscriptions(),
         refetchUpdates(),
         new Promise(resolve => setTimeout(resolve, 800))
       ]);
@@ -121,8 +118,7 @@ const Home = () => {
       <div className="mb-6">
         <TicketSubscriptionsSection 
           updates={subscriptionUpdatesData || []}
-          subscriptions={subscriptionsData || []}
-          loading={isLoadingUpdates || isLoadingSubscriptions}
+          loading={isLoadingUpdates}
           onUnsubscribe={handleUnsubscribe}
           onMarkAsRead={handleMarkAsRead}
         />

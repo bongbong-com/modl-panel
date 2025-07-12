@@ -18,15 +18,9 @@ export interface TicketSubscriptionUpdate {
   additionalCount?: number;
 }
 
-export interface TicketSubscription {
-  ticketId: string;
-  ticketTitle: string;
-  subscribedAt: string;
-}
 
 interface TicketSubscriptionsSectionProps {
   updates: TicketSubscriptionUpdate[];
-  subscriptions: TicketSubscription[];
   loading: boolean;
   onUnsubscribe: (ticketId: string) => Promise<void>;
   onMarkAsRead: (updateId: string) => Promise<void>;
@@ -34,7 +28,6 @@ interface TicketSubscriptionsSectionProps {
 
 export function TicketSubscriptionsSection({ 
   updates, 
-  subscriptions, 
   loading, 
   onUnsubscribe, 
   onMarkAsRead 
@@ -163,7 +156,7 @@ export function TicketSubscriptionsSection({
                     }}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h5 className="font-medium text-sm line-clamp-1">
+                      <h5 className="font-medium text-sm line-clamp-1 flex-1 pr-2">
                         {update.ticketTitle}
                       </h5>
                       <div className="flex items-center gap-2 ml-2 flex-shrink-0">
@@ -178,6 +171,17 @@ export function TicketSubscriptionsSection({
                         >
                           {update.isStaffReply ? 'STAFF' : 'PLAYER'}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnsubscribe(update.ticketId, update.ticketTitle);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                     
@@ -214,45 +218,6 @@ export function TicketSubscriptionsSection({
               )}
             </div>
           </div>
-
-          {/* Active Subscriptions */}
-          {subscriptions.length > 0 && (
-            <>
-              <div className="border-t border-border pt-4">
-                <h4 className="text-sm font-medium mb-3">Active Subscriptions ({subscriptions.length})</h4>
-                <div className="space-y-2">
-                  {subscriptions.slice(0, 3).map((subscription) => (
-                    <div
-                      key={subscription.ticketId}
-                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {subscription.ticketTitle}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Subscribed {formatTimeAgo(subscription.subscribedAt)}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="ml-2 h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleUnsubscribe(subscription.ticketId, subscription.ticketTitle)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  {subscriptions.length > 3 && (
-                    <p className="text-xs text-muted-foreground text-center pt-2">
-                      And {subscriptions.length - 3} more...
-                    </p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </CardContent>
     </Card>

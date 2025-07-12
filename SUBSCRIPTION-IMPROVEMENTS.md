@@ -92,22 +92,26 @@ if (newReply.staff && req.session?.username) {
 - **Additional count**: "and 2 more" badge when multiple unread replies exist
 - **Visual**: Blue border/background for all unread items
 
-### ✅ Active Subscriptions Section:
-- **Format**: "SUPPORT-849748: Help with server setup"
-- **Unchanged**: Still shows all active subscriptions with unsubscribe option
+### ✅ Unified Interface:
+- **Removed**: Active Subscriptions section (eliminated separate area)
+- **Added**: Unsubscribe button on each recent reply entry
+- **Format**: "SUPPORT-849748: Help with server setup" 
+- **Action**: Click X button to unsubscribe directly from reply entry
 
 ### ✅ Behavior:
 1. **Reply to ticket** → Auto-subscribe to ticket
-2. **New replies come in** → Show in "Recent Replies" 
-3. **Click on update** → Mark as read + navigate to ticket
-4. **Read updates** → Automatically removed from list
-5. **Multiple unread in same ticket** → Show latest + "and X more" badge
+2. **New replies come in** → Show in "Recent Replies" with unsubscribe button
+3. **Click reply content** → Mark as read + navigate to ticket
+4. **Click X button** → Unsubscribe from ticket + show toast confirmation
+5. **Read updates** → Automatically removed from list
+6. **Multiple unread in same ticket** → Show latest + "and X more" badge
 
 ## Testing
 
 Reply to a ticket and you should see:
 1. Debug logs showing auto-subscription
-2. Subscription data in MongoDB staff document
-3. Recent replies showing up with new format
+2. Subscription data in MongoDB staff document  
+3. Recent replies showing up with new format and unsubscribe button
 4. "and X more" badges when applicable
 5. Updates disappearing when clicked/read
+6. Unsubscribe working directly from reply entries
