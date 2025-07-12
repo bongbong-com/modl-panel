@@ -729,11 +729,13 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                     <tbody>
                       {recentPunishments.length > 0 ? recentPunishments.map((punishment, index) => {
                         // Format duration helper function
-                        const formatDuration = (duration: number) => {
-                          if (!duration || duration === -1) return 'Permanent';
-                          const days = Math.floor(duration / (1000 * 60 * 60 * 24));
-                          const hours = Math.floor((duration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                          const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+                        const formatDuration = (duration: any) => {
+                          const durationNum = typeof duration === 'number' ? duration : Number(duration);
+                          if (!durationNum || durationNum === -1 || isNaN(durationNum)) return 'Permanent';
+                          
+                          const days = Math.floor(durationNum / (1000 * 60 * 60 * 24));
+                          const hours = Math.floor((durationNum % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                          const minutes = Math.floor((durationNum % (1000 * 60 * 60)) / (1000 * 60));
                           
                           if (days > 0) return `${days}d ${hours}h`;
                           if (hours > 0) return `${hours}h ${minutes}m`;
@@ -751,11 +753,15 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                             <td className="p-2">
                               <div className="flex gap-1 flex-wrap">
                                 {punishment.evidence && punishment.evidence.length > 0 ? (
-                                  punishment.evidence.map((evidenceItem: string, idx: number) => (
-                                    <Badge key={idx} variant="outline" className="text-xs">
-                                      📎 {evidenceItem.split('/').pop() || evidenceItem.substring(0, 10)}
-                                    </Badge>
-                                  ))
+                                  punishment.evidence.map((evidenceItem: any, idx: number) => {
+                                    const evidenceStr = typeof evidenceItem === 'string' ? evidenceItem : String(evidenceItem);
+                                    const fileName = evidenceStr.includes('/') ? evidenceStr.split('/').pop() : evidenceStr;
+                                    return (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        📎 {fileName && fileName.length > 15 ? fileName.substring(0, 15) + '...' : fileName}
+                                      </Badge>
+                                    );
+                                  })
                                 ) : (
                                   <span className="text-muted-foreground text-xs">No evidence</span>
                                 )}
@@ -764,11 +770,14 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                             <td className="p-2">
                               <div className="flex gap-1 flex-wrap">
                                 {punishment.attachedTicketIds && punishment.attachedTicketIds.length > 0 ? (
-                                  punishment.attachedTicketIds.map((ticketId: string, idx: number) => (
-                                    <Badge key={idx} variant="outline" className="text-xs">
-                                      🎫 #{ticketId.substring(0, 8)}
-                                    </Badge>
-                                  ))
+                                  punishment.attachedTicketIds.map((ticketId: any, idx: number) => {
+                                    const ticketStr = typeof ticketId === 'string' ? ticketId : String(ticketId);
+                                    return (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        🎫 #{ticketStr.substring(0, 8)}
+                                      </Badge>
+                                    );
+                                  })
                                 ) : (
                                   <span className="text-muted-foreground text-xs">No tickets</span>
                                 )}
