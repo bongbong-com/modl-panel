@@ -117,7 +117,7 @@ router.get('/overview', async (req, res) => {
       Ticket.countDocuments(),
       Player.countDocuments(),
       Staff.countDocuments(),
-      Ticket.countDocuments({ status: { $in: ['Open', 'Under Review', 'Pending Player Response'] } })
+      Ticket.countDocuments({ status: 'Open' })
     ]);
 
     // Get previous period counts for comparison
@@ -180,51 +180,163 @@ router.get('/tickets', async (req, res) => {
         break;
     }
 
-    // Get tickets by status
+    // Get tickets by status (exclude unfinished statuses)
+    const finishedStatuses = ['Resolved', 'Closed', 'resolved', 'closed'];
     const ticketsByStatus = await Ticket.aggregate([
-      { $match: { created: { $gte: startDate } } },
+      { $match: { created: { $gte: startDate }, status: { $in: finishedStatuses } } },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
-    // Get tickets by type
-    const ticketsByType = await Ticket.aggregate([
-      { $match: { created: { $gte: startDate } } },
-      { $group: { _id: '$type', count: { $sum: 1 } } }
+    // Get tickets by category (exclude unfinished statuses)
+    const ticketsByCategory = await Ticket.aggregate([
+      { $match: { created: { $gte: startDate }, status: { $in: finishedStatuses } } },
+      { $group: { _id: '$category', count: { $sum: 1 } } }
     ]);
 
-    // Get daily ticket trend
-    const dailyTickets = await Ticket.aggregate([
+    // Get average resolution time by category
+    const avgResolutionByCategory = await Ticket.aggregate([
+      { 
+        $match: { 
+          status: { $in: finishedStatuses },
+          created: { $gte: startDate },
+          updatedAt: { $exists: true }
+        } 
+      },
+      {
+        $addFields: {
+          resolutionTimeMs: { $subtract: ['$updatedAt', '$created'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$category',
+          avgResolutionMs: { $avg: '$resolutionTimeMs' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Calculate overall average resolution time
+    const overallAvgResolution = await Ticket.aggregate([
+      { 
+        $match: { 
+          status: { $in: finishedStatuses },
+          created: { $gte: startDate },
+          updatedAt: { $exists: true }
+        } 
+      },
+      {
+        $addFields: {
+          resolutionTimeMs: { $subtract: ['$updatedAt', '$created'] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avgResolutionMs: { $avg: '$resolutionTimeMs' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get daily trend data by category
+    const dailyTrendByCategory = await Ticket.aggregate([
       { $match: { created: { $gte: startDate } } },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
+          _id: { 
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
+            category: '$category',
+            status: '$status'
+          },
           count: { $sum: 1 }
         }
       },
-      { $sort: { _id: 1 } }
+      { $sort: { '_id.date': 1 } }
     ]);
 
-    // Get average resolution time
-    const resolvedTickets = await Ticket.find({
-      status: 'Resolved',
-      created: { $gte: startDate },
-      updatedAt: { $exists: true }
-    }).select('created updatedAt');
+    // Get response time data by category
+    const responseTimeByCategory = await Ticket.aggregate([
+      { 
+        $match: { 
+          created: { $gte: startDate },
+          'messages.0': { $exists: true } // Has at least one response
+        } 
+      },
+      {
+        $addFields: {
+          firstResponse: { $arrayElemAt: ['$messages', 0] },
+          responseTimeMs: { 
+            $subtract: [
+              { $arrayElemAt: ['$messages.timestamp', 0] },
+              '$created'
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          responseTimeMs: { $gt: 0 } // Valid response time
+        }
+      },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
+            category: '$category'
+          },
+          avgResponseTimeMs: { $avg: '$responseTimeMs' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.date': 1 } }
+    ]);
 
-    let avgResolutionTime = 0;
-    if (resolvedTickets.length > 0) {
-      const totalTime = resolvedTickets.reduce((sum, ticket) => {
-        const resolutionTime = ticket.updatedAt.getTime() - ticket.created.getTime();
-        return sum + resolutionTime;
-      }, 0);
-      avgResolutionTime = Math.round(totalTime / resolvedTickets.length / (1000 * 60 * 60)); // Convert to hours
-    }
+    // Format resolution times
+    const formatResolutionTime = (ms) => {
+      if (!ms) return { seconds: 0, minutes: 0, hours: 0, display: '0s' };
+      
+      const seconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      let display = '';
+      if (days > 0) display += `${days}d `;
+      if (hours % 24 > 0) display += `${hours % 24}h `;
+      if (minutes % 60 > 0) display += `${minutes % 60}m `;
+      if (seconds % 60 > 0 && days === 0) display += `${seconds % 60}s`;
+      
+      return {
+        seconds: seconds % 60,
+        minutes: minutes % 60,
+        hours: hours % 24,
+        days,
+        totalSeconds: seconds,
+        totalMinutes: minutes,
+        totalHours: hours,
+        display: display.trim() || '0s'
+      };
+    };
+
+    const avgResolutionByCtg = avgResolutionByCategory.map(item => ({
+      category: item._id || 'Uncategorized',
+      ...formatResolutionTime(item.avgResolutionMs),
+      ticketCount: item.count
+    }));
+
+    const overallAvg = overallAvgResolution.length > 0 ? 
+      formatResolutionTime(overallAvgResolution[0].avgResolutionMs) : 
+      formatResolutionTime(0);
 
     res.json({
       byStatus: ticketsByStatus.map(item => ({ status: item._id, count: item.count })),
-      byType: ticketsByType.map(item => ({ type: item._id, count: item.count })),
-      dailyTrend: dailyTickets.map(item => ({ date: item._id, count: item.count })),
-      avgResolutionTime
+      byCategory: ticketsByCategory.map(item => ({ category: item._id || 'Uncategorized', count: item.count })),
+      avgResolutionByCategory: avgResolutionByCtg,
+      overallAvgResolution: overallAvg,
+      dailyTrendByCategory,
+      responseTimeByCategory,
+      totalFinishedTickets: overallAvgResolution.length > 0 ? overallAvgResolution[0].count : 0
     });
   } catch (error) {
     console.error('Ticket analytics error:', error);

@@ -32,8 +32,8 @@ const Home = () => {
   
   // Fetch all dashboard data
   const { data: metricsData, isLoading: isLoadingMetrics, refetch: refetchMetrics } = useDashboardMetrics(metricsPeriod);
-  const { data: recentTicketsData, isLoading: isLoadingTickets, refetch: refetchTickets } = useRecentTickets(5);
-  const { data: recentPunishmentsData, isLoading: isLoadingPunishments, refetch: refetchPunishments } = useRecentPunishments(8);
+  const { data: recentTicketsData, isLoading: isLoadingTickets, refetch: refetchTickets } = useRecentTickets(3);
+  const { data: recentPunishmentsData, isLoading: isLoadingPunishments, refetch: refetchPunishments } = useRecentPunishments(5);
   const { data: subscriptionUpdatesData, isLoading: isLoadingUpdates, refetch: refetchUpdates } = useTicketSubscriptionUpdates(10);
   
   // Mutations for subscription management

@@ -730,110 +730,110 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <User className="h-6 w-6" />
-              {staff.username} - Detailed Analytics
-              <Badge variant="outline">{staff.role}</Badge>
-            </div>
-            <div className="flex gap-2">
-              <Popover open={showBulkRollback} onOpenChange={setShowBulkRollback}>
-                <PopoverTrigger asChild>
+          <DialogTitle className="flex items-center gap-3">
+            <User className="h-6 w-6" />
+            {staff.username} - Detailed Analytics
+            <Badge variant="outline">{staff.role}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+        
+        {/* Bulk Rollback Controls - Moved outside header */}
+        <div className="flex justify-end mb-4">
+          <Popover open={showBulkRollback} onOpenChange={setShowBulkRollback}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                title={`Rollback punishments by ${staff.username}`}
+              >
+                <Undo2 className="h-4 w-4 mr-2" />
+                Bulk Rollback
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4" align="end">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Bulk Rollback for {staff.username}</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Select the date range for punishments to rollback
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Start Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal h-8"
+                        >
+                          <Calendar className="mr-2 h-3 w-3" />
+                          {rollbackStartDate ? format(rollbackStartDate, "MMM d, yyyy") : "Select start"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={rollbackStartDate}
+                          onSelect={setRollbackStartDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">End Date</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal h-8"
+                        >
+                          <Calendar className="mr-2 h-3 w-3" />
+                          {rollbackEndDate ? format(rollbackEndDate, "MMM d, yyyy") : "Select end"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={rollbackEndDate}
+                          onSelect={setRollbackEndDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    title={`Rollback punishments by ${staff.username}`}
+                    className="flex-1"
+                    onClick={() => {
+                      setShowBulkRollback(false);
+                      setRollbackStartDate(undefined);
+                      setRollbackEndDate(undefined);
+                    }}
                   >
-                    <Undo2 className="h-4 w-4 mr-2" />
-                    Bulk Rollback
+                    Cancel
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="end">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium mb-2">Bulk Rollback for {staff.username}</h4>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Select the date range for punishments to rollback
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">Start Date</label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal h-8"
-                            >
-                              <Calendar className="mr-2 h-3 w-3" />
-                              {rollbackStartDate ? format(rollbackStartDate, "MMM d, yyyy") : "Select start"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={rollbackStartDate}
-                              onSelect={setRollbackStartDate}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground">End Date</label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal h-8"
-                            >
-                              <Calendar className="mr-2 h-3 w-3" />
-                              {rollbackEndDate ? format(rollbackEndDate, "MMM d, yyyy") : "Select end"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={rollbackEndDate}
-                              onSelect={setRollbackEndDate}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setShowBulkRollback(false);
-                          setRollbackStartDate(undefined);
-                          setRollbackEndDate(undefined);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="flex-1"
-                        onClick={handleBulkRollback}
-                        disabled={!rollbackStartDate || !rollbackEndDate}
-                      >
-                        Apply Rollback
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                    onClick={handleBulkRollback}
+                    disabled={!rollbackStartDate || !rollbackEndDate}
+                  >
+                    Apply Rollback
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
         
         <div className="space-y-6">
           {/* Period Selector */}
@@ -1246,6 +1246,208 @@ const fetchStaffDetails = async (username: string, period: string) => {
   const response = await fetch(`/api/panel/audit/staff/${username}/details?period=${period}`);
   if (!response.ok) throw new Error('Failed to fetch staff details');
   return response.json();
+};
+
+// Ticket Analytics Section Component
+const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }) => {
+  const [visibleLines, setVisibleLines] = useState({
+    responseTime: { overall: true, bug: true, support: true, feature: true, other: true },
+    opened: { overall: true, bug: true, support: true, feature: true, other: true },
+    closed: { overall: true, bug: true, support: true, feature: true, other: true }
+  });
+
+  const { data: ticketAnalytics } = useQuery({
+    queryKey: ['ticket-analytics', analyticsPeriod],
+    queryFn: () => fetchTicketAnalytics(analyticsPeriod),
+    staleTime: 5 * 60 * 1000
+  });
+
+  // Process data for the chart
+  const chartData = useMemo(() => {
+    if (!ticketAnalytics) return [];
+
+    const dateMap = new Map();
+    
+    // Process daily trend data
+    ticketAnalytics.dailyTrendByCategory?.forEach(item => {
+      const date = item._id.date;
+      const category = item._id.category || 'other';
+      const status = item._id.status?.toLowerCase();
+      
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { date });
+      }
+      
+      const dayData = dateMap.get(date);
+      
+      // Count opened tickets
+      dayData[`opened_${category}`] = (dayData[`opened_${category}`] || 0) + item.count;
+      dayData[`opened_overall`] = (dayData[`opened_overall`] || 0) + item.count;
+      
+      // Count closed tickets
+      if (status === 'resolved' || status === 'closed') {
+        dayData[`closed_${category}`] = (dayData[`closed_${category}`] || 0) + item.count;
+        dayData[`closed_overall`] = (dayData[`closed_overall`] || 0) + item.count;
+      }
+    });
+
+    // Process response time data
+    ticketAnalytics.responseTimeByCategory?.forEach(item => {
+      const date = item._id.date;
+      const category = item._id.category || 'other';
+      const responseTimeHours = item.avgResponseTimeMs / (1000 * 60 * 60);
+      
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { date });
+      }
+      
+      const dayData = dateMap.get(date);
+      dayData[`responseTime_${category}`] = responseTimeHours;
+    });
+
+    return Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [ticketAnalytics]);
+
+  const toggleLine = (type: string, category: string) => {
+    setVisibleLines(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [category]: !prev[type][category]
+      }
+    }));
+  };
+
+  const categories = ['overall', 'bug', 'support', 'feature', 'other'];
+  const categoryColors = {
+    overall: '#000000',
+    bug: '#ef4444',
+    support: '#3b82f6', 
+    feature: '#10b981',
+    other: '#f59e0b'
+  };
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-medium">Ticket Analytics</h3>
+      
+      {/* Average Resolution Times by Category */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Average Resolution Time by Category</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Overall */}
+            <div className="p-4 border rounded">
+              <h4 className="font-medium text-sm">Overall</h4>
+              <p className="text-2xl font-bold">{ticketAnalytics?.overallAvgResolution?.display || '0s'}</p>
+              <p className="text-xs text-muted-foreground">
+                {ticketAnalytics?.totalFinishedTickets || 0} finished tickets
+              </p>
+            </div>
+            
+            {/* By Category */}
+            {(ticketAnalytics?.avgResolutionByCategory || []).map((cat, index) => (
+              <div key={index} className="p-4 border rounded">
+                <h4 className="font-medium text-sm capitalize">{cat.category}</h4>
+                <p className="text-2xl font-bold">{cat.display}</p>
+                <p className="text-xs text-muted-foreground">
+                  {cat.ticketCount} tickets
+                </p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Toggleable Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ticket Trends</CardTitle>
+          <div className="space-y-4">
+            {/* Line toggles */}
+            {['responseTime', 'opened', 'closed'].map(type => (
+              <div key={type} className="space-y-2">
+                <h4 className="text-sm font-medium capitalize">{type.replace('Time', ' Time')}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(category => (
+                    <Button
+                      key={`${type}-${category}`}
+                      variant={visibleLines[type][category] ? "default" : "outline"}
+                      size="sm"
+                      className="text-xs h-6"
+                      style={{
+                        backgroundColor: visibleLines[type][category] ? categoryColors[category] : 'transparent',
+                        borderColor: categoryColors[category],
+                        color: visibleLines[type][category] ? 'white' : categoryColors[category]
+                      }}
+                      onClick={() => toggleLine(type, category)}
+                    >
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              
+              {/* Response Time Lines */}
+              {categories.map(category => 
+                visibleLines.responseTime[category] && (
+                  <Line
+                    key={`responseTime_${category}`}
+                    type="monotone"
+                    dataKey={`responseTime_${category}`}
+                    stroke={categoryColors[category]}
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    name={`${category} Response Time (hours)`}
+                  />
+                )
+              )}
+              
+              {/* Opened Lines */}
+              {categories.map(category => 
+                visibleLines.opened[category] && (
+                  <Line
+                    key={`opened_${category}`}
+                    type="monotone"
+                    dataKey={`opened_${category}`}
+                    stroke={categoryColors[category]}
+                    strokeWidth={2}
+                    name={`${category} Opened`}
+                  />
+                )
+              )}
+              
+              {/* Closed Lines */}
+              {categories.map(category => 
+                visibleLines.closed[category] && (
+                  <Line
+                    key={`closed_${category}`}
+                    type="monotone"
+                    dataKey={`closed_${category}`}
+                    stroke={categoryColors[category]}
+                    strokeWidth={3}
+                    name={`${category} Closed`}
+                  />
+                )
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
 
 const AuditLog = () => {
@@ -1732,88 +1934,7 @@ const AuditLog = () => {
           </TabsContent>
           
           <TabsContent value="tickets" className="space-y-6">
-            <h3 className="text-lg font-medium">Ticket Analytics</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">By Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={ticketAnalytics?.byStatus || []}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={60}
-                        fill="#8884d8"
-                        dataKey="count"
-                        label={({ status, percent }) => `${status} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {(ticketAnalytics?.byStatus || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">By Type</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={ticketAnalytics?.byType || []}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={60}
-                        fill="#8884d8"
-                        dataKey="count"
-                        label={({ type, percent }) => `${type} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {(ticketAnalytics?.byType || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Avg Resolution Time</p>
-                    <p className="text-3xl font-bold">{ticketAnalytics?.avgResolutionTime || 0}h</p>
-                    <p className="text-xs text-muted-foreground mt-1">For resolved tickets</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Daily Ticket Trend</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={ticketAnalytics?.dailyTrend || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <TicketAnalyticsSection analyticsPeriod={analyticsPeriod} />
           </TabsContent>
           
           <TabsContent value="punishments" className="space-y-6">
