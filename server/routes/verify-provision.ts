@@ -266,189 +266,168 @@ async function createSuperAdminUser(dbConnection: Connection, globalConnection: 
 
 async function createDefaultTicketForms(dbConnection: Connection) {
   try {
-    const TicketFormModel = dbConnection.models.TicketForm || dbConnection.model('TicketForm', new mongoose.Schema({
-      formType: String,
-      sections: [{
-        id: String,
-        title: String,
-        description: String,
-        order: Number,
-        hideByDefault: Boolean
-      }],
-      fields: [{
-        id: String,
-        sectionId: String,
-        type: String,
-        label: String,
-        description: String,
-        required: Boolean,
-        options: [String],
-        order: Number,
-        goToSection: String,
-        optionSectionMapping: mongoose.Schema.Types.Mixed
-      }]
+    // Get the Settings model (ticket forms are stored in Settings collection)
+    const SettingsModel = dbConnection.models.Settings || dbConnection.model('Settings', new mongoose.Schema({
+      type: { type: String, required: true },
+      data: { type: mongoose.Schema.Types.Mixed, required: true }
     }));
 
-    // Bug Report Form
-    const bugReportForm = new TicketFormModel({
-      formType: 'bug',
-      sections: [
-        {
-          id: 'bug_details',
-          title: 'Bug Details',
-          description: 'Provide information about the bug you encountered',
-          order: 0,
-          hideByDefault: false
-        }
-      ],
-      fields: [
-        {
-          id: 'bug_summary',
-          sectionId: 'bug_details',
-          type: 'text',
-          label: 'Bug Summary',
-          description: 'Brief description of the bug',
-          required: true,
-          options: [],
-          order: 0
-        },
-        {
-          id: 'bug_description',
-          sectionId: 'bug_details',
-          type: 'textarea',
-          label: 'Detailed Description',
-          description: 'Provide a detailed description of the bug and steps to reproduce it',
-          required: true,
-          options: [],
-          order: 1
-        },
-        {
-          id: 'bug_severity',
-          sectionId: 'bug_details',
-          type: 'dropdown',
-          label: 'Severity Level',
-          description: 'How severe is this bug?',
-          required: true,
-          options: ['Low', 'Medium', 'High', 'Critical'],
-          order: 2
-        }
-      ]
+    // Check if ticket forms already exist
+    const existingForms = await SettingsModel.findOne({ type: 'ticketForms' });
+    if (existingForms) {
+      console.log('[Provisioning] Ticket forms already exist, skipping creation');
+      return;
+    }
+
+    // Define default ticket forms with simplified structure
+    const defaultTicketForms = {
+      bug: {
+        fields: [
+          {
+            id: 'bug_summary',
+            type: 'text',
+            label: 'Bug Summary',
+            description: 'Brief description of the bug',
+            required: true,
+            order: 0,
+            sectionId: 'bug_details'
+          },
+          {
+            id: 'bug_description',
+            type: 'textarea',
+            label: 'Detailed Description',
+            description: 'Provide a detailed description of the bug and steps to reproduce it',
+            required: true,
+            order: 1,
+            sectionId: 'bug_details'
+          },
+          {
+            id: 'bug_severity',
+            type: 'dropdown',
+            label: 'Severity Level',
+            description: 'How severe is this bug?',
+            required: true,
+            options: ['Low', 'Medium', 'High', 'Critical'],
+            order: 2,
+            sectionId: 'bug_details'
+          }
+        ],
+        sections: [
+          {
+            id: 'bug_details',
+            title: 'Bug Details',
+            description: 'Provide information about the bug you encountered',
+            order: 0,
+            hideByDefault: false
+          }
+        ]
+      },
+      support: {
+        fields: [
+          {
+            id: 'support_category',
+            type: 'dropdown',
+            label: 'Category',
+            description: 'What type of support do you need?',
+            required: true,
+            options: ['Account Issues', 'Technical Problems', 'Game Questions', 'Other'],
+            order: 0,
+            sectionId: 'support_details'
+          },
+          {
+            id: 'support_description',
+            type: 'textarea',
+            label: 'Description',
+            description: 'Please describe your issue or question in detail',
+            required: true,
+            order: 1,
+            sectionId: 'support_details'
+          }
+        ],
+        sections: [
+          {
+            id: 'support_details',
+            title: 'Support Request',
+            description: 'Describe what you need help with',
+            order: 0,
+            hideByDefault: false
+          }
+        ]
+      },
+      application: {
+        fields: [
+          {
+            id: 'real_name',
+            type: 'text',
+            label: 'Real Name',
+            description: 'Your real first and last name',
+            required: true,
+            order: 0,
+            sectionId: 'personal_info'
+          },
+          {
+            id: 'age',
+            type: 'text',
+            label: 'Age',
+            description: 'How old are you?',
+            required: true,
+            order: 1,
+            sectionId: 'personal_info'
+          },
+          {
+            id: 'timezone',
+            type: 'text',
+            label: 'Timezone',
+            description: 'What timezone are you in?',
+            required: true,
+            order: 2,
+            sectionId: 'personal_info'
+          },
+          {
+            id: 'previous_experience',
+            type: 'textarea',
+            label: 'Previous Staff Experience',
+            description: 'Describe any previous moderation or staff experience',
+            required: false,
+            order: 0,
+            sectionId: 'experience'
+          },
+          {
+            id: 'why_apply',
+            type: 'textarea',
+            label: 'Why do you want to be staff?',
+            description: 'Explain your motivation for applying',
+            required: true,
+            order: 1,
+            sectionId: 'experience'
+          }
+        ],
+        sections: [
+          {
+            id: 'personal_info',
+            title: 'Personal Information',
+            description: 'Tell us about yourself',
+            order: 0,
+            hideByDefault: false
+          },
+          {
+            id: 'experience',
+            title: 'Experience & Qualifications',
+            description: 'Your relevant experience and skills',
+            order: 1,
+            hideByDefault: false
+          }
+        ]
+      }
+    };
+
+    // Create the settings document
+    const formsDocument = new SettingsModel({
+      type: 'ticketForms',
+      data: defaultTicketForms
     });
 
-    // Support Request Form
-    const supportForm = new TicketFormModel({
-      formType: 'support',
-      sections: [
-        {
-          id: 'support_details',
-          title: 'Support Request',
-          description: 'Describe what you need help with',
-          order: 0,
-          hideByDefault: false
-        }
-      ],
-      fields: [
-        {
-          id: 'support_category',
-          sectionId: 'support_details',
-          type: 'dropdown',
-          label: 'Category',
-          description: 'What type of support do you need?',
-          required: true,
-          options: ['Account Issues', 'Technical Problems', 'Game Questions', 'Other'],
-          order: 0
-        },
-        {
-          id: 'support_description',
-          sectionId: 'support_details',
-          type: 'textarea',
-          label: 'Description',
-          description: 'Please describe your issue or question in detail',
-          required: true,
-          options: [],
-          order: 1
-        }
-      ]
-    });
-
-    // Staff Application Form
-    const applicationForm = new TicketFormModel({
-      formType: 'application',
-      sections: [
-        {
-          id: 'personal_info',
-          title: 'Personal Information',
-          description: 'Tell us about yourself',
-          order: 0,
-          hideByDefault: false
-        },
-        {
-          id: 'experience',
-          title: 'Experience & Qualifications',
-          description: 'Your relevant experience and skills',
-          order: 1,
-          hideByDefault: false
-        }
-      ],
-      fields: [
-        {
-          id: 'real_name',
-          sectionId: 'personal_info',
-          type: 'text',
-          label: 'Real Name',
-          description: 'Your real first and last name',
-          required: true,
-          options: [],
-          order: 0
-        },
-        {
-          id: 'age',
-          sectionId: 'personal_info',
-          type: 'text',
-          label: 'Age',
-          description: 'How old are you?',
-          required: true,
-          options: [],
-          order: 1
-        },
-        {
-          id: 'timezone',
-          sectionId: 'personal_info',
-          type: 'text',
-          label: 'Timezone',
-          description: 'What timezone are you in?',
-          required: true,
-          options: [],
-          order: 2
-        },
-        {
-          id: 'previous_experience',
-          sectionId: 'experience',
-          type: 'textarea',
-          label: 'Previous Staff Experience',
-          description: 'Describe any previous moderation or staff experience',
-          required: false,
-          options: [],
-          order: 0
-        },
-        {
-          id: 'why_apply',
-          sectionId: 'experience',
-          type: 'textarea',
-          label: 'Why do you want to be staff?',
-          description: 'Explain your motivation for applying',
-          required: true,
-          options: [],
-          order: 1
-        }
-      ]
-    });
-
-    await Promise.all([
-      bugReportForm.save(),
-      supportForm.save(),
-      applicationForm.save()
-    ]);
+    await formsDocument.save();
 
     console.log('[Provisioning] Created default ticket forms: bug, support, application');
     
