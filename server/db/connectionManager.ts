@@ -12,7 +12,6 @@ import {
   HomepageCardSchema
 } from 'modl-shared-web';
 import { ModlServerSchema } from 'modl-shared-web';
-import { TicketSubscriptionSchema, TicketSubscriptionUpdateSchema } from '../models/subscription-models';
 
 dotenv.config();
 
@@ -34,9 +33,7 @@ const tenantSchemas: Record<string, mongoose.Schema<any>> = {
   Invitation: InvitationSchema,
   KnowledgebaseArticle: KnowledgebaseArticleSchema,
   KnowledgebaseCategory: KnowledgebaseCategorySchema,
-  HomepageCard: HomepageCardSchema,
-  TicketSubscription: TicketSubscriptionSchema,
-  TicketSubscriptionUpdate: TicketSubscriptionUpdateSchema
+  HomepageCard: HomepageCardSchema
 };
 
 function registerTenantModels(connection: Connection): void {

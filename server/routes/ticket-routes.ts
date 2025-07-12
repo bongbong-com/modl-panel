@@ -239,6 +239,17 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
       return res.status(404).json({ error: 'Ticket not found' });
     }
 
+    // Mark ticket as read for the current staff member
+    if (req.session?.username) {
+      try {
+        const { markTicketAsRead } = await import('./ticket-subscription-routes');
+        await markTicketAsRead(req.serverDbConnection!, req.params.id, req.session.username);
+      } catch (readError) {
+        console.error(`Failed to mark ticket ${req.params.id} as read:`, readError);
+        // Don't fail the request if marking as read fails
+      }
+    }
+
     // Manually construct the object to send, ensuring Maps are converted
     const transformedTicket = {
       id: ticket._id,
@@ -387,22 +398,13 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
     ticket.replies.push(newReply);
     await ticket.save();
 
-    // Auto-subscribe staff member to ticket and create subscription update
+    // Auto-subscribe staff member to ticket when they reply
     if (newReply.staff && req.session?.username) {
       try {
-        const { ensureTicketSubscription, createTicketSubscriptionUpdate } = await import('./ticket-subscription-routes');
+        const { ensureTicketSubscription } = await import('./ticket-subscription-routes');
         
         // Auto-subscribe the staff member who replied
         await ensureTicketSubscription(req.serverDbConnection!, req.params.id, req.session.username);
-        
-        // Create subscription update for all subscribers
-        await createTicketSubscriptionUpdate(
-          req.serverDbConnection!, 
-          req.params.id, 
-          newReply.content, 
-          req.session.username, 
-          true // isStaffReply
-        );
       } catch (subscriptionError) {
         console.error(`Failed to handle ticket subscription for ticket ${req.params.id}:`, subscriptionError);
         // Don't fail the reply if subscription fails

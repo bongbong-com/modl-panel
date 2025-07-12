@@ -20,24 +20,27 @@ router.get('/', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const TicketSubscription = db.model('TicketSubscription');
+    const Staff = db.model('Staff');
     const Ticket = db.model('Ticket');
 
-    // Get active subscriptions for this staff member
-    const subscriptions = await TicketSubscription.find({
-      staffUsername,
-      active: true
-    }).lean();
+    // Get staff member with their subscriptions
+    const staff = await Staff.findOne({ username: staffUsername }).lean();
+    
+    if (!staff || !staff.subscribedTickets) {
+      return res.json([]);
+    }
 
-    // Get ticket details for each subscription
+    // Filter active subscriptions and get ticket details
     const subscriptionsWithDetails = [];
     
-    for (const subscription of subscriptions) {
+    for (const subscription of staff.subscribedTickets) {
+      if (!subscription.active) continue;
+      
       try {
         const ticket = await Ticket.findById(subscription.ticketId).lean();
         if (ticket) {
           subscriptionsWithDetails.push({
-            ticketId: subscription.ticketId,
+            ticketId: subscription.ticketId.toString(),
             ticketTitle: ticket.subject || ticket.title || 'Untitled Ticket',
             subscribedAt: subscription.subscribedAt
           });
@@ -65,18 +68,19 @@ router.delete('/:ticketId', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const TicketSubscription = db.model('TicketSubscription');
+    const Staff = db.model('Staff');
 
-    // Find and deactivate the subscription
-    const result = await TicketSubscription.updateOne(
+    // Find and deactivate the subscription in the staff document
+    const result = await Staff.updateOne(
       { 
-        ticketId, 
-        staffUsername,
-        active: true 
+        username: staffUsername,
+        'subscribedTickets.ticketId': ticketId,
+        'subscribedTickets.active': true
       },
       { 
-        active: false,
-        unsubscribedAt: new Date()
+        $set: {
+          'subscribedTickets.$.active': false
+        }
       }
     );
 
@@ -102,54 +106,74 @@ router.get('/updates', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const TicketSubscription = db.model('TicketSubscription');
-    const TicketSubscriptionUpdate = db.model('TicketSubscriptionUpdate');
+    const Staff = db.model('Staff');
     const Ticket = db.model('Ticket');
 
-    // Get user's active subscriptions
-    const subscriptions = await TicketSubscription.find({
-      staffUsername,
-      active: true
-    }).select('ticketId').lean();
+    // Get staff member with their subscriptions
+    const staff = await Staff.findOne({ username: staffUsername }).lean();
+    
+    if (!staff || !staff.subscribedTickets) {
+      return res.json([]);
+    }
 
-    const subscribedTicketIds = subscriptions.map(s => s.ticketId);
+    const subscribedTicketIds = staff.subscribedTickets
+      .filter(sub => sub.active)
+      .map(sub => sub.ticketId);
 
     if (subscribedTicketIds.length === 0) {
       return res.json([]);
     }
 
-    // Get recent updates for subscribed tickets
-    const updates = await TicketSubscriptionUpdate.find({
-      ticketId: { $in: subscribedTicketIds }
-    })
-    .sort({ replyAt: -1 })
-    .limit(parseInt(limit as string))
-    .lean();
+    // Get tickets with recent activity
+    const tickets = await Ticket.find({
+      _id: { $in: subscribedTicketIds },
+      $or: [
+        { 'replies.0': { $exists: true } },
+        { 'messages.0': { $exists: true } }
+      ]
+    }).sort({ updatedAt: -1 }).limit(parseInt(limit as string) * 2).lean();
 
-    // Get ticket details for each update
     const updatesWithDetails = [];
     
-    for (const update of updates) {
-      try {
-        const ticket = await Ticket.findById(update.ticketId).lean();
-        if (ticket) {
-          updatesWithDetails.push({
-            id: update._id.toString(),
-            ticketId: update.ticketId,
-            ticketTitle: ticket.subject || ticket.title || 'Untitled Ticket',
-            replyContent: update.replyContent,
-            replyBy: update.replyBy,
-            replyAt: update.replyAt,
-            isStaffReply: update.isStaffReply || false,
-            isRead: update.readBy?.includes(staffUsername) || false
-          });
-        }
-      } catch (error) {
-        console.error(`Error fetching ticket ${update.ticketId}:`, error);
+    for (const ticket of tickets) {
+      const subscription = staff.subscribedTickets.find(
+        sub => sub.ticketId.toString() === ticket._id.toString()
+      );
+      
+      if (!subscription) continue;
+
+      // Get recent replies/messages
+      const replies = ticket.replies || ticket.messages || [];
+      const recentReplies = replies
+        .filter(reply => new Date(reply.created || reply.timestamp || reply.replyAt) > new Date(subscription.subscribedAt))
+        .sort((a, b) => new Date(b.created || b.timestamp || b.replyAt).getTime() - new Date(a.created || a.timestamp || a.replyAt).getTime())
+        .slice(0, 3); // Max 3 recent replies per ticket
+
+      for (const reply of recentReplies) {
+        const replyDate = new Date(reply.created || reply.timestamp || reply.replyAt);
+        const isRead = subscription.lastReadAt && replyDate <= new Date(subscription.lastReadAt);
+        
+        updatesWithDetails.push({
+          id: `${ticket._id}-${reply.id || reply._id || Date.now()}`,
+          ticketId: ticket._id.toString(),
+          ticketTitle: ticket.subject || ticket.title || 'Untitled Ticket',
+          replyContent: reply.content || reply.message || reply.text || 'No content',
+          replyBy: reply.name || reply.sender || reply.author || 'Unknown',
+          replyAt: replyDate,
+          isStaffReply: reply.staff || reply.senderType === 'staff' || false,
+          isRead: isRead || false
+        });
+      }
+
+      if (updatesWithDetails.length >= parseInt(limit as string)) {
+        break;
       }
     }
 
-    res.json(updatesWithDetails);
+    // Sort all updates by date and limit
+    updatesWithDetails.sort((a, b) => new Date(b.replyAt).getTime() - new Date(a.replyAt).getTime());
+    
+    res.json(updatesWithDetails.slice(0, parseInt(limit as string)));
   } catch (error) {
     console.error('Subscription updates error:', error);
     res.status(500).json({ message: 'Failed to fetch subscription updates' });
@@ -167,16 +191,26 @@ router.post('/updates/:updateId/read', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const TicketSubscriptionUpdate = db.model('TicketSubscriptionUpdate');
+    // Extract ticketId from updateId (format: ticketId-replyId)
+    const ticketId = updateId.split('-')[0];
+    
+    if (!ticketId) {
+      return res.status(400).json({ message: 'Invalid update ID' });
+    }
 
-    // Add staff username to readBy array if not already present
-    const result = await TicketSubscriptionUpdate.updateOne(
+    const Staff = db.model('Staff');
+
+    // Update the lastReadAt timestamp for this ticket subscription
+    const result = await Staff.updateOne(
       { 
-        _id: updateId,
-        readBy: { $ne: staffUsername }
+        username: staffUsername,
+        'subscribedTickets.ticketId': ticketId,
+        'subscribedTickets.active': true
       },
       { 
-        $addToSet: { readBy: staffUsername }
+        $set: {
+          'subscribedTickets.$.lastReadAt': new Date()
+        }
       }
     );
 
@@ -190,61 +224,74 @@ router.post('/updates/:updateId/read', async (req, res) => {
 // Helper function to create or ensure ticket subscription exists
 export async function ensureTicketSubscription(db: any, ticketId: string, staffUsername: string) {
   try {
-    const TicketSubscription = db.model('TicketSubscription');
+    const Staff = db.model('Staff');
     
-    // Check if subscription already exists
-    const existingSubscription = await TicketSubscription.findOne({
-      ticketId,
-      staffUsername
-    });
+    // Find staff member
+    const staff = await Staff.findOne({ username: staffUsername });
+    
+    if (!staff) {
+      console.error(`Staff member ${staffUsername} not found`);
+      return;
+    }
 
-    if (!existingSubscription) {
+    // Initialize subscribedTickets array if it doesn't exist
+    if (!staff.subscribedTickets) {
+      staff.subscribedTickets = [];
+    }
+
+    // Check if subscription already exists
+    const existingSubscriptionIndex = staff.subscribedTickets.findIndex(
+      sub => sub.ticketId.toString() === ticketId
+    );
+
+    if (existingSubscriptionIndex === -1) {
       // Create new subscription
-      const newSubscription = new TicketSubscription({
-        ticketId,
-        staffUsername,
+      staff.subscribedTickets.push({
+        ticketId: ticketId,
         subscribedAt: new Date(),
         active: true
       });
       
-      await newSubscription.save();
+      await staff.save();
       console.log(`Created ticket subscription for ${staffUsername} on ticket ${ticketId}`);
-    } else if (!existingSubscription.active) {
-      // Reactivate existing subscription
-      existingSubscription.active = true;
-      existingSubscription.subscribedAt = new Date();
-      await existingSubscription.save();
-      console.log(`Reactivated ticket subscription for ${staffUsername} on ticket ${ticketId}`);
+    } else {
+      // Reactivate existing subscription if inactive
+      const existingSubscription = staff.subscribedTickets[existingSubscriptionIndex];
+      if (!existingSubscription.active) {
+        existingSubscription.active = true;
+        existingSubscription.subscribedAt = new Date();
+        
+        await staff.save();
+        console.log(`Reactivated ticket subscription for ${staffUsername} on ticket ${ticketId}`);
+      }
     }
   } catch (error) {
     console.error('Error ensuring ticket subscription:', error);
   }
 }
 
-// Helper function to create subscription update when someone replies to a ticket
-export async function createTicketSubscriptionUpdate(
-  db: any, 
-  ticketId: string, 
-  replyContent: string, 
-  replyBy: string, 
-  isStaffReply: boolean = false
-) {
+// Helper function to mark ticket as read when staff opens it
+export async function markTicketAsRead(db: any, ticketId: string, staffUsername: string) {
   try {
-    const TicketSubscriptionUpdate = db.model('TicketSubscriptionUpdate');
+    const Staff = db.model('Staff');
     
-    const update = new TicketSubscriptionUpdate({
-      ticketId,
-      replyContent: replyContent.substring(0, 500), // Truncate long replies
-      replyBy,
-      replyAt: new Date(),
-      isStaffReply,
-      readBy: [] // No one has read it yet
-    });
+    // Update the lastReadAt timestamp for this ticket subscription
+    await Staff.updateOne(
+      { 
+        username: staffUsername,
+        'subscribedTickets.ticketId': ticketId,
+        'subscribedTickets.active': true
+      },
+      { 
+        $set: {
+          'subscribedTickets.$.lastReadAt': new Date()
+        }
+      }
+    );
     
-    await update.save();
-    console.log(`Created ticket subscription update for ticket ${ticketId} by ${replyBy}`);
+    console.log(`Marked ticket ${ticketId} as read for ${staffUsername}`);
   } catch (error) {
-    console.error('Error creating ticket subscription update:', error);
+    console.error('Error marking ticket as read:', error);
   }
 }
 
