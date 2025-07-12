@@ -1,7 +1,6 @@
 import { Express, Request, Response } from 'express';
 import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mongoose for Types.ObjectId
 import { randomBytes } from 'crypto';
-import bcrypt from 'bcryptjs';
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
 import { 
   PlayerSchema, 
@@ -238,29 +237,6 @@ async function createSuperAdminUser(dbConnection: Connection, globalConnection: 
       throw new Error('Server configuration not found');
     }
 
-    // Get the Super Admin role using the same model approach as role-routes.ts
-    let StaffRoles;
-    try {
-      StaffRoles = dbConnection.model('StaffRole');
-    } catch {
-      // If model doesn't exist, it means roles weren't created properly
-      throw new Error('StaffRole model not found - roles may not have been created');
-    }
-
-    const superAdminRole = await StaffRoles.findOne({ name: 'Super Admin' });
-    if (!superAdminRole) {
-      // List all available roles for debugging
-      const allRoles = await StaffRoles.find({});
-      console.log('[Provisioning] Available roles:', allRoles.map(r => r.name));
-      throw new Error('Super Admin role not found');
-    }
-
-    console.log(`[Provisioning] Found Super Admin role: ${superAdminRole.name} (ID: ${superAdminRole._id})`);
-
-    // Create default password (should be changed on first login)
-    const defaultPassword = randomBytes(16).toString('hex');
-    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
-
     // Create superadmin user in staffs collection
     const StaffModel = dbConnection.models.Staff || dbConnection.model('Staff', StaffSchema);
     
@@ -274,18 +250,13 @@ async function createSuperAdminUser(dbConnection: Connection, globalConnection: 
     const superAdmin = new StaffModel({
       username: 'superadmin',
       email: serverConfig.adminEmail,
-      passwordHash: hashedPassword,
-      roles: [superAdminRole._id],
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ticketSubscriptions: []
+      role: 'Super Admin'
     });
 
     await superAdmin.save();
     
     console.log(`[Provisioning] Created superadmin user with email: ${serverConfig.adminEmail}`);
-    console.log(`[Provisioning] Default password: ${defaultPassword} (should be changed on first login)`);
+    console.log(`[Provisioning] Admin can login using email verification codes sent to this address`);
     
   } catch (error) {
     console.error('[Provisioning] Error creating superadmin user:', error);

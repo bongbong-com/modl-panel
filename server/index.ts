@@ -24,12 +24,11 @@ app.use((req, res, next) => {
   return express.urlencoded({ extended: false })(req, res, next);
 });
 
-// If running behind a reverse proxy (like Nginx, Cloudflare, etc.) in production,
+// If running behind a reverse proxy (like Nginx, Cloudflare, etc.),
 // trust the first proxy hop to correctly identify the protocol (HTTP/HTTPS).
 // This is important for 'secure' cookies and rate limiting by IP.
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1); // Adjust the number of hops if needed
-}
+// Cloudflare is always used, so we enable this in all environments.
+app.set('trust proxy', 1);
 
 // Apply global rate limiting to all requests
 app.use(globalRateLimit);

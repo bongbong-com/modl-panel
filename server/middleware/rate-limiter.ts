@@ -1,6 +1,28 @@
 import rateLimit, { type RateLimitRequestHandler } from 'express-rate-limit';
 import { type Request } from 'express';
 
+// Helper function to get the real client IP, handling Cloudflare proxy
+export function getRealClientIP(req: Request): string {
+  // Cloudflare sets CF-Connecting-IP header with the real client IP
+  const cfConnectingIP = req.headers['cf-connecting-ip'] as string;
+  
+  // Express's req.ip uses X-Forwarded-For when trust proxy is enabled
+  const expressIP = req.ip;
+  
+  // Fallback to connection remote address
+  const connectionIP = req.connection.remoteAddress;
+  
+  // Determine which IP to use
+  const clientIP = cfConnectingIP || expressIP || connectionIP || 'unknown';
+  
+  // Debug logging for IP detection (only in development)
+  if (process.env.NODE_ENV === 'development' && clientIP !== 'unknown') {
+    console.log(`[IP DEBUG] CF-Connecting-IP: ${cfConnectingIP || 'none'}, Express IP: ${expressIP || 'none'}, Connection IP: ${connectionIP || 'none'}, Selected: ${clientIP}`);
+  }
+  
+  return clientIP;
+}
+
 // Global rate limit: 200 requests per minute per IP
 export const globalRateLimit: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -17,14 +39,14 @@ export const globalRateLimit: RateLimitRequestHandler = rateLimit({
   skipFailedRequests: false,
   // Skip requests that are not to API endpoints
   skip: (req: Request) => !req.path.startsWith('/api'),
-  // Custom key generator to use IP address
+  // Custom key generator to use real client IP (handles Cloudflare proxy)
   keyGenerator: (req) => {
-    // Use forwarded IP if behind a proxy, otherwise use connection remote address
-    return req.ip || req.connection.remoteAddress || 'unknown';
+    return getRealClientIP(req);
   },
   // Add handler for when rate limit is exceeded
   handler: (req, res) => {
-    console.log(`[RATE LIMIT] Global rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
+    const clientIP = getRealClientIP(req);
+    console.log(`[RATE LIMIT] Global rate limit exceeded for IP: ${clientIP} on ${req.method} ${req.path}`);
     res.status(429).json({
       error: 'You have exceeded the maximum number of API requests allowed. Please slow down and try again in a minute.',
       retryAfter: 60,
@@ -50,7 +72,7 @@ export const strictRateLimit: RateLimitRequestHandler = rateLimit({
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
   keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress || 'unknown';
+    return getRealClientIP(req);
   },
   handler: (req, res) => {
     const endpoint = req.path;
@@ -72,7 +94,8 @@ export const strictRateLimit: RateLimitRequestHandler = rateLimit({
       securityNote = 'Strict rate limiting helps protect against automated attacks.';
     }
 
-    console.log(`[RATE LIMIT] Strict rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
+    const clientIP = getRealClientIP(req);
+    console.log(`[RATE LIMIT] Strict rate limit exceeded for IP: ${clientIP} on ${req.method} ${req.path}`);
     res.status(429).json({
       error: userFriendlyMessage,
       retryAfter: 60,
@@ -98,7 +121,7 @@ export const authRateLimit: RateLimitRequestHandler = rateLimit({
   skipSuccessfulRequests: false,
   skipFailedRequests: false,
   keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress || 'unknown';
+    return getRealClientIP(req);
   },
   handler: (req, res) => {
     const endpoint = req.path;
@@ -126,7 +149,8 @@ export const authRateLimit: RateLimitRequestHandler = rateLimit({
       securityNote = 'This security measure helps protect against unauthorized access attempts.';
     }
 
-    console.log(`[RATE LIMIT] Auth rate limit exceeded for IP: ${req.ip || 'unknown'} on ${req.method} ${req.path}`);
+    const clientIP = getRealClientIP(req);
+    console.log(`[RATE LIMIT] Auth rate limit exceeded for IP: ${clientIP} on ${req.method} ${req.path}`);
     res.status(429).json({
       error: userFriendlyMessage,
       retryAfter: 60,
