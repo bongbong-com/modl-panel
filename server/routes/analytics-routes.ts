@@ -187,13 +187,35 @@ router.get('/tickets', async (req, res) => {
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
-    // Get tickets by category (exclude unfinished statuses)
+    // Get tickets by category (exclude unfinished statuses) - using type field
     const ticketsByCategory = await Ticket.aggregate([
       { $match: { created: { $gte: startDate }, status: { $in: finishedStatuses } } },
-      { $group: { _id: '$category', count: { $sum: 1 } } }
+      {
+        $addFields: {
+          normalizedCategory: { 
+            $switch: {
+              branches: [
+                { case: { $eq: ['$type', 'bug'] }, then: 'Bug' },
+                { case: { $eq: ['$type', 'support'] }, then: 'Support' },
+                { case: { $eq: ['$type', 'appeal'] }, then: 'Appeal' },
+                { case: { $eq: ['$type', 'player'] }, then: 'Player Report' },
+                { case: { $eq: ['$type', 'chat'] }, then: 'Chat Report' },
+                { case: { $eq: ['$type', 'staff'] }, then: 'Application' },
+                { case: { $or: [
+                  { $eq: ['$type', null] }, 
+                  { $eq: ['$type', ''] },
+                  { $not: ['$type'] }
+                ]}, then: 'Other' }
+              ],
+              default: 'Other'
+            }
+          }
+        }
+      },
+      { $group: { _id: '$normalizedCategory', count: { $sum: 1 } } }
     ]);
 
-    // Get average resolution time by category
+    // Get average resolution time by category - using type field
     const avgResolutionByCategory = await Ticket.aggregate([
       { 
         $match: { 
@@ -204,12 +226,30 @@ router.get('/tickets', async (req, res) => {
       },
       {
         $addFields: {
+          normalizedCategory: { 
+            $switch: {
+              branches: [
+                { case: { $eq: ['$type', 'bug'] }, then: 'Bug' },
+                { case: { $eq: ['$type', 'support'] }, then: 'Support' },
+                { case: { $eq: ['$type', 'appeal'] }, then: 'Appeal' },
+                { case: { $eq: ['$type', 'player'] }, then: 'Player Report' },
+                { case: { $eq: ['$type', 'chat'] }, then: 'Chat Report' },
+                { case: { $eq: ['$type', 'staff'] }, then: 'Application' },
+                { case: { $or: [
+                  { $eq: ['$type', null] }, 
+                  { $eq: ['$type', ''] },
+                  { $not: ['$type'] }
+                ]}, then: 'Other' }
+              ],
+              default: 'Other'
+            }
+          },
           resolutionTimeMs: { $subtract: ['$updatedAt', '$created'] }
         }
       },
       {
         $group: {
-          _id: '$category',
+          _id: '$normalizedCategory',
           avgResolutionMs: { $avg: '$resolutionTimeMs' },
           count: { $sum: 1 }
         }
@@ -239,17 +279,27 @@ router.get('/tickets', async (req, res) => {
       }
     ]);
 
-    // Get daily trend data by category
+    // Get daily trend data by category - using type field
     const dailyTrendByCategory = await Ticket.aggregate([
       { $match: { created: { $gte: startDate } } },
       {
         $addFields: {
-          // Ensure category is not null/undefined
           normalizedCategory: { 
-            $cond: { 
-              if: { $or: [{ $eq: ['$category', null] }, { $eq: ['$category', ''] }] },
-              then: 'Other',
-              else: '$category'
+            $switch: {
+              branches: [
+                { case: { $eq: ['$type', 'bug'] }, then: 'Bug' },
+                { case: { $eq: ['$type', 'support'] }, then: 'Support' },
+                { case: { $eq: ['$type', 'appeal'] }, then: 'Appeal' },
+                { case: { $eq: ['$type', 'player'] }, then: 'Player Report' },
+                { case: { $eq: ['$type', 'chat'] }, then: 'Chat Report' },
+                { case: { $eq: ['$type', 'staff'] }, then: 'Application' },
+                { case: { $or: [
+                  { $eq: ['$type', null] }, 
+                  { $eq: ['$type', ''] },
+                  { $not: ['$type'] }
+                ]}, then: 'Other' }
+              ],
+              default: 'Other'
             }
           }
         }
@@ -267,7 +317,7 @@ router.get('/tickets', async (req, res) => {
       { $sort: { '_id.date': 1 } }
     ]);
 
-    // Get response time data by category
+    // Get response time data by category - using type field
     const responseTimeByCategory = await Ticket.aggregate([
       { 
         $match: { 
@@ -277,12 +327,22 @@ router.get('/tickets', async (req, res) => {
       },
       {
         $addFields: {
-          // Ensure category is not null/undefined
           normalizedCategory: { 
-            $cond: { 
-              if: { $or: [{ $eq: ['$category', null] }, { $eq: ['$category', ''] }] },
-              then: 'Other',
-              else: '$category'
+            $switch: {
+              branches: [
+                { case: { $eq: ['$type', 'bug'] }, then: 'Bug' },
+                { case: { $eq: ['$type', 'support'] }, then: 'Support' },
+                { case: { $eq: ['$type', 'appeal'] }, then: 'Appeal' },
+                { case: { $eq: ['$type', 'player'] }, then: 'Player Report' },
+                { case: { $eq: ['$type', 'chat'] }, then: 'Chat Report' },
+                { case: { $eq: ['$type', 'staff'] }, then: 'Application' },
+                { case: { $or: [
+                  { $eq: ['$type', null] }, 
+                  { $eq: ['$type', ''] },
+                  { $not: ['$type'] }
+                ]}, then: 'Other' }
+              ],
+              default: 'Other'
             }
           },
           firstResponse: { $arrayElemAt: ['$messages', 0] },
@@ -339,6 +399,10 @@ router.get('/tickets', async (req, res) => {
       };
     };
 
+    // Debug: Log the raw category data
+    console.log('Raw avgResolutionByCategory:', avgResolutionByCategory);
+    console.log('Raw ticketsByCategory:', ticketsByCategory);
+    
     const avgResolutionByCtg = avgResolutionByCategory.map(item => ({
       category: item._id || 'Uncategorized',
       ...formatResolutionTime(item.avgResolutionMs),
