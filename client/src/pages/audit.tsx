@@ -470,6 +470,7 @@ const StaffPerformanceModal = () => {
 // Punishment rollback modal
 const PunishmentRollbackModal = () => {
   const { toast } = useToast();
+  const [bulkTimeRange, setBulkTimeRange] = useState('24h');
   
   const { data: punishments = [], isLoading, refetch } = useQuery({
     queryKey: ['punishments-rollback'],
@@ -493,6 +494,38 @@ const PunishmentRollbackModal = () => {
       });
     }
   };
+  
+  const handleBulkRollback = async () => {
+    if (!confirm(`Are you sure you want to rollback ALL punishments from the last ${bulkTimeRange}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/panel/audit/punishments/bulk-rollback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          timeRange: bulkTimeRange,
+          reason: `Bulk rollback for ${bulkTimeRange} from audit panel`
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to bulk rollback');
+      
+      const data = await response.json();
+      toast({
+        title: "Bulk Rollback Completed",
+        description: `${data.count} punishments have been rolled back.`
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Bulk Rollback Failed",
+        description: "Failed to rollback punishments. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <Dialog>
@@ -506,7 +539,37 @@ const PunishmentRollbackModal = () => {
         <DialogHeader>
           <DialogTitle>Punishment Rollback Center</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 overflow-auto max-h-[60vh]">
+        
+        {/* Bulk Rollback Controls */}
+        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Bulk Rollback:</span>
+            <Select value={bulkTimeRange} onValueChange={setBulkTimeRange}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1h">1 hour</SelectItem>
+                <SelectItem value="6h">6 hours</SelectItem>
+                <SelectItem value="24h">24 hours</SelectItem>
+                <SelectItem value="7d">7 days</SelectItem>
+                <SelectItem value="30d">30 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkRollback}
+              className="ml-2"
+            >
+              <Undo2 className="h-4 w-4 mr-2" />
+              Execute Bulk Rollback
+            </Button>
+          </div>
+        </div>
+        
+        <div className="space-y-4 overflow-auto max-h-[50vh]">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin" />
@@ -946,22 +1009,22 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                       </tr>
                     </thead>
                     <tbody>
-                      {recentTickets.length > 0 ? recentTickets.map((ticket, index) => (
+                      {recentTickets && recentTickets.length > 0 ? recentTickets.map((ticket, index) => (
                         <tr key={index} className="border-b">
-                          <td className="p-2 font-medium">#{ticket.ticketId}</td>
-                          <td className="p-2">{ticket.subject}</td>
+                          <td className="p-2 font-medium">#{ticket.ticketId || ticket.id}</td>
+                          <td className="p-2">{ticket.subject || ticket.title || 'No subject'}</td>
                           <td className="p-2">
-                            <Badge variant={ticket.status === 'Resolved' ? 'outline' : 'secondary'}>
+                            <Badge variant={ticket.status === 'resolved' || ticket.status === 'Resolved' ? 'outline' : 'secondary'}>
                               {ticket.status}
                             </Badge>
                           </td>
-                          <td className="p-2">{ticket.responseTime}m</td>
-                          <td className="p-2">{format(new Date(ticket.created), 'MMM d, yyyy')}</td>
+                          <td className="p-2">{ticket.responseTime || '--'}m</td>
+                          <td className="p-2">{format(new Date(ticket.created || ticket.createdAt || ticket.timestamp), 'MMM d, yyyy')}</td>
                         </tr>
                       )) : (
                         <tr>
                           <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                            No recent ticket responses found
+                            {staffDetails ? 'No recent ticket responses found' : 'Loading ticket responses...'}
                           </td>
                         </tr>
                       )}
@@ -1626,14 +1689,18 @@ const AuditLog = () => {
             
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Top Punishment Reasons</CardTitle>
+                <CardTitle className="text-base">Top Punishers (Staff)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {(punishmentAnalytics?.topReasons || []).map((reason, index) => (
+                  {(punishmentAnalytics?.topPunishers || []).map((staff, index) => (
                     <div key={index} className="flex items-center justify-between p-2 border rounded">
-                      <span className="font-medium">{reason.reason}</span>
-                      <Badge variant="secondary">{reason.count}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium">{staff.staffName}</span>
+                        <Badge variant="outline" className="text-xs">{staff.role}</Badge>
+                      </div>
+                      <Badge variant="secondary">{staff.punishmentCount}</Badge>
                     </div>
                   ))}
                 </div>
@@ -1668,22 +1735,28 @@ const AuditLog = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {(playerActivity?.loginsByCountry || []).slice(0, 8).map((country, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <span>{country.country}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ 
-                                width: `${(country.count / Math.max(...(playerActivity?.loginsByCountry || []).map(c => c.count))) * 100}%` 
-                              }}
-                            />
+                    {(playerActivity?.loginsByCountry || []).length > 0 ? (
+                      (playerActivity?.loginsByCountry || []).slice(0, 8).map((country, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <span>{country.country}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ 
+                                  width: `${(country.count / Math.max(...(playerActivity?.loginsByCountry || []).map(c => c.count))) * 100}%` 
+                                }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium">{country.count}</span>
                           </div>
-                          <span className="text-sm font-medium">{country.count}</span>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        No login data available
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1695,23 +1768,23 @@ const AuditLog = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border rounded bg-orange-50">
+                  <div className="p-4 border rounded bg-orange-50 dark:bg-orange-950/20">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-orange-600" />
+                      <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                       <span className="font-medium">Proxy Connections</span>
                     </div>
-                    <p className="text-2xl font-bold text-orange-600">
+                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                       {playerActivity?.suspiciousActivity?.proxyCount || 0}
                     </p>
                     <p className="text-sm text-muted-foreground">In selected period</p>
                   </div>
                   
-                  <div className="p-4 border rounded bg-red-50">
+                  <div className="p-4 border rounded bg-red-50 dark:bg-red-950/20">
                     <div className="flex items-center gap-2">
-                      <AlertCircle className="h-5 w-5 text-red-600" />
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
                       <span className="font-medium">Hosting IPs</span>
                     </div>
-                    <p className="text-2xl font-bold text-red-600">
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                       {playerActivity?.suspiciousActivity?.hostingCount || 0}
                     </p>
                     <p className="text-sm text-muted-foreground">In selected period</p>
