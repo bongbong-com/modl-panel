@@ -71,6 +71,7 @@ router.delete('/:ticketId', async (req, res) => {
     const Staff = db.model('Staff');
 
     // Find and deactivate the subscription in the staff document
+    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
     const result = await Staff.updateOne(
       { 
         username: staffUsername,
@@ -201,6 +202,7 @@ router.post('/updates/:updateId/read', async (req, res) => {
     const Staff = db.model('Staff');
 
     // Update the lastReadAt timestamp for this ticket subscription
+    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
     const result = await Staff.updateOne(
       { 
         username: staffUsername,
@@ -224,59 +226,72 @@ router.post('/updates/:updateId/read', async (req, res) => {
 // Helper function to create or ensure ticket subscription exists
 export async function ensureTicketSubscription(db: any, ticketId: string, staffUsername: string) {
   try {
+    console.log(`[DEBUG] ensureTicketSubscription called for ${staffUsername} on ticket ${ticketId}`);
+    
     const Staff = db.model('Staff');
     
-    // Find staff member
-    const staff = await Staff.findOne({ username: staffUsername });
+    // First check if the staff member exists and if they already have this subscription
+    const staff = await Staff.findOne({ username: staffUsername }).lean();
     
     if (!staff) {
       console.error(`Staff member ${staffUsername} not found`);
       return;
     }
 
-    // Initialize subscribedTickets array if it doesn't exist
-    if (!staff.subscribedTickets) {
-      staff.subscribedTickets = [];
-    }
+    console.log(`[DEBUG] Staff found: ${staff.username}`);
+    console.log(`[DEBUG] Current subscribedTickets:`, staff.subscribedTickets);
 
     // Check if subscription already exists
-    const existingSubscriptionIndex = staff.subscribedTickets.findIndex(
-      sub => sub.ticketId.toString() === ticketId
+    const existingSubscription = staff.subscribedTickets?.find(
+      sub => sub.ticketId === ticketId && sub.active
     );
 
-    if (existingSubscriptionIndex === -1) {
-      // Create new subscription
-      staff.subscribedTickets.push({
-        ticketId: ticketId,
-        subscribedAt: new Date(),
-        active: true
-      });
-      
-      await staff.save();
-      console.log(`Created ticket subscription for ${staffUsername} on ticket ${ticketId}`);
-    } else {
-      // Reactivate existing subscription if inactive
-      const existingSubscription = staff.subscribedTickets[existingSubscriptionIndex];
-      if (!existingSubscription.active) {
-        existingSubscription.active = true;
-        existingSubscription.subscribedAt = new Date();
-        
-        await staff.save();
-        console.log(`Reactivated ticket subscription for ${staffUsername} on ticket ${ticketId}`);
-      }
+    if (existingSubscription) {
+      console.log(`[DEBUG] Subscription already exists and is active for ${staffUsername} on ticket ${ticketId}`);
+      return;
     }
+
+    // Use updateOne with $addToSet to add the subscription
+    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
+    const subscriptionData = {
+      ticketId: ticketId,
+      subscribedAt: new Date(),
+      active: true
+    };
+
+    console.log(`[DEBUG] Adding subscription data:`, subscriptionData);
+
+    const result = await Staff.updateOne(
+      { username: staffUsername },
+      { 
+        $addToSet: { 
+          subscribedTickets: subscriptionData
+        }
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      console.log(`[SUCCESS] Created ticket subscription for ${staffUsername} on ticket ${ticketId}`);
+    } else {
+      console.log(`[INFO] No modification needed for ${staffUsername} on ticket ${ticketId} (may already exist)`);
+    }
+
   } catch (error) {
     console.error('Error ensuring ticket subscription:', error);
+    console.error('Stack trace:', error.stack);
   }
 }
 
 // Helper function to mark ticket as read when staff opens it
 export async function markTicketAsRead(db: any, ticketId: string, staffUsername: string) {
   try {
+    console.log(`[DEBUG] markTicketAsRead called for ${staffUsername} on ticket ${ticketId}`);
+    
     const Staff = db.model('Staff');
     
     // Update the lastReadAt timestamp for this ticket subscription
-    await Staff.updateOne(
+    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
+    const result = await Staff.updateOne(
       { 
         username: staffUsername,
         'subscribedTickets.ticketId': ticketId,
@@ -289,9 +304,14 @@ export async function markTicketAsRead(db: any, ticketId: string, staffUsername:
       }
     );
     
-    console.log(`Marked ticket ${ticketId} as read for ${staffUsername}`);
+    if (result.modifiedCount > 0) {
+      console.log(`[SUCCESS] Marked ticket ${ticketId} as read for ${staffUsername}`);
+    } else {
+      console.log(`[INFO] No subscription found to mark as read for ${staffUsername} on ticket ${ticketId}`);
+    }
   } catch (error) {
     console.error('Error marking ticket as read:', error);
+    console.error('Stack trace:', error.stack);
   }
 }
 
