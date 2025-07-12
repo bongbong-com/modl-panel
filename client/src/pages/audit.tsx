@@ -848,28 +848,36 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                             <td className="p-2">{format(new Date(punishment.issued), 'MMM d, yyyy')}</td>
                             <td className="p-2">
                               <div className="flex gap-1">
-                                {punishment.active !== false && (
+                                {punishment.active !== false && !punishment.rolledBack && (
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     className="text-xs h-6 px-2"
                                     onClick={async () => {
                                       try {
+                                        console.log(`Attempting to rollback punishment ID: ${punishment.id}`);
+                                        
                                         const response = await fetch(`/api/panel/audit/punishment/${punishment.id}/rollback`, {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ reason: 'Staff rollback from analytics panel' })
                                         });
                                         
-                                        if (!response.ok) throw new Error('Failed to rollback');
+                                        const responseData = await response.json();
+                                        console.log('Rollback response:', responseData);
+                                        
+                                        if (!response.ok) {
+                                          throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
+                                        }
                                         
                                         // Show success message
-                                        alert('Punishment rolled back successfully');
+                                        alert(`Punishment rolled back successfully: ${responseData.message}`);
                                         
                                         // Refresh the modal data
                                         window.location.reload();
                                       } catch (error) {
-                                        alert('Failed to rollback punishment');
+                                        console.error('Rollback error:', error);
+                                        alert(`Failed to rollback punishment: ${error.message}`);
                                       }
                                     }}
                                     title="Rollback this punishment"
@@ -878,9 +886,9 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                     Rollback
                                   </Button>
                                 )}
-                                {punishment.active === false && (
+                                {(punishment.active === false || punishment.rolledBack) && (
                                   <Badge variant="secondary" className="text-xs">
-                                    Inactive
+                                    {punishment.rolledBack ? 'Rolled Back' : 'Inactive'}
                                   </Badge>
                                 )}
                               </div>

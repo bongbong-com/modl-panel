@@ -259,7 +259,8 @@ router.get('/staff/:username/details', async (req, res) => {
           issued: '$punishments.issued',
           active: '$punishments.active',
           evidence: '$punishments.evidence',
-          attachedTicketIds: '$punishments.attachedTicketIds'
+          attachedTicketIds: '$punishments.attachedTicketIds',
+          rolledBack: '$punishments.data.rolledBack'
         }
       },
       { $sort: { issued: -1 } },
@@ -752,6 +753,8 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     const { id } = req.params;
     const { reason = 'Staff rollback from analytics panel' } = req.body;
     
+    console.log(`[Rollback] Attempting to rollback punishment ID: ${id}`);
+    
     if (!req.serverDbConnection) {
       return res.status(503).json({ error: 'Database connection not available' });
     }
@@ -763,25 +766,64 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     // Find the punishment in player documents
     const player = await Player.findOne({ 'punishments.id': id });
     if (!player) {
+      console.log(`[Rollback] No player found with punishment ID: ${id}`);
       return res.status(404).json({ error: 'Punishment not found' });
     }
 
     const punishment = player.punishments.find(p => p.id === id);
     if (!punishment) {
+      console.log(`[Rollback] Punishment ID ${id} not found in player ${player.minecraftUuid}`);
       return res.status(404).json({ error: 'Punishment not found' });
     }
 
-    // Check if already rolled back
-    if (punishment.data?.get('rolledBack') === true) {
+    console.log(`[Rollback] Found punishment: ${punishment.id} for player ${player.usernames[0]?.username}`);
+    console.log(`[Rollback] Punishment data structure:`, {
+      id: punishment.id,
+      issuerName: punishment.issuerName,
+      issued: punishment.issued,
+      dataType: typeof punishment.data,
+      isMap: punishment.data instanceof Map,
+      rolledBack: punishment.data?.get ? punishment.data.get('rolledBack') : punishment.data?.rolledBack
+    });
+
+    // Check if already rolled back (handle both Map and Object data)
+    let isRolledBack = false;
+    if (punishment.data instanceof Map) {
+      isRolledBack = punishment.data.get('rolledBack') === true;
+    } else if (punishment.data && typeof punishment.data === 'object') {
+      isRolledBack = punishment.data.rolledBack === true;
+    }
+
+    if (isRolledBack) {
+      console.log(`[Rollback] Punishment ${id} already rolled back`);
       return res.status(400).json({ error: 'This punishment has already been rolled back' });
     }
 
-    // Mark punishment as rolled back
-    punishment.data.set('rolledBack', true);
-    punishment.data.set('rollbackDate', new Date());
-    punishment.data.set('rollbackBy', req.currentUser?.username || 'system');
-    punishment.data.set('rollbackReason', reason);
+    // Mark punishment as rolled back (handle both Map and Object data)
+    if (punishment.data instanceof Map) {
+      punishment.data.set('rolledBack', true);
+      punishment.data.set('rollbackDate', new Date());
+      punishment.data.set('rollbackBy', req.currentUser?.username || 'system');
+      punishment.data.set('rollbackReason', reason);
+    } else {
+      // Initialize data as Map if it doesn't exist or convert object to Map
+      if (!punishment.data) {
+        punishment.data = new Map();
+      } else if (!(punishment.data instanceof Map)) {
+        const oldData = punishment.data;
+        punishment.data = new Map();
+        // Copy existing data
+        for (const [key, value] of Object.entries(oldData)) {
+          punishment.data.set(key, value);
+        }
+      }
+      punishment.data.set('rolledBack', true);
+      punishment.data.set('rollbackDate', new Date());
+      punishment.data.set('rollbackBy', req.currentUser?.username || 'system');
+      punishment.data.set('rollbackReason', reason);
+    }
     
+    console.log(`[Rollback] Marking punishment ${id} as rolled back`);
     await player.save();
 
     // Create rollback log entry
@@ -798,12 +840,13 @@ router.post('/punishment/:id/rollback', async (req, res) => {
       }
     });
 
+    console.log(`[Rollback] Successfully rolled back punishment ${id}`);
     res.json({ 
       success: true, 
       message: 'Punishment rolled back successfully'
     });
   } catch (error) {
-    console.error('Error rolling back punishment:', error);
+    console.error('[Rollback] Error rolling back punishment:', error);
     res.status(500).json({ error: 'Failed to rollback punishment' });
   }
 });
