@@ -376,10 +376,39 @@ router.get('/punishments', async (req, res) => {
       { $limit: 10 }
     ]);
 
+    // Get top punishers (staff members)
+    const topPunishersData = await Player.aggregate([
+      { $unwind: '$punishments' },
+      { $match: { 
+        'punishments.issued': { $gte: startDate },
+        'punishments.issuerName': { $exists: true, $ne: null }
+      }},
+      { $group: { 
+        _id: '$punishments.issuerName', 
+        punishmentCount: { $sum: 1 } 
+      }},
+      { $sort: { punishmentCount: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Get staff roles for top punishers
+    const Staff = db.model('Staff');
+    const topPunishers = await Promise.all(
+      topPunishersData.map(async (punisher) => {
+        const staffDoc = await Staff.findOne({ username: punisher._id });
+        return {
+          staffName: punisher._id,
+          role: staffDoc?.role || 'User',
+          punishmentCount: punisher.punishmentCount
+        };
+      })
+    );
+
     res.json({
       byType: punishmentsByType,
       dailyTrend: dailyPunishments.map(item => ({ date: item._id, count: item.count })),
-      topReasons: topReasons.map(item => ({ reason: item._id, count: item.count }))
+      topReasons: topReasons.map(item => ({ reason: item._id, count: item.count })),
+      topPunishers: topPunishers
     });
   } catch (error) {
     console.error('Punishment analytics error:', error);

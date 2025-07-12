@@ -1177,4 +1177,139 @@ function extractReason(description: string): string {
   return reasonMatch ? reasonMatch[1].trim() : 'No reason specified';
 }
 
+// Bulk rollback punishments by time range
+router.post('/punishments/bulk-rollback', async (req, res) => {
+  try {
+    const { timeRange, reason = 'Bulk rollback from audit panel' } = req.body;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Player = db.model('Player');
+    const Log = db.model('Log');
+
+    // Calculate date range based on timeRange
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case '1h':
+        startDate = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+        break;
+      case '6h':
+        startDate = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+        break;
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+        startDate = new Date('2020-01-01');
+        break;
+      default:
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+
+    // Find all players with punishments in the time range that aren't already rolled back
+    const players = await Player.find({
+      'punishments.issued': { $gte: startDate }
+    });
+
+    let rolledBackCount = 0;
+    const rolledBackPunishments = [];
+
+    for (const player of players) {
+      for (const punishment of player.punishments) {
+        // Check if punishment is in time range and not already rolled back
+        if (punishment.issued >= startDate && 
+            punishment.data?.get('rolledBack') !== true) {
+          
+          const rollbackBy = req.currentUser?.username || 'system';
+          const rollbackDate = new Date();
+          
+          // Handle data field (Map vs Object)
+          if (punishment.data instanceof Map) {
+            punishment.data.set('rolledBack', true);
+            punishment.data.set('rollbackDate', rollbackDate);
+            punishment.data.set('rollbackBy', rollbackBy);
+            punishment.data.set('rollbackReason', reason);
+          } else {
+            // Initialize data as Map if it doesn't exist or convert object to Map
+            if (!punishment.data) {
+              punishment.data = new Map();
+            } else if (!(punishment.data instanceof Map)) {
+              const oldData = punishment.data;
+              punishment.data = new Map();
+              // Copy existing data
+              for (const [key, value] of Object.entries(oldData)) {
+                punishment.data.set(key, value);
+              }
+            }
+            punishment.data.set('rolledBack', true);
+            punishment.data.set('rollbackDate', rollbackDate);
+            punishment.data.set('rollbackBy', rollbackBy);
+            punishment.data.set('rollbackReason', reason);
+          }
+
+          // Add "Pardoned" modification to the punishment
+          if (!punishment.modifications) {
+            punishment.modifications = [];
+          }
+          
+          punishment.modifications.push({
+            type: 'MANUAL_PARDON',
+            issuerName: rollbackBy,
+            issued: rollbackDate,
+            effectiveDuration: 0,
+            reason: `Bulk rollback (${timeRange}): ${reason}`
+          });
+          
+          rolledBackCount++;
+          rolledBackPunishments.push({
+            id: punishment.id,
+            playerId: player.minecraftUuid,
+            playerName: player.usernames[0]?.username || 'Unknown'
+          });
+        }
+      }
+      
+      // Save player if any punishments were modified
+      if (player.isModified()) {
+        await player.save();
+      }
+    }
+
+    // Create bulk rollback log entry
+    await Log.create({
+      created: new Date(),
+      level: 'moderation',
+      source: req.currentUser?.username || 'system',
+      description: `Bulk rollback: ${rolledBackCount} punishments from ${timeRange} rolled back`,
+      metadata: {
+        bulkRollback: true,
+        timeRange: timeRange,
+        rollbackReason: reason,
+        punishmentsRolledBack: rolledBackCount,
+        rolledBackPunishments: rolledBackPunishments
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully rolled back ${rolledBackCount} punishments`,
+      count: rolledBackCount
+    });
+  } catch (error) {
+    console.error('Error performing bulk rollback:', error);
+    res.status(500).json({ error: 'Failed to perform bulk rollback' });
+  }
+});
+
 export default router;
