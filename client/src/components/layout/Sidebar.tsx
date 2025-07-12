@@ -349,7 +349,7 @@ const Sidebar = () => {
         {/* Expandable search area */}
         {isLookupOpen && (
           <div
-            className={`bg-sidebar/90 h-auto min-h-[300px] ml-2 rounded-xl overflow-hidden ${isLookupClosing ? "animate-slide-left" : "animate-slide-right"}`}
+            className={`bg-sidebar/90 h-[300px] ml-2 rounded-xl overflow-hidden ${isLookupClosing ? "animate-slide-left" : "animate-slide-right"}`}
             style={{ backdropFilter: "blur(12px)" }}
             onMouseEnter={() => {
               // Immediately cancel any pending close operations
@@ -377,7 +377,7 @@ const Sidebar = () => {
               }, 100);
             }}
           >
-            <div className="p-3 pt-4 w-[240px]">
+            <div className="p-3 pt-4 w-[240px] h-full flex flex-col">
               <Input
                 placeholder="Search players..."
                 className="w-full h-9 bg-background/90 border border-sidebar-border rounded-md text-sm px-3 mb-2"
@@ -396,7 +396,7 @@ const Sidebar = () => {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : searchQuery ? (
-                <div className="max-h-[220px] overflow-y-auto pr-1">
+                <div className="flex-1 overflow-y-auto pr-1">
                   {/* Show punishment lookup result first if using # prefix */}
                   {isPunishmentLookup && punishmentLookupResult && (() => {
                     console.log('Rendering punishment lookup result:', punishmentLookupResult);
@@ -493,7 +493,7 @@ const Sidebar = () => {
                   )}
                 </div>
               ) : players && players.length > 0 ? (
-                <div className="max-h-[220px] overflow-y-auto pr-1">
+                <div className="flex-1 overflow-y-auto pr-1">
                   <div className="py-1 px-2 mb-2 text-xs text-muted-foreground">
                     Recent Players
                   </div>
