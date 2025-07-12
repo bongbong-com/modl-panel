@@ -243,10 +243,22 @@ router.get('/tickets', async (req, res) => {
     const dailyTrendByCategory = await Ticket.aggregate([
       { $match: { created: { $gte: startDate } } },
       {
+        $addFields: {
+          // Ensure category is not null/undefined
+          normalizedCategory: { 
+            $cond: { 
+              if: { $or: [{ $eq: ['$category', null] }, { $eq: ['$category', ''] }] },
+              then: 'Other',
+              else: '$category'
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: { 
             date: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
-            category: '$category',
+            category: '$normalizedCategory',
             status: '$status'
           },
           count: { $sum: 1 }
@@ -265,6 +277,14 @@ router.get('/tickets', async (req, res) => {
       },
       {
         $addFields: {
+          // Ensure category is not null/undefined
+          normalizedCategory: { 
+            $cond: { 
+              if: { $or: [{ $eq: ['$category', null] }, { $eq: ['$category', ''] }] },
+              then: 'Other',
+              else: '$category'
+            }
+          },
           firstResponse: { $arrayElemAt: ['$messages', 0] },
           responseTimeMs: { 
             $subtract: [
@@ -283,7 +303,7 @@ router.get('/tickets', async (req, res) => {
         $group: {
           _id: {
             date: { $dateToString: { format: '%Y-%m-%d', date: '$created' } },
-            category: '$category'
+            category: '$normalizedCategory'
           },
           avgResponseTimeMs: { $avg: '$responseTimeMs' },
           count: { $sum: 1 }

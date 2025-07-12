@@ -1287,6 +1287,11 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
   const chartData = useMemo(() => {
     if (!ticketAnalytics) return [];
 
+    // Debug: Log the raw data to see what categories we're getting
+    console.log('Raw ticket analytics data:', ticketAnalytics);
+    console.log('Daily trend by category:', ticketAnalytics.dailyTrendByCategory);
+    console.log('Response time by category:', ticketAnalytics.responseTimeByCategory);
+
     const dateMap = new Map();
     
     // Process daily trend data
@@ -1301,6 +1306,14 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
       }
       
       const dayData = dateMap.get(date);
+      
+      // Initialize all categories with 0 if not present
+      ticketCategories.forEach(cat => {
+        const catKey = normalizeCategory(cat);
+        if (!dayData[`opened_${catKey}`]) dayData[`opened_${catKey}`] = 0;
+        if (!dayData[`closed_${catKey}`]) dayData[`closed_${catKey}`] = 0;
+        if (!dayData[`responseTime_${catKey}`]) dayData[`responseTime_${catKey}`] = 0;
+      });
       
       // Count opened tickets
       dayData[`opened_${category}`] = (dayData[`opened_${category}`] || 0) + item.count;
@@ -1321,14 +1334,46 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
       const responseTimeHours = item.avgResponseTimeMs / (1000 * 60 * 60);
       
       if (!dateMap.has(date)) {
-        dateMap.set(date, { date });
+        const newDayData = { date };
+        // Initialize all categories with 0
+        ticketCategories.forEach(cat => {
+          const catKey = normalizeCategory(cat);
+          newDayData[`opened_${catKey}`] = 0;
+          newDayData[`closed_${catKey}`] = 0;
+          newDayData[`responseTime_${catKey}`] = 0;
+        });
+        dateMap.set(date, newDayData);
       }
       
       const dayData = dateMap.get(date);
       dayData[`responseTime_${category}`] = responseTimeHours;
+      
+      // Calculate overall response time as average
+      const responseTimes = ticketCategories
+        .map(cat => dayData[`responseTime_${normalizeCategory(cat)}`] || 0)
+        .filter(time => time > 0);
+      if (responseTimes.length > 0) {
+        dayData[`responseTime_overall`] = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+      }
     });
 
-    return Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    // Fill in missing dates and ensure all categories have values
+    const allDates = Array.from(dateMap.keys()).sort();
+    const filledData = allDates.map(date => {
+      const dayData = dateMap.get(date) || { date };
+      
+      // Ensure all categories have values (0 if missing)
+      ticketCategories.forEach(cat => {
+        const catKey = normalizeCategory(cat);
+        if (dayData[`opened_${catKey}`] === undefined) dayData[`opened_${catKey}`] = 0;
+        if (dayData[`closed_${catKey}`] === undefined) dayData[`closed_${catKey}`] = 0;
+        if (dayData[`responseTime_${catKey}`] === undefined) dayData[`responseTime_${catKey}`] = null;
+      });
+      
+      return dayData;
+    });
+
+    return filledData;
   }, [ticketAnalytics]);
 
   const toggleLine = (type: string, category: string) => {
@@ -1352,7 +1397,7 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
   };
 
   const categoryColors = {
-    overall: '#000000',
+    overall: '#6366f1',  // Indigo instead of black
     bug: '#ef4444',
     support: '#3b82f6', 
     appeal: '#8b5cf6',
@@ -1384,7 +1429,7 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
             {/* By Category */}
             {(ticketAnalytics?.avgResolutionByCategory || []).map((cat, index) => (
               <div key={index} className="p-4 border rounded">
-                <h4 className="font-medium text-sm capitalize">{cat.category}</h4>
+                <h4 className="font-medium text-sm capitalize">{cat.category || 'Uncategorized'}</h4>
                 <p className="text-2xl font-bold">{cat.display}</p>
                 <p className="text-xs text-muted-foreground">
                   {cat.ticketCount} tickets
@@ -1487,6 +1532,8 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
                     strokeWidth={2}
                     strokeDasharray="5 5"
                     name={`${category} Response Time (hours)`}
+                    connectNulls={true}
+                    dot={false}
                   />
                 );
               })}
@@ -1502,6 +1549,7 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
                     stroke={categoryColors[normalizedCategory] || '#666'}
                     strokeWidth={2}
                     name={`${category} Opened`}
+                    dot={false}
                   />
                 );
               })}
@@ -1517,6 +1565,7 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
                     stroke={categoryColors[normalizedCategory] || '#666'}
                     strokeWidth={3}
                     name={`${category} Closed`}
+                    dot={false}
                   />
                 );
               })}
