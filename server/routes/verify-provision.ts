@@ -50,6 +50,9 @@ export async function provisionNewServerInstance(
 
   // Create default staff roles
   await createDefaultRoles(dbConnection);
+  
+  // Small delay to ensure roles are fully created
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   // Create superadmin user in staffs collection
   await createSuperAdminUser(dbConnection, globalConnection, serverConfigId);
@@ -235,19 +238,24 @@ async function createSuperAdminUser(dbConnection: Connection, globalConnection: 
       throw new Error('Server configuration not found');
     }
 
-    // Get the Super Admin role
-    const RoleModel = dbConnection.models.Role || dbConnection.model('Role', new mongoose.Schema({
-      name: String,
-      permissions: [String],
-      order: Number,
-      color: String,
-      isDefault: Boolean
-    }));
+    // Get the Super Admin role using the same model approach as role-routes.ts
+    let StaffRoles;
+    try {
+      StaffRoles = dbConnection.model('StaffRole');
+    } catch {
+      // If model doesn't exist, it means roles weren't created properly
+      throw new Error('StaffRole model not found - roles may not have been created');
+    }
 
-    const superAdminRole = await RoleModel.findOne({ name: 'Super Admin' });
+    const superAdminRole = await StaffRoles.findOne({ name: 'Super Admin' });
     if (!superAdminRole) {
+      // List all available roles for debugging
+      const allRoles = await StaffRoles.find({});
+      console.log('[Provisioning] Available roles:', allRoles.map(r => r.name));
       throw new Error('Super Admin role not found');
     }
+
+    console.log(`[Provisioning] Found Super Admin role: ${superAdminRole.name} (ID: ${superAdminRole._id})`);
 
     // Create default password (should be changed on first login)
     const defaultPassword = randomBytes(16).toString('hex');
@@ -256,6 +264,13 @@ async function createSuperAdminUser(dbConnection: Connection, globalConnection: 
     // Create superadmin user in staffs collection
     const StaffModel = dbConnection.models.Staff || dbConnection.model('Staff', StaffSchema);
     
+    // Check if superadmin already exists
+    const existingSuperAdmin = await StaffModel.findOne({ username: 'superadmin' });
+    if (existingSuperAdmin) {
+      console.log('[Provisioning] Superadmin user already exists, skipping creation');
+      return;
+    }
+
     const superAdmin = new StaffModel({
       username: 'superadmin',
       email: serverConfig.adminEmail,
