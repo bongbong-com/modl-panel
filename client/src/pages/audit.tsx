@@ -642,7 +642,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
   const { toast } = useToast();
   
   // Fetch detailed staff data including punishments, tickets, evidence
-  const { data: staffDetails, isLoading } = useQuery({
+  const { data: staffDetails, isLoading, refetch } = useQuery({
     queryKey: ['staff-details', staff.username, selectedPeriod],
     queryFn: () => fetchStaffDetails(staff.username, selectedPeriod),
     enabled: isOpen,
@@ -697,7 +697,8 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
       setShowBulkRollback(false);
       setRollbackStartDate(undefined);
       setRollbackEndDate(undefined);
-      window.location.reload();
+      // Refetch the staff details to show updated data
+      refetch();
     } catch (error) {
       toast({
         title: "Bulk Rollback Failed",
@@ -1079,13 +1080,20 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                         }
                                         
                                         // Show success message
-                                        alert(`Punishment rolled back successfully: ${responseData.message}`);
+                                        toast({
+                                          title: "Punishment Rolled Back",
+                                          description: `Punishment rolled back successfully: ${responseData.message}`
+                                        });
                                         
                                         // Refresh the modal data
-                                        window.location.reload();
+                                        refetch();
                                       } catch (error) {
                                         console.error('Rollback error:', error);
-                                        alert(`Failed to rollback punishment: ${error.message}`);
+                                        toast({
+                                          title: "Rollback Failed",
+                                          description: `Failed to rollback punishment: ${error.message}`,
+                                          variant: "destructive"
+                                        });
                                       }
                                     }}
                                     title="Rollback this punishment"

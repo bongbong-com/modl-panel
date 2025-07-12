@@ -274,25 +274,50 @@ router.get('/staff/:username/details', async (req, res) => {
       type: mapPunishmentType(null, punishment.type_ordinal)
     }));
 
-    // Get tickets that this staff member has replied to (simplified approach)
+    // Get tickets that this staff member has replied to 
     const tickets = await Ticket.find({
-      'messages.sender': username
+      $or: [
+        { 'messages.sender': username },
+        { 'messages.name': username },
+        { 'replies.name': username },
+        { 'replies.sender': username }
+      ]
     })
     .sort({ created: -1 })
     .limit(50)  // Get more tickets and filter later
-    .select('_id subject category status created priority messages');
+    .select('_id subject title category status created priority messages replies');
     
     console.log(`[Staff Details] Found ${tickets.length} tickets for ${username}`);
+    
+    // Debug: Log ticket structure for first ticket
+    if (tickets.length > 0) {
+      console.log(`[Staff Details] Sample ticket structure:`, {
+        id: tickets[0]._id,
+        subject: tickets[0].subject,
+        title: tickets[0].title,
+        hasMessages: !!tickets[0].messages,
+        hasReplies: !!tickets[0].replies,
+        messagesCount: tickets[0].messages?.length || 0,
+        repliesCount: tickets[0].replies?.length || 0
+      });
+    }
 
     // Calculate response times for tickets where staff member replied
     const ticketResponseTimes = [];
     
     for (const ticket of tickets) {
-      if (ticket.messages && ticket.messages.length > 0) {
-        const staffMessages = ticket.messages.filter(msg => {
-          // More flexible matching - check if sender matches and message is within time period
+      // Combine messages and replies arrays
+      const allMessages = [
+        ...(ticket.messages || []),
+        ...(ticket.replies || [])
+      ];
+      
+      if (allMessages.length > 0) {
+        const staffMessages = allMessages.filter(msg => {
+          // More flexible matching - check if sender/name matches and message is within time period
           const msgDate = new Date(msg.timestamp || msg.created || msg.date);
-          return msg.sender === username && msgDate >= startDate;
+          const sender = msg.sender || msg.name;
+          return sender === username && msgDate >= startDate;
         });
         
         if (staffMessages.length > 0) {
@@ -307,8 +332,8 @@ router.get('/staff/:username/details', async (req, res) => {
           const responseTime = responseDate.getTime() - new Date(ticket.created).getTime();
           
           ticketResponseTimes.push({
-            ticketId: ticket._id,
-            subject: ticket.subject,
+            ticketId: ticket._id.toString(),
+            subject: ticket.subject || ticket.title || 'No Subject',
             status: ticket.status,
             responseTime: Math.max(0, Math.round(responseTime / (1000 * 60))), // in minutes
             created: ticket.created,
