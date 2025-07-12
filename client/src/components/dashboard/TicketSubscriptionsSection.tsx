@@ -69,14 +69,22 @@ export function TicketSubscriptionsSection({
     }
   };
 
-  const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
+  const truncateContent = (content: string | undefined | null, maxLength: number = 100) => {
+    if (!content) return 'No content available';
+    const contentStr = String(content);
+    if (contentStr.length <= maxLength) return contentStr;
+    return contentStr.substring(0, maxLength) + '...';
   };
 
-  const formatTimeAgo = (dateString: string) => {
+  const formatTimeAgo = (dateString: string | Date) => {
     const date = new Date(dateString);
     const now = new Date();
+    
+    // Check for invalid date
+    if (isNaN(date.getTime())) {
+      return 'Unknown';
+    }
+    
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
     if (diffInMinutes < 1) return 'Just now';

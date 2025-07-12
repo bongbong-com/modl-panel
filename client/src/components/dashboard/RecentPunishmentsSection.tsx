@@ -11,9 +11,9 @@ export interface RecentPunishment {
   playerName: string;
   playerUuid: string;
   reason: string;
-  duration?: string;
+  duration?: string | number;
   issuedBy: string;
-  issuedAt: string;
+  issuedAt: string | Date;
   active: boolean;
 }
 
@@ -45,14 +45,22 @@ export function RecentPunishmentsSection({ punishments, loading }: RecentPunishm
     openPlayerWindow(playerUuid);
   };
 
-  const truncateReason = (reason: string, maxLength: number = 80) => {
-    if (reason.length <= maxLength) return reason;
-    return reason.substring(0, maxLength) + '...';
+  const truncateReason = (reason: string | undefined | null, maxLength: number = 80) => {
+    if (!reason) return 'No reason provided';
+    const reasonStr = String(reason);
+    if (reasonStr.length <= maxLength) return reasonStr;
+    return reasonStr.substring(0, maxLength) + '...';
   };
 
-  const formatTimeAgo = (dateString: string) => {
+  const formatTimeAgo = (dateString: string | Date) => {
     const date = new Date(dateString);
     const now = new Date();
+    
+    // Check for invalid date
+    if (isNaN(date.getTime())) {
+      return 'Unknown';
+    }
+    
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
     if (diffInMinutes < 1) return 'Just now';
@@ -65,12 +73,15 @@ export function RecentPunishmentsSection({ punishments, loading }: RecentPunishm
     return `${diffInDays}d ago`;
   };
 
-  const formatDuration = (duration?: string) => {
+  const formatDuration = (duration?: string | number) => {
     if (!duration) return 'Permanent';
     
+    // Convert to string if it's a number
+    const durationStr = String(duration);
+    
     // Parse duration like "30d", "2h", "1w"
-    const match = duration.match(/^(\d+)([dhm])$/);
-    if (!match) return duration;
+    const match = durationStr.match(/^(\d+)([dhm])$/);
+    if (!match) return durationStr;
     
     const [, amount, unit] = match;
     const unitNames = { d: 'day', h: 'hour', m: 'minute' };

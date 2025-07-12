@@ -11,7 +11,7 @@ export interface RecentTicket {
   initialMessage: string;
   status: 'open' | 'closed' | 'under_review' | 'pending_player_response';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  createdAt: string;
+  createdAt: string | Date;
   playerName: string;
   type: string;
 }
@@ -42,14 +42,22 @@ export function RecentTicketsSection({ tickets, loading }: RecentTicketsSectionP
     setLocation(`/panel/tickets/${ticketId}`);
   };
 
-  const truncateMessage = (message: string, maxLength: number = 120) => {
-    if (message.length <= maxLength) return message;
-    return message.substring(0, maxLength) + '...';
+  const truncateMessage = (message: string | undefined | null, maxLength: number = 120) => {
+    if (!message) return 'No message available';
+    const messageStr = String(message);
+    if (messageStr.length <= maxLength) return messageStr;
+    return messageStr.substring(0, maxLength) + '...';
   };
 
-  const formatTimeAgo = (dateString: string) => {
+  const formatTimeAgo = (dateString: string | Date) => {
     const date = new Date(dateString);
     const now = new Date();
+    
+    // Check for invalid date
+    if (isNaN(date.getTime())) {
+      return 'Unknown';
+    }
+    
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
     if (diffInMinutes < 1) return 'Just now';
