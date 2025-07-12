@@ -593,10 +593,45 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <User className="h-6 w-6" />
-            {staff.username} - Detailed Analytics
-            <Badge variant="outline">{staff.role}</Badge>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <User className="h-6 w-6" />
+              {staff.username} - Detailed Analytics
+              <Badge variant="outline">{staff.role}</Badge>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!confirm(`Are you sure you want to rollback ALL punishments issued by ${staff.username} in the selected time period?`)) {
+                    return;
+                  }
+                  
+                  try {
+                    const response = await fetch(`/api/panel/audit/staff/${staff.username}/rollback-all`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        reason: `Bulk rollback for ${staff.username} from analytics panel`,
+                        period: selectedPeriod
+                      })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to rollback');
+                    
+                    alert(`All punishments by ${staff.username} have been rolled back`);
+                    window.location.reload();
+                  } catch (error) {
+                    alert('Failed to rollback punishments');
+                  }
+                }}
+                title={`Rollback all punishments by ${staff.username}`}
+              >
+                <Undo2 className="h-4 w-4 mr-2" />
+                Bulk Rollback
+              </Button>
+            </div>
           </DialogTitle>
         </DialogHeader>
         
@@ -724,6 +759,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                         <th className="text-left p-2">Tickets</th>
                         <th className="text-left p-2">Duration</th>
                         <th className="text-left p-2">Date</th>
+                        <th className="text-left p-2">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -756,8 +792,23 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                   punishment.evidence.map((evidenceItem: any, idx: number) => {
                                     const evidenceStr = typeof evidenceItem === 'string' ? evidenceItem : String(evidenceItem);
                                     const fileName = evidenceStr.includes('/') ? evidenceStr.split('/').pop() : evidenceStr;
+                                    const isUrl = evidenceStr.startsWith('http') || evidenceStr.startsWith('/');
+                                    
                                     return (
-                                      <Badge key={idx} variant="outline" className="text-xs">
+                                      <Badge 
+                                        key={idx} 
+                                        variant="outline" 
+                                        className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
+                                        onClick={() => {
+                                          if (isUrl) {
+                                            window.open(evidenceStr, '_blank');
+                                          } else {
+                                            // For non-URLs, try to construct a proper evidence URL
+                                            window.open(`/uploads/evidence/${evidenceStr}`, '_blank');
+                                          }
+                                        }}
+                                        title={`Click to view: ${evidenceStr}`}
+                                      >
                                         📎 {fileName && fileName.length > 15 ? fileName.substring(0, 15) + '...' : fileName}
                                       </Badge>
                                     );
@@ -773,7 +824,16 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                   punishment.attachedTicketIds.map((ticketId: any, idx: number) => {
                                     const ticketStr = typeof ticketId === 'string' ? ticketId : String(ticketId);
                                     return (
-                                      <Badge key={idx} variant="outline" className="text-xs">
+                                      <Badge 
+                                        key={idx} 
+                                        variant="outline" 
+                                        className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
+                                        onClick={() => {
+                                          // Navigate to ticket page or open ticket modal
+                                          window.open(`/tickets/${ticketStr}`, '_blank');
+                                        }}
+                                        title={`Click to view ticket: #${ticketStr}`}
+                                      >
                                         🎫 #{ticketStr.substring(0, 8)}
                                       </Badge>
                                     );
@@ -785,11 +845,50 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                             </td>
                             <td className="p-2">{formatDuration(punishment.duration)}</td>
                             <td className="p-2">{format(new Date(punishment.issued), 'MMM d, yyyy')}</td>
+                            <td className="p-2">
+                              <div className="flex gap-1">
+                                {punishment.active !== false && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-6 px-2"
+                                    onClick={async () => {
+                                      try {
+                                        const response = await fetch(`/api/panel/audit/punishment/${punishment._id || punishment.id}/rollback`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ reason: 'Staff rollback from analytics panel' })
+                                        });
+                                        
+                                        if (!response.ok) throw new Error('Failed to rollback');
+                                        
+                                        // Show success message
+                                        alert('Punishment rolled back successfully');
+                                        
+                                        // Refresh the modal data
+                                        window.location.reload();
+                                      } catch (error) {
+                                        alert('Failed to rollback punishment');
+                                      }
+                                    }}
+                                    title="Rollback this punishment"
+                                  >
+                                    <Undo2 className="h-3 w-3 mr-1" />
+                                    Rollback
+                                  </Button>
+                                )}
+                                {punishment.active === false && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Inactive
+                                  </Badge>
+                                )}
+                              </div>
+                            </td>
                           </tr>
                         );
                       }) : (
                         <tr>
-                          <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                          <td colSpan={7} className="p-4 text-center text-muted-foreground">
                             No recent punishments found
                           </td>
                         </tr>
@@ -1302,7 +1401,9 @@ const AuditLog = () => {
           <TabsContent value="staff" className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Staff Performance Analytics</h3>
-              <PunishmentRollbackModal />
+              <div className="text-sm text-muted-foreground">
+                Click on any staff member to view detailed analytics and rollback options
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
