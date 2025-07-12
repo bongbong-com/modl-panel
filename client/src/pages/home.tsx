@@ -117,6 +117,17 @@ const Home = () => {
         />
       </div>
       
+      {/* Ticket Subscriptions - Full Width */}
+      <div className="mb-6">
+        <TicketSubscriptionsSection 
+          updates={subscriptionUpdatesData || []}
+          subscriptions={subscriptionsData || []}
+          loading={isLoadingUpdates || isLoadingSubscriptions}
+          onUnsubscribe={handleUnsubscribe}
+          onMarkAsRead={handleMarkAsRead}
+        />
+      </div>
+      
       {/* Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Tickets */}
@@ -130,17 +141,6 @@ const Home = () => {
           punishments={recentPunishmentsData || []}
           loading={isLoadingPunishments}
         />
-        
-        {/* Ticket Subscriptions - Full Width */}
-        <div className="lg:col-span-2">
-          <TicketSubscriptionsSection 
-            updates={subscriptionUpdatesData || []}
-            subscriptions={subscriptionsData || []}
-            loading={isLoadingUpdates || isLoadingSubscriptions}
-            onUnsubscribe={handleUnsubscribe}
-            onMarkAsRead={handleMarkAsRead}
-          />
-        </div>
       </div>
     </PageContainer>
   );

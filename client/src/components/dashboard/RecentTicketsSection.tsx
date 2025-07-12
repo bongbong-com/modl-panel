@@ -152,18 +152,6 @@ export function RecentTicketsSection({ tickets, loading }: RecentTicketsSectionP
             ))
           )}
         </div>
-        
-        {tickets.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => setLocation('/panel/tickets')}
-            >
-              View All Tickets
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

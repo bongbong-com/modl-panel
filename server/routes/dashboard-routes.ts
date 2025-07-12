@@ -187,14 +187,51 @@ router.get('/recent-tickets', async (req, res) => {
       .lean();
 
     const recentTickets = tickets.map(ticket => {
-      // Get the initial message from messages array or fallback to description
+      // Get the initial message from multiple possible sources
       let initialMessage = 'No message available';
+      
+      // Try messages array first (both old and new format)
       if (ticket.messages && ticket.messages.length > 0) {
-        initialMessage = ticket.messages[0].content || ticket.messages[0].message || 'No message content';
-      } else if (ticket.description) {
+        const firstMessage = ticket.messages[0];
+        initialMessage = firstMessage.content || 
+                        firstMessage.message || 
+                        firstMessage.text || 
+                        firstMessage.body ||
+                        'No message content';
+      } 
+      // Try replies array (alternative structure)
+      else if (ticket.replies && ticket.replies.length > 0) {
+        const firstReply = ticket.replies[0];
+        initialMessage = firstReply.content || 
+                        firstReply.message || 
+                        firstReply.text || 
+                        firstReply.body ||
+                        'No reply content';
+      }
+      // Try direct description fields
+      else if (ticket.description) {
         initialMessage = ticket.description;
-      } else if (ticket.data?.description) {
+      } 
+      else if (ticket.data?.description) {
         initialMessage = ticket.data.description;
+      }
+      // Try data fields that might contain the initial message
+      else if (ticket.data?.initialMessage) {
+        initialMessage = ticket.data.initialMessage;
+      }
+      else if (ticket.data?.message) {
+        initialMessage = ticket.data.message;
+      }
+      else if (ticket.content) {
+        initialMessage = ticket.content;
+      }
+
+      // Truncate to first 30 words and add "..." if longer
+      if (initialMessage && initialMessage !== 'No message available') {
+        const words = initialMessage.trim().split(/\s+/);
+        if (words.length > 30) {
+          initialMessage = words.slice(0, 30).join(' ') + '...';
+        }
       }
 
       // Determine status
@@ -211,7 +248,7 @@ router.get('/recent-tickets', async (req, res) => {
       return {
         id: ticket._id.toString(),
         title: ticket.subject || ticket.title || 'Untitled Ticket',
-        initialMessage: initialMessage.substring(0, 200), // Truncate for preview
+        initialMessage: initialMessage, // Already properly truncated above
         status: status as 'open' | 'closed' | 'under_review' | 'pending_player_response',
         priority: priority as 'low' | 'medium' | 'high' | 'urgent',
         createdAt: ticket.created || ticket.createdAt,

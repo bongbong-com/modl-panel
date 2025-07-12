@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from 'modl-shared-web/components/ui/card';
 import { Badge } from 'modl-shared-web/components/ui/badge';
 import { Button } from 'modl-shared-web/components/ui/button';
-import { Shield, Clock, User, AlertTriangle } from 'lucide-react';
+import { Shield, Clock, User, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { usePlayerWindow } from '@/contexts/PlayerWindowContext';
 
 export interface RecentPunishment {
@@ -40,9 +40,20 @@ const punishmentIcons = {
 
 export function RecentPunishmentsSection({ punishments, loading }: RecentPunishmentsSectionProps) {
   const { openPlayerWindow } = usePlayerWindow();
+  const [expandedPunishments, setExpandedPunishments] = useState<Set<string>>(new Set());
 
   const handlePlayerClick = (playerUuid: string) => {
     openPlayerWindow(playerUuid);
+  };
+
+  const togglePunishmentExpanded = (punishmentId: string) => {
+    const newExpanded = new Set(expandedPunishments);
+    if (newExpanded.has(punishmentId)) {
+      newExpanded.delete(punishmentId);
+    } else {
+      newExpanded.add(punishmentId);
+    }
+    setExpandedPunishments(newExpanded);
   };
 
   const truncateReason = (reason: string | undefined | null, maxLength: number = 80) => {
@@ -131,83 +142,103 @@ export function RecentPunishmentsSection({ punishments, loading }: RecentPunishm
               No recent punishments to display
             </div>
           ) : (
-            punishments.map((punishment) => (
-              <div
-                key={punishment.id}
-                className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{punishmentIcons[punishment.type]}</span>
-                    <div>
+            punishments.map((punishment) => {
+              const isExpanded = expandedPunishments.has(punishment.id);
+              return (
+                <div
+                  key={punishment.id}
+                  className="border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div 
+                    className="p-3 cursor-pointer"
+                    onClick={() => togglePunishmentExpanded(punishment.id)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs ${punishmentColors[punishment.type]}`}
-                        >
-                          {punishment.type.toUpperCase()}
-                        </Badge>
-                        {!punishment.active && (
-                          <Badge variant="outline" className="text-xs">
-                            EXPIRED
-                          </Badge>
+                        <span className="text-lg">{punishmentIcons[punishment.type]}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant="secondary" 
+                              className={`text-xs ${punishmentColors[punishment.type]}`}
+                            >
+                              {punishment.type.toUpperCase()}
+                            </Badge>
+                            {!punishment.active && (
+                              <Badge variant="outline" className="text-xs">
+                                EXPIRED
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs text-muted-foreground">
+                          {formatTimeAgo(punishment.issuedAt)}
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
                     </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto font-medium text-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlayerClick(punishment.playerUuid);
+                        }}
+                      >
+                        {punishment.playerName}
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        • {punishment.type} by {punishment.issuedBy}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatTimeAgo(punishment.issuedAt)}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 mb-2">
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto font-medium text-sm"
-                    onClick={() => handlePlayerClick(punishment.playerUuid)}
-                  >
-                    {punishment.playerName}
-                  </Button>
-                  {punishment.duration && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>{formatDuration(punishment.duration)}</span>
+                  
+                  {isExpanded && (
+                    <div className="px-3 pb-3 border-t border-border bg-muted/20">
+                      <div className="pt-3 space-y-2">
+                        <div>
+                          <span className="text-xs font-medium text-muted-foreground">REASON:</span>
+                          <p className="text-sm mt-1">{punishment.reason || 'No reason provided'}</p>
+                        </div>
+                        
+                        {punishment.duration && (
+                          <div>
+                            <span className="text-xs font-medium text-muted-foreground">DURATION:</span>
+                            <div className="flex items-center gap-1 text-sm mt-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{formatDuration(punishment.duration)}</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center pt-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <User className="h-3 w-3" />
+                            <span>Issued by {punishment.issuedBy}</span>
+                          </div>
+                          {punishment.active && (
+                            <div className="flex items-center gap-1 text-red-500 text-xs">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>Active</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-                
-                <p className="text-sm text-muted-foreground mb-2">
-                  <span className="font-medium">Reason:</span> {truncateReason(punishment.reason)}
-                </p>
-                
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    <span>Issued by {punishment.issuedBy}</span>
-                  </div>
-                  {punishment.active && (
-                    <div className="flex items-center gap-1 text-red-500">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span>Active</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
-        
-        {punishments.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => window.location.href = '/panel/punishments'}
-            >
-              View All Punishments
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
