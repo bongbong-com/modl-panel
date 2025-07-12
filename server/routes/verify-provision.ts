@@ -241,14 +241,14 @@ async function createSuperAdminUser(dbConnection: Connection, globalConnection: 
     const StaffModel = dbConnection.models.Staff || dbConnection.model('Staff', StaffSchema);
     
     // Check if superadmin already exists
-    const existingSuperAdmin = await StaffModel.findOne({ username: 'superadmin' });
+    const existingSuperAdmin = await StaffModel.findOne({ username: 'Dr. Doofenshmirtz' });
     if (existingSuperAdmin) {
       console.log('[Provisioning] Superadmin user already exists, skipping creation');
       return;
     }
 
     const superAdmin = new StaffModel({
-      username: 'superadmin',
+      username: 'Dr. Doofenshmirtz',
       email: serverConfig.adminEmail,
       role: 'Super Admin'
     });
@@ -279,143 +279,310 @@ async function createDefaultTicketForms(dbConnection: Connection) {
       return;
     }
 
-    // Define default ticket forms with simplified structure
+    // Define default ticket forms with comprehensive structure
     const defaultTicketForms = {
       bug: {
         fields: [
+          // Contact Information
           {
-            id: 'bug_summary',
+            id: 'contact_email',
             type: 'text',
-            label: 'Bug Summary',
-            description: 'Brief description of the bug',
+            label: 'Email Address',
+            description: 'Your email address for updates on this bug report',
             required: true,
             order: 0,
-            sectionId: 'bug_details'
+            sectionId: 'basic_info'
           },
+          // Basic Information Section
           {
-            id: 'bug_description',
-            type: 'textarea',
-            label: 'Detailed Description',
-            description: 'Provide a detailed description of the bug and steps to reproduce it',
+            id: 'bug_title',
+            type: 'text',
+            label: 'Bug Title',
+            description: 'Brief description of the bug',
             required: true,
             order: 1,
-            sectionId: 'bug_details'
+            sectionId: 'basic_info'
           },
           {
             id: 'bug_severity',
             type: 'dropdown',
-            label: 'Severity Level',
+            label: 'Bug Severity',
             description: 'How severe is this bug?',
             required: true,
             options: ['Low', 'Medium', 'High', 'Critical'],
             order: 2,
-            sectionId: 'bug_details'
+            sectionId: 'basic_info'
+          },
+          {
+            id: 'bug_category',
+            type: 'dropdown',
+            label: 'Bug Category',
+            description: 'What type of bug is this?',
+            required: true,
+            options: ['Gameplay', 'UI/Interface', 'Performance', 'Audio', 'Visual', 'Other'],
+            order: 3,
+            sectionId: 'basic_info'
+          },
+          // Description Section
+          {
+            id: 'bug_description',
+            type: 'textarea',
+            label: 'Detailed Description',
+            description: 'Provide a detailed description of the bug you encountered',
+            required: true,
+            order: 4,
+            sectionId: 'description'
+          },
+          {
+            id: 'steps_to_reproduce',
+            type: 'textarea',
+            label: 'Steps to Reproduce',
+            description: 'List the exact steps to reproduce this bug (1. First step, 2. Second step, etc.)',
+            required: true,
+            order: 5,
+            sectionId: 'description'
+          },
+          {
+            id: 'expected_behavior',
+            type: 'textarea',
+            label: 'Expected Behavior',
+            description: 'What did you expect to happen?',
+            required: true,
+            order: 6,
+            sectionId: 'description'
+          },
+          {
+            id: 'actual_behavior',
+            type: 'textarea',
+            label: 'Actual Behavior',
+            description: 'What actually happened instead?',
+            required: true,
+            order: 7,
+            sectionId: 'description'
           }
         ],
         sections: [
           {
-            id: 'bug_details',
-            title: 'Bug Details',
-            description: 'Provide information about the bug you encountered',
-            order: 0,
-            hideByDefault: false
+            id: 'basic_info',
+            title: 'Basic Information',
+            description: 'Essential information about the bug',
+            order: 0
+          },
+          {
+            id: 'description',
+            title: 'Bug Description',
+            description: 'Describe the bug in detail',
+            order: 1
           }
         ]
       },
       support: {
         fields: [
+          // Contact Information
+          {
+            id: 'contact_email',
+            type: 'text',
+            label: 'Email Address',
+            description: 'Your email address for updates on this support request',
+            required: true,
+            order: 0,
+            sectionId: 'request_info'
+          },
+          // Request Information Section
           {
             id: 'support_category',
             type: 'dropdown',
-            label: 'Category',
+            label: 'Support Category',
             description: 'What type of support do you need?',
             required: true,
-            options: ['Account Issues', 'Technical Problems', 'Game Questions', 'Other'],
-            order: 0,
-            sectionId: 'support_details'
+            options: ['Account Issues', 'Payment/Billing', 'Technical Issues', 'Gameplay Help', 'Appeal Request', 'Other'],
+            order: 1,
+            sectionId: 'request_info'
           },
           {
-            id: 'support_description',
-            type: 'textarea',
-            label: 'Description',
-            description: 'Please describe your issue or question in detail',
+            id: 'urgency_level',
+            type: 'dropdown',
+            label: 'Urgency Level',
+            description: 'How urgent is this request?',
             required: true,
-            order: 1,
-            sectionId: 'support_details'
+            options: ['Low - General inquiry', 'Medium - Affecting gameplay', 'High - Unable to play', 'Critical - Account compromised'],
+            order: 2,
+            sectionId: 'request_info'
+          },
+          // Issue Details Section
+          {
+            id: 'issue_title',
+            type: 'text',
+            label: 'Issue Summary',
+            description: 'Brief summary of your issue or request',
+            required: true,
+            order: 3,
+            sectionId: 'issue_details'
+          },
+          {
+            id: 'issue_description',
+            type: 'textarea',
+            label: 'Detailed Description',
+            description: 'Describe your issue or request in detail',
+            required: true,
+            order: 4,
+            sectionId: 'issue_details'
+          },
+          {
+            id: 'when_occurred',
+            type: 'text',
+            label: 'When did this occur?',
+            description: 'When did you first notice this issue? (date/time if possible)',
+            required: false,
+            order: 5,
+            sectionId: 'issue_details'
           }
         ],
         sections: [
           {
-            id: 'support_details',
-            title: 'Support Request',
-            description: 'Describe what you need help with',
-            order: 0,
-            hideByDefault: false
+            id: 'request_info',
+            title: 'Request Information',
+            description: 'Basic information about your support request',
+            order: 0
+          },
+          {
+            id: 'issue_details',
+            title: 'Issue Details',
+            description: 'Detailed information about your issue',
+            order: 1
           }
         ]
       },
       application: {
         fields: [
+          // Contact Information
+          {
+            id: 'contact_email',
+            type: 'text',
+            label: 'Email Address',
+            description: 'Your email address for application updates',
+            required: true,
+            order: 0,
+            sectionId: 'contact_info'
+          },
+          {
+            id: 'discord_username',
+            type: 'text',
+            label: 'Discord Username',
+            description: 'Your Discord username (required for staff communication)',
+            required: true,
+            order: 1,
+            sectionId: 'contact_info'
+          },
+          // Personal Information
           {
             id: 'real_name',
             type: 'text',
             label: 'Real Name',
             description: 'Your real first and last name',
             required: true,
-            order: 0,
+            order: 2,
             sectionId: 'personal_info'
           },
           {
             id: 'age',
             type: 'text',
             label: 'Age',
-            description: 'How old are you?',
+            description: 'How old are you? (Must be 16+)',
             required: true,
-            order: 1,
+            order: 3,
             sectionId: 'personal_info'
           },
           {
             id: 'timezone',
             type: 'text',
             label: 'Timezone',
-            description: 'What timezone are you in?',
+            description: 'What timezone are you in? (e.g., EST, PST, GMT)',
             required: true,
-            order: 2,
+            order: 4,
             sectionId: 'personal_info'
           },
           {
-            id: 'previous_experience',
+            id: 'availability',
             type: 'textarea',
-            label: 'Previous Staff Experience',
-            description: 'Describe any previous moderation or staff experience',
-            required: false,
-            order: 0,
+            label: 'Availability',
+            description: 'What days and times are you typically available? (include timezone)',
+            required: true,
+            order: 5,
+            sectionId: 'personal_info'
+          },
+          // Experience Section
+          {
+            id: 'minecraft_experience',
+            type: 'textarea',
+            label: 'Minecraft Experience',
+            description: 'How long have you been playing Minecraft? Describe your experience with the game.',
+            required: true,
+            order: 6,
             sectionId: 'experience'
           },
+          {
+            id: 'server_experience',
+            type: 'textarea',
+            label: 'Server Experience',
+            description: 'How long have you been playing on this server? What do you enjoy most about it?',
+            required: true,
+            order: 7,
+            sectionId: 'experience'
+          },
+          {
+            id: 'previous_staff_experience',
+            type: 'textarea',
+            label: 'Previous Staff Experience',
+            description: 'Describe any previous moderation or staff experience (Minecraft or other platforms)',
+            required: false,
+            order: 8,
+            sectionId: 'experience'
+          },
+          // Motivation Section
           {
             id: 'why_apply',
             type: 'textarea',
             label: 'Why do you want to be staff?',
-            description: 'Explain your motivation for applying',
+            description: 'Explain your motivation for applying and what you hope to contribute',
             required: true,
-            order: 1,
-            sectionId: 'experience'
+            order: 9,
+            sectionId: 'motivation'
+          },
+          {
+            id: 'qualities',
+            type: 'textarea',
+            label: 'What qualities make you a good fit?',
+            description: 'What personal qualities or skills make you suitable for a staff position?',
+            required: true,
+            order: 10,
+            sectionId: 'motivation'
           }
         ],
         sections: [
           {
+            id: 'contact_info',
+            title: 'Contact Information',
+            description: 'How we can reach you',
+            order: 0
+          },
+          {
             id: 'personal_info',
             title: 'Personal Information',
             description: 'Tell us about yourself',
-            order: 0,
-            hideByDefault: false
+            order: 1
           },
           {
             id: 'experience',
-            title: 'Experience & Qualifications',
-            description: 'Your relevant experience and skills',
-            order: 1,
-            hideByDefault: false
+            title: 'Experience',
+            description: 'Your gaming and staff experience',
+            order: 2
+          },
+          {
+            id: 'motivation',
+            title: 'Motivation & Qualities',
+            description: 'Why you want to join our team',
+            order: 3
           }
         ]
       }
