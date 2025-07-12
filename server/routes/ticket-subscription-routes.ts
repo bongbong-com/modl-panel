@@ -71,8 +71,8 @@ router.delete('/:ticketId', async (req, res) => {
     const Staff = db.model('Staff');
 
     // Find and deactivate the subscription in the staff document
-    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
-    const result = await Staff.updateOne(
+    // Try string ticketId first, then ObjectId for compatibility
+    let result = await Staff.updateOne(
       { 
         username: staffUsername,
         'subscribedTickets.ticketId': ticketId,
@@ -84,6 +84,27 @@ router.delete('/:ticketId', async (req, res) => {
         }
       }
     );
+
+    // If no documents were modified, try with ObjectId
+    if (result.matchedCount === 0) {
+      try {
+        const ObjectId = db.base.Types.ObjectId;
+        result = await Staff.updateOne(
+          { 
+            username: staffUsername,
+            'subscribedTickets.ticketId': new ObjectId(ticketId),
+            'subscribedTickets.active': true
+          },
+          { 
+            $set: {
+              'subscribedTickets.$.active': false
+            }
+          }
+        );
+      } catch (objectIdError) {
+        console.log(`[DEBUG] ObjectId approach failed for unsubscribe`);
+      }
+    }
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ message: 'Subscription not found' });
@@ -202,8 +223,8 @@ router.post('/updates/:updateId/read', async (req, res) => {
     const Staff = db.model('Staff');
 
     // Update the lastReadAt timestamp for this ticket subscription
-    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
-    const result = await Staff.updateOne(
+    // Try string ticketId first, then ObjectId for compatibility
+    let result = await Staff.updateOne(
       { 
         username: staffUsername,
         'subscribedTickets.ticketId': ticketId,
@@ -215,6 +236,27 @@ router.post('/updates/:updateId/read', async (req, res) => {
         }
       }
     );
+
+    // If no documents were modified, try with ObjectId
+    if (result.modifiedCount === 0) {
+      try {
+        const ObjectId = db.base.Types.ObjectId;
+        result = await Staff.updateOne(
+          { 
+            username: staffUsername,
+            'subscribedTickets.ticketId': new ObjectId(ticketId),
+            'subscribedTickets.active': true
+          },
+          { 
+            $set: {
+              'subscribedTickets.$.lastReadAt': new Date()
+            }
+          }
+        );
+      } catch (objectIdError) {
+        console.log(`[DEBUG] ObjectId approach failed for mark as read`);
+      }
+    }
 
     res.json({ message: 'Update marked as read', modified: result.matchedCount > 0 });
   } catch (error) {
@@ -241,9 +283,9 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
     console.log(`[DEBUG] Staff found: ${staff.username}`);
     console.log(`[DEBUG] Current subscribedTickets:`, staff.subscribedTickets);
 
-    // Check if subscription already exists
+    // Check if subscription already exists - handle both string and ObjectId comparison
     const existingSubscription = staff.subscribedTickets?.find(
-      sub => sub.ticketId === ticketId && sub.active
+      sub => (sub.ticketId === ticketId || sub.ticketId?.toString() === ticketId) && sub.active
     );
 
     if (existingSubscription) {
@@ -251,13 +293,26 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
       return;
     }
 
-    // Use updateOne with $addToSet to add the subscription
-    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
-    const subscriptionData = {
-      ticketId: ticketId,
-      subscribedAt: new Date(),
-      active: true
-    };
+    // Prepare subscription data - try both approaches to handle schema variations
+    let subscriptionData;
+    try {
+      // First try with ObjectId (in case schema expects ObjectId)
+      const ObjectId = db.base.Types.ObjectId;
+      subscriptionData = {
+        ticketId: new ObjectId(ticketId),
+        subscribedAt: new Date(),
+        active: true
+      };
+      console.log(`[DEBUG] Using ObjectId approach for ticketId: ${ticketId}`);
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, use string (ticket IDs like "BUG-123456")
+      console.log(`[DEBUG] ObjectId conversion failed (${objectIdError.message}), using string ticketId: ${ticketId}`);
+      subscriptionData = {
+        ticketId: ticketId,
+        subscribedAt: new Date(),
+        active: true
+      };
+    }
 
     console.log(`[DEBUG] Adding subscription data:`, subscriptionData);
 
@@ -289,9 +344,8 @@ export async function markTicketAsRead(db: any, ticketId: string, staffUsername:
     
     const Staff = db.model('Staff');
     
-    // Update the lastReadAt timestamp for this ticket subscription
-    // Note: ticketId is a string (like "BUG-123456"), not an ObjectId
-    const result = await Staff.updateOne(
+    // Try to update with string ticketId first
+    let result = await Staff.updateOne(
       { 
         username: staffUsername,
         'subscribedTickets.ticketId': ticketId,
@@ -303,6 +357,27 @@ export async function markTicketAsRead(db: any, ticketId: string, staffUsername:
         }
       }
     );
+    
+    // If no documents were modified, try with ObjectId (for backward compatibility)
+    if (result.modifiedCount === 0) {
+      try {
+        const ObjectId = db.base.Types.ObjectId;
+        result = await Staff.updateOne(
+          { 
+            username: staffUsername,
+            'subscribedTickets.ticketId': new ObjectId(ticketId),
+            'subscribedTickets.active': true
+          },
+          { 
+            $set: {
+              'subscribedTickets.$.lastReadAt': new Date()
+            }
+          }
+        );
+      } catch (objectIdError) {
+        console.log(`[DEBUG] ObjectId approach failed, sticking with string approach`);
+      }
+    }
     
     if (result.modifiedCount > 0) {
       console.log(`[SUCCESS] Marked ticket ${ticketId} as read for ${staffUsername}`);
