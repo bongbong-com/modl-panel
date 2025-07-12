@@ -465,46 +465,51 @@ const TicketSettings = ({
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {category.actions.map((action) => (
-                          <div key={action.id} className="group relative">
-                            <div className="flex items-start space-x-3 p-3 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors">
-                              <GripVertical className="h-4 w-4 text-muted-foreground mt-1 cursor-move" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-2">
-                                  <h6 className="font-medium text-sm">{action.name}</h6>
-                                  <div className="flex items-center space-x-1">
-                                    {action.closeTicket && (
-                                      <Badge variant="secondary" className="text-xs">Close</Badge>
-                                    )}
-                                    {action.showPunishment && (
-                                      <Badge variant="destructive" className="text-xs">Punish</Badge>
-                                    )}
-                                    {action.appealAction === 'pardon' && (
-                                      <Badge variant="secondary" className="text-xs">Pardon</Badge>
-                                    )}
-                                    {action.appealAction === 'reduce' && (
-                                      <Badge variant="outline" className="text-xs">Reduce</Badge>
-                                    )}
+                          <div 
+                            key={action.id} 
+                            className="border rounded-lg p-4 bg-card space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h6 className="font-medium">{action.name}</h6>
+                                    <div className="flex items-center space-x-1">
+                                      {action.closeTicket && (
+                                        <Badge variant="secondary" className="text-xs">Close</Badge>
+                                      )}
+                                      {action.showPunishment && (
+                                        <Badge variant="destructive" className="text-xs">Punish</Badge>
+                                      )}
+                                      {action.appealAction === 'pardon' && (
+                                        <Badge variant="secondary" className="text-xs">Pardon</Badge>
+                                      )}
+                                      {action.appealAction === 'reduce' && (
+                                        <Badge variant="outline" className="text-xs">Reduce</Badge>
+                                      )}
+                                    </div>
                                   </div>
+                                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                    {action.message}
+                                  </p>
                                 </div>
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                  {action.message}
-                                </p>
                               </div>
-                              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-2">
                                 <Button 
-                                  variant="ghost" 
                                   size="sm"
+                                  variant="outline"
                                   onClick={() => {
                                     setEditingAction(action);
                                     setSelectedCategoryId(category.id);
                                     setShowActionDialog(true);
                                   }}
                                 >
-                                  <Edit3 className="h-4 w-4" />
+                                  Edit
                                 </Button>
                                 <Button 
-                                  variant="ghost" 
                                   size="sm"
+                                  variant="outline"
                                   onClick={() => {
                                     const updatedConfig = {
                                       ...quickResponsesState,
