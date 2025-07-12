@@ -15,6 +15,7 @@ export interface TicketSubscriptionUpdate {
   replyAt: string;
   isStaffReply: boolean;
   isRead: boolean;
+  additionalCount?: number;
 }
 
 export interface TicketSubscription {
@@ -123,8 +124,8 @@ export function TicketSubscriptionsSection({
     );
   }
 
-  const unreadUpdates = updates.filter(update => !update.isRead);
-  const hasUnreadUpdates = unreadUpdates.length > 0;
+  // Backend now only returns unread updates, so all updates are unread
+  const hasUnreadUpdates = updates.length > 0;
 
   return (
     <Card>
@@ -135,7 +136,7 @@ export function TicketSubscriptionsSection({
             Ticket Subscription Updates
             {hasUnreadUpdates && (
               <Badge variant="destructive" className="text-xs">
-                {unreadUpdates.length} new
+                {updates.length} new
               </Badge>
             )}
           </CardTitle>
@@ -155,14 +156,10 @@ export function TicketSubscriptionsSection({
                 updates.slice(0, 5).map((update) => (
                   <div
                     key={update.id}
-                    className={`p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${
-                      !update.isRead ? 'bg-blue-500/5 border-blue-500/20' : ''
-                    }`}
+                    className="p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer bg-blue-500/5 border-blue-500/20"
                     onClick={() => {
                       handleTicketClick(update.ticketId);
-                      if (!update.isRead) {
-                        handleMarkAsRead(update.id);
-                      }
+                      handleMarkAsRead(update.id);
                     }}
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -170,9 +167,7 @@ export function TicketSubscriptionsSection({
                         {update.ticketTitle}
                       </h5>
                       <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                        {!update.isRead && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        )}
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         <Badge 
                           variant="secondary" 
                           className={`text-xs ${
@@ -189,6 +184,14 @@ export function TicketSubscriptionsSection({
                     <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                       {truncateContent(update.replyContent)}
                     </p>
+                    
+                    {update.additionalCount && update.additionalCount > 0 && (
+                      <div className="mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          and {update.additionalCount} more
+                        </Badge>
+                      </div>
+                    )}
                     
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
                       <div className="flex items-center gap-4">

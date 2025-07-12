@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
         if (ticket) {
           subscriptionsWithDetails.push({
             ticketId: subscription.ticketId.toString(),
-            ticketTitle: ticket.subject || ticket.title || 'Untitled Ticket',
+            ticketTitle: `${ticket._id}: ${ticket.subject || ticket.title || 'Untitled Ticket'}`,
             subscribedAt: subscription.subscribedAt
           });
         }
@@ -168,22 +168,33 @@ router.get('/updates', async (req, res) => {
       const replies = ticket.replies || ticket.messages || [];
       const recentReplies = replies
         .filter(reply => new Date(reply.created || reply.timestamp || reply.replyAt) > new Date(subscription.subscribedAt))
-        .sort((a, b) => new Date(b.created || b.timestamp || b.replyAt).getTime() - new Date(a.created || a.timestamp || a.replyAt).getTime())
-        .slice(0, 3); // Max 3 recent replies per ticket
+        .sort((a, b) => new Date(b.created || b.timestamp || b.replyAt).getTime() - new Date(a.created || a.timestamp || a.replyAt).getTime());
 
-      for (const reply of recentReplies) {
+      // Filter out read replies
+      const unreadReplies = recentReplies.filter(reply => {
         const replyDate = new Date(reply.created || reply.timestamp || reply.replyAt);
-        const isRead = subscription.lastReadAt && replyDate <= new Date(subscription.lastReadAt);
+        return !subscription.lastReadAt || replyDate > new Date(subscription.lastReadAt);
+      });
+
+      // Only show if there are unread replies
+      if (unreadReplies.length > 0) {
+        // Show only the latest unread reply
+        const latestReply = unreadReplies[0];
+        const replyDate = new Date(latestReply.created || latestReply.timestamp || latestReply.replyAt);
+        
+        // Calculate additional unread count
+        const additionalCount = unreadReplies.length - 1;
         
         updatesWithDetails.push({
-          id: `${ticket._id}-${reply.id || reply._id || Date.now()}`,
+          id: `${ticket._id}-${latestReply.id || latestReply._id || Date.now()}`,
           ticketId: ticket._id.toString(),
-          ticketTitle: ticket.subject || ticket.title || 'Untitled Ticket',
-          replyContent: reply.content || reply.message || reply.text || 'No content',
-          replyBy: reply.name || reply.sender || reply.author || 'Unknown',
+          ticketTitle: `${ticket._id}: ${ticket.subject || ticket.title || 'Untitled Ticket'}`,
+          replyContent: latestReply.content || latestReply.message || latestReply.text || 'No content',
+          replyBy: latestReply.name || latestReply.sender || latestReply.author || 'Unknown',
           replyAt: replyDate,
-          isStaffReply: reply.staff || reply.senderType === 'staff' || false,
-          isRead: isRead || false
+          isStaffReply: latestReply.staff || latestReply.senderType === 'staff' || false,
+          isRead: false, // Always false since we filtered out read replies
+          additionalCount: additionalCount > 0 ? additionalCount : undefined
         });
       }
 
