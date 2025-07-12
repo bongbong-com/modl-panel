@@ -433,7 +433,7 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
       player.data = player.data || new Map<string, any>();
       player.data.set('lastLogin', new Date());
       
-      await player.save();
+      await player.save({ validateBeforeSave: false });
       await createSystemLog(req.serverDbConnection, req.serverName, `Player ${username} (${minecraftUuid}) logged in. IP: ${ipAddress}.`, 'info', 'player-api');
       return res.status(200).json(player);
     }    player = new Player({
@@ -456,7 +456,7 @@ router.post('/login', async (req: Request<{}, {}, PlayerLoginBody>, res: Respons
       data: new Map<string, any>([['firstJoin', new Date()], ['lastLogin', new Date()]])
     });
 
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `New player ${username} (${minecraftUuid}) created and logged in. IP: ${ipAddress}.`, 'info', 'player-api');
     res.status(201).json(player);
   } catch (error) {
@@ -494,7 +494,7 @@ router.post('/', async (req: Request<{}, {}, CreatePlayerBody>, res: Response): 
       data: new Map<string, any>([['firstJoin', new Date()]])
     });
     
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `New player ${username} (${minecraftUuid}) created via API.`, 'info', 'player-api');
     res.status(201).json(player);
   } catch (error) {
@@ -521,7 +521,7 @@ router.post('/:uuid/usernames', async (req: Request<{ uuid: string }, {}, AddUse
     const existingUsername = player.usernames.find((u: any) => u.username.toLowerCase() === username.toLowerCase());
     if (!existingUsername) {
         player.usernames.push({ username, date: new Date() });
-        await player.save();
+        await player.save({ validateBeforeSave: false });
         await createSystemLog(req.serverDbConnection, req.serverName, `Username ${username} added to player ${req.params.uuid}.`, 'info', 'player-api');
     }
     res.json(player);
@@ -548,7 +548,7 @@ router.post('/:uuid/notes', async (req: Request<{ uuid: string }, {}, AddNoteBod
     }
     
     player.notes.push({ text, issuerName, issuerId, date: new Date() });
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `Note added to player ${req.params.uuid} by ${issuerName}.`, 'info', 'player-api');
     res.json(player);
   } catch (error) {
@@ -596,7 +596,7 @@ router.post('/:uuid/ips', async (req: Request<{ uuid: string }, {}, AddIpBody>, 
       });
     }
     
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `IP ${ipAddress} added/updated for player ${req.params.uuid}.`, 'info', 'player-api');
     res.json(player);
   } catch (error) {
@@ -722,7 +722,7 @@ router.post('/:uuid/punishments', async (req: Request<{ uuid: string }, {}, AddP
     };
 
     player.punishments.push(newPunishment);
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `Punishment ID ${id} (Type: ${type_ordinal}) added to player ${req.params.uuid} by ${issuerName}.`, 'moderation', 'player-api');
     res.json(player);
   } catch (error) {
@@ -794,7 +794,7 @@ router.post('/:uuid/punishments/:punishmentId/modifications', async (req: Reques
       punishment.data.set('wiping', false);
     }
     
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `Modification of type '${type}' added to punishment ${req.params.punishmentId} for player ${req.params.uuid} by ${issuerName}.`, 'moderation', 'player-api');
     res.json(player);
   } catch (error) {
@@ -1082,7 +1082,7 @@ router.post('/:uuid/punishments/:punishmentId/notes', async (req: Request<{ uuid
     
     punishment.notes.push(newNote);
     
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     await createSystemLog(req.serverDbConnection, req.serverName, `Note added to punishment ${req.params.punishmentId} for player ${req.params.uuid} by ${issuerName}.`, 'moderation', 'player-api');
     res.json(player);
   } catch (error) {
@@ -1351,7 +1351,7 @@ async function updatePlayerLinkedAccountsForPanel(
         player.data.linkedAccounts = updatedLinkedAccounts;
         player.data.lastLinkedAccountUpdate = new Date();
       }
-      await player.save();
+      await player.save({ validateBeforeSave: false });
       
       console.log(`[Panel Account Linking] Updated ${playerUuid} linked accounts: added ${linkedUuid}`);
     }
@@ -1417,7 +1417,7 @@ router.post('/:uuid/punishments/:punishmentId/evidence', async (req: Request<{ u
     punishment.evidence.push(evidenceItem);
     
     // Save the player
-    await player.save();
+    await player.save({ validateBeforeSave: false });
     
     res.json({ message: 'Evidence added successfully', evidence: evidenceItem });
   } catch (error) {
