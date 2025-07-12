@@ -834,15 +834,11 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     }
     
     punishment.modifications.push({
-      id: `PARDON_${Date.now()}`,
-      type: 'Pardoned',
-      reason: `Rolled back by ${rollbackBy}`,
-      staffMember: rollbackBy,
-      created: rollbackDate,
-      metadata: {
-        originalReason: reason,
-        rollbackSource: 'analytics_panel'
-      }
+      type: 'MANUAL_PARDON',  // Use proper modification type
+      issuerName: rollbackBy,
+      issued: rollbackDate,   // Use 'issued' instead of 'created'
+      effectiveDuration: 0,   // Required for pardons
+      reason: `Rolled back by ${rollbackBy}: ${reason}`
     });
     
     console.log(`[Rollback] Marking punishment ${id} as rolled back`);
@@ -937,16 +933,11 @@ router.post('/staff/:username/rollback-all', async (req, res) => {
           }
           
           punishment.modifications.push({
-            id: `PARDON_${Date.now()}_${rolledBackCount}`,
-            type: 'Pardoned',
-            reason: `Bulk rollback by ${rollbackBy}`,
-            staffMember: rollbackBy,
-            created: rollbackDate,
-            metadata: {
-              originalReason: reason,
-              rollbackSource: 'bulk_analytics_panel',
-              bulkOperation: true
-            }
+            type: 'MANUAL_PARDON',  // Use proper modification type
+            issuerName: rollbackBy,
+            issued: rollbackDate,   // Use 'issued' instead of 'created'
+            effectiveDuration: 0,   // Required for pardons
+            reason: `Bulk rollback by ${rollbackBy}: ${reason}`
           });
           
           rolledBackCount++;

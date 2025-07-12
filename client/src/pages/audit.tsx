@@ -782,7 +782,11 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                         const getPunishmentStatus = (punishment: any) => {
                           // Check for pardoned/appeal accepted modifications
                           const hasPardon = punishment.modifications?.some((mod: any) => 
-                            mod.type === 'Pardoned' || mod.type === 'Appeal Accepted'
+                            mod.type === 'MANUAL_PARDON' || 
+                            mod.type === 'APPEAL_ACCEPT' || 
+                            mod.type === 'Pardoned' || 
+                            mod.type === 'Appeal Accepted' ||
+                            mod.type === 'Appeal Approved'
                           );
                           
                           if (hasPardon || punishment.rolledBack) {
