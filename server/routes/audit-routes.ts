@@ -842,7 +842,12 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     });
     
     console.log(`[Rollback] Marking punishment ${id} as rolled back`);
-    await player.save();
+    try {
+      await player.save({ validateBeforeSave: false });
+    } catch (saveError) {
+      console.error(`[Rollback] Failed to save player ${player.minecraftUuid}:`, saveError.message);
+      return res.status(500).json({ error: 'Failed to save rollback changes' });
+    }
 
     // Create rollback log entry
     await Log.create({
@@ -951,7 +956,12 @@ router.post('/staff/:username/rollback-all', async (req, res) => {
       
       // Save player if any punishments were modified
       if (player.isModified()) {
-        await player.save();
+        try {
+          await player.save({ validateBeforeSave: false });
+        } catch (saveError) {
+          console.warn(`Failed to save player ${player.minecraftUuid}, skipping:`, saveError.message);
+          // Continue with other players rather than failing the entire operation
+        }
       }
     }
 
@@ -1282,7 +1292,12 @@ router.post('/punishments/bulk-rollback', async (req, res) => {
       
       // Save player if any punishments were modified
       if (player.isModified()) {
-        await player.save();
+        try {
+          await player.save({ validateBeforeSave: false });
+        } catch (saveError) {
+          console.warn(`Failed to save player ${player.minecraftUuid}, skipping:`, saveError.message);
+          // Continue with other players rather than failing the entire operation
+        }
       }
     }
 
@@ -1407,7 +1422,12 @@ router.post('/staff/:username/rollback-date-range', async (req, res) => {
       
       // Save player if any punishments were modified
       if (player.isModified()) {
-        await player.save();
+        try {
+          await player.save({ validateBeforeSave: false });
+        } catch (saveError) {
+          console.warn(`Failed to save player ${player.minecraftUuid}, skipping:`, saveError.message);
+          // Continue with other players rather than failing the entire operation
+        }
       }
     }
 
