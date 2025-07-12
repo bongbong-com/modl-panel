@@ -43,6 +43,7 @@ import { useQuery } from '@tanstack/react-query';
 import PageContainer from '@/components/layout/PageContainer';
 import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { cn } from 'modl-shared-web/lib/utils';
+import { usePlayerWindow } from '@/contexts/PlayerWindowContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
 
 interface DatabaseLog {
@@ -656,6 +657,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
   const [rollbackStartDate, setRollbackStartDate] = useState<Date | undefined>(undefined);
   const [rollbackEndDate, setRollbackEndDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
+  const { openPlayerWindow } = usePlayerWindow();
   
   // Fetch detailed staff data including punishments, tickets, evidence
   const { data: staffDetails, isLoading, refetch } = useQuery({
@@ -1006,7 +1008,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                               <Button
                                 variant="link"
                                 className="p-0 h-auto font-medium text-left"
-                                onClick={() => window.open(`/players/${punishment.playerId}`, '_blank')}
+                                onClick={() => openPlayerWindow(punishment.playerId, punishment.playerName)}
                               >
                                 {punishment.playerName || 'Unknown'}
                               </Button>
@@ -1171,7 +1173,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                               <Button
                                 variant="link"
                                 className="p-0 h-auto font-medium text-left"
-                                onClick={() => window.open(`/tickets/${ticket.ticketId || ticket.id}`, '_blank')}
+                                onClick={() => window.open(`/panel/tickets/${ticket.ticketId || ticket.id}`, '_blank')}
                               >
                                 #{ticket.ticketId || ticket.id}
                               </Button>
