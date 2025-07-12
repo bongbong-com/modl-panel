@@ -43,11 +43,18 @@ function mapPunishmentType(type: string, typeOrdinal: number, punishmentTypesCon
   
   // Fall back to using ordinal with settings lookup
   if (typeof typeOrdinal === 'number') {
-    const punishmentType = punishmentTypesConfig.find(pt => 
-      pt.ordinal === typeOrdinal || pt.id === typeOrdinal
-    );
-    if (punishmentType) {
-      return punishmentType.name;
+    // First try exact ordinal match (most reliable)
+    const punishmentTypeByOrdinal = punishmentTypesConfig.find(pt => pt.ordinal === typeOrdinal);
+    if (punishmentTypeByOrdinal) {
+      return punishmentTypeByOrdinal.name;
+    }
+    
+    // If no ordinal match, try ID match as fallback (for backward compatibility)
+    const punishmentTypeById = punishmentTypesConfig.find(pt => pt.id === typeOrdinal);
+    if (punishmentTypeById) {
+      // Log this case as it might indicate data inconsistency
+      console.warn(`Punishment type lookup: No ordinal match for ${typeOrdinal}, using ID match for "${punishmentTypeById.name}" (ID: ${punishmentTypeById.id}, Ordinal: ${punishmentTypeById.ordinal})`);
+      return punishmentTypeById.name;
     }
     
     // Final fallback to hardcoded mapping (core administrative types)
@@ -59,7 +66,16 @@ function mapPunishmentType(type: string, typeOrdinal: number, punishmentTypesCon
       4: 'Linked Ban',
       5: 'Blacklist'
     };
-    return fallbackMap[typeOrdinal] || `Type ${typeOrdinal}`;
+    
+    if (fallbackMap[typeOrdinal]) {
+      return fallbackMap[typeOrdinal];
+    }
+    
+    // Log unknown punishment types for debugging
+    console.warn(`Unknown punishment type ordinal: ${typeOrdinal}. Available types:`, 
+      punishmentTypesConfig.map(pt => `${pt.name} (ID: ${pt.id}, Ordinal: ${pt.ordinal})`));
+    
+    return `Type ${typeOrdinal}`;
   }
   
   return 'Unknown';
