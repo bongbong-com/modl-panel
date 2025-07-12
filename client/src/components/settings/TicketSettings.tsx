@@ -379,6 +379,32 @@ const TicketSettings = ({
     });
   }, [selectedTicketFormType, setTicketForms]);
 
+  // Move action within a category
+  const moveAction = React.useCallback((categoryId: string, dragIndex: number, hoverIndex: number) => {
+    setQuickResponsesState(prev => ({
+      ...prev,
+      categories: prev.categories.map(category => 
+        category.id === categoryId 
+          ? {
+              ...category,
+              actions: (() => {
+                const actions = [...category.actions];
+                const draggedAction = actions[dragIndex];
+                actions.splice(dragIndex, 1);
+                actions.splice(hoverIndex, 0, draggedAction);
+                
+                // Update order values
+                return actions.map((action, index) => ({
+                  ...action,
+                  order: index
+                }));
+              })()
+            }
+          : category
+      )
+    }));
+  }, [setQuickResponsesState]);
+
   // Initialize quick responses with defaults if empty
   useEffect(() => {
     if (!quickResponsesState || !quickResponsesState.categories || quickResponsesState.categories.length === 0) {
@@ -464,69 +490,30 @@ const TicketSettings = ({
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {category.actions.map((action) => (
-                          <div 
-                            key={action.id} 
-                            className="border rounded-lg p-4 bg-card space-y-3"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h6 className="font-medium">{action.name}</h6>
-                                    <div className="flex items-center space-x-1">
-                                      {action.closeTicket && (
-                                        <Badge variant="secondary" className="text-xs">Close</Badge>
-                                      )}
-                                      {action.showPunishment && (
-                                        <Badge variant="destructive" className="text-xs">Punish</Badge>
-                                      )}
-                                      {action.appealAction === 'pardon' && (
-                                        <Badge variant="secondary" className="text-xs">Pardon</Badge>
-                                      )}
-                                      {action.appealAction === 'reduce' && (
-                                        <Badge variant="outline" className="text-xs">Reduce</Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                    {action.message}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button 
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditingAction(action);
-                                    setSelectedCategoryId(category.id);
-                                    setShowActionDialog(true);
-                                  }}
-                                >
-                                  Edit
-                                </Button>
-                                <Button 
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const updatedConfig = {
-                                      ...quickResponsesState,
-                                      categories: quickResponsesState.categories.map(cat => 
-                                        cat.id === category.id
-                                          ? { ...cat, actions: cat.actions.filter(a => a.id !== action.id) }
-                                          : cat
-                                      )
-                                    };
-                                    setQuickResponsesState(updatedConfig);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
+                        {category.actions.map((action, index) => (
+                          <DraggableQuickResponseAction
+                            key={action.id}
+                            action={action}
+                            index={index}
+                            categoryId={category.id}
+                            moveAction={moveAction}
+                            onEdit={() => {
+                              setEditingAction(action);
+                              setSelectedCategoryId(category.id);
+                              setShowActionDialog(true);
+                            }}
+                            onDelete={() => {
+                              const updatedConfig = {
+                                ...quickResponsesState,
+                                categories: quickResponsesState.categories.map(cat => 
+                                  cat.id === category.id
+                                    ? { ...cat, actions: cat.actions.filter(a => a.id !== action.id) }
+                                    : cat
+                                )
+                              };
+                              setQuickResponsesState(updatedConfig);
+                            }}
+                          />
                         ))}
                         {category.actions.length === 0 && (
                           <div className="text-center py-6 text-muted-foreground">
@@ -2155,6 +2142,96 @@ const DraggableSectionCard = ({
           <Plus className="h-4 w-4 mr-2" />
           Add Field
         </Button>
+      </div>
+    </div>
+  );
+};
+
+// DraggableQuickResponseAction Component
+interface DraggableQuickResponseActionProps {
+  action: QuickResponseAction;
+  index: number;
+  categoryId: string;
+  moveAction: (categoryId: string, dragIndex: number, hoverIndex: number) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const DraggableQuickResponseAction = ({ 
+  action, 
+  index, 
+  categoryId,
+  moveAction,
+  onEdit,
+  onDelete
+}: DraggableQuickResponseActionProps) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'quick-response-action',
+    item: { index, categoryId },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: 'quick-response-action',
+    hover: (item: { index: number; categoryId: string }) => {
+      if (item.categoryId === categoryId && item.index !== index) {
+        moveAction(categoryId, item.index, index);
+        item.index = index;
+      }
+    },
+  });
+
+  return (
+    <div
+      ref={(node) => drag(drop(node))}
+      className={`border rounded-lg p-4 bg-card space-y-3 ${
+        isDragging ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h6 className="font-medium">{action.name}</h6>
+              <div className="flex items-center space-x-1">
+                {action.closeTicket && (
+                  <Badge variant="secondary" className="text-xs">Close</Badge>
+                )}
+                {action.showPunishment && (
+                  <Badge variant="destructive" className="text-xs">Punish</Badge>
+                )}
+                {action.appealAction === 'pardon' && (
+                  <Badge variant="secondary" className="text-xs">Pardon</Badge>
+                )}
+                {action.appealAction === 'reduce' && (
+                  <Badge variant="outline" className="text-xs">Reduce</Badge>
+                )}
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+              {action.message}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm"
+            variant="outline"
+            onClick={onEdit}
+          >
+            Edit
+          </Button>
+          <Button 
+            size="sm"
+            variant="outline"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

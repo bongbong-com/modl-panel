@@ -1,6 +1,7 @@
 import { Express, Request, Response } from 'express';
 import mongoose, { Connection, Document, Model } from 'mongoose'; // Import mongoose for Types.ObjectId
 import { randomBytes } from 'crypto';
+import bcrypt from 'bcryptjs';
 import { getModlServersModel, connectToServerDb, connectToGlobalModlDb } from '../db/connectionManager';
 import { 
   PlayerSchema, 
@@ -49,6 +50,12 @@ export async function provisionNewServerInstance(
 
   // Create default staff roles
   await createDefaultRoles(dbConnection);
+
+  // Create superadmin user in staffs collection
+  await createSuperAdminUser(dbConnection, globalConnection, serverConfigId);
+
+  // Generate default ticket forms
+  await createDefaultTicketForms(dbConnection);
 
   // Seed default homepage cards
   await seedDefaultHomepageCards(dbConnection);
@@ -216,4 +223,251 @@ export function setupVerificationAndProvisioningRoutes(app: Express) {
       return res.status(500).json({ error: 'An internal error occurred while checking provisioning status.', details: error.message });
     }
   });
+}
+
+async function createSuperAdminUser(dbConnection: Connection, globalConnection: Connection, serverConfigId: string) {
+  try {
+    // Get the server config to get admin email
+    const ModlServerModel = globalConnection.models.ModlServer || globalConnection.model<IModlServer>('ModlServer', ModlServerSchema);
+    const serverConfig = await ModlServerModel.findById(serverConfigId);
+    
+    if (!serverConfig) {
+      throw new Error('Server configuration not found');
+    }
+
+    // Get the Super Admin role
+    const RoleModel = dbConnection.models.Role || dbConnection.model('Role', new mongoose.Schema({
+      name: String,
+      permissions: [String],
+      order: Number,
+      color: String,
+      isDefault: Boolean
+    }));
+
+    const superAdminRole = await RoleModel.findOne({ name: 'Super Admin' });
+    if (!superAdminRole) {
+      throw new Error('Super Admin role not found');
+    }
+
+    // Create default password (should be changed on first login)
+    const defaultPassword = randomBytes(16).toString('hex');
+    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+
+    // Create superadmin user in staffs collection
+    const StaffModel = dbConnection.models.Staff || dbConnection.model('Staff', StaffSchema);
+    
+    const superAdmin = new StaffModel({
+      username: 'superadmin',
+      email: serverConfig.adminEmail,
+      passwordHash: hashedPassword,
+      roles: [superAdminRole._id],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ticketSubscriptions: []
+    });
+
+    await superAdmin.save();
+    
+    console.log(`[Provisioning] Created superadmin user with email: ${serverConfig.adminEmail}`);
+    console.log(`[Provisioning] Default password: ${defaultPassword} (should be changed on first login)`);
+    
+  } catch (error) {
+    console.error('[Provisioning] Error creating superadmin user:', error);
+    throw error;
+  }
+}
+
+async function createDefaultTicketForms(dbConnection: Connection) {
+  try {
+    const TicketFormModel = dbConnection.models.TicketForm || dbConnection.model('TicketForm', new mongoose.Schema({
+      formType: String,
+      sections: [{
+        id: String,
+        title: String,
+        description: String,
+        order: Number,
+        hideByDefault: Boolean
+      }],
+      fields: [{
+        id: String,
+        sectionId: String,
+        type: String,
+        label: String,
+        description: String,
+        required: Boolean,
+        options: [String],
+        order: Number,
+        goToSection: String,
+        optionSectionMapping: mongoose.Schema.Types.Mixed
+      }]
+    }));
+
+    // Bug Report Form
+    const bugReportForm = new TicketFormModel({
+      formType: 'bug',
+      sections: [
+        {
+          id: 'bug_details',
+          title: 'Bug Details',
+          description: 'Provide information about the bug you encountered',
+          order: 0,
+          hideByDefault: false
+        }
+      ],
+      fields: [
+        {
+          id: 'bug_summary',
+          sectionId: 'bug_details',
+          type: 'text',
+          label: 'Bug Summary',
+          description: 'Brief description of the bug',
+          required: true,
+          options: [],
+          order: 0
+        },
+        {
+          id: 'bug_description',
+          sectionId: 'bug_details',
+          type: 'textarea',
+          label: 'Detailed Description',
+          description: 'Provide a detailed description of the bug and steps to reproduce it',
+          required: true,
+          options: [],
+          order: 1
+        },
+        {
+          id: 'bug_severity',
+          sectionId: 'bug_details',
+          type: 'dropdown',
+          label: 'Severity Level',
+          description: 'How severe is this bug?',
+          required: true,
+          options: ['Low', 'Medium', 'High', 'Critical'],
+          order: 2
+        }
+      ]
+    });
+
+    // Support Request Form
+    const supportForm = new TicketFormModel({
+      formType: 'support',
+      sections: [
+        {
+          id: 'support_details',
+          title: 'Support Request',
+          description: 'Describe what you need help with',
+          order: 0,
+          hideByDefault: false
+        }
+      ],
+      fields: [
+        {
+          id: 'support_category',
+          sectionId: 'support_details',
+          type: 'dropdown',
+          label: 'Category',
+          description: 'What type of support do you need?',
+          required: true,
+          options: ['Account Issues', 'Technical Problems', 'Game Questions', 'Other'],
+          order: 0
+        },
+        {
+          id: 'support_description',
+          sectionId: 'support_details',
+          type: 'textarea',
+          label: 'Description',
+          description: 'Please describe your issue or question in detail',
+          required: true,
+          options: [],
+          order: 1
+        }
+      ]
+    });
+
+    // Staff Application Form
+    const applicationForm = new TicketFormModel({
+      formType: 'application',
+      sections: [
+        {
+          id: 'personal_info',
+          title: 'Personal Information',
+          description: 'Tell us about yourself',
+          order: 0,
+          hideByDefault: false
+        },
+        {
+          id: 'experience',
+          title: 'Experience & Qualifications',
+          description: 'Your relevant experience and skills',
+          order: 1,
+          hideByDefault: false
+        }
+      ],
+      fields: [
+        {
+          id: 'real_name',
+          sectionId: 'personal_info',
+          type: 'text',
+          label: 'Real Name',
+          description: 'Your real first and last name',
+          required: true,
+          options: [],
+          order: 0
+        },
+        {
+          id: 'age',
+          sectionId: 'personal_info',
+          type: 'text',
+          label: 'Age',
+          description: 'How old are you?',
+          required: true,
+          options: [],
+          order: 1
+        },
+        {
+          id: 'timezone',
+          sectionId: 'personal_info',
+          type: 'text',
+          label: 'Timezone',
+          description: 'What timezone are you in?',
+          required: true,
+          options: [],
+          order: 2
+        },
+        {
+          id: 'previous_experience',
+          sectionId: 'experience',
+          type: 'textarea',
+          label: 'Previous Staff Experience',
+          description: 'Describe any previous moderation or staff experience',
+          required: false,
+          options: [],
+          order: 0
+        },
+        {
+          id: 'why_apply',
+          sectionId: 'experience',
+          type: 'textarea',
+          label: 'Why do you want to be staff?',
+          description: 'Explain your motivation for applying',
+          required: true,
+          options: [],
+          order: 1
+        }
+      ]
+    });
+
+    await Promise.all([
+      bugReportForm.save(),
+      supportForm.save(),
+      applicationForm.save()
+    ]);
+
+    console.log('[Provisioning] Created default ticket forms: bug, support, application');
+    
+  } catch (error) {
+    console.error('[Provisioning] Error creating default ticket forms:', error);
+    throw error;
+  }
 }
