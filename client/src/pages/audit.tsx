@@ -720,27 +720,67 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                       <tr className="border-b">
                         <th className="text-left p-2">Player</th>
                         <th className="text-left p-2">Type</th>
-                        <th className="text-left p-2">Reason</th>
+                        <th className="text-left p-2">Evidence</th>
+                        <th className="text-left p-2">Tickets</th>
                         <th className="text-left p-2">Duration</th>
                         <th className="text-left p-2">Date</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {recentPunishments.length > 0 ? recentPunishments.map((punishment, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-2 font-medium">{punishment.playerName || 'Unknown'}</td>
-                          <td className="p-2">
-                            <Badge variant={punishment.type === 'Permanent Ban' ? 'destructive' : 'secondary'}>
-                              {punishment.type}
-                            </Badge>
-                          </td>
-                          <td className="p-2">{punishment.reason || 'No reason specified'}</td>
-                          <td className="p-2">{punishment.duration || 'Permanent'}</td>
-                          <td className="p-2">{format(new Date(punishment.issued), 'MMM d, yyyy')}</td>
-                        </tr>
-                      )) : (
+                      {recentPunishments.length > 0 ? recentPunishments.map((punishment, index) => {
+                        // Format duration helper function
+                        const formatDuration = (duration: number) => {
+                          if (!duration || duration === -1) return 'Permanent';
+                          const days = Math.floor(duration / (1000 * 60 * 60 * 24));
+                          const hours = Math.floor((duration % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                          const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+                          
+                          if (days > 0) return `${days}d ${hours}h`;
+                          if (hours > 0) return `${hours}h ${minutes}m`;
+                          return `${minutes}m`;
+                        };
+
+                        return (
+                          <tr key={index} className="border-b">
+                            <td className="p-2 font-medium">{punishment.playerName || 'Unknown'}</td>
+                            <td className="p-2">
+                              <Badge variant={punishment.type?.includes('Ban') ? 'destructive' : 'secondary'}>
+                                {punishment.type}
+                              </Badge>
+                            </td>
+                            <td className="p-2">
+                              <div className="flex gap-1 flex-wrap">
+                                {punishment.evidence && punishment.evidence.length > 0 ? (
+                                  punishment.evidence.map((evidenceItem: string, idx: number) => (
+                                    <Badge key={idx} variant="outline" className="text-xs">
+                                      📎 {evidenceItem.split('/').pop() || evidenceItem.substring(0, 10)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">No evidence</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2">
+                              <div className="flex gap-1 flex-wrap">
+                                {punishment.attachedTicketIds && punishment.attachedTicketIds.length > 0 ? (
+                                  punishment.attachedTicketIds.map((ticketId: string, idx: number) => (
+                                    <Badge key={idx} variant="outline" className="text-xs">
+                                      🎫 #{ticketId.substring(0, 8)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">No tickets</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-2">{formatDuration(punishment.duration)}</td>
+                            <td className="p-2">{format(new Date(punishment.issued), 'MMM d, yyyy')}</td>
+                          </tr>
+                        );
+                      }) : (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                          <td colSpan={6} className="p-4 text-center text-muted-foreground">
                             No recent punishments found
                           </td>
                         </tr>

@@ -256,7 +256,9 @@ router.get('/staff/:username/details', async (req, res) => {
           reason: '$punishments.data.reason',
           duration: '$punishments.data.duration',
           issued: '$punishments.issued',
-          active: '$punishments.active'
+          active: '$punishments.active',
+          evidence: '$punishments.evidence',
+          attachedTicketIds: '$punishments.attachedTicketIds'
         }
       },
       { $sort: { issued: -1 } },
@@ -269,31 +271,38 @@ router.get('/staff/:username/details', async (req, res) => {
       type: mapPunishmentType(null, punishment.type_ordinal)
     }));
 
-    // Get tickets handled by this staff member
+    // Get tickets that this staff member has replied to
     const tickets = await Ticket.find({
-      $or: [
-        { assignedTo: username },
-        { 'messages.sender': username }
-      ],
-      created: { $gte: startDate }
+      'messages.sender': username,
+      'messages.timestamp': { $gte: startDate }
     })
     .sort({ created: -1 })
     .limit(20)
     .select('_id subject category status created priority messages');
 
-    // Calculate response times for tickets
+    // Calculate response times for tickets where staff member replied
     const ticketResponseTimes = tickets.map(ticket => {
       if (ticket.messages && ticket.messages.length > 0) {
-        const staffMessages = ticket.messages.filter(msg => msg.sender === username);
+        const staffMessages = ticket.messages.filter(msg => 
+          msg.sender === username && 
+          new Date(msg.timestamp) >= startDate
+        );
         if (staffMessages.length > 0) {
-          const firstResponse = staffMessages[0];
-          const responseTime = new Date(firstResponse.timestamp).getTime() - new Date(ticket.created).getTime();
+          // Find the first staff response in the time period
+          const firstStaffResponse = staffMessages.sort((a, b) => 
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          )[0];
+          
+          // Calculate response time from ticket creation to first staff response
+          const responseTime = new Date(firstStaffResponse.timestamp).getTime() - new Date(ticket.created).getTime();
+          
           return {
             ticketId: ticket._id,
             subject: ticket.subject,
             status: ticket.status,
-            responseTime: Math.round(responseTime / (1000 * 60)), // in minutes
-            created: ticket.created
+            responseTime: Math.max(0, Math.round(responseTime / (1000 * 60))), // in minutes
+            created: ticket.created,
+            firstResponseDate: firstStaffResponse.timestamp
           };
         }
       }
