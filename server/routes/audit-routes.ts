@@ -1312,4 +1312,131 @@ router.post('/punishments/bulk-rollback', async (req, res) => {
   }
 });
 
+// Rollback all punishments by a staff member within a date range
+router.post('/staff/:username/rollback-date-range', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { startDate, endDate, reason = 'Date range rollback from analytics panel' } = req.body;
+    
+    if (!req.serverDbConnection) {
+      return res.status(503).json({ error: 'Database connection not available' });
+    }
+    
+    const db = req.serverDbConnection;
+    const Player = db.model('Player');
+    const Log = db.model('Log');
+
+    // Parse dates
+    const startDateTime = new Date(startDate);
+    const endDateTime = new Date(endDate);
+
+    // Validate dates
+    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    if (endDateTime < startDateTime) {
+      return res.status(400).json({ error: 'End date must be after start date' });
+    }
+
+    // Find all players with punishments issued by this staff member in the date range
+    const players = await Player.find({
+      'punishments.issuerName': username,
+      'punishments.issued': { $gte: startDateTime, $lte: endDateTime }
+    });
+
+    let rolledBackCount = 0;
+    const rolledBackPunishments = [];
+
+    for (const player of players) {
+      for (const punishment of player.punishments) {
+        // Check if punishment matches criteria and isn't already rolled back
+        if (punishment.issuerName === username && 
+            punishment.issued >= startDateTime && 
+            punishment.issued <= endDateTime &&
+            punishment.data?.get('rolledBack') !== true) {
+          
+          const rollbackBy = req.currentUser?.username || 'system';
+          const rollbackDate = new Date();
+          
+          // Handle data field (Map vs Object)
+          if (punishment.data instanceof Map) {
+            punishment.data.set('rolledBack', true);
+            punishment.data.set('rollbackDate', rollbackDate);
+            punishment.data.set('rollbackBy', rollbackBy);
+            punishment.data.set('rollbackReason', reason);
+          } else {
+            // Initialize data as Map if it doesn't exist or convert object to Map
+            if (!punishment.data) {
+              punishment.data = new Map();
+            } else if (!(punishment.data instanceof Map)) {
+              const oldData = punishment.data;
+              punishment.data = new Map();
+              // Copy existing data
+              for (const [key, value] of Object.entries(oldData)) {
+                punishment.data.set(key, value);
+              }
+            }
+            punishment.data.set('rolledBack', true);
+            punishment.data.set('rollbackDate', rollbackDate);
+            punishment.data.set('rollbackBy', rollbackBy);
+            punishment.data.set('rollbackReason', reason);
+          }
+
+          // Add "Pardoned" modification to the punishment
+          if (!punishment.modifications) {
+            punishment.modifications = [];
+          }
+          
+          punishment.modifications.push({
+            type: 'MANUAL_PARDON',
+            issuerName: rollbackBy,
+            issued: rollbackDate,
+            effectiveDuration: 0,
+            reason: `Date range rollback by ${rollbackBy}: ${reason}`
+          });
+          
+          rolledBackCount++;
+          rolledBackPunishments.push({
+            id: punishment.id,
+            playerId: player.minecraftUuid,
+            playerName: player.usernames[0]?.username || 'Unknown'
+          });
+        }
+      }
+      
+      // Save player if any punishments were modified
+      if (player.isModified()) {
+        await player.save();
+      }
+    }
+
+    // Create rollback log entry
+    await Log.create({
+      created: new Date(),
+      level: 'moderation',
+      source: req.currentUser?.username || 'system',
+      description: `Date range rollback: ${rolledBackCount} punishments by ${username} rolled back (${startDate} to ${endDate})`,
+      metadata: {
+        dateRangeRollback: true,
+        staffMember: username,
+        rollbackReason: reason,
+        startDate: startDate,
+        endDate: endDate,
+        punishmentsRolledBack: rolledBackCount,
+        rolledBackPunishments: rolledBackPunishments
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Successfully rolled back ${rolledBackCount} punishments`,
+      count: rolledBackCount
+    });
+  } catch (error) {
+    console.error('Error performing date range rollback:', error);
+    res.status(500).json({ error: 'Failed to perform date range rollback' });
+  }
+});
+
 export default router;

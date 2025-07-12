@@ -636,6 +636,10 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
   onClose: () => void 
 }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [showBulkRollback, setShowBulkRollback] = useState(false);
+  const [rollbackStartDate, setRollbackStartDate] = useState<Date | undefined>(undefined);
+  const [rollbackEndDate, setRollbackEndDate] = useState<Date | undefined>(undefined);
+  const { toast } = useToast();
   
   // Fetch detailed staff data including punishments, tickets, evidence
   const { data: staffDetails, isLoading } = useQuery({
@@ -652,6 +656,57 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
   const recentTickets = staffDetails?.tickets || [];
   const evidenceCount = staffDetails?.evidenceUploads || 0;
 
+  const handleBulkRollback = async () => {
+    if (!rollbackStartDate || !rollbackEndDate) {
+      toast({
+        title: "Invalid Date Range",
+        description: "Please select both start and end dates",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (rollbackEndDate < rollbackStartDate) {
+      toast({
+        title: "Invalid Date Range",
+        description: "End date must be after start date",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/panel/audit/staff/${staff.username}/rollback-date-range`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          startDate: rollbackStartDate.toISOString(),
+          endDate: rollbackEndDate.toISOString(),
+          reason: `Bulk rollback for ${staff.username} from ${format(rollbackStartDate, 'MMM d, yyyy')} to ${format(rollbackEndDate, 'MMM d, yyyy')}`
+        })
+      });
+      
+      if (!response.ok) throw new Error('Failed to rollback');
+      
+      const data = await response.json();
+      toast({
+        title: "Bulk Rollback Completed",
+        description: `Successfully rolled back ${data.count} punishments by ${staff.username}`
+      });
+      
+      setShowBulkRollback(false);
+      setRollbackStartDate(undefined);
+      setRollbackEndDate(undefined);
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: "Bulk Rollback Failed",
+        description: "Failed to rollback punishments. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -663,37 +718,100 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
               <Badge variant="outline">{staff.role}</Badge>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  if (!confirm(`Are you sure you want to rollback ALL punishments issued by ${staff.username} in the selected time period?`)) {
-                    return;
-                  }
-                  
-                  try {
-                    const response = await fetch(`/api/panel/audit/staff/${staff.username}/rollback-all`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        reason: `Bulk rollback for ${staff.username} from analytics panel`,
-                        period: selectedPeriod
-                      })
-                    });
+              <Popover open={showBulkRollback} onOpenChange={setShowBulkRollback}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title={`Rollback punishments by ${staff.username}`}
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" />
+                    Bulk Rollback
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Bulk Rollback for {staff.username}</h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Select the date range for punishments to rollback
+                      </p>
+                    </div>
                     
-                    if (!response.ok) throw new Error('Failed to rollback');
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">Start Date</label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal h-8"
+                            >
+                              <Calendar className="mr-2 h-3 w-3" />
+                              {rollbackStartDate ? format(rollbackStartDate, "MMM d, yyyy") : "Select start"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={rollbackStartDate}
+                              onSelect={setRollbackStartDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground">End Date</label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal h-8"
+                            >
+                              <Calendar className="mr-2 h-3 w-3" />
+                              {rollbackEndDate ? format(rollbackEndDate, "MMM d, yyyy") : "Select end"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={rollbackEndDate}
+                              onSelect={setRollbackEndDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
                     
-                    alert(`All punishments by ${staff.username} have been rolled back`);
-                    window.location.reload();
-                  } catch (error) {
-                    alert('Failed to rollback punishments');
-                  }
-                }}
-                title={`Rollback all punishments by ${staff.username}`}
-              >
-                <Undo2 className="h-4 w-4 mr-2" />
-                Bulk Rollback
-              </Button>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setShowBulkRollback(false);
+                          setRollbackStartDate(undefined);
+                          setRollbackEndDate(undefined);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleBulkRollback}
+                        disabled={!rollbackStartDate || !rollbackEndDate}
+                      >
+                        Apply Rollback
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </DialogTitle>
         </DialogHeader>
