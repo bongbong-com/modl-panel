@@ -260,7 +260,8 @@ router.get('/staff/:username/details', async (req, res) => {
           active: '$punishments.active',
           evidence: '$punishments.evidence',
           attachedTicketIds: '$punishments.attachedTicketIds',
-          rolledBack: '$punishments.data.rolledBack'
+          rolledBack: '$punishments.data.rolledBack',
+          modifications: '$punishments.modifications'
         }
       },
       { $sort: { issued: -1 } },
@@ -799,11 +800,15 @@ router.post('/punishment/:id/rollback', async (req, res) => {
       return res.status(400).json({ error: 'This punishment has already been rolled back' });
     }
 
-    // Mark punishment as rolled back (handle both Map and Object data)
+    // Mark punishment as rolled back and add pardon modification
+    const rollbackBy = req.currentUser?.username || 'system';
+    const rollbackDate = new Date();
+    
+    // Handle data field (Map vs Object)
     if (punishment.data instanceof Map) {
       punishment.data.set('rolledBack', true);
-      punishment.data.set('rollbackDate', new Date());
-      punishment.data.set('rollbackBy', req.currentUser?.username || 'system');
+      punishment.data.set('rollbackDate', rollbackDate);
+      punishment.data.set('rollbackBy', rollbackBy);
       punishment.data.set('rollbackReason', reason);
     } else {
       // Initialize data as Map if it doesn't exist or convert object to Map
@@ -818,10 +823,27 @@ router.post('/punishment/:id/rollback', async (req, res) => {
         }
       }
       punishment.data.set('rolledBack', true);
-      punishment.data.set('rollbackDate', new Date());
-      punishment.data.set('rollbackBy', req.currentUser?.username || 'system');
+      punishment.data.set('rollbackDate', rollbackDate);
+      punishment.data.set('rollbackBy', rollbackBy);
       punishment.data.set('rollbackReason', reason);
     }
+
+    // Add "Pardoned" modification to the punishment
+    if (!punishment.modifications) {
+      punishment.modifications = [];
+    }
+    
+    punishment.modifications.push({
+      id: `PARDON_${Date.now()}`,
+      type: 'Pardoned',
+      reason: `Rolled back by ${rollbackBy}`,
+      staffMember: rollbackBy,
+      created: rollbackDate,
+      metadata: {
+        originalReason: reason,
+        rollbackSource: 'analytics_panel'
+      }
+    });
     
     console.log(`[Rollback] Marking punishment ${id} as rolled back`);
     await player.save();
@@ -900,11 +922,32 @@ router.post('/staff/:username/rollback-all', async (req, res) => {
             punishment.issued >= startDate && 
             punishment.data?.get('rolledBack') !== true) {
           
+          const rollbackBy = req.currentUser?.username || 'system';
+          const rollbackDate = new Date();
+          
           // Mark punishment as rolled back
           punishment.data.set('rolledBack', true);
-          punishment.data.set('rollbackDate', new Date());
-          punishment.data.set('rollbackBy', req.currentUser?.username || 'system');
+          punishment.data.set('rollbackDate', rollbackDate);
+          punishment.data.set('rollbackBy', rollbackBy);
           punishment.data.set('rollbackReason', reason);
+          
+          // Add "Pardoned" modification to the punishment
+          if (!punishment.modifications) {
+            punishment.modifications = [];
+          }
+          
+          punishment.modifications.push({
+            id: `PARDON_${Date.now()}_${rolledBackCount}`,
+            type: 'Pardoned',
+            reason: `Bulk rollback by ${rollbackBy}`,
+            staffMember: rollbackBy,
+            created: rollbackDate,
+            metadata: {
+              originalReason: reason,
+              rollbackSource: 'bulk_analytics_panel',
+              bulkOperation: true
+            }
+          });
           
           rolledBackCount++;
           rolledBackPunishments.push({

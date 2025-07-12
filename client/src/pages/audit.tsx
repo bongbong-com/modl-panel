@@ -759,7 +759,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                         <th className="text-left p-2">Tickets</th>
                         <th className="text-left p-2">Duration</th>
                         <th className="text-left p-2">Date</th>
-                        <th className="text-left p-2">Actions</th>
+                        <th className="text-left p-2">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -777,6 +777,26 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                           if (hours > 0) return `${hours}h ${minutes}m`;
                           return `${minutes}m`;
                         };
+
+                        // Determine punishment status
+                        const getPunishmentStatus = (punishment: any) => {
+                          // Check for pardoned/appeal accepted modifications
+                          const hasPardon = punishment.modifications?.some((mod: any) => 
+                            mod.type === 'Pardoned' || mod.type === 'Appeal Accepted'
+                          );
+                          
+                          if (hasPardon || punishment.rolledBack) {
+                            return { status: 'Pardoned', variant: 'outline' as const, color: 'text-green-600' };
+                          }
+                          
+                          if (punishment.active === false) {
+                            return { status: 'Inactive', variant: 'secondary' as const, color: 'text-gray-600' };
+                          }
+                          
+                          return { status: 'Active', variant: 'default' as const, color: 'text-blue-600' };
+                        };
+
+                        const statusInfo = getPunishmentStatus(punishment);
 
                         return (
                           <tr key={index} className="border-b">
@@ -847,12 +867,15 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                             <td className="p-2">{formatDuration(punishment.duration)}</td>
                             <td className="p-2">{format(new Date(punishment.issued), 'MMM d, yyyy')}</td>
                             <td className="p-2">
-                              <div className="flex gap-1">
-                                {punishment.active !== false && !punishment.rolledBack && (
+                              <div className="flex items-center gap-2">
+                                <Badge variant={statusInfo.variant} className={`text-xs ${statusInfo.color}`}>
+                                  {statusInfo.status}
+                                </Badge>
+                                {statusInfo.status === 'Active' && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="text-xs h-6 px-2"
+                                    className="text-xs h-5 px-1"
                                     onClick={async () => {
                                       try {
                                         console.log(`Attempting to rollback punishment ID: ${punishment.id}`);
@@ -882,14 +905,8 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                     }}
                                     title="Rollback this punishment"
                                   >
-                                    <Undo2 className="h-3 w-3 mr-1" />
-                                    Rollback
+                                    <Undo2 className="h-3 w-3" />
                                   </Button>
-                                )}
-                                {(punishment.active === false || punishment.rolledBack) && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {punishment.rolledBack ? 'Rolled Back' : 'Inactive'}
-                                  </Badge>
                                 )}
                               </div>
                             </td>
