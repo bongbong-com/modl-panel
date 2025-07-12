@@ -176,6 +176,22 @@ const formatRelativeTime = (date: Date) => {
   return format(date, 'MMM d, yyyy');
 };
 
+const formatDurationDetailed = (date: Date) => {
+  const now = new Date();
+  const diffMs = Math.abs(now.getTime() - date.getTime());
+  
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  
+  return parts.length > 0 ? parts.join(' ') : '0m';
+};
+
 // API functions
 const fetchAnalyticsOverview = async () => {
   const response = await fetch(`/api/panel/analytics/overview`);
@@ -986,7 +1002,15 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
 
                         return (
                           <tr key={index} className="border-b">
-                            <td className="p-2 font-medium">{punishment.playerName || 'Unknown'}</td>
+                            <td className="p-2 font-medium">
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto font-medium text-left"
+                                onClick={() => window.open(`/players/${punishment.playerId}`, '_blank')}
+                              >
+                                {punishment.playerName || 'Unknown'}
+                              </Button>
+                            </td>
                             <td className="p-2">
                               <Badge variant={punishment.type?.includes('Ban') ? 'destructive' : 'secondary'}>
                                 {punishment.type}
@@ -1130,26 +1154,42 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                         <th className="text-left p-2">Ticket ID</th>
                         <th className="text-left p-2">Subject</th>
                         <th className="text-left p-2">Status</th>
-                        <th className="text-left p-2">Response Time</th>
-                        <th className="text-left p-2">Date</th>
+                        <th className="text-left p-2">Replies</th>
+                        <th className="text-left p-2">Time Since Opened</th>
+                        <th className="text-left p-2">Time Since Last Activity</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {recentTickets && recentTickets.length > 0 ? recentTickets.map((ticket, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-2 font-medium">#{ticket.ticketId || ticket.id}</td>
-                          <td className="p-2">{ticket.subject || ticket.title || 'No subject'}</td>
-                          <td className="p-2">
-                            <Badge variant={ticket.status === 'resolved' || ticket.status === 'Resolved' ? 'outline' : 'secondary'}>
-                              {ticket.status}
-                            </Badge>
-                          </td>
-                          <td className="p-2">{ticket.responseTime || '--'}m</td>
-                          <td className="p-2">{format(new Date(ticket.created || ticket.createdAt || ticket.timestamp), 'MMM d, yyyy')}</td>
-                        </tr>
-                      )) : (
+                      {recentTickets && recentTickets.length > 0 ? recentTickets.map((ticket, index) => {
+                        const timeSinceOpened = formatDurationDetailed(new Date(ticket.created || ticket.createdAt || ticket.timestamp));
+                        const timeSinceLastActivity = ticket.lastActivity ? formatDurationDetailed(new Date(ticket.lastActivity)) : 
+                                                     ticket.updatedAt ? formatDurationDetailed(new Date(ticket.updatedAt)) : '--';
+                        
+                        return (
+                          <tr key={index} className="border-b">
+                            <td className="p-2 font-medium">
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto font-medium text-left"
+                                onClick={() => window.open(`/tickets/${ticket.ticketId || ticket.id}`, '_blank')}
+                              >
+                                #{ticket.ticketId || ticket.id}
+                              </Button>
+                            </td>
+                            <td className="p-2">{ticket.subject || ticket.title || 'No subject'}</td>
+                            <td className="p-2">
+                              <Badge variant={ticket.status === 'resolved' || ticket.status === 'Resolved' || ticket.status === 'closed' || ticket.status === 'Closed' ? 'outline' : 'secondary'}>
+                                {ticket.status}
+                              </Badge>
+                            </td>
+                            <td className="p-2">{ticket.replyCount || 0}</td>
+                            <td className="p-2">{timeSinceOpened}</td>
+                            <td className="p-2">{timeSinceLastActivity}</td>
+                          </tr>
+                        );
+                      }) : (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                          <td colSpan={6} className="p-4 text-center text-muted-foreground">
                             {staffDetails ? 'No recent ticket responses found' : 'Loading ticket responses...'}
                           </td>
                         </tr>

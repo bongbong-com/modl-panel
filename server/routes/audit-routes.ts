@@ -285,7 +285,7 @@ router.get('/staff/:username/details', async (req, res) => {
     })
     .sort({ created: -1 })
     .limit(50)  // Get more tickets and filter later
-    .select('_id subject title category status created priority messages replies');
+    .select('_id subject title category status created updated updatedAt priority messages replies');
     
     console.log(`[Staff Details] Found ${tickets.length} tickets for ${username}`);
     
@@ -321,23 +321,24 @@ router.get('/staff/:username/details', async (req, res) => {
         });
         
         if (staffMessages.length > 0) {
-          // Find the first staff response in the time period
-          const firstStaffResponse = staffMessages.sort((a, b) => {
+          // Find the last message/reply in the ticket to determine last activity
+          const lastMessage = allMessages.sort((a, b) => {
             const aDate = new Date(a.timestamp || a.created || a.date);
             const bDate = new Date(b.timestamp || b.created || b.date);
-            return aDate.getTime() - bDate.getTime();
+            return bDate.getTime() - aDate.getTime();
           })[0];
           
-          const responseDate = new Date(firstStaffResponse.timestamp || firstStaffResponse.created || firstStaffResponse.date);
-          const responseTime = responseDate.getTime() - new Date(ticket.created).getTime();
+          const lastActivityDate = new Date(lastMessage.timestamp || lastMessage.created || lastMessage.date);
+          const totalReplies = allMessages.length;
           
           ticketResponseTimes.push({
             ticketId: ticket._id.toString(),
             subject: ticket.subject || ticket.title || 'No Subject',
             status: ticket.status,
-            responseTime: Math.max(0, Math.round(responseTime / (1000 * 60))), // in minutes
+            replyCount: totalReplies,
             created: ticket.created,
-            firstResponseDate: responseDate
+            lastActivity: lastActivityDate,
+            updatedAt: ticket.updatedAt || ticket.updated || lastActivityDate
           });
         }
       }
