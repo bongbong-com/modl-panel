@@ -28,6 +28,8 @@ import mediaRoutes from './routes/media-routes'; // Import media routes
 import storageRoutes from './routes/storage-routes'; // Import storage routes
 import analyticsRoutes from './routes/analytics-routes'; // Import analytics routes
 import auditRoutes from './routes/audit-routes'; // Import audit routes
+import dashboardRoutes from './routes/dashboard-routes'; // Import dashboard routes
+import ticketSubscriptionRoutes from './routes/ticket-subscription-routes'; // Import ticket subscription routes
 
 export async function registerRoutes(app: Express): Promise<Server> {
   let globalDbConnection: MongooseConnection | undefined = undefined;
@@ -166,6 +168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   panelRouter.use('/storage', storageRoutes); // Add storage management routes to panel
   panelRouter.use('/analytics', analyticsRoutes); // Add analytics routes to panel
   panelRouter.use('/audit', auditRoutes); // Add audit routes to panel
+  panelRouter.use('/dashboard', dashboardRoutes); // Add dashboard routes to panel
+  panelRouter.use('/ticket-subscriptions', ticketSubscriptionRoutes); // Add ticket subscription routes to panel
 
   panelRouter.get('/activity/recent', async (req: any, res) => {
     try {

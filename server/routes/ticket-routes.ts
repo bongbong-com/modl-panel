@@ -387,6 +387,28 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
     ticket.replies.push(newReply);
     await ticket.save();
 
+    // Auto-subscribe staff member to ticket and create subscription update
+    if (newReply.staff && req.session?.username) {
+      try {
+        const { ensureTicketSubscription, createTicketSubscriptionUpdate } = await import('./ticket-subscription-routes');
+        
+        // Auto-subscribe the staff member who replied
+        await ensureTicketSubscription(req.serverDbConnection!, req.params.id, req.session.username);
+        
+        // Create subscription update for all subscribers
+        await createTicketSubscriptionUpdate(
+          req.serverDbConnection!, 
+          req.params.id, 
+          newReply.content, 
+          req.session.username, 
+          true // isStaffReply
+        );
+      } catch (subscriptionError) {
+        console.error(`Failed to handle ticket subscription for ticket ${req.params.id}:`, subscriptionError);
+        // Don't fail the reply if subscription fails
+      }
+    }
+
     // Add notification for staff replies
     if (newReply.staff && ticket.creator) {
       const notificationId = createTicketReplyNotification(

@@ -912,3 +912,123 @@ export function useAssignMinecraftPlayer() {
     },
   });
 }
+
+// Dashboard Metrics hooks
+export function useDashboardMetrics(period: string = '7d') {
+  return useQuery({
+    queryKey: ['/api/panel/dashboard/metrics', period],
+    queryFn: async () => {
+      const res = await fetch(`/api/panel/dashboard/metrics?period=${period}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch dashboard metrics');
+      }
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useRecentTickets(limit: number = 5) {
+  return useQuery({
+    queryKey: ['/api/panel/dashboard/recent-tickets', limit],
+    queryFn: async () => {
+      const res = await fetch(`/api/panel/dashboard/recent-tickets?limit=${limit}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch recent tickets');
+      }
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useRecentPunishments(limit: number = 10) {
+  return useQuery({
+    queryKey: ['/api/panel/dashboard/recent-punishments', limit],
+    queryFn: async () => {
+      const res = await fetch(`/api/panel/dashboard/recent-punishments?limit=${limit}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch recent punishments');
+      }
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: true,
+  });
+}
+
+// Ticket subscription hooks
+export function useTicketSubscriptions() {
+  return useQuery({
+    queryKey: ['/api/panel/ticket-subscriptions'],
+    queryFn: async () => {
+      const res = await fetch('/api/panel/ticket-subscriptions');
+      if (!res.ok) {
+        throw new Error('Failed to fetch ticket subscriptions');
+      }
+      return res.json();
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useTicketSubscriptionUpdates(limit: number = 10) {
+  return useQuery({
+    queryKey: ['/api/panel/ticket-subscriptions/updates', limit],
+    queryFn: async () => {
+      const res = await fetch(`/api/panel/ticket-subscriptions/updates?limit=${limit}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch ticket subscription updates');
+      }
+      return res.json();
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useUnsubscribeFromTicket() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (ticketId: string) => {
+      const res = await fetch(`/api/panel/ticket-subscriptions/${ticketId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to unsubscribe from ticket');
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/ticket-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/ticket-subscription-updates'] });
+    },
+  });
+}
+
+export function useMarkSubscriptionUpdateAsRead() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (updateId: string) => {
+      const res = await fetch(`/api/panel/ticket-subscriptions/updates/${updateId}/read`, {
+        method: 'POST',
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to mark update as read');
+      }
+      
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/panel/ticket-subscriptions/updates'] });
+    },
+  });
+}
