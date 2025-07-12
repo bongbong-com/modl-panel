@@ -251,6 +251,7 @@ router.get('/staff/:username/details', async (req, res) => {
               else: 'Unknown'
             }
           },
+          id: '$punishments.id',
           type: '$punishments.type',
           type_ordinal: '$punishments.type_ordinal',
           reason: '$punishments.data.reason',
@@ -271,43 +272,54 @@ router.get('/staff/:username/details', async (req, res) => {
       type: mapPunishmentType(null, punishment.type_ordinal)
     }));
 
-    // Get tickets that this staff member has replied to
+    // Get tickets that this staff member has replied to (simplified approach)
     const tickets = await Ticket.find({
-      'messages.sender': username,
-      'messages.timestamp': { $gte: startDate }
+      'messages.sender': username
     })
     .sort({ created: -1 })
-    .limit(20)
+    .limit(50)  // Get more tickets and filter later
     .select('_id subject category status created priority messages');
+    
+    console.log(`[Staff Details] Found ${tickets.length} tickets for ${username}`);
 
     // Calculate response times for tickets where staff member replied
-    const ticketResponseTimes = tickets.map(ticket => {
+    const ticketResponseTimes = [];
+    
+    for (const ticket of tickets) {
       if (ticket.messages && ticket.messages.length > 0) {
-        const staffMessages = ticket.messages.filter(msg => 
-          msg.sender === username && 
-          new Date(msg.timestamp) >= startDate
-        );
+        const staffMessages = ticket.messages.filter(msg => {
+          // More flexible matching - check if sender matches and message is within time period
+          const msgDate = new Date(msg.timestamp || msg.created || msg.date);
+          return msg.sender === username && msgDate >= startDate;
+        });
+        
         if (staffMessages.length > 0) {
           // Find the first staff response in the time period
-          const firstStaffResponse = staffMessages.sort((a, b) => 
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          )[0];
+          const firstStaffResponse = staffMessages.sort((a, b) => {
+            const aDate = new Date(a.timestamp || a.created || a.date);
+            const bDate = new Date(b.timestamp || b.created || b.date);
+            return aDate.getTime() - bDate.getTime();
+          })[0];
           
-          // Calculate response time from ticket creation to first staff response
-          const responseTime = new Date(firstStaffResponse.timestamp).getTime() - new Date(ticket.created).getTime();
+          const responseDate = new Date(firstStaffResponse.timestamp || firstStaffResponse.created || firstStaffResponse.date);
+          const responseTime = responseDate.getTime() - new Date(ticket.created).getTime();
           
-          return {
+          ticketResponseTimes.push({
             ticketId: ticket._id,
             subject: ticket.subject,
             status: ticket.status,
             responseTime: Math.max(0, Math.round(responseTime / (1000 * 60))), // in minutes
             created: ticket.created,
-            firstResponseDate: firstStaffResponse.timestamp
-          };
+            firstResponseDate: responseDate
+          });
         }
       }
-      return null;
-    }).filter(Boolean);
+    }
+    
+    // Limit to 20 most recent
+    ticketResponseTimes.splice(20);
+    
+    console.log(`[Staff Details] Found ${ticketResponseTimes.length} ticket responses for ${username} in period`);
 
     // Get daily activity breakdown with error handling
     let dailyActivity = [];

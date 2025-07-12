@@ -792,7 +792,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                   punishment.evidence.map((evidenceItem: any, idx: number) => {
                                     const evidenceStr = typeof evidenceItem === 'string' ? evidenceItem : String(evidenceItem);
                                     const fileName = evidenceStr.includes('/') ? evidenceStr.split('/').pop() : evidenceStr;
-                                    const isUrl = evidenceStr.startsWith('http') || evidenceStr.startsWith('/');
+                                    const isUrl = evidenceStr.startsWith('http://') || evidenceStr.startsWith('https://');
                                     
                                     return (
                                       <Badge 
@@ -801,9 +801,10 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                         className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
                                         onClick={() => {
                                           if (isUrl) {
+                                            // Direct URL - open as-is
                                             window.open(evidenceStr, '_blank');
                                           } else {
-                                            // For non-URLs, try to construct a proper evidence URL
+                                            // File path - construct evidence URL
                                             window.open(`/uploads/evidence/${evidenceStr}`, '_blank');
                                           }
                                         }}
@@ -854,7 +855,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                     className="text-xs h-6 px-2"
                                     onClick={async () => {
                                       try {
-                                        const response = await fetch(`/api/panel/audit/punishment/${punishment._id || punishment.id}/rollback`, {
+                                        const response = await fetch(`/api/panel/audit/punishment/${punishment.id}/rollback`, {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ reason: 'Staff rollback from analytics panel' })
