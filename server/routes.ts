@@ -44,15 +44,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Falling back to in-memory storage');
   }
 
-  // Setup verification and auth routes (these don't need subdomain middleware)
+  // Public API, verification, and auth routes
+  setupApiRoutes(app); // Assuming these are general public APIs if any, or handled internally
   setupVerificationAndProvisioningRoutes(app);
-  
-  // Create a router for API routes that need subdomain database connection
-  const apiRouter = express.Router();
-  apiRouter.use(subdomainDbMiddleware); // Apply subdomain middleware to API routes
-  setupApiRoutes(apiRouter); // Pass the router instead of app
-  app.use('/', apiRouter); // Mount the API router
-  
   app.use('/api/auth', authRoutes);
   app.use('/stripe-public-webhooks', webhookRouter); // Stripe webhook on a distinct top-level public path
   app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
@@ -60,8 +54,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/public', publicTicketRoutes); // Public ticket routes (API key protected)
   app.use('/api/public', publicPunishmentRoutes); // Public punishment routes
 
-  // Public staff invitation acceptance - no authentication required but needs subdomain middleware
-  app.get('/api/staff/invitations/accept', subdomainDbMiddleware, strictRateLimit, async (req, res) => {
+  // Public staff invitation acceptance - no authentication required
+  app.get('/api/staff/invitations/accept', strictRateLimit, async (req, res) => {
     const { token } = req.query;
 
     if (!token) {
@@ -110,8 +104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public settings endpoint - no authentication required but needs subdomain middleware
-  app.get('/api/public/settings', subdomainDbMiddleware, async (req, res) => {
+  // Public settings endpoint - no authentication required
+  app.get('/api/public/settings', async (req, res) => {
     try {
       if (!req.serverDbConnection) {
         return res.json({
@@ -657,8 +651,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // These routes have their own API key authentication via verifyMinecraftApiKey middleware
   setupMinecraftRoutes(app); // Setup Minecraft routes with /api/minecraft prefix
 
-  // Public player lookup (if intended to be public) - needs subdomain middleware
-  app.get('/api/player/:identifier', subdomainDbMiddleware, async (req, res) => {
+  // Public player lookup (if intended to be public)
+  app.get('/api/player/:identifier', async (req, res) => {
     const { identifier } = req.params;
     const { type = 'username' } = req.query;
     
