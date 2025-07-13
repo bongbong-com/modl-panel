@@ -2071,13 +2071,8 @@ export function setupMinecraftRoutes(app: Express): void {
           ? playerStatus.social : playerStatus.gameplay;
       }
       
-      // Map status to offense level (matching panel logic)
-      const statusToDurationKey: { [key: string]: string } = {
-        'Low': 'first',
-        'Medium': 'medium', 
-        'Habitual': 'habitual'
-      };
-      const calculatedStatus = statusToDurationKey[relevantStatus] || 'first';
+      // Convert status to lowercase for consistency (matching panel logic)
+      const calculatedStatus = relevantStatus.toLowerCase();
       
       // Use calculated status if not provided, or use provided values for manual override
       const finalStatus = status || calculatedStatus;
@@ -2086,24 +2081,56 @@ export function setupMinecraftRoutes(app: Express): void {
       // Calculate duration based on punishment type configuration (matching panel logic)
       let calculatedDuration = duration || 0;
       
+      console.log(`[DEBUG] Punishment type config:`, {
+        name: punishmentType.name,
+        singleSeverityPunishment: punishmentType.singleSeverityPunishment,
+        singleSeverityDurations: punishmentType.singleSeverityDurations,
+        durations: punishmentType.durations
+      });
+      
       if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
         // Single-severity punishment: use status (offense level) for duration
+        console.log(`[DEBUG] Looking up single-severity duration for status: ${finalStatus}`);
         const durationConfig = punishmentType.singleSeverityDurations[finalStatus];
+        console.log(`[DEBUG] Single-severity duration config:`, durationConfig);
         if (durationConfig && durationConfig.value > 0) {
           calculatedDuration = convertDurationToMilliseconds(durationConfig);
+          console.log(`[DEBUG] Calculated single-severity duration: ${calculatedDuration}ms`);
         }
-      } else if (punishmentType.durations && punishmentType.durations[finalSeverity]) {
+      } else if (punishmentType.durations) {
         // Multi-severity punishment: use severity and status for duration
-        const durationConfig = punishmentType.durations[finalSeverity][finalStatus];
-        if (durationConfig && durationConfig.value > 0) {
-          calculatedDuration = convertDurationToMilliseconds(durationConfig);
-        } else {
-          // Fallback to 'first' offense level
-          const fallbackDuration = punishmentType.durations[finalSeverity].first;
-          if (fallbackDuration && fallbackDuration.value > 0) {
-            calculatedDuration = convertDurationToMilliseconds(fallbackDuration);
+        console.log(`[DEBUG] Looking up multi-severity duration for severity: ${finalSeverity}, status: ${finalStatus}`);
+        console.log(`[DEBUG] Available severities:`, Object.keys(punishmentType.durations));
+        
+        const severityDurations = punishmentType.durations[finalSeverity];
+        console.log(`[DEBUG] Severity durations for ${finalSeverity}:`, severityDurations);
+        
+        if (severityDurations) {
+          const durationConfig = severityDurations[finalStatus];
+          console.log(`[DEBUG] Duration config for ${finalStatus}:`, durationConfig);
+          
+          if (durationConfig && durationConfig.value > 0) {
+            calculatedDuration = convertDurationToMilliseconds(durationConfig);
+            console.log(`[DEBUG] Calculated duration: ${calculatedDuration}ms`);
+          } else {
+            // Try fallback options
+            console.log(`[DEBUG] No duration for ${finalStatus}, trying fallbacks...`);
+            console.log(`[DEBUG] Available statuses:`, Object.keys(severityDurations));
+            
+            // Try 'low' as fallback
+            const fallbackDuration = severityDurations.low || severityDurations.first;
+            console.log(`[DEBUG] Fallback duration:`, fallbackDuration);
+            
+            if (fallbackDuration && fallbackDuration.value > 0) {
+              calculatedDuration = convertDurationToMilliseconds(fallbackDuration);
+              console.log(`[DEBUG] Calculated fallback duration: ${calculatedDuration}ms`);
+            }
           }
+        } else {
+          console.log(`[DEBUG] No durations found for severity: ${finalSeverity}`);
         }
+      } else {
+        console.log(`[DEBUG] No duration configuration found for punishment type`);
       }
 
       // Helper function to convert duration configuration to milliseconds
