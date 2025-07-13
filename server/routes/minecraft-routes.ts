@@ -1919,4 +1919,66 @@ export function setupMinecraftRoutes(app: Express): void {
       });
     }
   });
+
+  /**
+   * Create dynamic punishment for Minecraft plugin
+   * - Creates punishments using type_ordinal for dynamic punishment types (ordinals > 2)
+   */
+  app.post('/api/minecraft/punishment/dynamic', async (req: Request, res: Response) => {
+    const { targetUuid, issuerName, type_ordinal, reason, duration, data, notes, attachedTicketIds } = req.body;
+    const serverDbConnection = req.serverDbConnection!;
+    const serverName = req.serverName!;
+    const Player = serverDbConnection.model<IPlayer>('Player');
+
+    try {
+      // Validate that this is a dynamic punishment type (ordinal > 2)
+      if (!type_ordinal || type_ordinal <= 2) {
+        return res.status(400).json({ status: 400, message: 'Invalid punishment type ordinal. Dynamic punishments must have ordinal > 2.' });
+      }
+
+      const player = await Player.findOne({ minecraftUuid: targetUuid });
+      if (!player) {
+        return res.status(404).json({ status: 404, message: 'Target player not found' });
+      }
+
+      const punishmentId = uuidv4().substring(0, 8); // Generate an 8-char ID
+
+      const newPunishmentData = new Map<string, any>([
+        ['reason', reason],
+        ...(duration ? [['duration', duration] as [string, any]] : []),
+        // Don't set expires until punishment is started by server
+        ...(data ? Object.entries(data) : [])
+      ]);
+
+      const newPunishment: IPunishment = {
+        id: punishmentId,
+        issuerName,
+        issued: new Date(),
+        // Don't set started until server acknowledges execution
+        started: undefined,
+        type_ordinal: parseInt(type_ordinal),
+        modifications: [],
+        notes: notes ? notes.map((note: any) => ({ text: note.text, date: new Date(), issuerName: note.issuerName || issuerName } as INote)) : [],
+        attachedTicketIds: attachedTicketIds || [],
+        data: newPunishmentData
+      };
+
+      player.punishments.push(newPunishment);
+      await player.save();
+      await createSystemLog(serverDbConnection, serverName, `Dynamic punishment ID ${punishmentId} (Type Ordinal: ${type_ordinal}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
+
+      return res.status(201).json({
+        status: 201,
+        message: 'Dynamic punishment created successfully',
+        punishmentId: punishmentId
+      });
+    } catch (error: any) {
+      console.error('Error creating dynamic punishment:', error);
+      await createSystemLog(serverDbConnection, serverName, `Error creating dynamic punishment for ${targetUuid} by ${issuerName}: ${error.message || error}`, 'error', 'minecraft-api');
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error'
+      });
+    }
+  });
 }
