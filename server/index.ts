@@ -132,6 +132,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     serveStatic(app);
   }
 
+  // SECURITY: Add error handling middleware at the very end, after static serving
+  const { errorHandler, notFoundHandler } = await import('./middleware/error-handler');
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
