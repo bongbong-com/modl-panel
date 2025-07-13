@@ -926,7 +926,18 @@ export function setupAppealRoutes(app: Express) {
 }
 
 export function setupApiRoutes(app: Express) {
-  setupPlayerRoutes(app);
-  setupTicketRoutes(app);
-  setupAppealRoutes(app);
+  // Import subdomain middleware
+  const { subdomainDbMiddleware } = require('../middleware/subdomainDbMiddleware');
+  
+  // Create a router for API routes that need subdomain database connection
+  const apiRouter = require('express').Router();
+  apiRouter.use(subdomainDbMiddleware);
+  
+  // Setup routes on the router instead of app
+  setupPlayerRoutes(apiRouter);
+  setupTicketRoutes(apiRouter);
+  setupAppealRoutes(apiRouter);
+  
+  // Mount the API router (this applies to /api/* routes only)
+  app.use('/api', apiRouter);
 }
