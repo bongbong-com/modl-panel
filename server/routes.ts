@@ -50,10 +50,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.use('/api/auth', authRoutes);
   app.use('/stripe-public-webhooks', webhookRouter); // Stripe webhook on a distinct top-level public path
-  app.use('/api/public/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
-  app.use('/api/public', publicHomepageCardRoutes); // Public homepage cards
-  app.use('/api/public', publicTicketRoutes); // Public ticket routes (API key protected)
-  app.use('/api/public', publicPunishmentRoutes); // Public punishment routes
+  
+  // Create a router for public routes that need subdomain database connections
+  const publicRouter = express.Router();
+  publicRouter.use(subdomainDbMiddleware); // Apply subdomain middleware to public routes
+  
+  publicRouter.use('/knowledgebase', publicKnowledgebaseRoutes); // Public knowledgebase
+  publicRouter.use('/', publicHomepageCardRoutes); // Public homepage cards
+  publicRouter.use('/', publicTicketRoutes); // Public ticket routes (API key protected)
+  publicRouter.use('/', publicPunishmentRoutes); // Public punishment routes
+  
+  app.use('/api/public', publicRouter); // Mount the public router
 
   // Public staff invitation acceptance - no authentication required but needs subdomain middleware
   app.get('/api/staff/invitations/accept', subdomainDbMiddleware, strictRateLimit, async (req, res) => {
