@@ -1925,7 +1925,7 @@ export function setupMinecraftRoutes(app: Express): void {
    * - Creates punishments using type_ordinal for dynamic punishment types (ordinals > 2)
    */
   app.post('/api/minecraft/punishment/dynamic', async (req: Request, res: Response) => {
-    const { targetUuid, issuerName, type_ordinal, reason, duration, data, notes, attachedTicketIds } = req.body;
+    const { targetUuid, issuerName, type_ordinal, reason, duration, data, notes, attachedTicketIds, severity, status } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
     const Player = serverDbConnection.model<IPlayer>('Player');
@@ -1943,9 +1943,49 @@ export function setupMinecraftRoutes(app: Express): void {
 
       const punishmentId = uuidv4().substring(0, 8); // Generate an 8-char ID
 
+      // Get punishment type configuration for duration calculation
+      const Settings = serverDbConnection.model('Settings');
+      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+      let calculatedDuration = duration || 0;
+      
+      if (punishmentTypesDoc?.data && severity && status) {
+        const punishmentTypes = punishmentTypesDoc.data;
+        const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === type_ordinal);
+        
+        if (punishmentType) {
+          // Calculate duration based on punishment type configuration (matching panel logic)
+          if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
+            // Single-severity punishment: use status (offense level) for duration
+            const durationConfig = punishmentType.singleSeverityDurations[status];
+            if (durationConfig && durationConfig.value > 0) {
+              calculatedDuration = convertDurationToMilliseconds(durationConfig);
+            }
+          } else if (punishmentType.durations && punishmentType.durations[severity]) {
+            // Multi-severity punishment: use severity and status for duration
+            const durationConfig = punishmentType.durations[severity][status];
+            if (durationConfig && durationConfig.value > 0) {
+              calculatedDuration = convertDurationToMilliseconds(durationConfig);
+            }
+          }
+        }
+      }
+
+      // Helper function to convert duration configuration to milliseconds
+      function convertDurationToMilliseconds(durationConfig: any): number {
+        const multiplierMap: { [key: string]: number } = {
+          'seconds': 1000,
+          'minutes': 60 * 1000,
+          'hours': 60 * 60 * 1000,
+          'days': 24 * 60 * 60 * 1000,
+          'weeks': 7 * 24 * 60 * 60 * 1000,
+          'months': 30 * 24 * 60 * 60 * 1000
+        };
+        return durationConfig.value * (multiplierMap[durationConfig.unit] || 1);
+      }
+
       const newPunishmentData = new Map<string, any>([
         ['reason', reason],
-        ...(duration ? [['duration', duration] as [string, any]] : []),
+        ['duration', calculatedDuration],
         // Don't set expires until punishment is started by server
         ...(data ? Object.entries(data) : [])
       ]);
