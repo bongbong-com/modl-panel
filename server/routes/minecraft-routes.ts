@@ -1998,7 +1998,7 @@ export function setupMinecraftRoutes(app: Express): void {
         started: undefined,
         type_ordinal: parseInt(type_ordinal),
         modifications: [],
-        notes: notes ? notes.map((note: any) => ({ text: note.text, date: new Date(), issuerName: note.issuerName || issuerName } as INote)) : [],
+        notes: notes ? notes.map((noteText: string) => ({ text: noteText, date: new Date(), issuerName: issuerName } as INote)) : [],
         attachedTicketIds: attachedTicketIds || [],
         data: newPunishmentData
       };
