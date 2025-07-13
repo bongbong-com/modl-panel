@@ -6,6 +6,22 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { subdomainDbMiddleware } from "./middleware/subdomainDbMiddleware";
 import { globalRateLimit } from "./middleware/rate-limiter";
+import { securityHeaders } from "./middleware/security-headers";
+import { csrfProtection, addCSRFToken } from "./middleware/csrf-middleware";
+
+// SECURITY: Validate critical environment variables on startup
+if (!process.env.SESSION_SECRET) {
+  console.error('SECURITY ERROR: SESSION_SECRET environment variable is required');
+  process.exit(1);
+}
+if (process.env.SESSION_SECRET === "your-very-secure-secret-here") {
+  console.error('SECURITY ERROR: Default session secret detected. Please set a secure SESSION_SECRET');
+  process.exit(1);
+}
+if (process.env.SESSION_SECRET.length < 32) {
+  console.error('SECURITY ERROR: SESSION_SECRET must be at least 32 characters');
+  process.exit(1);
+}
 
 const app = express();
 // The Stripe webhook needs a raw body, so we can't use express.json() globally for all routes.
@@ -30,15 +46,13 @@ app.use((req, res, next) => {
 // Cloudflare is always used, so we enable this in all environments.
 app.set('trust proxy', 1);
 
+// Apply security headers to all responses
+app.use(securityHeaders);
+
 // Apply global rate limiting to all requests
 app.use(globalRateLimit);
 
 const MONGODB_URI = process.env.GLOBAL_MODL_DB_URI;
-const isProduction = process.env.NODE_ENV === 'production';
-
-// Apply the subdomain DB middleware early in the stack.
-// It needs to run before any routes that depend on req.serverDbConnection.
-app.use(subdomainDbMiddleware);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   // @ts-ignore
@@ -48,14 +62,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   const cookieSettings = {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax' as 'lax' | 'strict' | 'none' | undefined, // Type assertion for 'lax'
+    secure: true, // Always require HTTPS for security
+    sameSite: 'strict' as 'lax' | 'strict' | 'none' | undefined, // Stricter CSRF protection
     maxAge: 14 * 24 * 60 * 60 * 1000
   };
 
   if (serverDbConn && mongoClient) {
     const serverSpecificSession = session({
-      secret: process.env.SESSION_SECRET || "your-very-secure-secret-here",
+      secret: process.env.SESSION_SECRET!,
       resave: false,
       saveUninitialized: false,
       store: MongoStore.create({
@@ -79,41 +93,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   
   const server = await registerRoutes(app);
 
-  // Auto-seed database for local development
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      console.log('🌱 Checking if local development database needs seeding...');
-      
-      const { connectToServerDb } = await import('./db/connectionManager');
-      const { seedEnhancedDatabase } = await import('./db/enhanced-seed-data');
-      
-      // Connect to the development database (testlocal -> modl_test)
-      const devDbConnection = await connectToServerDb('testlocal');
-      
-      // Check if database needs seeding by counting players
-      const Player = devDbConnection.models.Player;
-      if (Player) {
-        const playerCount = await Player.countDocuments();
-        
-        if (playerCount === 0) {
-          console.log('📦 Development database is empty. Starting automatic seeding...');
-          await seedEnhancedDatabase(devDbConnection);
-          console.log('✅ Development database seeded successfully with enhanced mock data!');
-          console.log('   - 20 players with realistic data');
-          console.log('   - 15 tickets with replies and notes');
-          console.log('   - Default punishment types and settings');
-          console.log('   - System logs and audit trails');
-        } else {
-          console.log(`✅ Development database already contains ${playerCount} players - skipping seeding`);
-        }
-      } else {
-        console.log('⚠️  Player model not found - database may not be properly initialized');
-      }
-    } catch (error) {
-      console.warn('⚠️  Failed to auto-seed development database:', error);
-      console.warn('   This is not critical - you can manually seed if needed');
-    }
-  }
 
   // Start the domain status updater for monitoring custom domains
   try {

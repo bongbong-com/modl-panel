@@ -15,10 +15,6 @@ export function getRealClientIP(req: Request): string {
   // Determine which IP to use
   const clientIP = cfConnectingIP || expressIP || connectionIP || 'unknown';
   
-  // Debug logging for IP detection (only in development)
-  if (process.env.NODE_ENV === 'development' && clientIP !== 'unknown') {
-    console.log(`[IP DEBUG] CF-Connecting-IP: ${cfConnectingIP || 'none'}, Express IP: ${expressIP || 'none'}, Connection IP: ${connectionIP || 'none'}, Selected: ${clientIP}`);
-  }
   
   return clientIP;
 }

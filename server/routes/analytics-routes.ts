@@ -399,9 +399,6 @@ router.get('/tickets', async (req, res) => {
       };
     };
 
-    // Debug: Log the raw category data
-    console.log('Raw avgResolutionByCategory:', avgResolutionByCategory);
-    console.log('Raw ticketsByCategory:', ticketsByCategory);
     
     const avgResolutionByCtg = avgResolutionByCategory.map(item => ({
       category: item._id || 'Uncategorized',

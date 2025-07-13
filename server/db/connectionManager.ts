@@ -17,7 +17,6 @@ dotenv.config();
 
 const GLOBAL_MODL_DB_URI = process.env.GLOBAL_MODL_DB_URI;
 const PANEL_DB_PREFIX = process.env.PANEL_DB_PREFIX || 'server_';
-const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 let globalModlConnection: Connection | null = null;
 const serverConnections = new Map<string, Connection>();
@@ -93,17 +92,8 @@ export async function getModlServersModel() {
  * @returns The Mongoose connection object for the server's database.
  */
 export async function connectToServerDb(serverName: string): Promise<Connection> {
-  let connectionKeyInMap: string;
-  let serverDbUri: string;
-  let actualDbNameForConnection: string;
-
-  if (IS_DEVELOPMENT) {
-    actualDbNameForConnection = 'modl_test';
-    connectionKeyInMap = 'dev_shared_modl_test_connection';
-  } else {
-    actualDbNameForConnection = `${PANEL_DB_PREFIX}${serverName}`;
-    connectionKeyInMap = serverName;
-  }
+  const connectionKeyInMap = serverName;
+  const actualDbNameForConnection = `${PANEL_DB_PREFIX}${serverName}`;
 
   // Check if we already have a valid connection
   if (serverConnections.has(connectionKeyInMap)) {
@@ -149,15 +139,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
  * @param serverName The name of the server.
  */
 export async function closeServerDbConnection(serverName: string): Promise<void> {
-  let keyToClose: string;
-  const isDevelopment = process.env.NODE_ENV === 'development';
-
-  if (isDevelopment) {
-    keyToClose = 'dev_shared_modl_test_connection';
-    console.log(`Development mode: close request for '${serverName}', targeting shared key '${keyToClose}'.`);
-  } else {
-    keyToClose = serverName;
-  }
+  const keyToClose = serverName;
 
   if (serverConnections.has(keyToClose)) {
     const conn = serverConnections.get(keyToClose)!;

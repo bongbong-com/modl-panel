@@ -12,7 +12,6 @@ import {
 import type { GenerateAuthenticationOptionsOpts } from '@simplewebauthn/server';
 import type { AuthenticatorTransport } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
-import { BYPASS_DEV_AUTH } from 'server/middleware/auth-middleware';
 import { getModlServersModel } from '../db/connectionManager';
 
 
@@ -46,14 +45,6 @@ function generateNumericCode(length: number = 6): string {
 
 router.get('/check-email/:email', async (req: Request<{ email: string }>, res: Response) => {
   try {
-    if (process.env.NODE_ENV === 'development') {
-      // In development mode, accept any email and assume no 2FA/FIDO for simplicity
-      return res.json({
-        exists: true,
-        isTwoFactorEnabled: false, // Default to false for any dev email
-        hasFidoPasskeys: false    // Default to false for any dev email
-      });
-    }
 
     const Staff = req.serverDbConnection!.model('Staff');
     const requestedEmail = req.params.email.toLowerCase(); // Normalize requested email
@@ -385,22 +376,6 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
 });
 
 router.get('/session', (req: Request, res: Response) => {
-  if (process.env.NODE_ENV === 'development' && BYPASS_DEV_AUTH) {
-    // Mock user for development mode
-    return res.status(200).json({
-      isAuthenticated: true,
-      user: {
-        id: 'dev-user-id',
-        email: 'dev@example.com',
-        username: 'devuser',
-        role: 'Super Admin', // Or any default role suitable for development
-      },
-      // @ts-ignore
-      maintenanceMode: req.maintenanceConfig?.maintenanceMode || false,
-      // @ts-ignore
-      maintenanceMessage: req.maintenanceConfig?.maintenanceMessage || ''
-    });
-  }
 
   // @ts-ignore
   if (req.session && req.session.userId) {
@@ -443,122 +418,18 @@ router.post('/logout', (req: Request, res: Response) => {
   });
 });
 
-// Profile update endpoint
-router.patch('/profile', async (req: Request, res: Response) => {
-  console.log('[PROFILE ENDPOINT] Profile update request received');
-  console.log('[PROFILE ENDPOINT] Request method:', req.method);
-  console.log('[PROFILE ENDPOINT] Request path:', req.path);
-  console.log('[PROFILE ENDPOINT] Request body:', req.body);
-  console.log('[PROFILE ENDPOINT] Session data:', req.session);
-    try {
-    const { username } = req.body;
-    
-    // Get user from session
-    const userId = (req.session as any)?.userId;
-    console.log('[PROFILE ENDPOINT] User ID from session:', userId);
-    
-    if (!userId) {
-      console.log('[PROFILE ENDPOINT] No userId in session - returning 401');
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-    
-    // Get the staff model from the server database connection
-    // @ts-ignore
-    const StaffModel = req.serverDbConnection!.model('Staff');
-    
-    // Prepare update data
-    const updateData: any = {};
-    if (username !== undefined) {
-      updateData.username = username;
-    }
-      // Determine if userId is an email (for Super Admin) or an ObjectId (for regular staff)
-    const isEmail = userId.includes('@');
-    const userQuery = isEmail ? { email: userId } : { _id: userId };
-    
-    console.log('[PROFILE ENDPOINT] Is email:', isEmail);
-    console.log('[PROFILE ENDPOINT] User query:', userQuery);
-    console.log('[PROFILE ENDPOINT] Update data:', updateData);
-    
-    // Check if username is already taken (if updating username)
-    if (username) {
-      const existingUserQuery = isEmail 
-        ? { username, email: { $ne: userId } }
-        : { username, _id: { $ne: userId } };
-      
-      const existingUser = await StaffModel.findOne(existingUserQuery);
-      if (existingUser) {
-        return res.status(400).json({ message: 'Username already taken' });
-      }
-    }
-      // Update the user profile
-    let updatedUser = await StaffModel.findOneAndUpdate(
-      userQuery,
-      updateData,
-      { new: true, select: 'email username role' }
-    );
-    
-    // If user not found and it's an email (Super Admin), handle session-only update
-    if (!updatedUser && isEmail) {
-      console.log('[PROFILE ENDPOINT] Super Admin not found in Staff collection - updating session only');
-      // Super Admin should not be auto-created in Staff collection
-      // Update session data directly for Super Admin
-      if (username !== undefined) {
-        (req.session as any).username = username;
-      }
-      
-      await req.session.save();
-      
-      const sessionUser = {
-        _id: userId,
-        email: userId,
-        username: username || userId.split('@')[0],
-        role: 'Super Admin'
-      };
-      
-      console.log('[PROFILE ENDPOINT] Super Admin session updated:', sessionUser);
-      return res.json({ 
-        message: 'Profile updated successfully',
-        user: sessionUser
-      });
-    }
-    
-    if (!updatedUser) {
-      console.log('[PROFILE ENDPOINT] User still not found after attempted creation');
-      return res.status(404).json({ message: 'User not found' });
-    }
-      // Update session with new user data
-    (req.session as any).username = updatedUser.username;
-    
-    res.json({ 
-      message: 'Profile updated successfully',
-      user: {
-        _id: updatedUser._id,
-        email: updatedUser.email,
-        username: updatedUser.username,
-        role: updatedUser.role
-      }
-    });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
 
 // Profile update endpoint
 router.patch('/profile', async (req: Request, res: Response) => {
-  console.log('[PROFILE UPDATE] Profile update request received');
-  
   try {
     const session = req.session as any;
     const userId = session?.userId;
     
-    console.log('[PROFILE UPDATE] User ID from session:', userId);
-    console.log('[PROFILE UPDATE] Request body:', req.body);
-    
     if (!userId) {
-      console.log('[PROFILE UPDATE] No userId in session - returning 401');
       return res.status(401).json({ message: 'Not authenticated' });
-    }    const { username } = req.body;
+    }
+
+    const { username } = req.body;
 
     // If this is a Super Admin (identified by email as userId), update session only
     if (session.role === 'Super Admin') {
@@ -575,12 +446,13 @@ router.patch('/profile', async (req: Request, res: Response) => {
         role: session.role
       };
       
-      console.log('[PROFILE UPDATE] Super Admin profile updated:', user);
       return res.json({ 
         message: 'Profile updated successfully',
         user 
       });
-    }    // For regular staff, update database
+    }
+
+    // For regular staff, update database
     const User = req.serverDbConnection!.model('User');
     const updateData: any = {};
     
@@ -595,7 +467,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
     );
 
     if (!updatedUser) {
-      console.log('[PROFILE UPDATE] User not found in database for ID:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
@@ -612,8 +483,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
       username: updatedUser.username,
       role: updatedUser.role
     };
-
-    console.log('[PROFILE UPDATE] Profile updated successfully:', userData);
     
     res.json({ 
       message: 'Profile updated successfully',
@@ -621,90 +490,9 @@ router.patch('/profile', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Internal server error' });  }
-});
-
-// Session endpoint - get current user information
-router.get('/session', async (req: Request, res: Response) => {
-  console.log('[SESSION] Session check request received');
-  
-  try {    // Check for development bypass first
-    if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
-      console.log('[SESSION] Using development bypass');
-      const user = {
-        _id: 'dev-user-id',
-        email: 'dev@example.com',
-        username: 'devuser',
-        role: 'Super Admin'
-      };
-      
-      console.log('[SESSION] Returning dev bypass user:', user);
-      return res.json({ 
-        isAuthenticated: true, 
-        user 
-      });
-    }
-
-    const session = req.session as any;
-    
-    if (!session?.userId) {
-      console.log('[SESSION] No userId in session');
-      return res.json({ 
-        isAuthenticated: false, 
-        user: null 
-      });
-    }    console.log('[SESSION] Session found for user:', session.userId);
-    console.log('[SESSION] Session data:', {
-      userId: session.userId,
-      email: session.email,
-      username: session.username,
-      role: session.role
-    });    // If this is a Super Admin (identified by email as userId), return admin data
-    if (session.role === 'Super Admin') {
-      const user = {
-        _id: session.userId,
-        email: session.email,
-        username: session.username,
-        role: session.role
-      };
-      
-      console.log('[SESSION] Returning Super Admin user:', user);
-      return res.json({ 
-        isAuthenticated: true, 
-        user 
-      });
-    }
-
-    // For regular staff, fetch from database to get latest profile data
-    const User = req.serverDbConnection!.model('User');
-    const user = await User.findById(session.userId);
-    
-    if (!user) {
-      console.log('[SESSION] User not found in database for ID:', session.userId);
-      return res.status(401).json({ 
-        isAuthenticated: false, 
-        user: null 
-      });
-    }    const userData = {
-      _id: user._id.toString(),
-      email: user.email,
-      username: user.username,
-      role: user.role
-    };
-
-    console.log('[SESSION] Returning user data:', userData);
-    
-    res.json({ 
-      isAuthenticated: true, 
-      user: userData 
-    });
-  } catch (error) {
-    console.error('Session check error:', error);
-    res.status(500).json({ 
-      isAuthenticated: false, 
-      user: null 
-    });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 export default router;

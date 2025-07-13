@@ -2,8 +2,57 @@ import { Router } from 'express';
 import multer from 'multer';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { uploadMedia, deleteMedia, isWasabiConfigured, MediaUploadOptions } from '../services/wasabi-service';
+import { createSafeErrorResponse, handleFileUploadError } from '../middleware/error-handler';
+import crypto from 'crypto';
+import path from 'path';
 
 const router = Router();
+
+/**
+ * SECURITY: Enhanced file validation
+ */
+function validateFileUpload(file: Express.Multer.File, allowedTypes: string[]): string | null {
+  if (!file) return 'No file provided';
+  
+  // SECURITY: Check file extension
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm', '.mov', '.pdf', '.txt', '.doc', '.docx'];
+  if (!allowedExtensions.includes(ext)) {
+    return `File extension ${ext} is not allowed`;
+  }
+  
+  // SECURITY: Validate MIME type matches extension
+  const mimeToExt: Record<string, string[]> = {
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/png': ['.png'],
+    'image/gif': ['.gif'],
+    'image/webp': ['.webp'],
+    'video/mp4': ['.mp4'],
+    'video/webm': ['.webm'],
+    'video/quicktime': ['.mov'],
+    'application/pdf': ['.pdf'],
+    'text/plain': ['.txt'],
+    'application/msword': ['.doc'],
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+  };
+  
+  const expectedExtensions = mimeToExt[file.mimetype];
+  if (!expectedExtensions || !expectedExtensions.includes(ext)) {
+    return `File type mismatch: MIME type ${file.mimetype} does not match extension ${ext}`;
+  }
+  
+  // SECURITY: Check if MIME type is allowed for this upload type
+  if (!allowedTypes.includes(file.mimetype)) {
+    return `File type ${file.mimetype} is not allowed for this upload type`;
+  }
+  
+  // SECURITY: Check for suspicious file names
+  if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
+    return 'Invalid filename: contains path traversal characters';
+  }
+  
+  return null; // Valid
+}
 
 // Configure multer for memory storage
 const upload = multer({
@@ -11,6 +60,22 @@ const upload = multer({
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB max file size
   },
+  fileFilter: (req, file, cb) => {
+    // Basic file type check (will be enhanced per route)
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/webm', 'video/quicktime',
+      'application/pdf', 'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type ${file.mimetype} is not allowed`));
+    }
+  }
 });
 
 // Middleware to check if Wasabi is configured
@@ -32,6 +97,13 @@ router.post('/upload/evidence', isAuthenticated, requireWasabiConfig, upload.sin
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
+    }
+
+    // SECURITY: Enhanced file validation
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
+    const validationError = validateFileUpload(req.file, allowedMimeTypes);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
 
     const { playerId, ticketId, category } = req.body;
@@ -72,11 +144,8 @@ router.post('/upload/evidence', isAuthenticated, requireWasabiConfig, upload.sin
     }
 
   } catch (error) {
-    console.error('Evidence upload error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to upload evidence'
-    });
+    const errorResponse = createSafeErrorResponse(error, 'Failed to upload evidence');
+    res.status(500).json(errorResponse);
   }
 });
 
