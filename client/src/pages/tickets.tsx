@@ -10,10 +10,7 @@ import {
   Loader2,
   Search,
   ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  AlertTriangle
+  ChevronRight
 } from 'lucide-react';
 
 // Format date to MM/dd/yy HH:mm in browser's timezone
@@ -90,7 +87,7 @@ import { useSidebar } from '@/hooks/use-sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'modl-shared-web/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'modl-shared-web/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'modl-shared-web/components/ui/select';
-import { useTickets, useUpdateTicketPriority } from '@/hooks/use-data';
+import { useTickets } from '@/hooks/use-data';
 import PageContainer from '@/components/layout/PageContainer';
 
 // Define the Ticket interface to match the MongoDB schema
@@ -103,7 +100,6 @@ interface Ticket {
   date: string;
   status: 'Unfinished' | 'Open' | 'Closed';
   locked?: boolean;
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
   description?: string;
   messages?: Array<{
     id: string;
@@ -135,58 +131,13 @@ const getTicketStatusInfo = (ticket: Ticket) => {
   return { statusClass, statusText, isOpen };
 };
 
-// Generate a badge color and text based on ticket priority
-const getTicketPriorityInfo = (priority: string = 'medium') => {
-  switch (priority.toLowerCase()) {
-    case 'urgent':
-      return {
-        class: 'bg-red-100 text-red-800 border-red-200',
-        text: 'Urgent',
-        icon: AlertTriangle,
-        sortOrder: 4
-      };
-    case 'high':
-      return {
-        class: 'bg-orange-100 text-orange-800 border-orange-200',
-        text: 'High',
-        icon: AlertTriangle,
-        sortOrder: 3
-      };
-    case 'medium':
-      return {
-        class: 'bg-blue-100 text-blue-800 border-blue-200',
-        text: 'Medium',
-        icon: null,
-        sortOrder: 2
-      };
-    case 'low':
-      return {
-        class: 'bg-gray-100 text-gray-800 border-gray-200',
-        text: 'Low',
-        icon: null,
-        sortOrder: 1
-      };
-    default:
-      return {
-        class: 'bg-blue-100 text-blue-800 border-blue-200',
-        text: 'Medium',
-        icon: null,
-        sortOrder: 2
-      };
-  }
-};
-
 const Tickets = () => {
   const { } = useSidebar(); // We're not using sidebar context in this component
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("support");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState("created");
-  const [sortOrder, setSortOrder] = useState("desc");
   const [, setLocation] = useLocation();
-  
-  const updateTicketPriority = useUpdateTicketPriority();
   
   // Debounced search query to avoid too many API calls
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -206,8 +157,6 @@ const Tickets = () => {
     search: debouncedSearchQuery,
     status: statusFilter === "all" ? "" : statusFilter,
     type: activeTab,
-    sortBy,
-    sortOrder,
   });
   
   // More generous left margin to prevent text overlap with sidebar
@@ -236,28 +185,6 @@ const Tickets = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, statusFilter]);
-  
-  // Handle column sorting
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      // If clicking the same column, toggle sort order
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // If clicking a different column, set it and default to desc
-      setSortBy(column);
-      setSortOrder('desc');
-    }
-    setCurrentPage(1); // Reset to first page when sorting changes
-  };
-  
-  // Handle priority change
-  const handlePriorityChange = async (ticketId: string, newPriority: 'low' | 'medium' | 'high' | 'urgent') => {
-    try {
-      await updateTicketPriority.mutateAsync({ id: ticketId, priority: newPriority });
-    } catch (error) {
-      console.error('Failed to update ticket priority:', error);
-    }
-  };
     const handleNavigateToTicket = (ticketId: string) => {
     // Navigate to the ticket detail page
     // Navigate to ticket
@@ -293,28 +220,9 @@ const Tickets = () => {
     return sortedMessages[0].timestamp;
   };
 
-  // Render sortable table header
-  const renderSortableHeader = (label: string, column: string) => {
-    const isActive = sortBy === column;
-    const Icon = isActive ? (sortOrder === 'asc' ? ChevronUp : ChevronDown) : null;
-    
-    return (
-      <TableHead 
-        className="cursor-pointer hover:bg-muted/30 transition-colors"
-        onClick={() => handleSort(column)}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {Icon && <Icon className="h-3 w-3" />}
-        </div>
-      </TableHead>
-    );
-  };
-
   // Render a single ticket row
   const renderTicketRow = (ticket: Ticket, index: number) => {
     const lastReplyTimestamp = getLastReplyTimestamp(ticket);
-    const priorityInfo = getTicketPriorityInfo(ticket.priority);
     
     return (
       <TableRow key={index} className="border-b border-border">
@@ -334,44 +242,6 @@ const Tickets = () => {
         <TableCell>{formatDate(ticket.date)}</TableCell>
         <TableCell>{formatTimeAgo(lastReplyTimestamp)}</TableCell>
         <TableCell>
-          <Select 
-            value={ticket.priority || 'medium'} 
-            onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => handlePriorityChange(ticket.id, value)}
-          >
-            <SelectTrigger className="w-24 h-6 border-none p-0 text-xs">
-              <div className="flex items-center gap-1">
-                {priorityInfo.icon && <priorityInfo.icon className="h-3 w-3" />}
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs px-1.5 py-0 h-5 border-none ${priorityInfo.class}`}
-                >
-                  {priorityInfo.text}
-                </Badge>
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="urgent">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-3 w-3 text-red-500" />
-                  <span>Urgent</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="high">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-3 w-3 text-orange-500" />
-                  <span>High</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="medium">
-                <span>Medium</span>
-              </SelectItem>
-              <SelectItem value="low">
-                <span>Low</span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </TableCell>
-        <TableCell>
           <div className="flex space-x-2">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="View" onClick={() => handleNavigateToTicket(ticket.id)}>
               <Eye className="h-4 w-4" />
@@ -385,7 +255,7 @@ const Tickets = () => {
   // Render a loading row
   const renderLoadingRow = () => (
     <TableRow>
-      <TableCell colSpan={7} className="text-center py-6">
+      <TableCell colSpan={6} className="text-center py-6">
         <div className="flex justify-center items-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
           <span className="text-muted-foreground">Loading tickets...</span>
@@ -397,7 +267,7 @@ const Tickets = () => {
   // Render an empty table message
   const renderEmptyRow = () => (
     <TableRow>
-      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
         No tickets match your current filters.
       </TableCell>
     </TableRow>
@@ -424,9 +294,8 @@ const Tickets = () => {
           <TableHead className="rounded-l-lg">ID</TableHead>
           <TableHead>Subject</TableHead>
           <TableHead>Reported By</TableHead>
-          {renderSortableHeader('Created', 'created')}
-          {renderSortableHeader('Last Reply', 'lastReply')}
-          {renderSortableHeader('Priority', 'priority')}
+          <TableHead>Created</TableHead>
+          <TableHead>Last Reply</TableHead>
           <TableHead className="rounded-r-lg">Actions</TableHead>
         </TableRow>
       </TableHeader>

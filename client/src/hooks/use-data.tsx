@@ -90,13 +90,11 @@ export function useTickets(options?: {
   search?: string;
   status?: string;
   type?: string;
-  sortBy?: string;
-  sortOrder?: string;
 }) {
-  const { page = 1, limit = 10, search = '', status = '', type = '', sortBy = 'created', sortOrder = 'desc' } = options || {};
+  const { page = 1, limit = 10, search = '', status = '', type = '' } = options || {};
   
   return useQuery({
-    queryKey: ['/api/panel/tickets', { page, limit, search, status, type, sortBy, sortOrder }],
+    queryKey: ['/api/panel/tickets', { page, limit, search, status, type }],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -104,8 +102,6 @@ export function useTickets(options?: {
       if (search) params.append('search', search);
       if (status) params.append('status', status);
       if (type) params.append('type', type);
-      if (sortBy) params.append('sortBy', sortBy);
-      if (sortOrder) params.append('sortOrder', sortOrder);
       
       const res = await fetch(`/api/panel/tickets?${params.toString()}`);
       if (!res.ok) {
@@ -187,30 +183,6 @@ export function useUpdateTicket() {
       // Update the specific ticket in the cache
       queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets', data._id] });
       // Invalidate the entire list to refresh it
-      queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets'] });
-    }
-  });
-}
-
-export function useUpdateTicketPriority() {
-  return useMutation({
-    mutationFn: async ({ id, priority }: { id: string, priority: 'low' | 'medium' | 'high' | 'urgent' }) => {
-      const res = await fetch(`/api/panel/tickets/${id}/priority`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ priority })
-      });
-      
-      if (!res.ok) {
-        throw new Error('Failed to update ticket priority');
-      }
-      
-      return res.json();
-    },
-    onSuccess: () => {
-      // Invalidate the entire tickets list to refresh priority display
       queryClient.invalidateQueries({ queryKey: ['/api/panel/tickets'] });
     }
   });
