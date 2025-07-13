@@ -2081,56 +2081,30 @@ export function setupMinecraftRoutes(app: Express): void {
       // Calculate duration based on punishment type configuration (matching panel logic)
       let calculatedDuration = duration || 0;
       
-      console.log(`[DEBUG] Punishment type config:`, {
-        name: punishmentType.name,
-        singleSeverityPunishment: punishmentType.singleSeverityPunishment,
-        singleSeverityDurations: punishmentType.singleSeverityDurations,
-        durations: punishmentType.durations
-      });
-      
       if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
         // Single-severity punishment: use status (offense level) for duration
-        console.log(`[DEBUG] Looking up single-severity duration for status: ${finalStatus}`);
         const durationConfig = punishmentType.singleSeverityDurations[finalStatus];
-        console.log(`[DEBUG] Single-severity duration config:`, durationConfig);
         if (durationConfig && durationConfig.value > 0) {
           calculatedDuration = convertDurationToMilliseconds(durationConfig);
-          console.log(`[DEBUG] Calculated single-severity duration: ${calculatedDuration}ms`);
         }
       } else if (punishmentType.durations) {
         // Multi-severity punishment: use severity and status for duration
-        console.log(`[DEBUG] Looking up multi-severity duration for severity: ${finalSeverity}, status: ${finalStatus}`);
-        console.log(`[DEBUG] Available severities:`, Object.keys(punishmentType.durations));
-        
         const severityDurations = punishmentType.durations[finalSeverity];
-        console.log(`[DEBUG] Severity durations for ${finalSeverity}:`, severityDurations);
         
         if (severityDurations) {
           const durationConfig = severityDurations[finalStatus];
-          console.log(`[DEBUG] Duration config for ${finalStatus}:`, durationConfig);
           
           if (durationConfig && durationConfig.value > 0) {
             calculatedDuration = convertDurationToMilliseconds(durationConfig);
-            console.log(`[DEBUG] Calculated duration: ${calculatedDuration}ms`);
           } else {
-            // Try fallback options
-            console.log(`[DEBUG] No duration for ${finalStatus}, trying fallbacks...`);
-            console.log(`[DEBUG] Available statuses:`, Object.keys(severityDurations));
-            
-            // Try 'low' as fallback
+            // Try fallback to 'low' status if specific status not found
             const fallbackDuration = severityDurations.low || severityDurations.first;
-            console.log(`[DEBUG] Fallback duration:`, fallbackDuration);
             
             if (fallbackDuration && fallbackDuration.value > 0) {
               calculatedDuration = convertDurationToMilliseconds(fallbackDuration);
-              console.log(`[DEBUG] Calculated fallback duration: ${calculatedDuration}ms`);
             }
           }
-        } else {
-          console.log(`[DEBUG] No durations found for severity: ${finalSeverity}`);
         }
-      } else {
-        console.log(`[DEBUG] No duration configuration found for punishment type`);
       }
 
       // Helper function to convert duration configuration to milliseconds
@@ -2146,13 +2120,15 @@ export function setupMinecraftRoutes(app: Express): void {
         return durationConfig.value * (multiplierMap[durationConfig.unit] || 1);
       }
 
+      // Merge data from request, but ensure our calculated values take precedence
+      const baseData = data ? Object.entries(data) : [];
       const newPunishmentData = new Map<string, any>([
-        ['reason', reason],
-        ['duration', calculatedDuration],
+        ...baseData, // Add request data first
+        ['reason', reason], // Override with our values
+        ['duration', calculatedDuration], // Calculated duration takes precedence
         ['severity', finalSeverity], // Store the severity used for duration calculation
         ['status', finalStatus], // Store the offense level used for duration calculation
         // Don't set expires until punishment is started by server
-        ...(data ? Object.entries(data) : [])
       ]);
       
       // Log for debugging
