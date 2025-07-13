@@ -35,19 +35,43 @@ async function getUserPermissions(req: Request, userRole: string): Promise<strin
     const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
     const punishmentTypes = punishmentTypesDoc?.data || [];
     
-    const punishmentPermissions = punishmentTypes.map((type: any) => 
-      `punishment.apply.${type.name.toLowerCase().replace(/\s+/g, '-')}`
-    );
+    // Dynamic punishment type permissions (ordinals > 5)
+    const dynamicPunishmentPermissions = punishmentTypes
+      .filter((type: any) => type.ordinal > 5)
+      .map((type: any) => `punishment.apply.${type.name.toLowerCase().replace(/\s+/g, '-')}`);
+    
+    // Manual punishment permissions (ordinals 0-5)
+    const manualPunishmentPermissions = [
+      'punishment.apply.kick',            // ordinal 0
+      'punishment.apply.manual-mute',     // ordinal 1
+      'punishment.apply.manual-ban',      // ordinal 2
+      'punishment.apply.security-ban',    // ordinal 3
+      'punishment.apply.linked-ban',      // ordinal 4
+      'punishment.apply.blacklist'        // ordinal 5
+    ];
+    
+    // Combine all punishment permissions
+    const allPunishmentPermissions = [...dynamicPunishmentPermissions, ...manualPunishmentPermissions];
 
     // Add punishment permissions to appropriate roles
-    if (userRole === 'Super Admin' || userRole === 'Admin') {
-      defaultPermissions[userRole] = [...defaultPermissions[userRole], ...punishmentPermissions];
+    if (userRole === 'Super Admin') {
+      // Super Admin gets all punishment permissions
+      defaultPermissions[userRole] = [...defaultPermissions[userRole], ...allPunishmentPermissions];
+    } else if (userRole === 'Admin') {
+      // Admin gets all except blacklist
+      const adminPunishmentPerms = allPunishmentPermissions.filter((p: string) => 
+        !p.includes('blacklist')
+      );
+      defaultPermissions[userRole] = [...defaultPermissions[userRole], ...adminPunishmentPerms];
     } else if (userRole === 'Moderator') {
-      // Moderators get all punishment permissions except the most severe ones
-      const moderatorPunishmentPerms = punishmentPermissions.filter((p: string) => 
-        !p.includes('blacklist') && !p.includes('security-ban')
+      // Moderators get basic punishment permissions, no security-ban, linked-ban, or blacklist
+      const moderatorPunishmentPerms = allPunishmentPermissions.filter((p: string) => 
+        !p.includes('blacklist') && !p.includes('security-ban') && !p.includes('linked-ban')
       );
       defaultPermissions[userRole] = [...defaultPermissions[userRole], ...moderatorPunishmentPerms];
+    } else if (userRole === 'Helper') {
+      // Helpers get only kick permission
+      defaultPermissions[userRole] = [...defaultPermissions[userRole], 'punishment.apply.kick'];
     }
   } catch (error) {
     console.error('Error fetching punishment permissions:', error);
@@ -1812,45 +1836,7 @@ export function setupMinecraftRoutes(app: Express): void {
         }
       }
 
-      // 6. Get active staff members among online players with their permissions
-      const activeStaffMembers: any[] = [];
-      
-      if (onlineUuids.length > 0) {
-        const Staff = serverDbConnection.model('Staff');
-        
-        // Find staff members whose assigned Minecraft players are online
-        const staffWithOnlinePlayers = await Staff.find({
-          assignedMinecraftUuid: { $in: onlineUuids }
-        }).lean();
-
-        // Get permissions for each staff member
-        for (const staffMember of staffWithOnlinePlayers) {
-          try {
-            // Get user permissions based on their role
-            const userPermissions = await getUserPermissions(req, staffMember.role);
-            
-            activeStaffMembers.push({
-              minecraftUuid: staffMember.assignedMinecraftUuid,
-              minecraftUsername: staffMember.assignedMinecraftUsername,
-              staffUsername: staffMember.username,
-              staffRole: staffMember.role,
-              permissions: userPermissions,
-              email: staffMember.email
-            });
-          } catch (permissionError) {
-            console.error(`Error getting permissions for staff member ${staffMember.username}:`, permissionError);
-            // Include staff member without permissions if permission lookup fails
-            activeStaffMembers.push({
-              minecraftUuid: staffMember.assignedMinecraftUuid,
-              minecraftUsername: staffMember.assignedMinecraftUsername,
-              staffUsername: staffMember.username,
-              staffRole: staffMember.role,
-              permissions: [],
-              email: staffMember.email
-            });
-          }
-        }
-      }
+      // Note: Staff permissions are now loaded separately via /api/minecraft/staff-permissions endpoint
 
       return res.status(200).json({
         status: 200,
@@ -1860,12 +1846,10 @@ export function setupMinecraftRoutes(app: Express): void {
           recentlyStartedPunishments,
           recentlyModifiedPunishments,
           playerNotifications,
-          activeStaffMembers,
           stats,
           serverStatus: {
             lastSync: now.toISOString(),
-            onlinePlayerCount: stats.onlinePlayers,
-            activeStaffCount: activeStaffMembers.length
+            onlinePlayerCount: stats.onlinePlayers
           }
         }
       });
@@ -1875,6 +1859,65 @@ export function setupMinecraftRoutes(app: Express): void {
       return res.status(500).json({
         status: 500,
         message: 'Internal server error during sync'
+      });
+    }
+  });
+
+  /**
+   * Get staff permissions for Minecraft plugin
+   * - Returns all staff members with their permissions
+   * - Used on plugin startup and punishment type refresh
+   */
+  app.get('/api/minecraft/staff-permissions', verifyMinecraftApiKey, async (req: Request, res: Response) => {
+    const serverDbConnection = req.serverDbConnection!;
+    
+    try {
+      const Staff = serverDbConnection.model('Staff');
+      
+      // Get all staff members
+      const allStaff = await Staff.find({}).lean();
+      
+      const staffWithPermissions: any[] = [];
+      
+      // Get permissions for each staff member
+      for (const staffMember of allStaff) {
+        try {
+          // Get user permissions based on their role
+          const userPermissions = await getUserPermissions(req, staffMember.role);
+          
+          staffWithPermissions.push({
+            minecraftUuid: staffMember.assignedMinecraftUuid,
+            minecraftUsername: staffMember.assignedMinecraftUsername,
+            staffUsername: staffMember.username,
+            staffRole: staffMember.role,
+            permissions: userPermissions,
+            email: staffMember.email
+          });
+        } catch (permissionError) {
+          console.error(`Error getting permissions for staff member ${staffMember.username}:`, permissionError);
+          // Include staff member without permissions if permission lookup fails
+          staffWithPermissions.push({
+            minecraftUuid: staffMember.assignedMinecraftUuid,
+            minecraftUsername: staffMember.assignedMinecraftUsername,
+            staffUsername: staffMember.username,
+            staffRole: staffMember.role,
+            permissions: [],
+            email: staffMember.email
+          });
+        }
+      }
+      
+      return res.status(200).json({
+        status: 200,
+        data: {
+          staff: staffWithPermissions
+        }
+      });
+    } catch (error: any) {
+      console.error('Error getting staff permissions:', error);
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error getting staff permissions'
       });
     }
   });
