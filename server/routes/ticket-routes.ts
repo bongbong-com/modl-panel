@@ -5,7 +5,6 @@ import { checkPermission } from '../middleware/permission-middleware';
 import AIModerationService from '../services/ai-moderation-service';
 import { IReply, ITicket } from 'modl-shared-web/types';
 import { getSettingsValue } from './settings-routes';
-import { createSafeErrorResponse, handleDatabaseError } from '../middleware/error-handler';
 
 interface INote {
   text: string;
@@ -284,8 +283,8 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     
     res.json(transformedTicket);
   } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error, 'Failed to fetch ticket');
-    res.status(500).json(errorResponse);
+    console.error('Error fetching ticket:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -335,8 +334,7 @@ router.post('/', async (req: Request<{}, {}, CreateTicketBody>, res: Response) =
 
     res.status(201).json(newTicket);
   } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -366,8 +364,7 @@ router.post('/:id/notes', async (req: Request<{ id: string }, {}, AddNoteBody>, 
 
     res.status(201).json(newNote);
   } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -454,8 +451,7 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
 
     res.status(201).json(newReply);
   } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -481,8 +477,7 @@ router.post('/:id/tags', async (req: Request<{ id: string }, {}, AddTagBody>, re
 
     res.status(200).json(ticket.tags);
   } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -507,8 +502,7 @@ router.delete('/:id/tags/:tag', async (req: Request<{ id: string, tag: string },
     }
 
     res.status(200).json(ticket.tags);  } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -668,8 +662,7 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
     });
   } catch (error: any) {
     console.error('Error updating ticket:', error);
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -697,8 +690,7 @@ router.patch('/:id/data', async (req: Request<{ id: string }, {}, UpdateTicketDa
 
     res.status(200).json(Object.fromEntries(ticket.data)); // Convert Map to object for JSON response
   } catch (error: any) {
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -982,8 +974,7 @@ router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (r
     
   } catch (error: any) {
     console.error('Quick response error:', error);
-    const errorResponse = createSafeErrorResponse(error);
-    res.status(500).json(errorResponse);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

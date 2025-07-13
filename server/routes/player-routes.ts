@@ -198,6 +198,7 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
       );      // Calculate latest IP data with proxy/non-proxy priority
       let latestIPData = null;
       const ipList = player.ipList || player.ipAddresses || []; // Support both field names
+      console.log(`[Player API] Processing IP data for ${player.minecraftUuid}: ${ipList.length} IPs found`);
       if (ipList && ipList.length > 0) {
         // Sort IPs by recency first
         const sortedIPs = ipList.sort((a, b) => {
@@ -223,6 +224,12 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
             hosting: latestIP.hosting || false,
             asn: latestIP.asn
           };
+          console.log(`[Player API] Latest IP data for ${player.minecraftUuid}:`, {
+            country: latestIP.country,
+            region: latestIP.region,
+            proxy: latestIP.proxy,
+            hosting: latestIP.hosting
+          });
         }
       }
 
@@ -310,6 +317,12 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
             hosting: latestIP.hosting || false,
             asn: latestIP.asn
           };
+          console.log(`[Player API] Latest IP data for ${player.minecraftUuid}:`, {
+            country: latestIP.country,
+            region: latestIP.region,
+            proxy: latestIP.proxy,
+            hosting: latestIP.hosting
+          });
         }
       }
       
@@ -1096,6 +1109,7 @@ router.get('/:uuid/linked', async (req: Request<{ uuid: string }>, res: Response
     const storedLinkedAccounts = player.data?.linkedAccounts || [];
     if (storedLinkedAccounts && Array.isArray(storedLinkedAccounts)) {
       storedLinkedAccounts.forEach((uuid: string) => linkedAccountUuids.add(uuid));
+      console.log(`[Panel Linked Accounts API] Found ${storedLinkedAccounts.length} stored linked accounts for ${minecraftUuid}`);
     }
 
     // Method 2: Get linked accounts by IP addresses (legacy/fallback system)
@@ -1107,9 +1121,11 @@ router.get('/:uuid/linked', async (req: Request<{ uuid: string }>, res: Response
       }).select('minecraftUuid').lean();
       
       ipLinkedPlayers.forEach((p: any) => linkedAccountUuids.add(p.minecraftUuid));
+      console.log(`[Panel Linked Accounts API] Found ${ipLinkedPlayers.length} IP-linked accounts for ${minecraftUuid}`);
     }
 
     if (linkedAccountUuids.size === 0) {
+      console.log(`[Panel Linked Accounts API] No linked accounts found for ${minecraftUuid}`);
       res.status(200).json({ linkedAccounts: [] });
       return;
     }
@@ -1144,6 +1160,7 @@ router.get('/:uuid/linked', async (req: Request<{ uuid: string }>, res: Response
       };
     });
     
+    console.log(`[Panel Linked Accounts API] Returning ${formattedLinkedAccounts.length} linked accounts for ${minecraftUuid}`);
     res.status(200).json({ linkedAccounts: formattedLinkedAccounts });
   } catch (error: any) {
     console.error('Error getting linked accounts:', error);
@@ -1178,6 +1195,7 @@ router.post('/:uuid/find-linked', async (req: Request<{ uuid: string }>, res: Re
       return;
     }
 
+    console.log(`[Panel Find Linked] Triggering account linking search for ${minecraftUuid} with ${playerIPs.length} IP addresses`);
 
     // Call the minecraft routes function (we need to import it)
     // For now, let's implement a simplified version here
@@ -1214,6 +1232,7 @@ async function findAndLinkAccountsForPanel(
       return;
     }
 
+    console.log(`[Panel Account Linking] Checking for linked accounts with IPs: ${ipAddresses.join(', ')}`);
     
     // Find all players that have used any of these IP addresses
     const potentialLinkedPlayers = await Player.find({
@@ -1276,6 +1295,7 @@ async function findAndLinkAccountsForPanel(
         await updatePlayerLinkedAccountsForPanel(dbConnection, currentPlayer.minecraftUuid, player.minecraftUuid);
         await updatePlayerLinkedAccountsForPanel(dbConnection, player.minecraftUuid, currentPlayer.minecraftUuid);
         
+        console.log(`[Panel Account Linking] Linked ${currentPlayer.minecraftUuid} with ${player.minecraftUuid} via IPs: ${matchingIPs.join(', ')}`);
         
         // Create system log
         await createSystemLog(
@@ -1289,7 +1309,9 @@ async function findAndLinkAccountsForPanel(
     }
 
     if (linkedAccounts.length > 0) {
+      console.log(`[Panel Account Linking] Found ${linkedAccounts.length} linked accounts for ${currentPlayerUuid}`);
     } else {
+      console.log(`[Panel Account Linking] No linked accounts found for ${currentPlayerUuid}`);
     }
   } catch (error) {
     console.error(`[Panel Account Linking] Error finding linked accounts:`, error);
@@ -1331,6 +1353,7 @@ async function updatePlayerLinkedAccountsForPanel(
       }
       await player.save({ validateBeforeSave: false });
       
+      console.log(`[Panel Account Linking] Updated ${playerUuid} linked accounts: added ${linkedUuid}`);
     }
   } catch (error) {
     console.error(`[Panel Account Linking] Error updating player linked accounts:`, error);
@@ -1438,6 +1461,13 @@ router.get('/punishment-lookup/:punishmentId', async (req: Request<{ punishmentI
       playerUsername = player.usernames[player.usernames.length - 1].username;
     }
     
+    console.log('Punishment lookup result:', {
+      playerUuid: player.minecraftUuid,
+      directUsername: player.username,
+      usernamesArray: player.usernames?.length || 0,
+      finalUsername: playerUsername,
+      punishmentId: punishment.id
+    });
     
     // Return simplified punishment data with player info
     res.json({

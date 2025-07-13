@@ -1091,6 +1091,8 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                     className="text-xs h-5 px-1"
                                     onClick={async () => {
                                       try {
+                                        console.log(`Attempting to rollback punishment ID: ${punishment.id}`);
+                                        
                                         const response = await fetch(`/api/panel/audit/punishment/${punishment.id}/rollback`, {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },
@@ -1098,6 +1100,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                         });
                                         
                                         const responseData = await response.json();
+                                        console.log('Rollback response:', responseData);
                                         
                                         if (!response.ok) {
                                           throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
@@ -1284,6 +1287,10 @@ const TicketAnalyticsSection = ({ analyticsPeriod }: { analyticsPeriod: string }
   const chartData = useMemo(() => {
     if (!ticketAnalytics) return [];
 
+    // Debug: Log the raw data to see what categories we're getting
+    console.log('Raw ticket analytics data:', ticketAnalytics);
+    console.log('Daily trend by category:', ticketAnalytics.dailyTrendByCategory);
+    console.log('Response time by category:', ticketAnalytics.responseTimeByCategory);
 
     const dateMap = new Map();
     

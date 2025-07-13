@@ -6,6 +6,7 @@ import { SystemConfigSchema } from 'modl-shared-web';
 import { reservedSubdomains } from '../config/reserved-subdomains';
 
 const DOMAIN = process.env.DOMAIN || 'modl.gg';
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 export async function subdomainDbMiddleware(req: Request, res: Response, next: NextFunction) {
   // Bypass for common asset types or paths used by Vite/client-side apps
@@ -49,7 +50,27 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
 
   let serverName: string | undefined = undefined; // This will hold the derived subdomain
 
-  if (hostname.endsWith(`.${DOMAIN}`)) {
+  if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+    serverName = 'testlocal';
+    // @ts-ignore
+    req.serverName = serverName;
+
+    try {
+      // @ts-ignore
+      req.serverDbConnection = await connectToServerDb(serverName);
+      // @ts-ignore
+      req.modlServer = {
+        customDomain: serverName,
+        emailVerified: true,
+      };
+      return next();
+    } catch (dbConnectError: any) {
+      // @ts-ignore
+      console.error(`[DEBUG] SubdomainMiddleware: DEV MODE (localhost) - Failed to connect to DB for ${serverName}. Error:`, dbConnectError.message);
+      // @ts-ignore
+      return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${serverName} (localhost development).` });
+    }
+  } else if (hostname.endsWith(`.${DOMAIN}`)) {
     const parts = hostname.split('.');
     const baseDomainParts = DOMAIN.split('.').length;
     if (parts.length > baseDomainParts) {
@@ -124,12 +145,14 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
         
         //console.log(`[SubdomainMiddleware] Custom domain lookup result:`, serverConfig ? 'FOUND' : 'NOT FOUND');
         
-        // SECURITY: Use MongoDB case-insensitive collation instead of regex
+        // If not found, try case-insensitive search as backup
         if (!serverConfig) {
-          serverConfig = await ModlServerModel.findOne({
-            customDomain_override: hostname,
+          //console.log(`[SubdomainMiddleware] Trying case-insensitive lookup for: ${hostname}`);
+          serverConfig = await ModlServerModel.findOne({ 
+            customDomain_override: { $regex: new RegExp(`^${hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
             customDomain_status: 'active'
-          }).collation({ locale: 'en', strength: 2 }); // Strength 2 = case insensitive
+          });
+          //console.log(`[SubdomainMiddleware] Case-insensitive lookup result:`, serverConfig ? 'FOUND' : 'NOT FOUND');
         }
         
         // If found via custom domain, update serverName to match the server's actual subdomain
@@ -181,6 +204,8 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       // @ts-ignore
       req.serverDbConnection = await connectToServerDb(req.serverName);
     } catch (dbConnectError: any) {
+      // @ts-ignore
+      console.error(`[DEBUG] SubdomainMiddleware: connectToServerDb CATCH block for ${req.serverName}. Error:`, dbConnectError.message);
       // @ts-ignore
       console.error(`[SubdomainMiddleware] Failed to connect to DB for ${req.serverName}:`, dbConnectError.message);
       // @ts-ignore

@@ -7,9 +7,6 @@ import { connectToGlobalModlDb } from './db/connectionManager';
 import { type Connection as MongooseConnection } from 'mongoose';
 import { isAuthenticated } from './middleware/auth-middleware';
 import { strictRateLimit } from './middleware/rate-limiter';
-import { subdomainDbMiddleware } from './middleware/subdomainDbMiddleware';
-import { csrfProtection, addCSRFToken } from './middleware/csrf-middleware';
-import { errorHandler, notFoundHandler } from './middleware/error-handler';
 
 import appealRoutes from './routes/appeal-routes';
 import playerRoutes from './routes/player-routes';
@@ -150,12 +147,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Panel specific API routes
   const panelRouter = express.Router();
   
-  // Apply subdomain database middleware to all panel routes
-  panelRouter.use(subdomainDbMiddleware);
-  
-  // Apply CSRF protection to panel routes (state-changing requests)
-  panelRouter.use(csrfProtection({ secret: process.env.SESSION_SECRET! }));
-  panelRouter.use(addCSRFToken);
+  // Panel routes (debug logging removed)
+  panelRouter.use((req, res, next) => {
+    next();
+  });
   
   panelRouter.use(isAuthenticated); // Apply authentication to all panel routes
 
@@ -778,10 +773,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   
   app.set('broadcastUpdate', broadcastUpdate);
-
-  // SECURITY: Add error handling middleware at the end
-  app.use(notFoundHandler);
-  app.use(errorHandler);
 
   return httpServer;
 }

@@ -47,24 +47,6 @@ async function initializeAwsSdk() {
 
 const BUCKET_NAME = process.env.WASABI_BUCKET_NAME || '';
 
-/**
- * SECURITY: Sanitize path components to prevent directory traversal
- */
-function sanitizePathComponent(component: string): string {
-  if (!component) return '';
-  
-  // Remove any path traversal attempts and dangerous characters
-  return component
-    .replace(/\.\./g, '') // Remove ..
-    .replace(/\//g, '') // Remove forward slashes
-    .replace(/\\/g, '') // Remove backslashes
-    .replace(/\0/g, '') // Remove null bytes
-    .replace(/[<>:"|?*]/g, '') // Remove Windows-forbidden chars
-    .replace(/^\.+/, '') // Remove leading dots
-    .trim()
-    .substring(0, 100); // Limit length
-}
-
 // Validate environment variables
 if (!process.env.WASABI_ACCESS_KEY || !process.env.WASABI_SECRET_KEY || !process.env.WASABI_BUCKET_NAME) {
   console.warn('Warning: Wasabi environment variables not configured. Media uploads will be disabled.');
@@ -119,41 +101,22 @@ export const FILE_SIZE_LIMITS = {
 function generateSecureFileName(originalName: string, folder: string, subFolder?: string, serverName?: string): string {
   const timestamp = Date.now();
   const uuid = uuidv4();
-  
-  // SECURITY: Get only the file extension, ignore the original filename entirely
   const ext = path.extname(originalName).toLowerCase();
+  const baseName = path.basename(originalName, ext).replace(/[^a-zA-Z0-9]/g, '-');
   
-  // SECURITY: Validate file extension to prevent double extensions (.exe.jpg)
-  const allowedExtensions = [
-    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg',
-    '.mp4', '.webm', '.mov', '.avi', '.mkv',
-    '.pdf', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-    '.zip', '.rar', '.7z'
-  ];
-  
-  if (!allowedExtensions.includes(ext)) {
-    throw new Error(`File extension ${ext} is not allowed`);
-  }
-  
-  // SECURITY: Use only UUID and timestamp - completely ignore original filename
-  const fileName = `${uuid}-${timestamp}${ext}`;
-  
-  // SECURITY: Sanitize path components to prevent traversal
-  const sanitizedServerName = serverName ? sanitizePathComponent(serverName) : '';
-  const sanitizedFolder = sanitizePathComponent(folder);
-  const sanitizedSubFolder = subFolder ? sanitizePathComponent(subFolder) : '';
+  const fileName = `${baseName}-${timestamp}-${uuid}${ext}`;
   
   // Build path with server name hierarchy: serverName/folder/subFolder/fileName
   let fullPath = '';
   
-  if (sanitizedServerName) {
-    fullPath = `${sanitizedServerName}/`;
+  if (serverName) {
+    fullPath = `${serverName}/`;
   }
   
-  fullPath += sanitizedFolder;
+  fullPath += folder;
   
-  if (sanitizedSubFolder) {
-    fullPath += `/${sanitizedSubFolder}`;
+  if (subFolder) {
+    fullPath += `/${subFolder}`;
   }
   
   fullPath += `/${fileName}`;

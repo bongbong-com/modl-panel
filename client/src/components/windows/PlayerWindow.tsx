@@ -1196,36 +1196,6 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
     return true;
   };
 
-  // Helper function to check if severity should be shown for a punishment
-  const shouldShowSeverity = (warning: any): boolean => {
-    // First check if the value is valid
-    if (!isValidBadgeValue(warning.severity)) return false;
-    
-    // Get the punishment reason (stored in different places)
-    const reason = warning.reason || warning.data?.reason || '';
-    
-    // Hide severity for specific permanent punishment reasons
-    if (reason.includes('Permanent until username change') || reason.includes('Permanent until skin change')) {
-      return false;
-    }
-    
-    // Find the punishment type to check if it's single severity
-    const allPunishmentTypes = [
-      ...punishmentTypesByCategory.Administrative,
-      ...punishmentTypesByCategory.Social,
-      ...punishmentTypesByCategory.Gameplay
-    ];
-    
-    const punishmentType = allPunishmentTypes.find(pt => pt.ordinal === warning.type_ordinal);
-    
-    // Hide severity for single severity punishments
-    if (punishmentType?.singleSeverityPunishment) {
-      return false;
-    }
-    
-    return true;
-  };
-
   // Helper function to calculate effective punishment status and expiry based on modifications
   const getEffectivePunishmentState = (punishment: any) => {
     const modifications = punishment.modifications || [];
@@ -1547,7 +1517,7 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                               Alt-blocking
                             </Badge>
                           )}
-                          {shouldShowSeverity(warning) && (
+                          {isValidBadgeValue(warning.severity) && (
                             <Badge variant="outline" className={`text-xs ${
                               (warning.severity && warning.severity.toLowerCase() === 'low') || (warning.severity && warning.severity.toLowerCase() === 'lenient') ? 
                                 'bg-green-100 text-green-800 border-green-300' :

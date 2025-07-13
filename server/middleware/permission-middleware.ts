@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { BYPASS_DEV_AUTH } from './auth-middleware';
 
 // Permission checking middleware
 export const checkPermission = (requiredPermissions: string | string[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    // SECURITY: Remove blanket permission bypass for development
-    // Development mode should still respect permissions for security testing
+    if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
+      return next();
+    }
 
     if (!req.currentUser || !req.currentUser.role) {
       return res.status(401).json({ message: 'Authentication required.' });
@@ -105,7 +107,9 @@ async function getUserPermissions(req: Request, userRole: string): Promise<strin
 
 // Convenience function to check if user has a specific permission
 export const hasPermission = async (req: Request, permission: string): Promise<boolean> => {
-  // SECURITY: Remove automatic permission grant for development
+  if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
+    return true;
+  }
 
   if (!req.currentUser || !req.currentUser.role) {
     return false;

@@ -12,6 +12,10 @@ export async function verifyTicketApiKey(req: Request, res: Response, next: Next
     // Get API key from request header (both old and new header formats supported)
     const apiKey = req.header('X-API-Key') || req.header('X-Ticket-API-Key');
     
+    // Skip auth check if in development mode and SKIP_API_AUTH is true
+    if (process.env.NODE_ENV === 'development' && process.env.SKIP_API_AUTH === 'true') {
+      return next();
+    }
     
     // If no API key provided
     if (!apiKey) {

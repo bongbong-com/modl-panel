@@ -286,6 +286,21 @@ router.get('/staff/:username/details', async (req, res) => {
     .sort({ created: -1 })
     .limit(50)  // Get more tickets and filter later
     .select('_id subject title category status created updated updatedAt priority messages replies');
+    
+    console.log(`[Staff Details] Found ${tickets.length} tickets for ${username}`);
+    
+    // Debug: Log ticket structure for first ticket
+    if (tickets.length > 0) {
+      console.log(`[Staff Details] Sample ticket structure:`, {
+        id: tickets[0]._id,
+        subject: tickets[0].subject,
+        title: tickets[0].title,
+        hasMessages: !!tickets[0].messages,
+        hasReplies: !!tickets[0].replies,
+        messagesCount: tickets[0].messages?.length || 0,
+        repliesCount: tickets[0].replies?.length || 0
+      });
+    }
 
     // Calculate response times for tickets where staff member replied
     const ticketResponseTimes = [];
@@ -331,6 +346,8 @@ router.get('/staff/:username/details', async (req, res) => {
     
     // Limit to 20 most recent
     ticketResponseTimes.splice(20);
+    
+    console.log(`[Staff Details] Found ${ticketResponseTimes.length} ticket responses for ${username} in period`);
 
     // Get daily activity breakdown with error handling
     let dailyActivity = [];
@@ -763,6 +780,7 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     const { id } = req.params;
     const { reason = 'Staff rollback from analytics panel' } = req.body;
     
+    console.log(`[Rollback] Attempting to rollback punishment ID: ${id}`);
     
     if (!req.serverDbConnection) {
       return res.status(503).json({ error: 'Database connection not available' });
@@ -775,14 +793,25 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     // Find the punishment in player documents
     const player = await Player.findOne({ 'punishments.id': id });
     if (!player) {
+      console.log(`[Rollback] No player found with punishment ID: ${id}`);
       return res.status(404).json({ error: 'Punishment not found' });
     }
 
     const punishment = player.punishments.find(p => p.id === id);
     if (!punishment) {
+      console.log(`[Rollback] Punishment ID ${id} not found in player ${player.minecraftUuid}`);
       return res.status(404).json({ error: 'Punishment not found' });
     }
 
+    console.log(`[Rollback] Found punishment: ${punishment.id} for player ${player.usernames[0]?.username}`);
+    console.log(`[Rollback] Punishment data structure:`, {
+      id: punishment.id,
+      issuerName: punishment.issuerName,
+      issued: punishment.issued,
+      dataType: typeof punishment.data,
+      isMap: punishment.data instanceof Map,
+      rolledBack: punishment.data?.get ? punishment.data.get('rolledBack') : punishment.data?.rolledBack
+    });
 
     // Check if already rolled back (handle both Map and Object data)
     let isRolledBack = false;
@@ -793,6 +822,7 @@ router.post('/punishment/:id/rollback', async (req, res) => {
     }
 
     if (isRolledBack) {
+      console.log(`[Rollback] Punishment ${id} already rolled back`);
       return res.status(400).json({ error: 'This punishment has already been rolled back' });
     }
 
@@ -837,6 +867,7 @@ router.post('/punishment/:id/rollback', async (req, res) => {
       reason: `Rolled back by ${rollbackBy}: ${reason}`
     });
     
+    console.log(`[Rollback] Marking punishment ${id} as rolled back`);
     try {
       await player.save({ validateBeforeSave: false });
     } catch (saveError) {
@@ -858,6 +889,7 @@ router.post('/punishment/:id/rollback', async (req, res) => {
       }
     });
 
+    console.log(`[Rollback] Successfully rolled back punishment ${id}`);
     res.json({ 
       success: true, 
       message: 'Punishment rolled back successfully'
