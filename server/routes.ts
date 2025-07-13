@@ -44,9 +44,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Falling back to in-memory storage');
   }
 
-  // Public API, verification, and auth routes
-  setupApiRoutes(app); // Assuming these are general public APIs if any, or handled internally
+  // Setup verification and auth routes (these don't need subdomain middleware)
   setupVerificationAndProvisioningRoutes(app);
+  
+  // Create a router for API routes that need subdomain database connection
+  const apiRouter = express.Router();
+  apiRouter.use(subdomainDbMiddleware); // Apply subdomain middleware to API routes
+  setupApiRoutes(apiRouter); // Setup API routes on the router
+  app.use('/api', apiRouter); // Mount the API router at /api path only
   
   app.use('/api/auth', authRoutes);
   app.use('/stripe-public-webhooks', webhookRouter); // Stripe webhook on a distinct top-level public path

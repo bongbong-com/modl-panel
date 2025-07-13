@@ -840,11 +840,7 @@ async function checkAndProcessAutoUnbans(
 }
 
 export function setupMinecraftRoutes(app: Express): void {
-  // Import subdomain middleware
-  const { subdomainDbMiddleware } = require('../middleware/subdomainDbMiddleware');
-  
-  // Apply subdomain middleware first, then API key verification to all Minecraft routes
-  app.use('/api/minecraft', subdomainDbMiddleware);
+  // Apply API key verification middleware to all Minecraft routes
   app.use('/api/minecraft', verifyMinecraftApiKey);
 
   app.use('/api/minecraft', (req: Request, res: Response, next: NextFunction) => {
