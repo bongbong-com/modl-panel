@@ -780,5 +780,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.set('broadcastUpdate', broadcastUpdate);
 
+  // SECURITY: Add error handling middleware at the end
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
   return httpServer;
 }
