@@ -48,14 +48,15 @@ interface ITicket extends MongooseDocument {
 async function addNotificationToPlayer(
   dbConnection: Connection, 
   playerUuid: string, 
-  notificationId: string
+  notification: any
 ): Promise<void> {
   try {
     const Player = dbConnection.model('Player');
     await Player.updateOne(
       { minecraftUuid: playerUuid },
-      { $addToSet: { pendingNotifications: notificationId } }
+      { $addToSet: { pendingNotifications: notification } }
     );
+    console.log(`Added notification to player ${playerUuid}: ${notification.message}`);
   } catch (error) {
     console.error(`Error adding notification to player ${playerUuid}:`, error);
   }
@@ -63,15 +64,23 @@ async function addNotificationToPlayer(
 
 /**
  * Create a notification for a staff reply to a ticket
- * Returns the notification ID that can be stored in pendingNotifications
+ * Returns the notification object that can be stored in pendingNotifications
  */
-function createTicketReplyNotification(ticketId: string, staffName: string, replyContent: string): string {
-  // Create a unique notification ID
-  const notificationId = `ticket-reply-${ticketId}-${Date.now()}`;
+function createTicketReplyNotification(ticketId: string, staffName: string, replyContent: string): any {
+  // Create notification object with actual data
+  const notification = {
+    id: `ticket-reply-${ticketId}-${Date.now()}`,
+    message: `${staffName} replied to your ticket ${ticketId}: "${replyContent.substring(0, 100)}${replyContent.length > 100 ? '...' : ''}"`,
+    type: 'ticket_reply',
+    timestamp: new Date(),
+    data: {
+      ticketId: ticketId,
+      staffName: staffName,
+      replyContent: replyContent
+    }
+  };
   
-  // For now, we'll just return the ID. Later this could be expanded to store
-  // full notification data in a separate notifications collection
-  return notificationId;
+  return notification;
 }
 
 /**
@@ -413,12 +422,12 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
 
     // Add notification for staff replies
     if (newReply.staff && ticket.creator) {
-      const notificationId = createTicketReplyNotification(
+      const notification = createTicketReplyNotification(
         req.params.id, 
         newReply.name, 
         newReply.content
       );
-      await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
+      await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notification);
       
       // Send email notification if ticket has creator email
       if (ticket.data && (ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'))) {
@@ -583,12 +592,12 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
       if (newReply.staff && ticket.creator) {
         console.log(`[Ticket PATCH] Staff reply detected from ${newReply.name}`);
         
-        const notificationId = createTicketReplyNotification(
+        const notification = createTicketReplyNotification(
           req.params.id, 
           newReply.name, 
           newReply.content
         );
-        await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notificationId);
+        await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notification);
         
         // Send email notification if ticket has creator email
         const emailField = ticket.data?.get('creatorEmail') || ticket.data?.get('contactEmail') || ticket.data?.get('contact_email');

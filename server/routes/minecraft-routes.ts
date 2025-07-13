@@ -458,7 +458,7 @@ function calculateExpiration(punishment: IPunishment): number | null {
 async function getAndClearPlayerNotifications(
   dbConnection: Connection, 
   playerUuid: string
-): Promise<string[]> {
+): Promise<any[]> {
   try {
     const Player = dbConnection.model('Player');
     const player = await Player.findOne({ minecraftUuid: playerUuid });
@@ -475,6 +475,7 @@ async function getAndClearPlayerNotifications(
       { $set: { pendingNotifications: [] } }
     );
     
+    console.log(`Retrieved ${notifications.length} notifications for player ${playerUuid}`);
     return notifications;
   } catch (error) {
     console.error(`Error getting notifications for player ${playerUuid}:`, error);
@@ -1905,11 +1906,17 @@ export function setupMinecraftRoutes(app: Express): void {
       if (onlineUuids.length > 0) {
         for (const playerUuid of onlineUuids) {
           const notifications = await getAndClearPlayerNotifications(serverDbConnection, playerUuid);
-          if (notifications.length > 0) {
-            playerNotifications.push({
-              minecraftUuid: playerUuid,
-              notifications: notifications
-            });
+          // Convert notification objects to the expected format for SyncResponse.PlayerNotification
+          for (const notification of notifications) {
+            if (notification && typeof notification === 'object') {
+              playerNotifications.push({
+                id: notification.id || `notification-${Date.now()}`,
+                message: notification.message || 'You have a new notification',
+                type: notification.type || 'general',
+                timestamp: notification.timestamp ? new Date(notification.timestamp).getTime() : Date.now(),
+                targetPlayerUuid: playerUuid
+              });
+            }
           }
         }
       }
@@ -2005,6 +2012,69 @@ export function setupMinecraftRoutes(app: Express): void {
    * - Mark punishment as started and executed on the server
    * - Update punishment status after server has applied it
    */
+  /**
+   * Acknowledge notification delivery
+   * - Remove notifications from player's pendingNotifications after delivery
+   */
+  app.post('/api/minecraft/notification/acknowledge', async (req: Request, res: Response) => {
+    const { playerUuid, notificationIds, timestamp } = req.body;
+    const serverDbConnection = req.serverDbConnection!;
+    const serverName = req.serverName!;
+
+    try {
+      const Player = serverDbConnection.model<IPlayer>('Player');
+      
+      // Find the player
+      const player = await Player.findOne({ minecraftUuid: playerUuid });
+      if (!player) {
+        return res.status(404).json({
+          status: 404,
+          message: `Player ${playerUuid} not found`
+        });
+      }
+
+      // Remove acknowledged notifications from pendingNotifications
+      let removedCount = 0;
+      if (player.pendingNotifications && Array.isArray(notificationIds)) {
+        const originalLength = player.pendingNotifications.length;
+        
+        // Filter out notifications with matching IDs
+        player.pendingNotifications = player.pendingNotifications.filter((notification: any) => {
+          if (typeof notification === 'object' && notification.id) {
+            return !notificationIds.includes(notification.id);
+          }
+          return true; // Keep non-object notifications (shouldn't happen, but safety)
+        });
+        
+        removedCount = originalLength - player.pendingNotifications.length;
+        
+        if (removedCount > 0) {
+          await player.save();
+        }
+      }
+
+      console.log(`Acknowledged ${removedCount} notifications for player ${playerUuid}`);
+      
+      return res.status(200).json({
+        status: 200,
+        message: `Acknowledged ${removedCount} notifications`,
+        data: {
+          playerUuid,
+          acknowledgedCount: removedCount,
+          timestamp
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('Error acknowledging notifications:', error);
+      await createSystemLog(serverDbConnection, serverName, `Error acknowledging notifications for ${playerUuid}: ${error.message || error}`, 'error', 'minecraft-sync');
+      return res.status(500).json({
+        status: 500,
+        message: 'Internal server error during notification acknowledgment'
+      });
+    }
+  });
+
   app.post('/api/minecraft/punishment/acknowledge', async (req: Request, res: Response) => {
     const { punishmentId, playerUuid, executedAt, success, errorMessage } = req.body;
     const serverDbConnection = req.serverDbConnection!;
