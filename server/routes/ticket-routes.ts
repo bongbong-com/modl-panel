@@ -141,6 +141,8 @@ router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Re
     const search = req.query.search as string || '';
     const status = req.query.status as string || '';
     const type = req.query.type as string || '';
+    const sortBy = req.query.sortBy as string || 'created';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     
     // Calculate skip value for pagination
     const skip = (page - 1) * limit;
@@ -179,9 +181,30 @@ router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Re
     // Get total count for pagination
     const totalTickets = await Ticket.countDocuments(query);
     
+    // Build sort object
+    let sortObj: any = {};
+    switch (sortBy) {
+      case 'priority':
+        // Custom priority sorting: urgent > high > medium > low
+        sortObj = { 
+          priority: sortOrder,
+          created: -1 // Secondary sort by created date
+        };
+        break;
+      case 'created':
+        sortObj = { created: sortOrder };
+        break;
+      case 'lastReply':
+        // Sort by the most recent reply date
+        sortObj = { 'replies.created': sortOrder };
+        break;
+      default:
+        sortObj = { created: -1 }; // Default sort by creation date, newest first
+    }
+    
     // Fetch tickets with pagination and sorting
     const tickets = await Ticket.find(query)
-      .sort({ created: -1 }) // Sort by creation date, newest first
+      .sort(sortObj)
       .skip(skip)
       .limit(limit)
       .lean();
@@ -196,6 +219,7 @@ router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Re
       category: getCategoryFromType(ticket.type),
       locked: ticket.locked || false,
       type: ticket.type,
+      priority: ticket.priority || 'medium', // Default to medium priority
       // Add additional fields for search results
       lastReply: ticket.replies && ticket.replies.length > 0 
         ? ticket.replies[ticket.replies.length - 1] 
@@ -222,6 +246,8 @@ router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Re
         search,
         status,
         type,
+        sortBy,
+        sortOrder,
       },
     });
   } catch (error) {
@@ -670,6 +696,37 @@ interface UpdateTicketDataBody {
   data: Record<string, any>; // This will contain fields like status, assignedTo, priority, or custom data fields
   staffName?: string;
 }
+
+interface UpdateTicketPriorityBody {
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+router.patch('/:id/priority', checkPermission('ticket.edit.all'), async (req: Request<{ id: string }, {}, UpdateTicketPriorityBody>, res: Response) => {
+  try {
+    const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    // Validate priority value
+    const validPriorities = ['low', 'medium', 'high', 'urgent'];
+    if (!validPriorities.includes(req.body.priority)) {
+      return res.status(400).json({ error: 'Invalid priority. Must be one of: low, medium, high, urgent' });
+    }
+
+    ticket.priority = req.body.priority;
+    await ticket.save();
+
+    res.status(200).json({ 
+      id: ticket._id,
+      priority: ticket.priority,
+      message: `Ticket priority updated to ${req.body.priority}`
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
 
 router.patch('/:id/data', async (req: Request<{ id: string }, {}, UpdateTicketDataBody>, res: Response) => {
   try {
