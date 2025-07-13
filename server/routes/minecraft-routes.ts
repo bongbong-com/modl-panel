@@ -1890,8 +1890,8 @@ export function setupMinecraftRoutes(app: Express): void {
       
       const punishmentTypes = punishmentTypesDoc.data;
       
-      // Filter out manual punishment types (ordinals 0-2: kick, manual_mute, manual_ban)
-      const filteredTypes = punishmentTypes.filter((pt: any) => pt.ordinal > 2);
+      // Filter out manual punishment types (ordinals 0-5: kick, manual_mute, manual_ban, security_ban, linked_ban, blacklist)
+      const filteredTypes = punishmentTypes.filter((pt: any) => pt.ordinal > 5);
       
       // Transform for plugin consumption
       const result = filteredTypes.map((pt: any) => ({
@@ -1907,7 +1907,9 @@ export function setupMinecraftRoutes(app: Express): void {
         canBeStatWiping: pt.canBeStatWiping,
         singleSeverityPunishment: pt.singleSeverityPunishment,
         staffDescription: pt.staffDescription,
-        playerDescription: pt.playerDescription
+        playerDescription: pt.playerDescription,
+        permanentUntilSkinChange: pt.permanentUntilSkinChange,
+        permanentUntilNameChange: pt.permanentUntilNameChange
       }));
       
       return res.json({ status: 200, data: result });
@@ -1931,9 +1933,9 @@ export function setupMinecraftRoutes(app: Express): void {
     const Player = serverDbConnection.model<IPlayer>('Player');
 
     try {
-      // Validate that this is a dynamic punishment type (ordinal > 2)
-      if (!type_ordinal || type_ordinal <= 2) {
-        return res.status(400).json({ status: 400, message: 'Invalid punishment type ordinal. Dynamic punishments must have ordinal > 2.' });
+      // Validate that this is a dynamic punishment type (ordinal > 5)
+      if (!type_ordinal || type_ordinal <= 5) {
+        return res.status(400).json({ status: 400, message: 'Invalid punishment type ordinal. Dynamic punishments must have ordinal > 5.' });
       }
 
       const player = await Player.findOne({ minecraftUuid: targetUuid });
