@@ -2,6 +2,73 @@ import { Connection, Types, Document } from 'mongoose'; // Added Types, Document
 import { Request, Response, NextFunction, Express } from 'express'; // Added Express for app type
 import { v4 as uuidv4 } from 'uuid'; // For generating new player UUIDs
 import { createSystemLog } from './log-routes'; // Import createSystemLog
+
+/**
+ * Create a punishment audit log entry with staff member resolution
+ */
+async function createPunishmentAuditLog(
+  serverDbConnection: any,
+  serverName: string,
+  punishmentData: {
+    punishmentId: string;
+    typeOrdinal: number;
+    targetPlayer: string;
+    targetUuid: string;
+    issuerName: string;
+    reason: string;
+    duration?: number;
+    isDynamic?: boolean;
+  }
+): Promise<void> {
+  try {
+    // Try to resolve issuer to staff member for proper audit tracking
+    let auditSource = 'minecraft-api';
+    let staffId = null;
+    
+    try {
+      const Staff = serverDbConnection.model('Staff');
+      const staffMember = await Staff.findOne({ assignedMinecraftUsername: punishmentData.issuerName });
+      if (staffMember) {
+        auditSource = staffMember.username;
+        staffId = staffMember._id;
+      }
+    } catch (error) {
+      console.warn('Failed to resolve staff member for audit log:', error.message);
+    }
+    
+    const punishmentType = punishmentData.isDynamic ? 'Dynamic' : 'Manual';
+    const description = `${punishmentType} punishment ID ${punishmentData.punishmentId} (Type Ordinal: ${punishmentData.typeOrdinal}) issued to ${punishmentData.targetPlayer} (${punishmentData.targetUuid}) by ${punishmentData.issuerName}. Reason: ${punishmentData.reason}.`;
+    
+    // Create enhanced log with metadata for audit tracking
+    const LogModel = serverDbConnection.model('Log');
+    const logEntry = new LogModel({
+      description,
+      level: 'moderation',
+      source: auditSource,
+      created: new Date(),
+      metadata: {
+        punishmentId: punishmentData.punishmentId,
+        typeOrdinal: punishmentData.typeOrdinal,
+        targetPlayer: punishmentData.targetPlayer,
+        targetUuid: punishmentData.targetUuid,
+        issuerName: punishmentData.issuerName,
+        staffId: staffId,
+        reason: punishmentData.reason,
+        duration: punishmentData.duration,
+        isPunishment: true,
+        isDynamic: punishmentData.isDynamic || false,
+        canRollback: true
+      }
+    });
+    
+    await logEntry.save();
+    console.log(`AUDIT LOG (${serverName}): ${description} [moderation, ${auditSource}]`);
+  } catch (error) {
+    console.error('Error creating punishment audit log:', error);
+    // Fallback to basic system log
+    await createSystemLog(serverDbConnection, serverName, `Error logging punishment audit for ${punishmentData.punishmentId}`, 'error', 'system');
+  }
+}
 import { verifyMinecraftApiKey } from '../middleware/api-auth';
 import { IIPAddress, IModification, INote, IPunishment, IPlayer, ITicket, IUsername } from 'modl-shared-web/types';
 
@@ -1366,7 +1433,18 @@ export function setupMinecraftRoutes(app: Express): void {
 
       player.punishments.push(newPunishment);
       await player.save();
-      await createSystemLog(serverDbConnection, serverName, `Manual punishment ID ${punishmentId} (Type Ordinal: ${finalTypeOrdinal}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
+      
+      // Create enhanced audit log
+      await createPunishmentAuditLog(serverDbConnection, serverName, {
+        punishmentId,
+        typeOrdinal: finalTypeOrdinal,
+        targetPlayer: player.usernames[0]?.username || 'Unknown',
+        targetUuid,
+        issuerName,
+        reason,
+        duration,
+        isDynamic: false
+      });
 
       return res.status(201).json({
         status: 201,
@@ -2207,7 +2285,18 @@ export function setupMinecraftRoutes(app: Express): void {
 
       player.punishments.push(newPunishment);
       await player.save();
-      await createSystemLog(serverDbConnection, serverName, `Dynamic punishment ID ${punishmentId} (Type Ordinal: ${type_ordinal}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
+      
+      // Create enhanced audit log
+      await createPunishmentAuditLog(serverDbConnection, serverName, {
+        punishmentId,
+        typeOrdinal: parseInt(type_ordinal),
+        targetPlayer: player.usernames[0]?.username || 'Unknown',
+        targetUuid,
+        issuerName,
+        reason,
+        duration: calculatedDuration,
+        isDynamic: true
+      });
 
       return res.status(201).json({
         status: 201,
