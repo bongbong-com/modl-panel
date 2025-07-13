@@ -114,7 +114,7 @@ export async function connectToServerDb(serverName: string): Promise<Connection>
   if (!panelDbUriTemplate) {
     throw new Error('MONGODB_URI_TEMPLATE is not defined in environment variables. Please set it (e.g., mongodb://user:pass@host/<dbName>?authSource=admin).');
   }
-  const serverDbUri = panelDbUriTemplate.replace('<dbName>', actualDbNameForConnection);
+  serverDbUri = panelDbUriTemplate.replace('<dbName>', actualDbNameForConnection);
 
   try {
     const newConnection = mongoose.createConnection(serverDbUri);
