@@ -1872,4 +1872,51 @@ export function setupMinecraftRoutes(app: Express): void {
       });
     }
   });
+
+  /**
+   * Get punishment types for Minecraft plugin
+   * - Returns punishment types excluding ordinals 0-2 (kick, manual_mute, manual_ban)
+   */
+  app.get('/api/minecraft/punishment-types', async (req: Request, res: Response) => {
+    const serverDbConnection = req.serverDbConnection!;
+    
+    try {
+      const Settings = serverDbConnection.model('Settings');
+      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+      
+      if (!punishmentTypesDoc?.data) {
+        return res.json({ status: 200, data: [] });
+      }
+      
+      const punishmentTypes = punishmentTypesDoc.data;
+      
+      // Filter out manual punishment types (ordinals 0-2: kick, manual_mute, manual_ban)
+      const filteredTypes = punishmentTypes.filter((pt: any) => pt.ordinal > 2);
+      
+      // Transform for plugin consumption
+      const result = filteredTypes.map((pt: any) => ({
+        id: pt.id,
+        ordinal: pt.ordinal,
+        name: pt.name,
+        category: pt.category,
+        isCustomizable: pt.isCustomizable,
+        durations: pt.durations,
+        points: pt.points,
+        customPoints: pt.customPoints,
+        canBeAltBlocking: pt.canBeAltBlocking,
+        canBeStatWiping: pt.canBeStatWiping,
+        singleSeverityPunishment: pt.singleSeverityPunishment,
+        staffDescription: pt.staffDescription,
+        playerDescription: pt.playerDescription
+      }));
+      
+      return res.json({ status: 200, data: result });
+    } catch (error: any) {
+      console.error('Error fetching punishment types:', error);
+      return res.status(500).json({ 
+        status: 500, 
+        message: 'Failed to fetch punishment types' 
+      });
+    }
+  });
 }
