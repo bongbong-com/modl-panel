@@ -818,26 +818,6 @@ function isPunishmentValid(punishment: IPunishment): boolean {
   return true;
 }
 
-/**
- * Utility function to check if a punishment is currently active (started and valid)
- */
-function isPunishmentActive(punishment: IPunishment, typeConfig: Map<number, "BAN" | "MUTE" | "KICK">): boolean {
-  if (!isPunishmentValid(punishment)) {
-    return false;
-  }
-  
-  // Kicks are never active - they are instant actions
-  if (isKickPunishment(punishment, typeConfig)) {
-    return false;
-  }
-  
-  // For punishments that need to be started (bans/mutes), check if they've been started
-  if ((isBanPunishment(punishment, typeConfig) || isMutePunishment(punishment, typeConfig)) && (!punishment.started || punishment.started === null || punishment.started === undefined)) {
-    return false;
-  }
-  
-  return true;
-}
 
 /**
  * Check and process auto-unbans for permanent until username/skin change punishments
@@ -2041,12 +2021,32 @@ export function setupMinecraftRoutes(app: Express): void {
 
       // Get punishment type configuration and calculate player status
       const Settings = serverDbConnection.model('Settings');
-      const settingsDoc = await Settings.findOne({});
-      const punishmentTypes = settingsDoc?.settings?.punishmentTypes || [];
-      const statusThresholds = settingsDoc?.settings?.statusThresholds || {
+      
+      // Try different settings document structures
+      let settingsDoc = await Settings.findOne({ type: 'punishmentTypes' });
+      let punishmentTypes = settingsDoc?.data || [];
+      
+      if (!punishmentTypes || punishmentTypes.length === 0) {
+        // Fallback: try the general settings document
+        settingsDoc = await Settings.findOne({});
+        punishmentTypes = settingsDoc?.settings?.punishmentTypes || [];
+      }
+      
+      // Get status thresholds
+      let statusThresholdsDoc = await Settings.findOne({ type: 'statusThresholds' });
+      let statusThresholds = statusThresholdsDoc?.data || {
         gameplay: { medium: 5, habitual: 10 },
         social: { medium: 4, habitual: 8 }
       };
+      
+      if (!statusThresholds || (!statusThresholds.gameplay && !statusThresholds.social)) {
+        // Fallback: try the general settings document
+        const generalSettingsDoc = await Settings.findOne({});
+        statusThresholds = generalSettingsDoc?.settings?.statusThresholds || {
+          gameplay: { medium: 5, habitual: 10 },
+          social: { medium: 4, habitual: 8 }
+        };
+      }
       
       const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === type_ordinal);
       if (!punishmentType) {
@@ -2127,6 +2127,12 @@ export function setupMinecraftRoutes(app: Express): void {
         // Don't set expires until punishment is started by server
         ...(data ? Object.entries(data) : [])
       ]);
+      
+      // Log for debugging
+      console.log(`[MINECRAFT-API] Creating punishment type ${type_ordinal} for ${targetUuid}`);
+      console.log(`[MINECRAFT-API] Severity: ${severity} -> ${finalSeverity}, Status: ${status} -> ${finalStatus}`);
+      console.log(`[MINECRAFT-API] Duration: ${calculatedDuration}ms`);
+      console.log(`[MINECRAFT-API] Data:`, Object.fromEntries(newPunishmentData));
 
       const newPunishment: IPunishment = {
         id: punishmentId,
