@@ -1284,7 +1284,7 @@ export function setupMinecraftRoutes(app: Express): void {
    * - Create a new punishment and update player profile
    */
   app.post('/api/minecraft/punishment/create', async (req: Request, res: Response) => {
-    const { targetUuid, issuerName, type, reason, duration, data, notes, attachedTicketIds } = req.body;
+    const { targetUuid, issuerName, type, type_ordinal, reason, duration, data, notes, attachedTicketIds } = req.body;
     const serverDbConnection = req.serverDbConnection!;
     const serverName = req.serverName!;
     const Player = serverDbConnection.model<IPlayer>('Player');
@@ -1297,16 +1297,28 @@ export function setupMinecraftRoutes(app: Express): void {
 
       const punishmentId = uuidv4().substring(0, 8); // Generate an 8-char ID
 
-      // Convert type string to type_ordinal
-      let type_ordinal: number;
-      if (type === 'Kick' || type === 'KICK') {
-        type_ordinal = 0; // Kick
-      } else if (type === 'Mute' || type === 'MUTE') {
-        type_ordinal = 1; // Manual Mute
-      } else if (type === 'Ban' || type === 'BAN') {
-        type_ordinal = 2; // Manual Ban
+      // Determine type_ordinal - either from direct ordinal or from type string
+      let finalTypeOrdinal: number;
+      
+      if (type_ordinal !== undefined && type_ordinal !== null) {
+        // Direct ordinal provided - validate it's a manual punishment type (0-5)
+        if (type_ordinal < 0 || type_ordinal > 5) {
+          return res.status(400).json({ status: 400, message: 'Invalid punishment type ordinal. Manual punishments must have ordinal 0-5.' });
+        }
+        finalTypeOrdinal = type_ordinal;
+      } else if (type) {
+        // Legacy string type conversion
+        if (type === 'Kick' || type === 'KICK') {
+          finalTypeOrdinal = 0; // Kick
+        } else if (type === 'Mute' || type === 'MUTE') {
+          finalTypeOrdinal = 1; // Manual Mute
+        } else if (type === 'Ban' || type === 'BAN') {
+          finalTypeOrdinal = 2; // Manual Ban
+        } else {
+          return res.status(400).json({ status: 400, message: 'Invalid punishment type' });
+        }
       } else {
-        return res.status(400).json({ status: 400, message: 'Invalid punishment type' });
+        return res.status(400).json({ status: 400, message: 'Either type or type_ordinal must be provided' });
       }
 
       const newPunishmentData = new Map<string, any>([
@@ -1321,7 +1333,7 @@ export function setupMinecraftRoutes(app: Express): void {
         issued: new Date(),
         // Don't set started until server acknowledges execution
         started: undefined,
-        type_ordinal: type_ordinal,
+        type_ordinal: finalTypeOrdinal,
         modifications: [],
         notes: notes ? notes.map((note: any) => ({ text: note.text, date: new Date(), issuerName: note.issuerName || issuerName } as INote)) : [],
         attachedTicketIds: attachedTicketIds || [],
@@ -1330,7 +1342,7 @@ export function setupMinecraftRoutes(app: Express): void {
 
       player.punishments.push(newPunishment);
       await player.save();
-      await createSystemLog(serverDbConnection, serverName, `Punishment ID ${punishmentId} (Type: ${type}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
+      await createSystemLog(serverDbConnection, serverName, `Manual punishment ID ${punishmentId} (Type Ordinal: ${finalTypeOrdinal}) issued to ${player.usernames[0].username} (${targetUuid}) by ${issuerName}. Reason: ${reason}.`, 'moderation', 'minecraft-api');
 
       return res.status(201).json({
         status: 201,
