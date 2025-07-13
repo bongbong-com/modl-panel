@@ -118,6 +118,100 @@ function setPunishmentData(punishment: IPunishment, key: string, value: any): vo
 }
 
 /**
+ * Calculate player status based on active punishment points (matching panel logic)
+ */
+function calculatePlayerStatus(
+  punishments: IPunishment[],
+  punishmentTypes: any[],
+  thresholds: { social: { medium: number; habitual: number }, gameplay: { medium: number; habitual: number } }
+): { social: string; gameplay: string; socialPoints: number; gameplayPoints: number } {
+  let socialPoints = 0;
+  let gameplayPoints = 0;
+
+  // Calculate points from active punishments
+  for (const punishment of punishments) {
+    const isActive = isPunishmentActive(punishment);
+    if (!isActive) continue;
+
+    const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === punishment.type_ordinal);
+    if (!punishmentType) continue;
+
+    let points = 0;
+    const severity = getPunishmentData(punishment, 'severity')?.toLowerCase();
+    
+    if (punishmentType.customPoints !== undefined) {
+      points = punishmentType.customPoints;
+    } else if (punishmentType.singleSeverityPoints !== undefined) {
+      points = punishmentType.singleSeverityPoints;
+    } else if (punishmentType.points && severity) {
+      switch (severity) {
+        case 'low': case 'lenient':
+          points = punishmentType.points.low || 0;
+          break;
+        case 'regular': case 'medium':
+          points = punishmentType.points.regular || 0;
+          break;
+        case 'severe': case 'aggravated': case 'high':
+          points = punishmentType.points.severe || 0;
+          break;
+      }
+    }
+
+    // Add points to category
+    if (punishmentType.category === 'Social') {
+      socialPoints += points;
+    } else if (punishmentType.category === 'Gameplay') {
+      gameplayPoints += points;
+    }
+  }
+
+  // Determine status level based on thresholds
+  const getStatusLevel = (points: number, threshold: { medium: number; habitual: number }) => {
+    if (points >= threshold.habitual) return 'Habitual';
+    else if (points >= threshold.medium) return 'Medium';
+    else return 'Low';
+  };
+
+  return {
+    social: getStatusLevel(socialPoints, thresholds.social),
+    gameplay: getStatusLevel(gameplayPoints, thresholds.gameplay),
+    socialPoints,
+    gameplayPoints
+  };
+}
+
+/**
+ * Check if a punishment is currently active (matching panel logic)
+ */
+function isPunishmentActive(punishment: IPunishment): boolean {
+  const now = new Date();
+  
+  // Check if punishment has started
+  if (!punishment.started) {
+    return false; // Not started yet
+  }
+  
+  // Check if punishment has expired
+  const duration = getPunishmentData(punishment, 'duration');
+  if (duration && duration > 0) {
+    const startTime = new Date(punishment.started);
+    const expireTime = new Date(startTime.getTime() + duration);
+    if (now > expireTime) {
+      return false; // Expired
+    }
+  }
+  
+  // Check if punishment has been pardoned (look for pardon modification)
+  for (const modification of punishment.modifications || []) {
+    if (modification.type === 'MANUAL_PARDON' || modification.type === 'AUTO_PARDON') {
+      return false; // Pardoned
+    }
+  }
+  
+  return true; // Active
+}
+
+/**
  * Load punishment type configuration from database
  */
 async function loadPunishmentTypeConfig(dbConnection: Connection): Promise<Map<number, "BAN" | "MUTE" | "KICK">> {
@@ -1945,29 +2039,69 @@ export function setupMinecraftRoutes(app: Express): void {
 
       const punishmentId = uuidv4().substring(0, 8); // Generate an 8-char ID
 
-      // Get punishment type configuration for duration calculation
+      // Get punishment type configuration and calculate player status
       const Settings = serverDbConnection.model('Settings');
-      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
+      const settingsDoc = await Settings.findOne({});
+      const punishmentTypes = settingsDoc?.settings?.punishmentTypes || [];
+      const statusThresholds = settingsDoc?.settings?.statusThresholds || {
+        gameplay: { medium: 5, habitual: 10 },
+        social: { medium: 4, habitual: 8 }
+      };
+      
+      const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === type_ordinal);
+      if (!punishmentType) {
+        return res.status(400).json({ status: 400, message: 'Invalid punishment type ordinal' });
+      }
+      
+      // Calculate player status automatically (matching panel logic)
+      const playerStatus = calculatePlayerStatus(player.punishments || [], punishmentTypes, statusThresholds);
+      
+      // Determine offense level based on punishment category and player status
+      const punishmentCategory = punishmentType.category?.toLowerCase();
+      let relevantStatus = 'Low';
+      
+      if (punishmentCategory === 'social') {
+        relevantStatus = playerStatus.social;
+      } else if (punishmentCategory === 'gameplay') {
+        relevantStatus = playerStatus.gameplay;
+      } else {
+        // Use higher of the two statuses for administrative categories
+        const statusPriority: { [key: string]: number } = { 'Low': 1, 'Medium': 2, 'Habitual': 3 };
+        relevantStatus = statusPriority[playerStatus.social] >= statusPriority[playerStatus.gameplay] 
+          ? playerStatus.social : playerStatus.gameplay;
+      }
+      
+      // Map status to offense level (matching panel logic)
+      const statusToDurationKey: { [key: string]: string } = {
+        'Low': 'first',
+        'Medium': 'medium', 
+        'Habitual': 'habitual'
+      };
+      const calculatedStatus = statusToDurationKey[relevantStatus] || 'first';
+      
+      // Use calculated status if not provided, or use provided values for manual override
+      const finalStatus = status || calculatedStatus;
+      const finalSeverity = severity || 'regular'; // Default severity
+      
+      // Calculate duration based on punishment type configuration (matching panel logic)
       let calculatedDuration = duration || 0;
       
-      if (punishmentTypesDoc?.data && severity && status) {
-        const punishmentTypes = punishmentTypesDoc.data;
-        const punishmentType = punishmentTypes.find((pt: any) => pt.ordinal === type_ordinal);
-        
-        if (punishmentType) {
-          // Calculate duration based on punishment type configuration (matching panel logic)
-          if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
-            // Single-severity punishment: use status (offense level) for duration
-            const durationConfig = punishmentType.singleSeverityDurations[status];
-            if (durationConfig && durationConfig.value > 0) {
-              calculatedDuration = convertDurationToMilliseconds(durationConfig);
-            }
-          } else if (punishmentType.durations && punishmentType.durations[severity]) {
-            // Multi-severity punishment: use severity and status for duration
-            const durationConfig = punishmentType.durations[severity][status];
-            if (durationConfig && durationConfig.value > 0) {
-              calculatedDuration = convertDurationToMilliseconds(durationConfig);
-            }
+      if (punishmentType.singleSeverityPunishment && punishmentType.singleSeverityDurations) {
+        // Single-severity punishment: use status (offense level) for duration
+        const durationConfig = punishmentType.singleSeverityDurations[finalStatus];
+        if (durationConfig && durationConfig.value > 0) {
+          calculatedDuration = convertDurationToMilliseconds(durationConfig);
+        }
+      } else if (punishmentType.durations && punishmentType.durations[finalSeverity]) {
+        // Multi-severity punishment: use severity and status for duration
+        const durationConfig = punishmentType.durations[finalSeverity][finalStatus];
+        if (durationConfig && durationConfig.value > 0) {
+          calculatedDuration = convertDurationToMilliseconds(durationConfig);
+        } else {
+          // Fallback to 'first' offense level
+          const fallbackDuration = punishmentType.durations[finalSeverity].first;
+          if (fallbackDuration && fallbackDuration.value > 0) {
+            calculatedDuration = convertDurationToMilliseconds(fallbackDuration);
           }
         }
       }
@@ -1988,6 +2122,8 @@ export function setupMinecraftRoutes(app: Express): void {
       const newPunishmentData = new Map<string, any>([
         ['reason', reason],
         ['duration', calculatedDuration],
+        ['severity', finalSeverity], // Store the severity used for duration calculation
+        ['status', finalStatus], // Store the offense level used for duration calculation
         // Don't set expires until punishment is started by server
         ...(data ? Object.entries(data) : [])
       ]);
