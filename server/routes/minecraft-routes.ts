@@ -1458,7 +1458,7 @@ export function setupMinecraftRoutes(app: Express): void {
 
       for (const player of playersWithUsername) {
         // Get the most recent login time from player data
-        const lastConnect = player.data?.get('lastConnect');
+        const lastConnect = player.data?.get ? player.data.get('lastConnect') : player.data?.lastConnect;
         const loginTime = lastConnect ? new Date(lastConnect) : new Date(0);
 
         if (!mostRecentLogin || loginTime > mostRecentLogin) {
