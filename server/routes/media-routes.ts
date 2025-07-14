@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { uploadMedia, deleteMedia, isWasabiConfigured, MediaUploadOptions } from '../services/wasabi-service';
+import { uploadMedia, deleteMedia, isWasabiConfigured, isSecureFileKey, MediaUploadOptions } from '../services/wasabi-service';
 
 const router = Router();
 
@@ -63,6 +63,7 @@ router.post('/upload/evidence', isAuthenticated, requireWasabiConfig, upload.sin
         success: true,
         url: result.url,
         key: result.key,
+        folderUuid: result.folderUuid,
         message: 'Evidence uploaded successfully'
       });
     } else {
@@ -113,6 +114,7 @@ router.post('/upload/ticket', isAuthenticated, requireWasabiConfig, upload.singl
         success: true,
         url: result.url,
         key: result.key,
+        folderUuid: result.folderUuid,
         message: 'Ticket attachment uploaded successfully'
       });
     } else {
@@ -161,6 +163,7 @@ router.post('/upload/article', isAuthenticated, requireWasabiConfig, upload.sing
         success: true,
         url: result.url,
         key: result.key,
+        folderUuid: result.folderUuid,
         message: 'Article media uploaded successfully'
       });
     } else {
@@ -211,6 +214,7 @@ router.post('/upload/appeal', requireWasabiConfig, upload.single('file'), async 
         success: true,
         url: result.url,
         key: result.key,
+        folderUuid: result.folderUuid,
         message: 'Appeal attachment uploaded successfully'
       });
     } else {
@@ -261,6 +265,7 @@ router.post('/upload/server-icon', isAuthenticated, requireWasabiConfig, upload.
         success: true,
         url: result.url,
         key: result.key,
+        folderUuid: result.folderUuid,
         message: 'Server icon uploaded successfully'
       });
     } else {
@@ -292,6 +297,14 @@ router.delete('/media/:key', isAuthenticated, requireWasabiConfig, async (req, r
 
     // Decode the key (it may be URL encoded)
     const decodedKey = decodeURIComponent(key);
+    
+    // Validate that the file key follows the secure UUID folder structure
+    if (!isSecureFileKey(decodedKey)) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: 'File does not follow secure folder structure'
+      });
+    }
     
     const success = await deleteMedia(decodedKey);
 

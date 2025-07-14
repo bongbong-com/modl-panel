@@ -67,6 +67,7 @@ export interface MediaUploadResult {
   success: boolean;
   url?: string;
   key?: string;
+  folderUuid?: string;
   error?: string;
 }
 
@@ -89,24 +90,25 @@ export const FILE_SIZE_LIMITS = {
 };
 
 /**
- * Generate a secure file name with timestamp and random UUID
+ * Generate a secure file name with timestamp and random UUID folder structure
  * 
- * Folder structure: serverName/folder/subFolder/fileName
+ * Folder structure: serverName/folder/randomUuid/subFolder/fileName
  * Examples:
- * - myserver/evidence/player-123/screenshot-1234567890-abc123.png
- * - testserver/tickets/support-456/document-1234567890-def456.pdf
- * - gameserver/articles/article-789/banner-1234567890-ghi789.jpg
- * - coolserver/server-icons/homepage/logo-1234567890-jkl012.png
+ * - myserver/evidence/a1b2c3d4-e5f6-7890-abcd-ef1234567890/player-123/screenshot-1234567890-abc123.png
+ * - testserver/tickets/f1e2d3c4-b5a6-9807-cdef-12345678901a/support-456/document-1234567890-def456.pdf
+ * - gameserver/articles/9a8b7c6d-5e4f-3210-fedc-ba9876543210/article-789/banner-1234567890-ghi789.jpg
+ * - coolserver/server-icons/8c7d6e5f-4a3b-2109-8765-43210fedcba9/homepage/logo-1234567890-jkl012.png
  */
-function generateSecureFileName(originalName: string, folder: string, subFolder?: string, serverName?: string): string {
+export function generateSecureFileNameWithUuid(originalName: string, folder: string, subFolder?: string, serverName?: string): { key: string; folderUuid: string } {
   const timestamp = Date.now();
-  const uuid = uuidv4();
+  const fileUuid = uuidv4(); // UUID for filename
+  const folderUuid = uuidv4(); // Random UUID folder to prevent guessing
   const ext = path.extname(originalName).toLowerCase();
   const baseName = path.basename(originalName, ext).replace(/[^a-zA-Z0-9]/g, '-');
   
-  const fileName = `${baseName}-${timestamp}-${uuid}${ext}`;
+  const fileName = `${baseName}-${timestamp}-${fileUuid}${ext}`;
   
-  // Build path with server name hierarchy: serverName/folder/subFolder/fileName
+  // Build path with server name hierarchy: serverName/folder/randomUuid/subFolder/fileName
   let fullPath = '';
   
   if (serverName) {
@@ -115,13 +117,27 @@ function generateSecureFileName(originalName: string, folder: string, subFolder?
   
   fullPath += folder;
   
+  // Add random UUID folder to prevent directory enumeration/guessing
+  fullPath += `/${folderUuid}`;
+  
   if (subFolder) {
     fullPath += `/${subFolder}`;
   }
   
   fullPath += `/${fileName}`;
   
-  return fullPath;
+  return {
+    key: fullPath,
+    folderUuid: folderUuid
+  };
+}
+
+/**
+ * Legacy function for backward compatibility - calls the new UUID function
+ * @deprecated Use generateSecureFileNameWithUuid instead
+ */
+function generateSecureFileName(originalName: string, folder: string, subFolder?: string, serverName?: string): string {
+  return generateSecureFileNameWithUuid(originalName, folder, subFolder, serverName).key;
 }
 
 /**
@@ -167,8 +183,8 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
       return { success: false, error: validationError };
     }
 
-    // Generate secure file name with server hierarchy
-    const key = generateSecureFileName(options.fileName, options.folder, options.subFolder, options.serverName);
+    // Generate secure file name with server hierarchy and random UUID folder
+    const { key, folderUuid } = generateSecureFileNameWithUuid(options.fileName, options.folder, options.subFolder, options.serverName);
 
     // Upload to Wasabi
     const uploadCommand = new PutObjectCommand({
@@ -182,7 +198,8 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
         'uploaded-at': new Date().toISOString(),
         'folder': options.folder,
         'sub-folder': options.subFolder || '',
-        'server-name': options.serverName || ''
+        'server-name': options.serverName || '',
+        'random-folder-uuid': folderUuid // Store the random folder UUID for tracking
       }
     });
 
@@ -194,7 +211,8 @@ export async function uploadMedia(options: MediaUploadOptions): Promise<MediaUpl
     return {
       success: true,
       url,
-      key
+      key,
+      folderUuid
     };
 
   } catch (error) {
@@ -313,6 +331,44 @@ export async function getMediaInfo(key: string): Promise<{ size: number; content
     console.error('Error getting media info:', error);
     return null;
   }
+}
+
+/**
+ * Extract folder UUID from a file key for validation
+ * Returns null if the key doesn't contain a valid folder UUID structure
+ */
+export function extractFolderUuidFromKey(key: string): string | null {
+  try {
+    // Expected format: serverName/folder/folderUuid/subFolder/fileName
+    // Split by / and find the UUID (should be a valid UUID v4)
+    const parts = key.split('/');
+    
+    if (parts.length < 3) {
+      return null; // Not enough parts for our structure
+    }
+    
+    // Look for UUID pattern in the parts (after serverName/folder)
+    for (let i = 2; i < parts.length; i++) {
+      const part = parts[i];
+      // Check if this part looks like a UUID v4
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(part)) {
+        return part;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Validate if a file key follows the secure folder structure
+ * This helps prevent access to files that don't use the UUID folder system
+ */
+export function isSecureFileKey(key: string): boolean {
+  return extractFolderUuidFromKey(key) !== null;
 }
 
 /**

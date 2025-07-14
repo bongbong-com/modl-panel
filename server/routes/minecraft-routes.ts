@@ -2491,17 +2491,15 @@ export function setupMinecraftRoutes(app: Express): void {
 
       // Get recent punishments (last 5, sorted by date)
       const recentPunishments = punishments
-        .sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime())
+        .sort((a, b) => new Date(b.issuedAt || b.issued).getTime() - new Date(a.issuedAt || a.issued).getTime())
         .slice(0, 5)
         .map(p => ({
-          id: p._id,
-          type: p.type,
-          reason: p.reason || 'No reason provided',
-          issuer: p.issuer || 'System',
-          issuedAt: p.issuedAt,
+          id: p._id || p.id,
+          type: p.type || 'Unknown',
+          issuer: p.issuer || p.issuerName || 'System',
+          issuedAt: p.issuedAt || p.issued,
           expiresAt: p.expiresAt,
-          isActive: p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date()),
-          status: p.status || 'active'
+          isActive: p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date())
         }));
 
       // Get recent tickets
@@ -2513,9 +2511,9 @@ export function setupMinecraftRoutes(app: Express): void {
 
       const ticketsFormatted = recentTickets.map(ticket => ({
         id: ticket._id,
-        title: ticket.title,
-        category: ticket.category,
-        status: ticket.status,
+        title: ticket.title || 'No title',
+        category: ticket.category || 'General',
+        status: ticket.status || 'Open',
         createdAt: ticket.createdAt,
         lastUpdated: ticket.updatedAt
       }));
