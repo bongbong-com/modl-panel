@@ -2406,6 +2406,35 @@ export function setupMinecraftRoutes(app: Express): void {
 
   // Player lookup endpoint for detailed player information
   app.post('/api/minecraft/player-lookup', async (req: Request, res: Response) => {
+    // Helper function to calculate player points (simplified)
+    function calculateSimplePlayerPoints(punishments: any[]): number {
+      let points = 0;
+      
+      for (const punishment of punishments) {
+        if (!punishment.isActive) continue;
+        
+        // Basic point calculation - in real implementation would use punishment type config
+        const type = punishment.type?.toLowerCase() || '';
+        if (type.includes('ban')) points += 5;
+        else if (type.includes('mute')) points += 3;
+        else if (type.includes('kick')) points += 1;
+        else if (type.includes('warn')) points += 1;
+        else points += 1;
+      }
+      
+      return points;
+    }
+
+    // Helper function to calculate player status
+    function calculateSimplePlayerStatus(punishments: any[]): string {
+      const points = calculateSimplePlayerPoints(punishments);
+      
+      // Thresholds based on total points from active punishments
+      if (points >= 10) return 'habitual';
+      if (points >= 5) return 'medium';
+      return 'low';
+    }
+
     try {
       const { query } = req.body;
       
@@ -2456,8 +2485,8 @@ export function setupMinecraftRoutes(app: Express): void {
         mutes: punishments.filter(p => p.type && p.type.toLowerCase().includes('mute')).length,
         kicks: punishments.filter(p => p.type && p.type.toLowerCase().includes('kick')).length,
         warnings: punishments.filter(p => p.type && p.type.toLowerCase().includes('warn')).length,
-        points: calculatePlayerPoints(punishments),
-        status: calculatePlayerStatus(punishments)
+        points: calculateSimplePlayerPoints(punishments),
+        status: calculateSimplePlayerStatus(punishments)
       };
 
       // Get recent punishments (last 5, sorted by date)
@@ -2552,33 +2581,4 @@ export function setupMinecraftRoutes(app: Express): void {
       });
     }
   });
-}
-
-// Helper function to calculate player points (simplified)
-function calculatePlayerPoints(punishments: any[]): number {
-  let points = 0;
-  
-  for (const punishment of punishments) {
-    if (!punishment.isActive) continue;
-    
-    // Basic point calculation - in real implementation would use punishment type config
-    const type = punishment.type?.toLowerCase() || '';
-    if (type.includes('ban')) points += 5;
-    else if (type.includes('mute')) points += 3;
-    else if (type.includes('kick')) points += 1;
-    else if (type.includes('warn')) points += 1;
-    else points += 1;
-  }
-  
-  return points;
-}
-
-// Helper function to calculate player status
-function calculatePlayerStatus(punishments: any[]): string {
-  const points = calculatePlayerPoints(punishments);
-  
-  // Thresholds based on total points from active punishments
-  if (points >= 10) return 'habitual';
-  if (points >= 5) return 'medium';
-  return 'low';
 }
