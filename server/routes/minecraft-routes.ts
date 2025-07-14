@@ -2403,4 +2403,182 @@ export function setupMinecraftRoutes(app: Express): void {
       });
     }
   });
+
+  // Player lookup endpoint for detailed player information
+  app.post('/api/minecraft/player-lookup', async (req: Request, res: Response) => {
+    try {
+      const { query } = req.body;
+      
+      if (!query) {
+        return res.status(400).json({
+          success: false,
+          status: 400,
+          message: 'Query parameter is required'
+        });
+      }
+
+      const Player = req.serverDbConnection!.model<IPlayer>('Player');
+      const Ticket = req.serverDbConnection!.model('Ticket');
+
+      // Find player by username or UUID
+      let player;
+      if (query.length === 36 && query.includes('-')) {
+        // Looks like a UUID
+        player = await Player.findOne({ minecraftUuid: query });
+      } else {
+        // Search by current username or previous usernames
+        player = await Player.findOne({
+          $or: [
+            { 'usernames.username': { $regex: new RegExp(`^${query}$`, 'i') } },
+            { minecraftUuid: query }
+          ]
+        });
+      }
+
+      if (!player) {
+        return res.status(404).json({
+          success: false,
+          status: 404,
+          message: 'Player not found'
+        });
+      }
+
+      // Get punishment statistics
+      const punishments = player.punishments || [];
+      const activePunishments = punishments.filter(p => 
+        p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date())
+      );
+
+      const punishmentStats = {
+        totalPunishments: punishments.length,
+        activePunishments: activePunishments.length,
+        bans: punishments.filter(p => p.type && p.type.toLowerCase().includes('ban')).length,
+        mutes: punishments.filter(p => p.type && p.type.toLowerCase().includes('mute')).length,
+        kicks: punishments.filter(p => p.type && p.type.toLowerCase().includes('kick')).length,
+        warnings: punishments.filter(p => p.type && p.type.toLowerCase().includes('warn')).length,
+        points: calculatePlayerPoints(punishments),
+        status: calculatePlayerStatus(punishments)
+      };
+
+      // Get recent punishments (last 5, sorted by date)
+      const recentPunishments = punishments
+        .sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime())
+        .slice(0, 5)
+        .map(p => ({
+          id: p._id,
+          type: p.type,
+          reason: p.reason || 'No reason provided',
+          issuer: p.issuer || 'System',
+          issuedAt: p.issuedAt,
+          expiresAt: p.expiresAt,
+          isActive: p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date()),
+          status: p.status || 'active'
+        }));
+
+      // Get recent tickets
+      const recentTickets = await Ticket.find({ creatorUuid: player.minecraftUuid })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select('_id title category status createdAt updatedAt')
+        .lean();
+
+      const ticketsFormatted = recentTickets.map(ticket => ({
+        id: ticket._id,
+        title: ticket.title,
+        category: ticket.category,
+        status: ticket.status,
+        createdAt: ticket.createdAt,
+        lastUpdated: ticket.updatedAt
+      }));
+
+      // Get current username (most recent)
+      const currentUsername = player.usernames && player.usernames.length > 0 
+        ? player.usernames[player.usernames.length - 1].username 
+        : 'Unknown';
+
+      // Get previous usernames (all but the current one)
+      const previousUsernames = player.usernames && player.usernames.length > 1
+        ? player.usernames.slice(0, -1).map(u => u.username)
+        : [];
+
+      // Check if player is currently online (basic check)
+      const lastSeenData = player.data?.get ? player.data.get('lastConnect') : player.data?.lastConnect;
+      const lastSeen = lastSeenData ? new Date(lastSeenData) : null;
+      const isOnline = lastSeen && 
+        new Date().getTime() - lastSeen.getTime() < 5 * 60 * 1000; // 5 minutes
+
+      // Build profile URLs
+      const baseUrl = process.env.PANEL_URL || 'https://123.cobl.gg';
+      const profileUrl = `${baseUrl}/player/${player.minecraftUuid}`;
+      const punishmentsUrl = `${baseUrl}/player/${player.minecraftUuid}/punishments`;
+      const ticketsUrl = `${baseUrl}/player/${player.minecraftUuid}/tickets`;
+
+      const responseData = {
+        minecraftUuid: player.minecraftUuid,
+        currentUsername: currentUsername,
+        previousUsernames: previousUsernames,
+        firstSeen: player.firstSeen,
+        lastSeen: lastSeen,
+        currentServer: player.currentServer || null,
+        isOnline: isOnline,
+        ipAddress: player.ipHistory && player.ipHistory.length > 0 
+          ? player.ipHistory[player.ipHistory.length - 1].ip 
+          : null,
+        country: player.ipHistory && player.ipHistory.length > 0 
+          ? player.ipHistory[player.ipHistory.length - 1].country 
+          : null,
+        punishmentStats: punishmentStats,
+        recentPunishments: recentPunishments,
+        recentTickets: ticketsFormatted,
+        profileUrl: profileUrl,
+        punishmentsUrl: punishmentsUrl,
+        ticketsUrl: ticketsUrl
+      };
+
+      res.json({
+        success: true,
+        status: 200,
+        message: 'Player found',
+        data: responseData
+      });
+
+    } catch (error) {
+      console.error('Error in player lookup:', error);
+      res.status(500).json({
+        success: false,
+        status: 500,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+  });
+}
+
+// Helper function to calculate player points (simplified)
+function calculatePlayerPoints(punishments: any[]): number {
+  let points = 0;
+  
+  for (const punishment of punishments) {
+    if (!punishment.isActive) continue;
+    
+    // Basic point calculation - in real implementation would use punishment type config
+    const type = punishment.type?.toLowerCase() || '';
+    if (type.includes('ban')) points += 5;
+    else if (type.includes('mute')) points += 3;
+    else if (type.includes('kick')) points += 1;
+    else if (type.includes('warn')) points += 1;
+    else points += 1;
+  }
+  
+  return points;
+}
+
+// Helper function to calculate player status
+function calculatePlayerStatus(punishments: any[]): string {
+  const points = calculatePlayerPoints(punishments);
+  
+  // Thresholds based on total points from active punishments
+  if (points >= 10) return 'habitual';
+  if (points >= 5) return 'medium';
+  return 'low';
 }
