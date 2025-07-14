@@ -25,7 +25,7 @@ function getPageName(location: string): string {
   if (location === '/knowledgebase') return 'Knowledge Base';
   if (location === '/appeal') return 'Appeals';
   if (location === '/auth') return 'Login';
-  if (location.startsWith('/player-ticket/')) return 'Ticket';
+  if (location.startsWith('/ticket/')) return 'Ticket';
   if (location === '/provisioning-in-progress') return 'Provisioning';
   if (location.startsWith('/accept-invitation')) return 'Accept Invitation';
   

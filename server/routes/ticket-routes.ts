@@ -124,7 +124,7 @@ async function addNotificationToPlayer(
  * Create a notification for a staff reply to a ticket
  * Returns the notification object that can be stored in pendingNotifications
  */
-function createTicketReplyNotification(ticketId: string, staffName: string, replyContent: string): any {
+function createTicketReplyNotification(ticketId: string, staffName: string, replyContent: string, panelUrl: string): any {
   // Create notification object with actual data
   const notification = {
     id: `ticket-reply-${ticketId}-${Date.now()}`,
@@ -134,7 +134,8 @@ function createTicketReplyNotification(ticketId: string, staffName: string, repl
     data: {
       ticketId: ticketId,
       staffName: staffName,
-      replyContent: replyContent
+      replyContent: replyContent,
+      ticketUrl: `${panelUrl}/ticket/${ticketId}`
     }
   };
   
@@ -480,10 +481,16 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
 
     // Add notification for staff replies
     if (newReply.staff && ticket.creatorUuid) {
+      // Build panel URL from server name
+      const panelUrl = process.env.NODE_ENV === 'development' 
+        ? `http://localhost:5173`
+        : `https://${req.serverName}.${process.env.DOMAIN || 'modl.gg'}`;
+      
       const notification = createTicketReplyNotification(
         req.params.id, 
         newReply.name, 
-        newReply.content
+        newReply.content,
+        panelUrl
       );
       await addNotificationToPlayer(req.serverDbConnection!, ticket.creatorUuid, notification);
       
@@ -650,10 +657,16 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
       if (newReply.staff && ticket.creatorUuid) {
         console.log(`[Ticket PATCH] Staff reply detected from ${newReply.name}`);
         
+        // Build panel URL from server name
+        const panelUrl = process.env.NODE_ENV === 'development' 
+          ? `http://localhost:5173`
+          : `https://${req.serverName}.${process.env.DOMAIN || 'modl.gg'}`;
+        
         const notification = createTicketReplyNotification(
           req.params.id, 
           newReply.name, 
-          newReply.content
+          newReply.content,
+          panelUrl
         );
         await addNotificationToPlayer(req.serverDbConnection!, ticket.creatorUuid, notification);
         
