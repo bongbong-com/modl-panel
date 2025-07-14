@@ -467,7 +467,21 @@ async function getAndClearPlayerNotifications(
       return [];
     }
     
-    const notifications = [...player.pendingNotifications];
+    // Handle migration from old string format to new object format
+    let notifications = [...player.pendingNotifications];
+    
+    // If we have old string format notifications, clear them and return empty
+    if (notifications.length > 0 && typeof notifications[0] === 'string') {
+      console.log(`Clearing old string-format notifications for player ${playerUuid}`);
+      await Player.updateOne(
+        { minecraftUuid: playerUuid },
+        { $set: { pendingNotifications: [] } }
+      );
+      return [];
+    }
+    
+    // Only process object-format notifications
+    const validNotifications = notifications.filter(n => typeof n === 'object' && n !== null);
     
     // Clear the notifications
     await Player.updateOne(
@@ -475,8 +489,8 @@ async function getAndClearPlayerNotifications(
       { $set: { pendingNotifications: [] } }
     );
     
-    console.log(`Retrieved ${notifications.length} notifications for player ${playerUuid}`);
-    return notifications;
+    console.log(`Retrieved ${validNotifications.length} notifications for player ${playerUuid}`);
+    return validNotifications;
   } catch (error) {
     console.error(`Error getting notifications for player ${playerUuid}:`, error);
     return [];
@@ -2038,15 +2052,22 @@ export function setupMinecraftRoutes(app: Express): void {
       if (player.pendingNotifications && Array.isArray(notificationIds)) {
         const originalLength = player.pendingNotifications.length;
         
-        // Filter out notifications with matching IDs
-        player.pendingNotifications = player.pendingNotifications.filter((notification: any) => {
-          if (typeof notification === 'object' && notification.id) {
-            return !notificationIds.includes(notification.id);
-          }
-          return true; // Keep non-object notifications (shouldn't happen, but safety)
-        });
-        
-        removedCount = originalLength - player.pendingNotifications.length;
+        // Handle migration: if we have old string format notifications, just clear them all
+        if (player.pendingNotifications.length > 0 && typeof player.pendingNotifications[0] === 'string') {
+          console.log(`Migrating pendingNotifications format during acknowledgment for player ${playerUuid}`);
+          player.pendingNotifications = [];
+          removedCount = originalLength;
+        } else {
+          // Filter out notifications with matching IDs (new object format)
+          player.pendingNotifications = player.pendingNotifications.filter((notification: any) => {
+            if (typeof notification === 'object' && notification && notification.id) {
+              return !notificationIds.includes(notification.id);
+            }
+            return false; // Remove any invalid notifications
+          });
+          
+          removedCount = originalLength - player.pendingNotifications.length;
+        }
         
         if (removedCount > 0) {
           await player.save();

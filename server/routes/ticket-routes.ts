@@ -52,10 +52,29 @@ async function addNotificationToPlayer(
 ): Promise<void> {
   try {
     const Player = dbConnection.model('Player');
-    await Player.updateOne(
-      { minecraftUuid: playerUuid },
-      { $addToSet: { pendingNotifications: notification } }
-    );
+    
+    // First, ensure the player exists and has the correct pendingNotifications format
+    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    if (!player) {
+      console.warn(`Player ${playerUuid} not found for notification`);
+      return;
+    }
+
+    // Initialize pendingNotifications as array if it doesn't exist
+    if (!player.pendingNotifications) {
+      player.pendingNotifications = [];
+    }
+
+    // If pendingNotifications contains strings (old format), clear it
+    if (player.pendingNotifications.length > 0 && typeof player.pendingNotifications[0] === 'string') {
+      console.log(`Migrating pendingNotifications format for player ${playerUuid}`);
+      player.pendingNotifications = [];
+    }
+
+    // Add the new notification object
+    player.pendingNotifications.push(notification);
+    await player.save();
+    
     console.log(`Added notification to player ${playerUuid}: ${notification.message}`);
   } catch (error) {
     console.error(`Error adding notification to player ${playerUuid}:`, error);
