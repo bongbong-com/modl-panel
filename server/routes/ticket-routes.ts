@@ -53,57 +53,68 @@ async function addNotificationToPlayer(
   try {
     const Player = dbConnection.model('Player');
     
-    // First, try to find the player
-    let player = await Player.findOne({ minecraftUuid: playerUuid });
+    // First check if player exists using count
+    const playerExists = await Player.countDocuments({ minecraftUuid: playerUuid });
     
-    // If player doesn't exist, create a basic player record
-    if (!player) {
+    if (!playerExists) {
       console.log(`Player ${playerUuid} not found, creating basic player record for notification`);
       
-      player = new Player({
-        _id: `player-${playerUuid}`,
-        minecraftUuid: playerUuid,
-        usernames: [],
-        notes: [],
-        ipList: [],
-        punishments: [],
-        pendingNotifications: [],
-        data: new Map()
-      });
-      
+      // Try to create a new player document
       try {
-        await player.save();
-        console.log(`Created basic player record for ${playerUuid}`);
+        const newPlayer = new Player({
+          _id: `player-${playerUuid}`,
+          minecraftUuid: playerUuid,
+          usernames: [],
+          notes: [],
+          ipList: [],
+          ipAddresses: [],
+          punishments: [],
+          pendingNotifications: [notification],
+          data: new Map()
+        });
+        
+        await newPlayer.save();
+        console.log(`Created basic player record for ${playerUuid} with notification`);
+        return;
       } catch (saveError: any) {
-        // If save fails due to duplicate key, try to find the player again
-        if (saveError.code === 11000) {
-          player = await Player.findOne({ minecraftUuid: playerUuid });
-          if (!player) {
-            console.error(`Failed to create or find player ${playerUuid} after duplicate key error`);
-            return;
-          }
-        } else {
+        // If save fails due to duplicate key, player was created by another process
+        if (saveError.code !== 11000) {
           throw saveError;
         }
+        console.log(`Player ${playerUuid} already exists, will update with notification`);
       }
     }
 
-    // Initialize pendingNotifications as array if it doesn't exist
-    if (!player.pendingNotifications) {
-      player.pendingNotifications = [];
-    }
-
-    // If pendingNotifications contains strings (old format), clear it
-    if (player.pendingNotifications.length > 0 && typeof player.pendingNotifications[0] === 'string') {
+    // First, check if we need to migrate from old string format
+    const player = await Player.findOne({ minecraftUuid: playerUuid }, { pendingNotifications: 1 });
+    if (player && player.pendingNotifications && player.pendingNotifications.length > 0 && typeof player.pendingNotifications[0] === 'string') {
       console.log(`Migrating pendingNotifications format for player ${playerUuid}`);
-      player.pendingNotifications = [];
+      // Clear old string notifications
+      await Player.updateOne(
+        { minecraftUuid: playerUuid },
+        { $set: { pendingNotifications: [] } },
+        { runValidators: false }
+      );
     }
 
-    // Add the new notification object
-    player.pendingNotifications.push(notification);
-    await player.save();
+    // Use atomic update to add notification without loading/validating entire document
+    const result = await Player.findOneAndUpdate(
+      { minecraftUuid: playerUuid },
+      { 
+        $push: { pendingNotifications: notification }
+      },
+      { 
+        new: false, // Don't return the document (avoid validation)
+        runValidators: false, // Don't validate the entire document
+        upsert: false // Don't create if doesn't exist (we handle that above)
+      }
+    );
     
-    console.log(`Added notification to player ${playerUuid}: ${notification.message}`);
+    if (result) {
+      console.log(`Added notification to player ${playerUuid}: ${notification.message}`);
+    } else {
+      console.error(`Failed to add notification - player ${playerUuid} not found after existence check`);
+    }
   } catch (error) {
     console.error(`Error adding notification to player ${playerUuid}:`, error);
   }
