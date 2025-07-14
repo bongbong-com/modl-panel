@@ -53,11 +53,39 @@ async function addNotificationToPlayer(
   try {
     const Player = dbConnection.model('Player');
     
-    // First, ensure the player exists and has the correct pendingNotifications format
-    const player = await Player.findOne({ minecraftUuid: playerUuid });
+    // First, try to find the player
+    let player = await Player.findOne({ minecraftUuid: playerUuid });
+    
+    // If player doesn't exist, create a basic player record
     if (!player) {
-      console.warn(`Player ${playerUuid} not found for notification`);
-      return;
+      console.log(`Player ${playerUuid} not found, creating basic player record for notification`);
+      
+      player = new Player({
+        _id: `player-${playerUuid}`,
+        minecraftUuid: playerUuid,
+        usernames: [],
+        notes: [],
+        ipList: [],
+        punishments: [],
+        pendingNotifications: [],
+        data: new Map()
+      });
+      
+      try {
+        await player.save();
+        console.log(`Created basic player record for ${playerUuid}`);
+      } catch (saveError: any) {
+        // If save fails due to duplicate key, try to find the player again
+        if (saveError.code === 11000) {
+          player = await Player.findOne({ minecraftUuid: playerUuid });
+          if (!player) {
+            console.error(`Failed to create or find player ${playerUuid} after duplicate key error`);
+            return;
+          }
+        } else {
+          throw saveError;
+        }
+      }
     }
 
     // Initialize pendingNotifications as array if it doesn't exist
@@ -440,13 +468,13 @@ router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Req
     }
 
     // Add notification for staff replies
-    if (newReply.staff && ticket.creator) {
+    if (newReply.staff && ticket.creatorUuid) {
       const notification = createTicketReplyNotification(
         req.params.id, 
         newReply.name, 
         newReply.content
       );
-      await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notification);
+      await addNotificationToPlayer(req.serverDbConnection!, ticket.creatorUuid, notification);
       
       // Send email notification if ticket has creator email
       if (ticket.data && (ticket.data.get('creatorEmail') || ticket.data.get('contactEmail') || ticket.data.get('contact_email'))) {
@@ -608,7 +636,7 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
       }
 
       // Add notification for staff replies
-      if (newReply.staff && ticket.creator) {
+      if (newReply.staff && ticket.creatorUuid) {
         console.log(`[Ticket PATCH] Staff reply detected from ${newReply.name}`);
         
         const notification = createTicketReplyNotification(
@@ -616,7 +644,7 @@ router.patch('/:id', checkPermission('ticket.close.all'), async (req: Request<{ 
           newReply.name, 
           newReply.content
         );
-        await addNotificationToPlayer(req.serverDbConnection!, ticket.creator, notification);
+        await addNotificationToPlayer(req.serverDbConnection!, ticket.creatorUuid, notification);
         
         // Send email notification if ticket has creator email
         const emailField = ticket.data?.get('creatorEmail') || ticket.data?.get('contactEmail') || ticket.data?.get('contact_email');
