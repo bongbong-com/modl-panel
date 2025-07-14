@@ -635,7 +635,7 @@ async function updatePlayerLinkedAccounts(
       existingLinkedAccounts.push(linkedUuid);
       player.data.set('linkedAccounts', existingLinkedAccounts);
       player.data.set('lastLinkedAccountUpdate', new Date());
-      await player.save();
+      await player.save({ validateBeforeSave: false });
       
       console.log(`[Account Linking] Updated ${playerUuid} linked accounts: added ${linkedUuid}`);
     }
@@ -1123,7 +1123,7 @@ export function setupMinecraftRoutes(app: Express): void {
 
         // Don't auto-start punishments on login - they should only be started when server acknowledges
 
-        await player.save();
+        await player.save({ validateBeforeSave: false });
         
         // Check for linked accounts if this is a new IP address
         if (isNewIP && ipAddress) {
@@ -1176,7 +1176,7 @@ export function setupMinecraftRoutes(app: Express): void {
         });
 
 
-        await player.save();
+        await player.save({ validateBeforeSave: false });
         await createSystemLog(serverDbConnection, serverName, `New player ${username} (${minecraftUuid}) registered`, 'info', 'system-login');
         
         // Check for linked accounts for new players
@@ -1314,7 +1314,7 @@ export function setupMinecraftRoutes(app: Express): void {
         );
       }
       
-      await player.save();
+      await player.save({ validateBeforeSave: false });
 
       return res.status(200).json({ status: 200, message: 'Player disconnect time updated' });
     } catch (error: any) {
@@ -1447,7 +1447,7 @@ export function setupMinecraftRoutes(app: Express): void {
       };
 
       player.punishments.push(newPunishment);
-      await player.save();
+      await player.save({ validateBeforeSave: false });
       
       // Create enhanced audit log
       await createPunishmentAuditLog(serverDbConnection, serverName, {
@@ -1500,7 +1500,7 @@ export function setupMinecraftRoutes(app: Express): void {
       };
 
       player.notes.push(newNote);
-      await player.save();
+      await player.save({ validateBeforeSave: false });
       await createSystemLog(serverDbConnection, serverName, `Note added to player ${player.usernames[0].username} (${targetUuid}) by ${issuerName}.`, 'info', 'minecraft-api');
 
       return res.status(201).json({ status: 201, message: 'Note created successfully' });
@@ -2070,7 +2070,7 @@ export function setupMinecraftRoutes(app: Express): void {
         }
         
         if (removedCount > 0) {
-          await player.save();
+          await player.save({ validateBeforeSave: false });
         }
       }
 
@@ -2149,7 +2149,7 @@ export function setupMinecraftRoutes(app: Express): void {
         setPunishmentData(punishment, 'executionAttemptedAt', new Date(executedAt || Date.now()));
       }
 
-      await player.save();
+      await player.save({ validateBeforeSave: false });
 
       const logMessage = success 
         ? `Punishment ${punishmentId} executed successfully on server for ${player.usernames[0]?.username} (${playerUuid})`
@@ -2375,7 +2375,7 @@ export function setupMinecraftRoutes(app: Express): void {
       };
 
       player.punishments.push(newPunishment);
-      await player.save();
+      await player.save({ validateBeforeSave: false });
       
       // Create enhanced audit log
       await createPunishmentAuditLog(serverDbConnection, serverName, {
