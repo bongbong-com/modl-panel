@@ -61,7 +61,8 @@ export function useLinkedAccounts(uuid: string) {
 export function useFindLinkedAccounts() {
   return useMutation({
     mutationFn: async (minecraftUuid: string) => {
-      const res = await fetch(`/api/panel/players/${minecraftUuid}/find-linked`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/players/${minecraftUuid}/find-linked`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
