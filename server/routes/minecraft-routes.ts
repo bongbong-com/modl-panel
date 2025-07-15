@@ -1344,19 +1344,55 @@ export function setupMinecraftRoutes(app: Express): void {
         contentString += `**Chat Messages:**\n`;
         try {
           const messages = Array.isArray(chatMessages) ? chatMessages : [];
+          
           messages.forEach((msg: any) => {
-            if (typeof msg === 'object' && msg.username && msg.message) {
-              const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
-              const username = msg.username;
-              const message = msg.message;
-              contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+            // Handle different possible message formats
+            if (typeof msg === 'object' && msg !== null) {
+              // Format 1: { username, message, timestamp }
+              if (msg.username && msg.message) {
+                const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
+                const username = msg.username;
+                const message = msg.message;
+                contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+              }
+              // Format 2: { player, text, time } (alternative format)
+              else if (msg.player && msg.text) {
+                const timestamp = msg.time ? new Date(msg.time).toLocaleString() : 'Unknown time';
+                const username = msg.player;
+                const message = msg.text;
+                contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+              }
+              // Format 3: { name, content, date } (another alternative)
+              else if (msg.name && msg.content) {
+                const timestamp = msg.date ? new Date(msg.date).toLocaleString() : 'Unknown time';
+                const username = msg.name;
+                const message = msg.content;
+                contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+              }
+              // Format 4: Object with unknown structure - try to extract useful info
+              else {
+                // Look for any property that might be a username
+                const usernameField = msg.username || msg.player || msg.name || msg.user || 'Unknown';
+                // Look for any property that might be a message
+                const messageField = msg.message || msg.text || msg.content || msg.msg || JSON.stringify(msg);
+                // Look for any property that might be a timestamp
+                const timestampField = msg.timestamp || msg.time || msg.date || msg.when;
+                const timestamp = timestampField ? new Date(timestampField).toLocaleString() : 'Unknown time';
+                
+                contentString += `\`[${timestamp}]\` **${usernameField}**: ${messageField}\n`;
+              }
             } else if (typeof msg === 'string') {
+              // Handle string format messages
               contentString += `${msg}\n`;
+            } else {
+              // Fallback for any other format
+              contentString += `${JSON.stringify(msg)}\n`;
             }
           });
         } catch (error) {
-          // Fallback to basic format if parsing fails
-          contentString += `${chatMessages.join('\n')}\n`;
+          console.error('Error processing chat messages:', error);
+          // Fallback to JSON format if all parsing fails
+          contentString += `${JSON.stringify(chatMessages, null, 2)}\n`;
         }
         contentString += `\n`;
       }
