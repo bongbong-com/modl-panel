@@ -129,6 +129,10 @@ export class AIModerationService {
 
           if (punishmentResult.success) {
             analysisResult.wasAppliedAutomatically = true;
+            
+            // Create an "Accept Report" reply for automated actions
+            await this.createAcceptReportReply(ticketId, geminiResponse.suggestedAction.severity, geminiResponse.analysis, punishmentResult.punishmentId, 'AI Moderation System');
+            
             console.log(`[AI Moderation] Automatically applied punishment ${punishmentResult.punishmentId} for ticket ${ticketId}`);
           } else {
             console.error(`[AI Moderation] Failed to apply automatic punishment for ticket ${ticketId}: ${punishmentResult.error}`);
@@ -330,6 +334,59 @@ export class AIModerationService {
     } catch (error) {
       console.error(`[AI Moderation] Error mapping AI punishment type ${aiPunishmentTypeId}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Create an "Accept Report" reply when AI suggestion is applied
+   */
+  private async createAcceptReportReply(
+    ticketId: string, 
+    severity: string, 
+    analysis: string, 
+    punishmentId: string, 
+    staffName: string
+  ): Promise<void> {
+    try {
+      const TicketModel = this.dbConnection.model('Ticket');
+      const ticket = await TicketModel.findById(ticketId);
+      
+      if (!ticket) {
+        console.error(`[AI Moderation] Ticket ${ticketId} not found for adding accept report reply`);
+        return;
+      }
+
+      // Create an "Accept Report" reply
+      const acceptReply = {
+        name: staffName,
+        content: `This report has been reviewed and accepted. A ${severity} severity punishment has been applied to the reported player.`,
+        type: 'public',
+        staff: true,
+        action: 'Accept Report',
+        created: new Date()
+      };
+      
+      // Add the reply to the ticket
+      ticket.replies.push(acceptReply);
+      
+      // Add staff note with AI analysis details
+      const staffNote = {
+        content: `AI Analysis: ${analysis}\n\nPunishment Applied: ${punishmentId}\nApplied by: ${staffName}\nSeverity: ${severity}`,
+        createdBy: staffName,
+        createdAt: new Date(),
+        type: 'ai_analysis'
+      };
+      
+      if (!ticket.notes) {
+        ticket.notes = [];
+      }
+      ticket.notes.push(staffNote);
+      
+      await ticket.save();
+      
+      console.log(`[AI Moderation] Added Accept Report reply to ticket ${ticketId} by ${staffName}`);
+    } catch (error) {
+      console.error(`[AI Moderation] Error creating accept report reply for ticket ${ticketId}:`, error);
     }
   }
 

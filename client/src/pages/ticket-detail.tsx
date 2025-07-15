@@ -1372,8 +1372,8 @@ const TicketDetail = () => {
               <PunishmentDetailsCard punishmentId={ticketData.data.punishmentId} />
             )}
 
-            {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis */}
-            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && !ticketDetails.aiAnalysis.dismissed && (
+            {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis that hasn't been applied or dismissed */}
+            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && !ticketDetails.aiAnalysis.dismissed && !ticketDetails.aiAnalysis.wasAppliedAutomatically && (
               <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
@@ -1456,6 +1456,20 @@ const TicketDetail = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Show AI status when suggestion has been applied or dismissed */}
+            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (ticketDetails.aiAnalysis.wasAppliedAutomatically || ticketDetails.aiAnalysis.dismissed) && (
+              <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <ShieldCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {ticketDetails.aiAnalysis.wasAppliedAutomatically 
+                      ? 'AI suggestion was automatically applied'
+                      : 'AI suggestion was dismissed'}
+                  </span>
                 </div>
               </div>
             )}

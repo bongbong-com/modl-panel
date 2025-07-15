@@ -3370,6 +3370,33 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     aiAnalysis.appliedPunishmentId = punishmentResult.punishmentId;
 
     ticket.data.set('aiAnalysis', aiAnalysis);
+    
+    // Create an "Accept Report" reply to replace the AI suggestion
+    const acceptReply = {
+      name: staffName,
+      content: `This report has been reviewed and accepted. A ${aiAnalysis.suggestedAction.severity} severity punishment has been applied to the reported player.`,
+      type: 'public',
+      staff: true,
+      action: 'Accept Report',
+      created: new Date()
+    };
+    
+    // Add the reply to the ticket
+    ticket.replies.push(acceptReply);
+    
+    // Add staff note with AI analysis details
+    const staffNote = {
+      content: `AI Analysis: ${aiAnalysis.analysis}\n\nPunishment Applied: ${punishmentResult.punishmentId}\nApplied by: ${staffName} (${staffRole})\nSeverity: ${aiAnalysis.suggestedAction.severity}`,
+      createdBy: staffName,
+      createdAt: new Date(),
+      type: 'ai_analysis'
+    };
+    
+    if (!ticket.notes) {
+      ticket.notes = [];
+    }
+    ticket.notes.push(staffNote);
+    
     await ticket.save();
 
     console.log(`[AI Moderation] Manual punishment application approved for ticket ${ticketId} by ${staffName} (${staffRole}), punishment ID: ${punishmentResult.punishmentId}`);
@@ -3378,6 +3405,7 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
       success: true, 
       message: 'AI-suggested punishment applied successfully',
       punishmentId: punishmentResult.punishmentId,
+      replyAdded: true,
       punishmentData: {
         punishmentTypeId: aiAnalysis.suggestedAction.punishmentTypeId,
         severity: aiAnalysis.suggestedAction.severity,
