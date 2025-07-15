@@ -554,7 +554,8 @@ export function useResubscribe() {
 export function useApplyPunishment() {
   return useMutation({
     mutationFn: async ({ uuid, punishmentData }: { uuid: string, punishmentData: any }) => {
-      const res = await fetch(`/api/panel/players/${uuid}/punishments`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/players/${uuid}/punishments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -695,7 +696,8 @@ export function useModifyPunishment() {
         body.effectiveDuration = durationMs;
       }
 
-      const res = await fetch(`/api/panel/players/${uuid}/punishments/${punishmentId}/modifications`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/players/${uuid}/punishments/${punishmentId}/modifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -734,7 +736,8 @@ export function useAddPunishmentNote() {
       punishmentId: string, 
       noteText: string 
     }) => {
-      const res = await fetch(`/api/panel/players/${uuid}/punishments/${punishmentId}/notes`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/players/${uuid}/punishments/${punishmentId}/notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

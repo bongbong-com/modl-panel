@@ -2214,7 +2214,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                                       };
                                     }
                                     
-                                    const response = await fetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
+                                    const { csrfFetch } = await import('@/utils/csrf');
+                                    const response = await csrfFetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
                                       method: 'POST',
                                       headers: {
                                         'Content-Type': 'application/json',
@@ -2540,7 +2541,8 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                         };
                           try {
                           // Send note to the server
-                          const response = await fetch(`/api/panel/players/${playerId}/notes`, {
+                          const { csrfFetch } = await import('@/utils/csrf');
+                          const response = await csrfFetch(`/api/panel/players/${playerId}/notes`, {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json'
