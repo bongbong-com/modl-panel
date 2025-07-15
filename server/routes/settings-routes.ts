@@ -3422,9 +3422,9 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     console.log(`[AI Apply] Successfully updated ticket ${ticketId}`);
     
     // Verify the changes were saved
-    const updatedTicket = await TicketModel.findById(ticketId);
-    const updatedAiAnalysis = updatedTicket.data?.get ? updatedTicket.data.get('aiAnalysis') : updatedTicket.data?.aiAnalysis;
-    console.log(`[AI Apply] Verification - wasAppliedAutomatically: ${updatedAiAnalysis?.wasAppliedAutomatically}, replies: ${updatedTicket.replies.length}, notes: ${updatedTicket.notes.length}`);
+    const verifyTicket = await TicketModel.findById(ticketId);
+    const verifyAiAnalysis = verifyTicket.data?.get ? verifyTicket.data.get('aiAnalysis') : verifyTicket.data?.aiAnalysis;
+    console.log(`[AI Apply] Verification - wasAppliedAutomatically: ${verifyAiAnalysis?.wasAppliedAutomatically}, replies: ${verifyTicket.replies.length}, notes: ${verifyTicket.notes.length}`);
 
     console.log(`[AI Moderation] Manual punishment application approved for ticket ${ticketId} by ${staffName} (${staffRole}), punishment ID: ${punishmentResult.punishmentId}`);
 
@@ -3511,7 +3511,7 @@ router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Respon
     console.log(`[AI Dismiss] Marking AI suggestion as dismissed for ticket ${ticketId}`);
     
     // Create a new object to ensure MongoDB detects the change
-    const updatedAiAnalysis = {
+    const dismissedAiAnalysis = {
       ...aiAnalysis,
       dismissed: true,
       dismissedBy: staffName,
@@ -3520,20 +3520,20 @@ router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Respon
       dismissalReason: reason || 'No reason provided'
     };
 
-    console.log(`[AI Dismiss] Updated AI analysis:`, JSON.stringify(updatedAiAnalysis, null, 2));
+    console.log(`[AI Dismiss] Updated AI analysis:`, JSON.stringify(dismissedAiAnalysis, null, 2));
     
-    ticket.data.set('aiAnalysis', updatedAiAnalysis);
+    ticket.data.set('aiAnalysis', dismissedAiAnalysis);
     ticket.markModified('data');
     
     console.log(`[AI Dismiss] Saving ticket ${ticketId}`);
     await ticket.save();
     
     // Verify the changes were saved
-    const updatedTicket = await TicketModel.findById(ticketId);
-    const updatedAiAnalysis = updatedTicket.data?.get ? updatedTicket.data.get('aiAnalysis') : updatedTicket.data?.aiAnalysis;
-    console.log(`[AI Dismiss] Verification - dismissed: ${updatedAiAnalysis?.dismissed}`);
+    const verifyDismissTicket = await TicketModel.findById(ticketId);
+    const verifyDismissAiAnalysis = verifyDismissTicket.data?.get ? verifyDismissTicket.data.get('aiAnalysis') : verifyDismissTicket.data?.aiAnalysis;
+    console.log(`[AI Dismiss] Verification - dismissed: ${verifyDismissAiAnalysis?.dismissed}`);
 
-    console.log(`[AI Moderation] AI suggestion dismissed for ticket ${ticketId} by ${staffName} (${staffRole}). Reason: ${aiAnalysis.dismissalReason}`);
+    console.log(`[AI Moderation] AI suggestion dismissed for ticket ${ticketId} by ${staffName} (${staffRole}). Reason: ${dismissedAiAnalysis.dismissalReason}`);
 
     res.json({ 
       success: true, 
