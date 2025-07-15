@@ -130,7 +130,8 @@ const StaffManagementPanel = () => {
     if (!selectedStaffMember) return;
 
     try {
-      const response = await fetch(`/api/panel/staff/${selectedStaffMember._id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/staff/${selectedStaffMember._id}`, {
         method: 'DELETE',
       });
 
@@ -162,7 +163,8 @@ const StaffManagementPanel = () => {
 
   const handleResendInvitation = async (staffId: string) => {
     try {
-      const response = await fetch(`/api/panel/staff/invitations/${staffId}/resend`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/staff/invitations/${staffId}/resend`, {
         method: 'POST',
       });
       if (!response.ok) {

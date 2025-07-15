@@ -246,7 +246,8 @@ const fetchDatabaseData = async (table: string, limit = 100, skip = 0) => {
 };
 
 const rollbackPunishment = async (id: string, reason?: string) => {
-  const response = await fetch(`/api/panel/audit/punishments/${id}/rollback`, {
+  const { csrfFetch } = await import('@/utils/csrf');
+  const response = await csrfFetch(`/api/panel/audit/punishments/${id}/rollback`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason })
@@ -520,7 +521,8 @@ const PunishmentRollbackModal = () => {
     }
     
     try {
-      const response = await fetch('/api/panel/audit/punishments/bulk-rollback', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/audit/punishments/bulk-rollback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -696,7 +698,8 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
     }
 
     try {
-      const response = await fetch(`/api/panel/audit/staff/${staff.username}/rollback-date-range`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/audit/staff/${staff.username}/rollback-date-range`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -1090,7 +1093,8 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                     onClick={async () => {
                                       try {
                                                                           
-                                        const response = await fetch(`/api/panel/audit/punishment/${punishment.id}/rollback`, {
+                                        const { csrfFetch } = await import('@/utils/csrf');
+                                        const response = await csrfFetch(`/api/panel/audit/punishment/${punishment.id}/rollback`, {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },
                                           body: JSON.stringify({ reason: 'Staff rollback from analytics panel' })

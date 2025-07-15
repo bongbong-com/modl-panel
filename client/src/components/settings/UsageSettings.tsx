@@ -152,7 +152,8 @@ const UsageSettings = () => {
     try {
       setSettingsLoading(true);
       
-      const response = await fetch('/api/panel/storage/settings', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/storage/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -268,14 +269,15 @@ const UsageSettings = () => {
 
   const confirmDelete = async () => {
     try {
+      const { csrfFetch } = await import('@/utils/csrf');
       if (deleteTarget === 'single') {
-        await fetch(`/api/panel/storage/files/${fileToDelete}`, { method: 'DELETE' });
+        await csrfFetch(`/api/panel/storage/files/${fileToDelete}`, { method: 'DELETE' });
         toast({
           title: "Success",
           description: "File deleted successfully.",
         });
       } else {
-        await fetch('/api/panel/storage/files/batch', {
+        await csrfFetch('/api/panel/storage/files/batch', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileIds: Array.from(selectedFiles) }),

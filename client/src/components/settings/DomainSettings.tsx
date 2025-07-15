@@ -84,7 +84,8 @@ const DomainSettings: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('/api/panel/settings/domain', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/domain', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +124,8 @@ const DomainSettings: React.FC = () => {
 
     setIsVerifying(true);
     try {
-      const response = await fetch('/api/panel/settings/domain/verify', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/domain/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,7 +184,8 @@ const DomainSettings: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('/api/panel/settings/domain', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/domain', {
         method: 'DELETE',
       });
 

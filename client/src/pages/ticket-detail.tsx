@@ -548,7 +548,8 @@ const TicketDetail = () => {
     }
 
     try {
-      const response = await fetch(`/api/panel/settings/ai-apply-punishment/${ticketDetails.id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/settings/ai-apply-punishment/${ticketDetails.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -592,7 +593,8 @@ const TicketDetail = () => {
     }
 
     try {
-      const response = await fetch(`/api/panel/settings/ai-dismiss-suggestion/${ticketDetails.id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/settings/ai-dismiss-suggestion/${ticketDetails.id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2638,7 +2640,8 @@ const PunishmentDetailsCard = ({ punishmentId }: { punishmentId: string }) => {
                           };
                         }
                         
-                        const response = await fetch(`/api/panel/players/${punishmentData.playerUuid}/punishments/${punishmentId}/evidence`, {
+                        const { csrfFetch } = await import('@/utils/csrf');
+                        const response = await csrfFetch(`/api/panel/players/${punishmentData.playerUuid}/punishments/${punishmentId}/evidence`, {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',

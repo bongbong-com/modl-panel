@@ -344,7 +344,8 @@ const AppealsPage = () => {
     if (!newReply.trim() || !appealInfo) return;
 
     try {
-      const response = await fetch(`/api/panel/appeals/${appealInfo.id}/replies`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/appeals/${appealInfo.id}/replies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

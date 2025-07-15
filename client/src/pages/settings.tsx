@@ -1050,7 +1050,8 @@ const Settings = () => {
       const formData = new FormData();
       formData.append('icon', file);
 
-      const response = await fetch(`/api/panel/settings/upload-icon?iconType=${iconType}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/settings/upload-icon?iconType=${iconType}`, {
         method: 'POST',
         body: formData,
       });
@@ -1129,7 +1130,8 @@ const Settings = () => {
   const generateApiKey = async () => {
     setIsGeneratingApiKey(true);
     try {
-      const response = await fetch('/api/panel/settings/api-key/generate', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/api-key/generate', {
         method: 'POST',
       });
       if (response.ok) {
@@ -1163,7 +1165,8 @@ const Settings = () => {
     
     setIsRevokingApiKey(true);
     try {
-      const response = await fetch('/api/panel/settings/api-key', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/api-key', {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -1274,7 +1277,8 @@ const Settings = () => {
         aiPunishmentConfigs: configs || settings.aiPunishmentConfigs
       };
       
-      const response = await fetch('/api/panel/settings/ai-moderation-settings', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/ai-moderation-settings', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1347,7 +1351,8 @@ const Settings = () => {
   // Add AI punishment type configuration
   const addAiPunishmentType = async (punishmentTypeId: number, aiDescription: string) => {
     try {
-      const response = await fetch('/api/panel/settings/ai-punishment-types', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings/ai-punishment-types', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1382,7 +1387,8 @@ const Settings = () => {
   // Update AI punishment type
   const updateAiPunishmentType = async (id: number, updates: { enabled?: boolean; aiDescription?: string }) => {
     try {
-      const response = await fetch(`/api/panel/settings/ai-punishment-types/${id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/settings/ai-punishment-types/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1414,7 +1420,8 @@ const Settings = () => {
   // Remove AI punishment type configuration
   const removeAiPunishmentType = async (id: number) => {
     try {
-      const response = await fetch(`/api/panel/settings/ai-punishment-types/${id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/settings/ai-punishment-types/${id}`, {
         method: 'DELETE',
       });
       
@@ -1603,7 +1610,8 @@ const Settings = () => {
         },
       };
 
-      const response = await fetch('/api/panel/settings', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -1709,7 +1717,8 @@ const Settings = () => {
       setIsTestingConnection(true);
 
       try {
-        const response = await fetch('/api/panel/settings/test-database', {
+        const { csrfFetch } = await import('@/utils/csrf');
+        const response = await csrfFetch('/api/panel/settings/test-database', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -1809,7 +1818,8 @@ const Settings = () => {
   // Save profile settings function
   const saveProfileSettings = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/profile', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/auth/profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

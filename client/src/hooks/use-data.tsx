@@ -142,7 +142,8 @@ export function useTicket(id: string) {
 export function useCreateTicket() {
   return useMutation({
     mutationFn: async (ticketData: any) => {
-      const res = await fetch('/api/panel/tickets', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch('/api/panel/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -166,7 +167,8 @@ export function useCreateTicket() {
 export function useUpdateTicket() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string, data: any }) => {
-      const res = await fetch(`/api/panel/tickets/${id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/tickets/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -193,7 +195,8 @@ export function useUpdateTicket() {
 export function useAddTicketReply() {
   return useMutation({
     mutationFn: async ({ id, reply }: { id: string, reply: any }) => {
-      const res = await fetch(`/api/public/tickets/${id}/replies`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/public/tickets/${id}/replies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -217,7 +220,8 @@ export function useAddTicketReply() {
 export function useSubmitTicketForm() {
   return useMutation({
     mutationFn: async ({ id, formData }: { id: string, formData: any }) => {
-      const res = await fetch(`/api/public/tickets/${id}/submit`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/public/tickets/${id}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -272,7 +276,8 @@ export function useAppealsByPunishment(punishmentId: string) {
 export function useCreateAppeal() {
   return useMutation({
     mutationFn: async (appealData: any) => {
-      const res = await fetch('/api/panel/appeals', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch('/api/panel/appeals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -451,7 +456,8 @@ export function useCancelSubscription() {
   
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/panel/billing/cancel-subscription', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch('/api/panel/billing/cancel-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -493,7 +499,8 @@ export function useUpdateUsageBillingSettings() {
     mutationFn: async ({ enabled }: { enabled: boolean }) => {
       // Sending usage billing update
       
-      const res = await fetch('/api/panel/billing/usage-billing-settings', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch('/api/panel/billing/usage-billing-settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -528,7 +535,8 @@ export function useResubscribe() {
   
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/panel/billing/resubscribe', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch('/api/panel/billing/resubscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -798,7 +806,8 @@ export function useCreateRole() {
   
   return useMutation({
     mutationFn: async (roleData: { name: string; description: string; permissions: string[] }) => {
-      const res = await fetch('/api/panel/roles', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch('/api/panel/roles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -824,7 +833,8 @@ export function useUpdateRole() {
   
   return useMutation({
     mutationFn: async ({ id, ...roleData }: { id: string; name: string; description: string; permissions: string[] }) => {
-      const res = await fetch(`/api/panel/roles/${id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/roles/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -850,7 +860,8 @@ export function useDeleteRole() {
   
   return useMutation({
     mutationFn: async (roleId: string) => {
-      const res = await fetch(`/api/panel/roles/${roleId}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/roles/${roleId}`, {
         method: 'DELETE',
       });
       
@@ -895,7 +906,8 @@ export function useAssignMinecraftPlayer() {
       minecraftUuid?: string; 
       minecraftUsername?: string; 
     }) => {
-      const res = await fetch(`/api/panel/staff/${username}/minecraft-player`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/staff/${username}/minecraft-player`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -999,7 +1011,8 @@ export function useUnsubscribeFromTicket() {
   
   return useMutation({
     mutationFn: async (ticketId: string) => {
-      const res = await fetch(`/api/panel/ticket-subscriptions/${ticketId}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/ticket-subscriptions/${ticketId}`, {
         method: 'DELETE',
       });
       
@@ -1021,7 +1034,8 @@ export function useMarkSubscriptionUpdateAsRead() {
   
   return useMutation({
     mutationFn: async (updateId: string) => {
-      const res = await fetch(`/api/panel/ticket-subscriptions/updates/${updateId}/read`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const res = await csrfFetch(`/api/panel/ticket-subscriptions/updates/${updateId}/read`, {
         method: 'POST',
       });
       

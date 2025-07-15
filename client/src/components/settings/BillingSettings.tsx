@@ -121,7 +121,8 @@ const BillingSettings = () => {
   const handleCreateCheckoutSession = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/panel/billing/create-checkout-session', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/billing/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +160,8 @@ const BillingSettings = () => {
   const handleCreatePortalSession = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/panel/billing/create-portal-session', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/billing/create-portal-session', {
         method: 'POST',
       });
 

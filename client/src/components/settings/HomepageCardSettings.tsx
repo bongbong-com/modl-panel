@@ -129,7 +129,8 @@ const HomepageCardSettings: React.FC = () => {
 
   const createCardMutation = useMutation<HomepageCard, Error, Partial<HomepageCard>>({
     mutationFn: async (newCard) => {
-      const response = await fetch('/api/panel/homepage-cards', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/homepage-cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCard),
@@ -154,7 +155,8 @@ const HomepageCardSettings: React.FC = () => {
   const updateCardMutation = useMutation<HomepageCard, Error, { id: string } & Partial<HomepageCard>>({
     mutationFn: async (updatedCard) => {
       const { id, ...updateData } = updatedCard;
-      const response = await fetch(`/api/panel/homepage-cards/${id}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/homepage-cards/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -178,7 +180,8 @@ const HomepageCardSettings: React.FC = () => {
 
   const deleteCardMutation = useMutation<void, Error, string>({
     mutationFn: async (cardId) => {
-      const response = await fetch(`/api/panel/homepage-cards/${cardId}`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/homepage-cards/${cardId}`, {
         method: 'DELETE',
       });
       if (!response.ok) {

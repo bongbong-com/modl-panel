@@ -95,7 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Request email verification code
   const requestEmailVerification = async (email: string): Promise<string | undefined> => {
     try {
-      const response = await fetch('/api/auth/send-email-code', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/auth/send-email-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -158,7 +159,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       // 1. Get Challenge
-      const challengeResponse = await fetch('/api/auth/fido-login-challenge', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const challengeResponse = await csrfFetch('/api/auth/fido-login-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -239,7 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
         }
         requestBody = JSON.stringify({ email, code });
-        response = await fetch('/api/auth/verify-email-code', {
+        const { csrfFetch } = await import('@/utils/csrf');
+        response = await csrfFetch('/api/auth/verify-email-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
@@ -252,7 +255,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
         }
         requestBody = JSON.stringify({ email, assertionResponse });
-        response = await fetch('/api/auth/fido-login-verify', {
+        const { csrfFetch } = await import('@/utils/csrf');
+        response = await csrfFetch('/api/auth/fido-login-verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
@@ -265,7 +269,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
         }
         requestBody = JSON.stringify({ email, code });
-        response = await fetch('/api/auth/verify-2fa-code', {
+        const { csrfFetch } = await import('@/utils/csrf');
+        response = await csrfFetch('/api/auth/verify-2fa-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
@@ -371,7 +376,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       if (!response.ok) {
         // Even if logout API fails, clear client-side state
         const errorData = await response.json().catch(() => ({ message: "Failed to logout on server." }));
