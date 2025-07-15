@@ -46,6 +46,7 @@ import { useToast } from 'modl-shared-web/hooks/use-toast';
 import { cn } from 'modl-shared-web/lib/utils';
 import { usePlayerWindow } from '@/contexts/PlayerWindowContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
+import { getEvidenceDisplayText, getEvidenceClickUrl, getEvidenceShortName, isEvidenceClickable } from '@/utils/evidence-utils';
 
 interface DatabaseLog {
   _id: string;
@@ -1023,27 +1024,24 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                               <div className="flex gap-1 flex-wrap">
                                 {punishment.evidence && punishment.evidence.length > 0 ? (
                                   punishment.evidence.map((evidenceItem: any, idx: number) => {
-                                    const evidenceStr = typeof evidenceItem === 'string' ? evidenceItem : String(evidenceItem);
-                                    const fileName = evidenceStr.includes('/') ? evidenceStr.split('/').pop() : evidenceStr;
-                                    const isUrl = evidenceStr.startsWith('http://') || evidenceStr.startsWith('https://');
+                                    const displayText = getEvidenceDisplayText(evidenceItem);
+                                    const clickUrl = getEvidenceClickUrl(evidenceItem);
+                                    const shortName = getEvidenceShortName(evidenceItem);
+                                    const isClickable = isEvidenceClickable(evidenceItem);
                                     
                                     return (
                                       <Badge 
                                         key={idx} 
                                         variant="outline" 
-                                        className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
+                                        className={`text-xs ${isClickable ? 'cursor-pointer hover:bg-primary/10 transition-colors' : 'cursor-default'}`}
                                         onClick={() => {
-                                          if (isUrl) {
-                                            // Direct URL - open as-is
-                                            window.open(evidenceStr, '_blank');
-                                          } else {
-                                            // File path - construct evidence URL
-                                            window.open(`/uploads/evidence/${evidenceStr}`, '_blank');
+                                          if (isClickable) {
+                                            window.open(clickUrl, '_blank');
                                           }
                                         }}
-                                        title={`Click to view: ${evidenceStr}`}
+                                        title={isClickable ? `Click to view: ${displayText}` : displayText}
                                       >
-                                        📎 {fileName && fileName.length > 15 ? fileName.substring(0, 15) + '...' : fileName}
+                                        📎 {shortName}
                                       </Badge>
                                     );
                                   })
