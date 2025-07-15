@@ -27,6 +27,14 @@ function verifyToken(sessionToken: string, requestToken: string): boolean {
 
 // CSRF protection middleware
 export function csrfProtection(req: CSRFRequest, res: Response, next: NextFunction) {
+  // Skip CSRF for routes that use API key authentication
+  const isApiKeyRoute = req.path.startsWith('/api/minecraft') || 
+                       (req.path.startsWith('/api/public') && 
+                        (req.headers['x-api-key'] || req.headers['x-ticket-api-key']));
+  
+  if (isApiKeyRoute) {
+    return next();
+  }
 
   // Skip CSRF for GET, HEAD, OPTIONS requests (safe methods)
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
