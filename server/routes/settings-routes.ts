@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument, Schema } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkPermission } from '../middleware/permission-middleware';
+import { checkRole } from '../middleware/role-middleware';
 import domainRoutes from './domain-routes';
 import PunishmentService from '../services/punishment-service';
 import multer from 'multer';
