@@ -389,7 +389,7 @@ const TicketDetail = () => {
     'Low': 'bg-info/10 text-info border-info/20',
     'Fixed': 'bg-success/10 text-success border-success/20'
   };  // Use React Query to fetch ticket data from panel API
-  const { data: ticketData, isLoading, isError, error, mutate } = usePanelTicket(ticketId);
+  const { data: ticketData, isLoading, isError, error, refetch } = usePanelTicket(ticketId);
   
   useEffect(() => {
     // Ticket data received
@@ -564,13 +564,29 @@ const TicketDetail = () => {
       });
 
       if (response.ok) {
+        const responseData = await response.json();
+        console.log('AI punishment applied successfully, response:', responseData);
+        
         // Refresh ticket data to show updated AI analysis
-        if (mutate && typeof mutate === 'function') {
-          await mutate();
+        if (refetch && typeof refetch === 'function') {
+          const refetchResult = await refetch();
+          console.log('Data refreshed via refetch, result:', refetchResult);
         } else {
-          console.error('mutate is not a function:', mutate);
+          console.error('refetch is not a function:', refetch);
+          console.log('Falling back to page reload');
           window.location.reload();
         }
+        
+        // Give a small delay to ensure data is refreshed
+        setTimeout(() => {
+          console.log('Checking if AI analysis is hidden...');
+          const aiAnalysis = document.querySelector('[data-testid="ai-analysis"]');
+          if (aiAnalysis) {
+            console.log('AI analysis still visible after refresh');
+          } else {
+            console.log('AI analysis properly hidden after refresh');
+          }
+        }, 1000);
         
         toast({
           title: "Success",
@@ -615,10 +631,10 @@ const TicketDetail = () => {
 
       if (response.ok) {
         // Refresh ticket data to show dismissed AI analysis
-        if (mutate && typeof mutate === 'function') {
-          await mutate();
+        if (refetch && typeof refetch === 'function') {
+          await refetch();
         } else {
-          console.error('mutate is not a function:', mutate);
+          console.error('refetch is not a function:', refetch);
           window.location.reload();
         }
         
@@ -1372,9 +1388,19 @@ const TicketDetail = () => {
               <PunishmentDetailsCard punishmentId={ticketData.data.punishmentId} />
             )}
 
+            {/* Debug AI Analysis State */}
+            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (
+              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 mb-2 text-xs">
+                <strong>AI Analysis Debug:</strong> 
+                dismissed: {ticketDetails.aiAnalysis.dismissed ? 'true' : 'false'}, 
+                wasAppliedAutomatically: {ticketDetails.aiAnalysis.wasAppliedAutomatically ? 'true' : 'false'},
+                suggestedAction: {ticketDetails.aiAnalysis.suggestedAction ? 'exists' : 'null'}
+              </div>
+            )}
+
             {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis that hasn't been applied or dismissed */}
             {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && !ticketDetails.aiAnalysis.dismissed && !ticketDetails.aiAnalysis.wasAppliedAutomatically && (
-              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4" data-testid="ai-analysis">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
                     <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400" />

@@ -3316,6 +3316,8 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     }
 
     aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
+    console.log(`[AI Apply] Found AI analysis for ticket ${ticketId}:`, JSON.stringify(aiAnalysis, null, 2));
+    
     if (!aiAnalysis || !aiAnalysis.suggestedAction) {
       return res.status(400).json({ error: 'No AI suggestion found for this ticket' });
     }
@@ -3369,7 +3371,16 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     aiAnalysis.appliedAt = new Date();
     aiAnalysis.appliedPunishmentId = punishmentResult.punishmentId;
 
+    console.log(`[AI Apply] Updating AI analysis for ticket ${ticketId}: wasAppliedAutomatically=true`);
+    console.log(`[AI Apply] AI analysis before update:`, JSON.stringify(aiAnalysis, null, 2));
     ticket.data.set('aiAnalysis', aiAnalysis);
+    
+    // Also try direct assignment as fallback
+    if (!ticket.data) {
+      ticket.data = new Map();
+    }
+    ticket.data.set('aiAnalysis', aiAnalysis);
+    ticket.markModified('data');
     
     // Create an "Accept Report" reply to replace the AI suggestion
     const acceptReply = {
@@ -3382,6 +3393,7 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     };
     
     // Add the reply to the ticket
+    console.log(`[AI Apply] Adding Accept Report reply to ticket ${ticketId}`);
     ticket.replies.push(acceptReply);
     
     // Add staff note with AI analysis details
@@ -3395,9 +3407,18 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     if (!ticket.notes) {
       ticket.notes = [];
     }
+    console.log(`[AI Apply] Adding staff note to ticket ${ticketId}`);
     ticket.notes.push(staffNote);
     
+    console.log(`[AI Apply] Saving ticket ${ticketId} with ${ticket.replies.length} replies and ${ticket.notes.length} notes`);
     await ticket.save();
+    
+    console.log(`[AI Apply] Successfully updated ticket ${ticketId}`);
+    
+    // Verify the changes were saved
+    const updatedTicket = await TicketModel.findById(ticketId);
+    const updatedAiAnalysis = updatedTicket.data?.get ? updatedTicket.data.get('aiAnalysis') : updatedTicket.data?.aiAnalysis;
+    console.log(`[AI Apply] Verification - wasAppliedAutomatically: ${updatedAiAnalysis?.wasAppliedAutomatically}, replies: ${updatedTicket.replies.length}, notes: ${updatedTicket.notes.length}`);
 
     console.log(`[AI Moderation] Manual punishment application approved for ticket ${ticketId} by ${staffName} (${staffRole}), punishment ID: ${punishmentResult.punishmentId}`);
 
