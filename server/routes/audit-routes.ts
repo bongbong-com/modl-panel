@@ -195,29 +195,10 @@ router.get('/staff/:username/details', async (req, res) => {
         // If no ordinal match, try ID match as fallback (for backward compatibility)
         const punishmentTypeById = punishmentTypesConfig.find(pt => pt.id === typeOrdinal);
         if (punishmentTypeById) {
-          // Log this case as it might indicate data inconsistency
-          console.warn(`Punishment type lookup: No ordinal match for ${typeOrdinal}, using ID match for "${punishmentTypeById.name}" (ID: ${punishmentTypeById.id}, Ordinal: ${punishmentTypeById.ordinal})`);
           return punishmentTypeById.name;
         }
         
-        // Final fallback to hardcoded mapping (core administrative types)
-        const fallbackMap = {
-          0: 'Kick',
-          1: 'Manual Mute', 
-          2: 'Manual Ban',
-          3: 'Security Ban',
-          4: 'Linked Ban',
-          5: 'Blacklist'
-        };
-        
-        if (fallbackMap[typeOrdinal]) {
-          return fallbackMap[typeOrdinal];
-        }
-        
-        // Log unknown punishment types for debugging
-        console.warn(`Unknown punishment type ordinal: ${typeOrdinal}. Available types:`, 
-          punishmentTypesConfig.map(pt => `${pt.name} (ID: ${pt.id}, Ordinal: ${pt.ordinal})`));
-        
+        // Return generic type name without error logging
         return `Type ${typeOrdinal}`;
       }
       
