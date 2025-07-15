@@ -12,47 +12,60 @@ interface MarkdownRendererProps {
 const processMarkdownContent = (content: string): string => {
   // First, check if content contains JSON-formatted chat messages
   if (content.includes('**Chat Messages:**')) {
-    const parts = content.split('**Chat Messages:**');
-    let processedContent = parts[0] + '**Chat Messages:**';
+    const chatHeaderIndex = content.indexOf('**Chat Messages:**');
+    const beforeChat = content.substring(0, chatHeaderIndex);
+    const afterChatHeader = content.substring(chatHeaderIndex + '**Chat Messages:**'.length);
     
-    if (parts[1]) {
-      // Look for JSON objects in the chat messages section
-      const lines = parts[1].split('\n');
-      let formattedMessages = '';
+    // Find where the chat messages section ends (usually at the next ** or end of content)
+    let chatSectionEnd = afterChatHeader.search(/\n\*\*[^*]+\*\*:|$/);
+    if (chatSectionEnd === -1) chatSectionEnd = afterChatHeader.length;
+    
+    const chatSection = afterChatHeader.substring(0, chatSectionEnd);
+    const afterChat = afterChatHeader.substring(chatSectionEnd);
+    
+    // Process the chat section
+    const lines = chatSection.split('\n');
+    let formattedMessages = '';
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
       
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        
-        // Try to parse JSON objects like {"username":"tigerbong","message":"a","timestamp":"2025-07-15T23:18:20.829347033Z"}
-        if (trimmedLine.startsWith('{') && trimmedLine.includes('"username"') && trimmedLine.includes('"message"')) {
-          try {
-            const msgObj = JSON.parse(trimmedLine);
-            if (msgObj.username && msgObj.message) {
-              const timestamp = msgObj.timestamp ? new Date(msgObj.timestamp).toLocaleString() : 'Unknown time';
-              formattedMessages += `\n\`[${timestamp}]\` **[PLAYER:${msgObj.username}]**: ${msgObj.message}`;
-            } else {
-              formattedMessages += '\n' + line;
-            }
-          } catch (e) {
-            // If JSON parsing fails, keep the original line
-            formattedMessages += '\n' + line;
+      // Skip empty lines
+      if (!trimmedLine) continue;
+      
+      // Try to parse JSON objects
+      if (trimmedLine.startsWith('{') && trimmedLine.includes('"username"') && trimmedLine.includes('"message"')) {
+        try {
+          const msgObj = JSON.parse(trimmedLine);
+          if (msgObj.username && msgObj.message) {
+            const timestamp = msgObj.timestamp ? new Date(msgObj.timestamp).toLocaleString() : 'Unknown time';
+            // Format as a single line with proper spacing
+            formattedMessages += `  \n\`[${timestamp}]\` **${msgObj.username}**: ${msgObj.message}`;
+          } else {
+            formattedMessages += `  \n${line}`;
           }
-        } else if (trimmedLine) {
-          formattedMessages += '\n' + line;
+        } catch (e) {
+          // If JSON parsing fails, keep the original line
+          formattedMessages += `  \n${line}`;
         }
+      } else {
+        formattedMessages += `  \n${line}`;
       }
-      
-      processedContent += formattedMessages;
-      content = processedContent;
     }
+    
+    // Reconstruct the content with formatted messages
+    content = beforeChat + '**Chat Messages:**' + formattedMessages + afterChat;
   }
   
-  // Look for already formatted chat message pattern: `[timestamp]` **username**: message
-  const chatMessagePattern = /(`\[.*?\]`\s+\*\*([^*]+)\*\*:\s+.*)/g;
+  // Look for already formatted chat message pattern and make usernames clickable
+  const chatMessagePattern = /\*\*([^*\n]+)\*\*:/g;
   
-  return content.replace(chatMessagePattern, (match, fullLine, username) => {
-    // Replace the username with a special marker that we can process in the component
-    return fullLine.replace(`**${username}**`, `**[PLAYER:${username}]**`);
+  return content.replace(chatMessagePattern, (match, username) => {
+    // Only replace if this looks like a player username (not other bold text like section headers)
+    if (username && !username.includes(':') && !username.includes('\n') && !username.includes('Chat Messages')) {
+      return `**[PLAYER:${username}]**:`;
+    }
+    return match;
   });
 };
 
