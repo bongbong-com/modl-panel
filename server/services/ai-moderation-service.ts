@@ -72,6 +72,11 @@ export class AIModerationService {
         // No punishment types found, skipping analysis
         return null;
       }
+      
+      console.log(`[AI Moderation] Providing ${punishmentTypes.length} punishment types to AI:`);
+      punishmentTypes.forEach(pt => {
+        console.log(`  - ID: ${pt.id}, Name: ${pt.name}, Description: ${pt.aiDescription}`);
+      });
 
       // Get system prompt for strictness level with punishment types injected
       const systemPrompt = await this.systemPromptsService.getPromptForStrictnessLevel(
@@ -102,7 +107,7 @@ export class AIModerationService {
       const analysisResult: AIAnalysisResult = {
         analysis: geminiResponse.analysis,
         suggestedAction: geminiResponse.suggestedAction ? {
-          punishmentTypeId: mappedPunishmentTypeId || geminiResponse.suggestedAction.punishmentTypeId, // Use mapped ID if available
+          punishmentTypeId: mappedPunishmentTypeId || parseInt(geminiResponse.suggestedAction.punishmentTypeId) || geminiResponse.suggestedAction.punishmentTypeId, // Use mapped ID if available
           severity: geminiResponse.suggestedAction.severity,
           originalAITypeId: geminiResponse.suggestedAction.punishmentTypeId // Store original for reference
         } : null,
@@ -195,26 +200,97 @@ export class AIModerationService {
   private async getPunishmentTypes(): Promise<AIPunishmentType[]> {
     try {
       const SettingsModel = this.dbConnection.model('Settings');
-      const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
       
-      if (!aiSettingsDoc || !aiSettingsDoc.data || !aiSettingsDoc.data.aiPunishmentConfigs) {
-        console.error('[AI Moderation] AI moderation settings or punishment configs not found.');
+      // Get actual punishment types from database
+      const punishmentTypesDoc = await SettingsModel.findOne({ type: 'punishmentTypes' });
+      if (!punishmentTypesDoc?.data) {
+        console.error('[AI Moderation] No punishment types found in database.');
+        return [];
+      }
+      
+      // Get AI moderation settings to see which punishment types are enabled for AI
+      const aiSettingsDoc = await SettingsModel.findOne({ type: 'aiModerationSettings' });
+      if (!aiSettingsDoc?.data?.aiPunishmentConfigs) {
+        console.error('[AI Moderation] AI moderation settings not found.');
         return [];
       }
 
       const aiPunishmentConfigs = aiSettingsDoc.data.aiPunishmentConfigs;
+      const actualPunishmentTypes = punishmentTypesDoc.data;
 
-      // Get enabled AI punishment types from the standalone configuration
-      const enabledAIPunishmentTypes = Object.values(aiPunishmentConfigs)
-        .filter((config: any) => config.enabled === true)
-        .map((config: any) => ({
-          id: config.id,
-          name: config.name,
-          aiDescription: config.aiDescription,
-          enabled: config.enabled
-        }));
+      // Map AI punishment configs to actual punishment types
+      const enabledAIPunishmentTypes: AIPunishmentType[] = [];
+      
+      Object.values(aiPunishmentConfigs).forEach((config: any) => {
+        if (config.enabled === true) {
+          let actualPunishmentType = null;
+          
+          // First, try to find by explicit mapping if it exists
+          if (config.mappedPunishmentTypeId) {
+            actualPunishmentType = actualPunishmentTypes.find((pt: any) => 
+              pt.id === config.mappedPunishmentTypeId || pt.ordinal === config.mappedPunishmentTypeId
+            );
+          }
+          
+          // If no explicit mapping, try to find by name similarity
+          if (!actualPunishmentType) {
+            actualPunishmentType = actualPunishmentTypes.find((pt: any) => 
+              pt.name.toLowerCase().includes(config.name.toLowerCase()) ||
+              config.name.toLowerCase().includes(pt.name.toLowerCase())
+            );
+          }
+          
+          // As a fallback, use default mappings for known AI configs
+          if (!actualPunishmentType) {
+            const defaultMappings: Record<string, number> = {
+              'chat-abuse': 6,    // Default Chat Abuse punishment type ordinal
+              'anti-social': 7    // Default Anti Social punishment type ordinal
+            };
+            
+            const defaultOrdinal = defaultMappings[config.id];
+            if (defaultOrdinal) {
+              actualPunishmentType = actualPunishmentTypes.find((pt: any) => pt.ordinal === defaultOrdinal);
+            }
+          }
+          
+          if (actualPunishmentType) {
+            enabledAIPunishmentTypes.push({
+              id: actualPunishmentType.ordinal.toString(), // Use actual ordinal as string
+              name: actualPunishmentType.name,
+              aiDescription: config.aiDescription || `Apply ${actualPunishmentType.name} punishment`,
+              enabled: true
+            });
+            console.log(`[AI Moderation] Mapped AI config '${config.name}' to punishment type '${actualPunishmentType.name}' (ordinal: ${actualPunishmentType.ordinal})`);
+          } else {
+            console.warn(`[AI Moderation] Could not find actual punishment type for AI config: ${config.name} (id: ${config.id})`);
+          }
+        }
+      });
+
+      // If no AI punishment types were found, provide a fallback using common punishment types
+      if (enabledAIPunishmentTypes.length === 0) {
+        console.warn('[AI Moderation] No AI punishment configs found, using fallback punishment types');
+        
+        // Find common punishment types that are suitable for AI moderation
+        const fallbackPunishmentTypes = actualPunishmentTypes.filter((pt: any) => {
+          const suitableTypes = ['mute', 'ban', 'kick', 'chat abuse', 'anti social'];
+          return suitableTypes.some(type => pt.name.toLowerCase().includes(type.toLowerCase()));
+        });
+        
+        fallbackPunishmentTypes.forEach((pt: any) => {
+          enabledAIPunishmentTypes.push({
+            id: pt.ordinal.toString(),
+            name: pt.name,
+            aiDescription: `Apply ${pt.name} punishment for rule violations`,
+            enabled: true
+          });
+        });
+        
+        console.log(`[AI Moderation] Using ${enabledAIPunishmentTypes.length} fallback punishment types`);
+      }
 
       console.log(`[AI Moderation] Found ${enabledAIPunishmentTypes.length} enabled AI punishment types.`);
+      console.log(`[AI Moderation] AI punishment types: ${JSON.stringify(enabledAIPunishmentTypes.map(pt => ({ id: pt.id, name: pt.name })))}`);
 
       return enabledAIPunishmentTypes;
     } catch (error) {
@@ -228,27 +304,28 @@ export class AIModerationService {
    */
   private async mapAIPunishmentTypeToActual(aiPunishmentTypeId: string): Promise<number | null> {
     try {
-      // Define mapping from AI punishment types to actual punishment types
-      const mappings: Record<string, number> = {
-        'chat-abuse': 6,    // Chat Abuse punishment type ID
-        'anti-social': 7    // Anti Social punishment type ID
-      };
-
-      const mappedId = mappings[aiPunishmentTypeId];
-      if (mappedId) {
-        // Verify the punishment type exists in the database
-        const SettingsModel = this.dbConnection.model('Settings');
-        const punishmentTypesDoc = await SettingsModel.findOne({ type: 'punishmentTypes' });
-        
-        if (punishmentTypesDoc?.data) {
-          const punishmentType = punishmentTypesDoc.data.find((pt: any) => pt.id === mappedId);
-          if (punishmentType) {
-            return mappedId;
-          }
+      // Since we now provide actual punishment type ordinals as strings to the AI,
+      // we can directly parse the string to get the numeric ID
+      const numericId = parseInt(aiPunishmentTypeId);
+      
+      if (isNaN(numericId)) {
+        console.error(`[AI Moderation] Invalid punishment type ID format: ${aiPunishmentTypeId}`);
+        return null;
+      }
+      
+      // Verify the punishment type exists in the database
+      const SettingsModel = this.dbConnection.model('Settings');
+      const punishmentTypesDoc = await SettingsModel.findOne({ type: 'punishmentTypes' });
+      
+      if (punishmentTypesDoc?.data) {
+        const punishmentType = punishmentTypesDoc.data.find((pt: any) => pt.ordinal === numericId);
+        if (punishmentType) {
+          console.log(`[AI Moderation] Successfully mapped AI punishment type ${aiPunishmentTypeId} to ${punishmentType.name} (ordinal: ${numericId})`);
+          return numericId;
         }
       }
 
-      console.error(`[AI Moderation] No valid mapping found for AI punishment type: ${aiPunishmentTypeId}`);
+      console.error(`[AI Moderation] No valid punishment type found for ordinal: ${numericId}`);
       return null;
     } catch (error) {
       console.error(`[AI Moderation] Error mapping AI punishment type ${aiPunishmentTypeId}:`, error);
