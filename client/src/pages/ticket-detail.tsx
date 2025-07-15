@@ -1408,16 +1408,6 @@ const TicketDetail = () => {
               <PunishmentDetailsCard punishmentId={ticketData.data.punishmentId} />
             )}
 
-            {/* Debug AI Analysis State */}
-            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (
-              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 mb-2 text-xs">
-                <strong>AI Analysis Debug:</strong> 
-                dismissed: {ticketDetails.aiAnalysis.dismissed ? 'true' : 'false'}, 
-                wasAppliedAutomatically: {ticketDetails.aiAnalysis.wasAppliedAutomatically ? 'true' : 'false'},
-                suggestedAction: {ticketDetails.aiAnalysis.suggestedAction ? 'exists' : 'null'}
-              </div>
-            )}
-
             {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis that hasn't been applied or dismissed */}
             {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && !ticketDetails.aiAnalysis.dismissed && !ticketDetails.aiAnalysis.wasAppliedAutomatically && (
               <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4" data-testid="ai-analysis">

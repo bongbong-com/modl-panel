@@ -222,10 +222,20 @@ export class AIModerationService {
       const aiPunishmentConfigs = aiSettingsDoc.data.aiPunishmentConfigs;
       const actualPunishmentTypes = punishmentTypesDoc.data;
 
+      if (!aiPunishmentConfigs || Object.keys(aiPunishmentConfigs).length === 0) {
+        console.warn('[AI Moderation] No AI punishment configs found in settings');
+        return [];
+      }
+
+      console.log(`[AI Moderation] AI punishment configs:`, JSON.stringify(aiPunishmentConfigs, null, 2));
+      console.log(`[AI Moderation] Found ${Object.keys(aiPunishmentConfigs).length} AI punishment configurations`);
+
       // Map AI punishment configs to actual punishment types
       const enabledAIPunishmentTypes: AIPunishmentType[] = [];
       
       Object.values(aiPunishmentConfigs).forEach((config: any) => {
+        console.log(`[AI Moderation] Checking AI config '${config.name}' (id: ${config.id}): enabled=${config.enabled}`);
+        
         if (config.enabled === true) {
           let actualPunishmentType = null;
           
@@ -271,26 +281,11 @@ export class AIModerationService {
         }
       });
 
-      // If no AI punishment types were found, provide a fallback using common punishment types
+      // If no AI punishment types were found, the AI should not make punishment suggestions
       if (enabledAIPunishmentTypes.length === 0) {
-        console.warn('[AI Moderation] No AI punishment configs found, using fallback punishment types');
-        
-        // Find common punishment types that are suitable for AI moderation
-        const fallbackPunishmentTypes = actualPunishmentTypes.filter((pt: any) => {
-          const suitableTypes = ['mute', 'ban', 'kick', 'chat abuse', 'anti social'];
-          return suitableTypes.some(type => pt.name.toLowerCase().includes(type.toLowerCase()));
-        });
-        
-        fallbackPunishmentTypes.forEach((pt: any) => {
-          enabledAIPunishmentTypes.push({
-            id: pt.ordinal.toString(),
-            name: pt.name,
-            aiDescription: `Apply ${pt.name} punishment for rule violations`,
-            enabled: true
-          });
-        });
-        
-        console.log(`[AI Moderation] Using ${enabledAIPunishmentTypes.length} fallback punishment types`);
+        console.warn('[AI Moderation] No enabled AI punishment configs found - AI will not suggest punishments');
+        console.warn('[AI Moderation] Configure AI punishment types in the AI Moderation Settings to enable punishment suggestions');
+        return [];
       }
 
       console.log(`[AI Moderation] Found ${enabledAIPunishmentTypes.length} enabled AI punishment types.`);
