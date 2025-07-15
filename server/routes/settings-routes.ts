@@ -3290,12 +3290,14 @@ router.post('/cleanup-ai-configs', async (req: Request, res: Response) => {
 
 // Apply AI-suggested punishment to a player
 router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response) => {
+  const { ticketId } = req.params;
+  let playerIdentifier;
+  let aiAnalysis;
+  
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
     }
-
-    const { ticketId } = req.params;
     
     // Get staff information from session (more secure than request body)
     if (!req.currentUser) {
@@ -3313,7 +3315,7 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
       return res.status(404).json({ error: 'Ticket not found' });
     }
 
-    const aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
+    aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
     if (!aiAnalysis || !aiAnalysis.suggestedAction) {
       return res.status(400).json({ error: 'No AI suggestion found for this ticket' });
     }
@@ -3325,7 +3327,7 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     // Get the reported player identifier (prefer UUID, fallback to name)
     const reportedPlayerUuid = ticket.reportedPlayerUuid || ticket.data?.get?.('reportedPlayerUuid') || ticket.data?.reportedPlayerUuid;
     const reportedPlayer = ticket.reportedPlayer || ticket.data?.get?.('reportedPlayer') || ticket.data?.reportedPlayer;
-    const playerIdentifier = reportedPlayerUuid || reportedPlayer;
+    playerIdentifier = reportedPlayerUuid || reportedPlayer;
 
     if (!playerIdentifier) {
       return res.status(400).json({ error: 'No reported player found for this ticket' });
@@ -3375,7 +3377,18 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     });
   } catch (error) {
     console.error('Error applying AI-suggested punishment:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      ticketId,
+      playerIdentifier,
+      punishmentTypeId: aiAnalysis?.suggestedAction?.punishmentTypeId,
+      severity: aiAnalysis?.suggestedAction?.severity
+    });
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      details: error.message 
+    });
   }
 });
 

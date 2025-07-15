@@ -389,7 +389,7 @@ const TicketDetail = () => {
     'Low': 'bg-info/10 text-info border-info/20',
     'Fixed': 'bg-success/10 text-success border-success/20'
   };  // Use React Query to fetch ticket data from panel API
-  const { data: ticketData, isLoading, isError, error } = usePanelTicket(ticketId);
+  const { data: ticketData, isLoading, isError, error, mutate } = usePanelTicket(ticketId);
   
   useEffect(() => {
     // Ticket data received
@@ -561,8 +561,7 @@ const TicketDetail = () => {
 
       if (response.ok) {
         // Refresh ticket data to show updated AI analysis
-        // This would trigger a re-fetch of the ticket data
-        window.location.reload(); // Simple approach, could be optimized
+        await mutate();
         
         toast({
           title: "Success",
@@ -607,7 +606,7 @@ const TicketDetail = () => {
 
       if (response.ok) {
         // Refresh ticket data to show dismissed AI analysis
-        window.location.reload(); // Simple approach, could be optimized
+        await mutate();
         
         toast({
           title: "Success",
@@ -1360,35 +1359,35 @@ const TicketDetail = () => {
             )}
 
             {/* AI Analysis Section - Only show for Chat Report tickets with AI analysis */}
-            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            {ticketDetails.category === 'Chat Report' && ticketDetails.aiAnalysis && !ticketDetails.aiAnalysis.dismissed && (
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-full">
-                    <ShieldAlert className="h-5 w-5 text-blue-600" />
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                    <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-blue-900">
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-100">
                         {ticketDetails.aiAnalysis.wasAppliedAutomatically 
                           ? 'AI Action Taken' 
                           : 'AI Suggestion'}
                       </h3>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                      <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
                         AI Analysis
                       </Badge>
                     </div>
 
                     {/* AI Analysis Text */}
-                    <p className="text-sm text-blue-800 mb-3">
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
                       {ticketDetails.aiAnalysis.analysis}
                     </p>
 
                     {/* Suggested Action */}
                     {ticketDetails.aiAnalysis.suggestedAction && (
-                      <div className="bg-white rounded-md p-3 border border-blue-200">
+                      <div className="bg-white dark:bg-gray-900 rounded-md p-3 border border-blue-200 dark:border-blue-800">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {ticketDetails.aiAnalysis.wasAppliedAutomatically 
                                 ? 'Applied: ' 
                                 : 'Suggested: '}
@@ -1400,18 +1399,18 @@ const TicketDetail = () => {
                               })()} 
                               ({ticketDetails.aiAnalysis.suggestedAction.severity})
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               Analyzed on {new Date(ticketDetails.aiAnalysis.createdAt).toLocaleString()}
                             </p>
                           </div>
                           
-                          {/* Action buttons - only show if not automatically applied */}
-                          {!ticketDetails.aiAnalysis.wasAppliedAutomatically && (
+                          {/* Action buttons - only show if not automatically applied and not dismissed */}
+                          {!ticketDetails.aiAnalysis.wasAppliedAutomatically && !ticketDetails.aiAnalysis.dismissed && (
                             <div className="flex gap-2">
                               <Button 
                                 size="sm" 
                                 variant="default"
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
                                 onClick={applyAISuggestion}
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
@@ -1433,8 +1432,8 @@ const TicketDetail = () => {
 
                     {/* No action case */}
                     {!ticketDetails.aiAnalysis.suggestedAction && (
-                      <div className="bg-white rounded-md p-3 border border-blue-200">
-                        <p className="text-sm text-gray-700">
+                      <div className="bg-white dark:bg-gray-900 rounded-md p-3 border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
                           <strong>AI Recommendation:</strong> No disciplinary action required
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
