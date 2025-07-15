@@ -29,6 +29,7 @@ import ProvisioningInProgressPage from "@/pages/provisioning-in-progress";
 import AcceptInvitationPage from "@/pages/AcceptInvitationPage";
 import { WelcomeModal } from "@/components/layout/WelcomeModal";
 import MaintenancePage from "./pages/MaintenancePage";
+import RateLimitPage from "@/pages/RateLimitPage";
 import { Loader2 } from "lucide-react";
 
 // Knowledgebase Pages
@@ -99,7 +100,9 @@ function Router() {
             <AuthRoute path="/auth" component={AuthPage} /> {/* For direct /auth access */}
             <Route path="/appeal" component={AppealsPage} />
             <Route path="/ticket/:id" component={PlayerTicket} />
-            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />          <Route path="/accept-invitation" component={AcceptInvitationPage} />
+            <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
+            <Route path="/accept-invitation" component={AcceptInvitationPage} />
+            <Route path="/rate-limit" component={RateLimitPage} />
             {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
             <Route path="/knowledgebase" component={KnowledgebasePage} />
             <Route path="/:articleSlug" component={ArticleDetailPage} />
@@ -132,6 +135,7 @@ function Router() {
           <Route path="/ticket/:id" component={PlayerTicket} />
           <Route path="/provisioning-in-progress" component={ProvisioningInProgressPage} />
           <Route path="/accept-invitation" component={AcceptInvitationPage} />
+          <Route path="/rate-limit" component={RateLimitPage} />
           {/* Public KB routes for desktop, if accessed directly and not caught by earlier block */}
           <Route path="/knowledgebase" component={KnowledgebasePage} />
           <Route path="/:articleSlug" component={ArticleDetailPage} />
