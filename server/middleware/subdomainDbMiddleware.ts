@@ -6,7 +6,6 @@ import { SystemConfigSchema } from 'modl-shared-web';
 import { reservedSubdomains } from '../config/reserved-subdomains';
 
 const DOMAIN = process.env.DOMAIN || 'modl.gg';
-const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 
 export async function subdomainDbMiddleware(req: Request, res: Response, next: NextFunction) {
   // Bypass for common asset types or paths used by Vite/client-side apps
@@ -50,25 +49,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
 
   let serverName: string | undefined = undefined; // This will hold the derived subdomain
 
-  if (IS_DEVELOPMENT && (hostname === 'localhost' || hostname === '127.0.0.1')) {
-    serverName = 'testlocal';
-    // @ts-ignore
-    req.serverName = serverName;
-
-    try {
-      // @ts-ignore
-      req.serverDbConnection = await connectToServerDb(serverName);
-      // @ts-ignore
-      req.modlServer = {
-        customDomain: serverName,
-        emailVerified: true,
-      };
-      return next();
-    } catch (dbConnectError: any) {
-      console.error(`SubdomainMiddleware: DEV MODE (localhost) - Failed to connect to DB for ${serverName}. Error:`, dbConnectError.message);
-      return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${serverName} (localhost development).` });
-    }
-  } else if (hostname.endsWith(`.${DOMAIN}`)) {
+  if (hostname.endsWith(`.${DOMAIN}`)) {
     const parts = hostname.split('.');
     const baseDomainParts = DOMAIN.split('.').length;
     if (parts.length > baseDomainParts) {

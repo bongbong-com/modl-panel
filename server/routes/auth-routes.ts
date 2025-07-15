@@ -12,14 +12,11 @@ import {
 import type { GenerateAuthenticationOptionsOpts } from '@simplewebauthn/server';
 import type { AuthenticatorTransport } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
-import { BYPASS_DEV_AUTH } from 'server/middleware/auth-middleware';
 import { getModlServersModel } from '../db/connectionManager';
 
 
-const rpID = 'localhost';
-const expectedOrigin = process.env.NODE_ENV === 'production'
-  ? `https://${process.env.APP_DOMAIN}`
-  : 'http://localhost:5173';
+const rpID = process.env.APP_DOMAIN || 'localhost';
+const expectedOrigin = `https://${process.env.APP_DOMAIN || 'localhost'}`;
 
 const router = Router();
 
@@ -46,14 +43,6 @@ function generateNumericCode(length: number = 6): string {
 
 router.get('/check-email/:email', async (req: Request<{ email: string }>, res: Response) => {
   try {
-    if (process.env.NODE_ENV === 'development') {
-      // In development mode, accept any email and assume no 2FA/FIDO for simplicity
-      return res.json({
-        exists: true,
-        isTwoFactorEnabled: false, // Default to false for any dev email
-        hasFidoPasskeys: false    // Default to false for any dev email
-      });
-    }
 
     const Staff = req.serverDbConnection!.model('Staff');
     const requestedEmail = req.params.email.toLowerCase(); // Normalize requested email
@@ -385,22 +374,6 @@ router.post('/fido-login-verify', authRateLimit, async (req: Request, res: Respo
 });
 
 router.get('/session', (req: Request, res: Response) => {
-  if (process.env.NODE_ENV === 'development' && BYPASS_DEV_AUTH) {
-    // Mock user for development mode
-    return res.status(200).json({
-      isAuthenticated: true,
-      user: {
-        id: 'dev-user-id',
-        email: 'dev@example.com',
-        username: 'devuser',
-        role: 'Super Admin', // Or any default role suitable for development
-      },
-      // @ts-ignore
-      maintenanceMode: req.maintenanceConfig?.maintenanceMode || false,
-      // @ts-ignore
-      maintenanceMessage: req.maintenanceConfig?.maintenanceMessage || ''
-    });
-  }
 
   // @ts-ignore
   if (req.session && req.session.userId) {
@@ -627,22 +600,7 @@ router.patch('/profile', async (req: Request, res: Response) => {
 router.get('/session', async (req: Request, res: Response) => {
   console.log('[SESSION] Session check request received');
   
-  try {    // Check for development bypass first
-    if (BYPASS_DEV_AUTH && process.env.NODE_ENV === 'development') {
-      console.log('[SESSION] Using development bypass');
-      const user = {
-        _id: 'dev-user-id',
-        email: 'dev@example.com',
-        username: 'devuser',
-        role: 'Super Admin'
-      };
-      
-      console.log('[SESSION] Returning dev bypass user:', user);
-      return res.json({ 
-        isAuthenticated: true, 
-        user 
-      });
-    }
+  try {
 
     const session = req.session as any;
     

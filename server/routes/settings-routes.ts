@@ -2999,8 +2999,8 @@ router.post('/ai-punishment-types', checkPermission('admin.settings.modify'), as
   }
 });
 
-// Update AI punishment type configuration
-router.put('/ai-punishment-types/:id', async (req: Request, res: Response) => {
+// Update AI punishment type configuration - ADMIN ONLY
+router.put('/ai-punishment-types/:id', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
@@ -3083,8 +3083,8 @@ router.put('/ai-punishment-types/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Remove/Disable AI punishment type
-router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) => {
+// Remove/Disable AI punishment type - ADMIN ONLY
+router.delete('/ai-punishment-types/:id', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
@@ -3132,8 +3132,8 @@ router.delete('/ai-punishment-types/:id', async (req: Request, res: Response) =>
   }
 });
 
-// Debug route to test if settings routes are working
-router.get('/debug', async (req: Request, res: Response) => {
+// Debug route to test if settings routes are working - ADMIN ONLY
+router.get('/debug', isAuthenticated, checkRole(['Super Admin']), async (req: Request, res: Response) => {
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     

@@ -238,7 +238,7 @@ router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, 
 });
 
 
-router.get('/:username', async (req: Request<{ username: string }>, res: Response) => {
+router.get('/:username', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request<{ username: string }>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staffMember = await Staff.findOne({ username: req.params.username })
@@ -260,7 +260,7 @@ interface CreateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
-router.post('/', async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
+router.post('/', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const { email, username, role } = req.body;

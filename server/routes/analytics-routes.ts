@@ -1,7 +1,12 @@
 import express from 'express';
 import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, eachDayOfInterval, format } from 'date-fns';
+import { isAuthenticated } from '../middleware/auth-middleware';
+import { checkRole } from '../middleware/role-middleware';
 
 const router = express.Router();
+
+// Ensure all analytics routes require authentication and admin role
+router.use(isAuthenticated, checkRole(['Super Admin', 'Admin', 'Moderator']));
 
 // Helper function to get punishment types from settings (using both storage methods)
 async function getPunishmentTypesConfig(db: any) {

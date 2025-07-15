@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { verifyTicketApiKey } from '../middleware/ticket-api-auth';
 import { getSettingsValue } from './settings-routes';
+import { strictRateLimit } from '../middleware/rate-limiter';
 
 const router = express.Router();
 
@@ -297,7 +298,8 @@ router.post('/tickets', verifyTicketApiKey, async (req: Request, res: Response) 
 });
 
 // Create a new ticket without API key authentication (initially Unfinished)
-router.post('/tickets/unfinished', async (req: Request, res: Response) => {
+// Apply strict rate limiting to prevent abuse
+router.post('/tickets/unfinished', strictRateLimit, async (req: Request, res: Response) => {
   if (!req.serverDbConnection || !req.serverName) {
     return res.status(503).json({ 
       error: 'Service unavailable',
