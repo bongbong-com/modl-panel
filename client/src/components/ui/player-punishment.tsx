@@ -314,6 +314,9 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     
     // Single severity punishments show offense level instead of severity
     if (punishmentType.singleSeverityPunishment) return null;
+    
+    // Special permanent punishments don't show severity selection
+    if (punishmentType.permanentUntilSkinChange || punishmentType.permanentUntilNameChange) return null;
 
     return (
       <div className="space-y-2">
@@ -345,6 +348,9 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     
     // Only show offense selection for single severity punishments
     if (!punishmentType.singleSeverityPunishment) return null;
+    
+    // Special permanent punishments don't show offense selection
+    if (punishmentType.permanentUntilSkinChange || punishmentType.permanentUntilNameChange) return null;
 
     return (
       <div className="space-y-2">
@@ -770,6 +776,11 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
         disabled={isApplying || ((['Kick', 'Manual Mute', 'Manual Ban'].includes(data.selectedPunishmentCategory || '')) && !data.reason?.trim()) || (() => {
           const punishmentType = getCurrentPunishmentType();
           if (!punishmentType) return true;
+          
+          // Special permanent punishments don't require severity or offense level
+          if (punishmentType.permanentUntilSkinChange || punishmentType.permanentUntilNameChange) {
+            return false;
+          }
           
           // For multi-severity punishments, severity is required
           if (!punishmentType.singleSeverityPunishment && !['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(data.selectedPunishmentCategory || '')) {
