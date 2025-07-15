@@ -523,7 +523,6 @@ router.patch('/profile', async (req: Request, res: Response) => {
     }
     
     if (!updatedUser) {
-      console.log('[PROFILE ENDPOINT] User still not found after attempted creation');
       return res.status(404).json({ message: 'User not found' });
     }
       // Update session with new user data

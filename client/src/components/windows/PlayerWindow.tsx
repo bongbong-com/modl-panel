@@ -2563,8 +2563,11 @@ const PlayerWindow = ({ playerId, isOpen, onClose, initialPosition }: PlayerWind
                           // Force a refetch to get the latest data
                           refetch(); // Refetch player data after adding note
                         } catch (error) {
-                          console.error('Error adding note:', error);
-                          alert('Failed to add note. Please try again.');
+                          toast({
+                            title: "Error",
+                            description: "Failed to add note. Please try again.",
+                            variant: "destructive",
+                          });
                         }
                       }}
                     >

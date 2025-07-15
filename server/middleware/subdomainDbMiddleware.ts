@@ -65,9 +65,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       };
       return next();
     } catch (dbConnectError: any) {
-      // @ts-ignore
-      console.error(`[DEBUG] SubdomainMiddleware: DEV MODE (localhost) - Failed to connect to DB for ${serverName}. Error:`, dbConnectError.message);
-      // @ts-ignore
+      console.error(`SubdomainMiddleware: DEV MODE (localhost) - Failed to connect to DB for ${serverName}. Error:`, dbConnectError.message);
       return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${serverName} (localhost development).` });
     }
   } else if (hostname.endsWith(`.${DOMAIN}`)) {
@@ -123,19 +121,14 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     // First, try to find by custom domain (subdomain.modl.gg pattern)
     if (hostname.endsWith(`.${DOMAIN}`)) {
       serverConfig = await ModlServerModel.findOne({ customDomain: serverName });
-      //console.log(`[SubdomainMiddleware] Looking up subdomain: ${serverName}`);
     } else {
       // This is likely a custom domain - search by customDomain_override
-      //console.log(`[SubdomainMiddleware] Looking up custom domain: ${hostname}`);
-      
       // Add more detailed debugging
       try {
         const allCustomDomains = await ModlServerModel.find({ 
           customDomain_override: { $exists: true, $ne: null }
         }).select('customDomain customDomain_override customDomain_status');
         
-        //console.log(`[SubdomainMiddleware] Found ${allCustomDomains.length} servers with custom domains:`, 
-        //  allCustomDomains.map(s => `${s.customDomain_override} -> ${s.customDomain} (${s.customDomain_status})`));
         
         // Try finding with exact match first
         serverConfig = await ModlServerModel.findOne({ 
@@ -143,22 +136,18 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
           customDomain_status: 'active' // Only route active custom domains
         });
         
-        //console.log(`[SubdomainMiddleware] Custom domain lookup result:`, serverConfig ? 'FOUND' : 'NOT FOUND');
         
         // If not found, try case-insensitive search as backup
         if (!serverConfig) {
-          //console.log(`[SubdomainMiddleware] Trying case-insensitive lookup for: ${hostname}`);
           serverConfig = await ModlServerModel.findOne({ 
             customDomain_override: { $regex: new RegExp(`^${hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
             customDomain_status: 'active'
           });
-          //console.log(`[SubdomainMiddleware] Case-insensitive lookup result:`, serverConfig ? 'FOUND' : 'NOT FOUND');
         }
         
         // If found via custom domain, update serverName to match the server's actual subdomain
         // This ensures the database connection uses the correct database name
         if (serverConfig) {
-          //console.log(`[SubdomainMiddleware] Custom domain ${hostname} mapped to subdomain: ${serverConfig.customDomain}`);
           // @ts-ignore
           req.serverName = serverConfig.customDomain; // Use the subdomain for database connection
           serverName = serverConfig.customDomain; // Update local variable too
@@ -169,7 +158,6 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
     }
 
     if (!serverConfig) {
-      //console.log(`[SubdomainMiddleware] No server configuration found for: ${hostname}`);
       
       // If this was a custom domain attempt, check if it exists but isn't active
       if (!hostname.endsWith(`.${DOMAIN}`)) {
@@ -179,7 +167,6 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
           }).select('customDomain customDomain_status customDomain_error');
           
           if (inactiveServer) {
-            //console.log(`[SubdomainMiddleware] Found inactive custom domain: ${hostname} -> ${inactiveServer.customDomain} (Status: ${inactiveServer.customDomain_status})`);
             // @ts-ignore
             return res.status(503).send(`Custom domain '${hostname}' is configured but not yet active. Status: ${inactiveServer.customDomain_status}. Please complete domain verification.`);
           }
@@ -192,9 +179,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       return res.status(404).send(`Panel for '${hostname}' is not configured or does not exist.`);
     }
 
-    //console.log(`[SubdomainMiddleware] Server found: ${serverConfig.customDomain} (ID: ${serverConfig._id})`);
     if (serverConfig.customDomain_override) {
-      //console.log(`[SubdomainMiddleware] Custom domain: ${serverConfig.customDomain_override} (Status: ${serverConfig.customDomain_status})`);
     }
 
     // @ts-ignore
@@ -204,11 +189,7 @@ export async function subdomainDbMiddleware(req: Request, res: Response, next: N
       // @ts-ignore
       req.serverDbConnection = await connectToServerDb(req.serverName);
     } catch (dbConnectError: any) {
-      // @ts-ignore
-      console.error(`[DEBUG] SubdomainMiddleware: connectToServerDb CATCH block for ${req.serverName}. Error:`, dbConnectError.message);
-      // @ts-ignore
       console.error(`[SubdomainMiddleware] Failed to connect to DB for ${req.serverName}:`, dbConnectError.message);
-      // @ts-ignore
       return res.status(503).json({ error: `Service unavailable. Could not connect to database for ${req.serverName}.` });
     }
 

@@ -119,7 +119,6 @@ const UsageSettings = () => {
       // Fetch storage usage
       const usageResponse = await fetch('/api/panel/storage/usage');
       const usage = await usageResponse.json();
-      console.log('Storage usage response:', usage); // Debug log
       setStorageUsage(usage);
 
       // Fetch files

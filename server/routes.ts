@@ -525,12 +525,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
-      console.log('Stats calculated:', {
-        totalOpenTickets: openTicketsToday,
-        newTicketsToday: newTicketsToday,
-        newTicketsYesterday: newTicketsYesterday,
-        changePercent: calculateChange(newTicketsToday, newTicketsYesterday)
-      });
       res.json(response);
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -742,14 +736,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
   wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
-    
     ws.send(JSON.stringify({ type: 'connection', status: 'connected' }));
     
     ws.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
-        console.log('WebSocket message received:', data);
         
         if (data.type === 'subscribe') {
           ws.send(JSON.stringify({ type: 'subscribed', channel: data.channel }));
@@ -760,7 +751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     ws.on('close', () => {
-      console.log('WebSocket client disconnected');
+      // Client disconnected
     });
   });
   

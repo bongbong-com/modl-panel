@@ -154,7 +154,6 @@ async function getUserPermissions(req: Request, userRole: string): Promise<strin
     }
   } catch (error) {
     // Custom role model might not exist, fall back to default permissions
-    console.log('Custom role model not found, using default permissions');
   }
 
   // Return default permissions for the role
@@ -472,7 +471,6 @@ async function getAndClearPlayerNotifications(
     
     // If we have old string format notifications, clear them and return empty
     if (notifications.length > 0 && typeof notifications[0] === 'string') {
-      console.log(`Clearing old string-format notifications for player ${playerUuid}`);
       await Player.updateOne(
         { minecraftUuid: playerUuid },
         { $set: { pendingNotifications: [] } }
@@ -489,7 +487,6 @@ async function getAndClearPlayerNotifications(
       { $set: { pendingNotifications: [] } }
     );
     
-    console.log(`Retrieved ${validNotifications.length} notifications for player ${playerUuid}`);
     return validNotifications;
   } catch (error) {
     console.error(`Error getting notifications for player ${playerUuid}:`, error);
@@ -518,7 +515,6 @@ async function findAndLinkAccounts(
       return;
     }
 
-    console.log(`[Account Linking] Checking for linked accounts with IPs: ${ipAddresses.join(', ')}`);
     
     // Find all players that have used any of these IP addresses
     const potentialLinkedPlayers = await Player.find({
@@ -581,7 +577,6 @@ async function findAndLinkAccounts(
         await updatePlayerLinkedAccounts(dbConnection, currentPlayer.minecraftUuid, player.minecraftUuid);
         await updatePlayerLinkedAccounts(dbConnection, player.minecraftUuid, currentPlayer.minecraftUuid);
         
-        console.log(`[Account Linking] Linked ${currentPlayer.minecraftUuid} with ${player.minecraftUuid} via IPs: ${matchingIPs.join(', ')}`);
         
         // Create system log
         await createSystemLog(
@@ -594,11 +589,7 @@ async function findAndLinkAccounts(
       }
     }
 
-    if (linkedAccounts.length > 0) {
-      console.log(`[Account Linking] Found ${linkedAccounts.length} linked accounts for ${currentPlayerUuid}`);
-    } else {
-      console.log(`[Account Linking] No linked accounts found for ${currentPlayerUuid}`);
-    }
+    // Account linking completed
   } catch (error) {
     console.error(`[Account Linking] Error finding linked accounts:`, error);
   }
@@ -637,7 +628,6 @@ async function updatePlayerLinkedAccounts(
       player.data.set('lastLinkedAccountUpdate', new Date());
       await player.save({ validateBeforeSave: false });
       
-      console.log(`[Account Linking] Updated ${playerUuid} linked accounts: added ${linkedUuid}`);
     }
   } catch (error) {
     console.error(`[Account Linking] Error updating player linked accounts:`, error);
@@ -681,11 +671,9 @@ async function checkAndIssueLinkedBans(
 
     const linkedAccountUuids = player.data?.get('linkedAccounts') || [];
     if (linkedAccountUuids.length === 0) {
-      console.log(`[Linked Bans] No linked accounts found for ${playerUuid}`);
       return;
     }
 
-    console.log(`[Linked Bans] Checking ${linkedAccountUuids.length} linked accounts for active alt-blocking bans`);
 
     // Check each linked account for active alt-blocking bans
     for (const linkedUuid of linkedAccountUuids) {
@@ -751,7 +739,6 @@ async function issueLinkedBan(
     });
 
     if (existingLinkedBan) {
-      console.log(`[Linked Bans] Player ${targetPlayer.minecraftUuid} already has linked ban for source punishment ${sourceAltBlockingBan.id}`);
       return;
     }
 
@@ -809,7 +796,6 @@ async function issueLinkedBan(
       'linked-ban'
     );
 
-    console.log(`[Linked Bans] Issued linked ban ${linkedBanId} to ${targetPlayer.minecraftUuid} based on alt-blocking ban ${sourceAltBlockingBan.id} from ${sourcePlayer.minecraftUuid}`);
   } catch (error) {
     console.error(`[Linked Bans] Error issuing linked ban:`, error);
   }
@@ -1011,7 +997,6 @@ async function checkAndProcessAutoUnbans(
         );
       }
       
-      console.log(`[Auto-Unban] Processed ${punishmentsToUnban.length} auto-unbans for player ${player.minecraftUuid}`);
     }
     
   } catch (error) {
@@ -1127,7 +1112,6 @@ export function setupMinecraftRoutes(app: Express): void {
         
         // Check for linked accounts if this is a new IP address
         if (isNewIP && ipAddress) {
-          console.log(`[Account Linking] Player ${username} (${minecraftUuid}) logged in with new IP ${ipAddress}`);
           // Run account linking asynchronously to avoid blocking login
           setImmediate(() => {
             findAndLinkAccounts(serverDbConnection, [ipAddress], minecraftUuid, serverName)
@@ -1181,7 +1165,6 @@ export function setupMinecraftRoutes(app: Express): void {
         
         // Check for linked accounts for new players
         if (ipAddress) {
-          console.log(`[Account Linking] New player ${username} (${minecraftUuid}) joined with IP ${ipAddress}`);
           // Run account linking asynchronously to avoid blocking login
           setImmediate(() => {
             findAndLinkAccounts(serverDbConnection, [ipAddress], minecraftUuid, serverName)
@@ -1580,7 +1563,6 @@ export function setupMinecraftRoutes(app: Express): void {
       const storedLinkedAccounts = player.data?.get ? player.data.get('linkedAccounts') : player.data?.linkedAccounts;
       if (storedLinkedAccounts && Array.isArray(storedLinkedAccounts)) {
         storedLinkedAccounts.forEach((uuid: string) => linkedAccountUuids.add(uuid));
-        console.log(`[Linked Accounts API] Found ${storedLinkedAccounts.length} stored linked accounts for ${minecraftUuid}`);
       }
 
       // Method 2: Get linked accounts by IP addresses (legacy/fallback system)
@@ -1592,11 +1574,9 @@ export function setupMinecraftRoutes(app: Express): void {
         }).select('minecraftUuid').lean();
         
         ipLinkedPlayers.forEach((p: any) => linkedAccountUuids.add(p.minecraftUuid));
-        console.log(`[Linked Accounts API] Found ${ipLinkedPlayers.length} IP-linked accounts for ${minecraftUuid}`);
       }
 
       if (linkedAccountUuids.size === 0) {
-        console.log(`[Linked Accounts API] No linked accounts found for ${minecraftUuid}`);
         return res.status(200).json({ status: 200, linkedAccounts: [] });
       }
 
@@ -1619,7 +1599,6 @@ export function setupMinecraftRoutes(app: Express): void {
         };
       });
       
-      console.log(`[Linked Accounts API] Returning ${formattedLinkedAccounts.length} linked accounts for ${minecraftUuid}`);
       return res.status(200).json({ status: 200, linkedAccounts: formattedLinkedAccounts });
     } catch (error: any) {
       console.error('Error getting linked accounts:', error);
@@ -2054,7 +2033,6 @@ export function setupMinecraftRoutes(app: Express): void {
         
         // Handle migration: if we have old string format notifications, just clear them all
         if (player.pendingNotifications.length > 0 && typeof player.pendingNotifications[0] === 'string') {
-          console.log(`Migrating pendingNotifications format during acknowledgment for player ${playerUuid}`);
           player.pendingNotifications = [];
           removedCount = originalLength;
         } else {
@@ -2074,7 +2052,6 @@ export function setupMinecraftRoutes(app: Express): void {
         }
       }
 
-      console.log(`Acknowledged ${removedCount} notifications for player ${playerUuid}`);
       
       return res.status(200).json({
         status: 200,
@@ -2355,11 +2332,6 @@ export function setupMinecraftRoutes(app: Express): void {
         // Don't set expires until punishment is started by server
       ]);
       
-      // Log for debugging
-      console.log(`[MINECRAFT-API] Creating punishment type ${type_ordinal} for ${targetUuid}`);
-      console.log(`[MINECRAFT-API] Severity: ${severity} -> ${finalSeverity}, Status: ${status} -> ${finalStatus}`);
-      console.log(`[MINECRAFT-API] Duration: ${calculatedDuration}ms`);
-      console.log(`[MINECRAFT-API] Data:`, Object.fromEntries(newPunishmentData));
 
       const newPunishment: IPunishment = {
         id: punishmentId,

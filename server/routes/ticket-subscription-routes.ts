@@ -102,7 +102,7 @@ router.delete('/:ticketId', async (req, res) => {
           }
         );
       } catch (objectIdError) {
-        console.log(`[DEBUG] ObjectId approach failed for unsubscribe`);
+        // ObjectId approach failed, continue
       }
     }
 
@@ -265,7 +265,7 @@ router.post('/updates/:updateId/read', async (req, res) => {
           }
         );
       } catch (objectIdError) {
-        console.log(`[DEBUG] ObjectId approach failed for mark as read`);
+        // ObjectId approach failed, continue
       }
     }
 
@@ -279,7 +279,6 @@ router.post('/updates/:updateId/read', async (req, res) => {
 // Helper function to create or ensure ticket subscription exists
 export async function ensureTicketSubscription(db: any, ticketId: string, staffUsername: string) {
   try {
-    console.log(`[DEBUG] ensureTicketSubscription called for ${staffUsername} on ticket ${ticketId}`);
     
     const Staff = db.model('Staff');
     
@@ -291,8 +290,6 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
       return;
     }
 
-    console.log(`[DEBUG] Staff found: ${staff.username}`);
-    console.log(`[DEBUG] Current subscribedTickets:`, staff.subscribedTickets);
 
     // Check if subscription already exists - handle both string and ObjectId comparison
     const existingSubscription = staff.subscribedTickets?.find(
@@ -300,7 +297,6 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
     );
 
     if (existingSubscription) {
-      console.log(`[DEBUG] Subscription already exists and is active for ${staffUsername} on ticket ${ticketId}`);
       return;
     }
 
@@ -314,10 +310,9 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
         subscribedAt: new Date(),
         active: true
       };
-      console.log(`[DEBUG] Using ObjectId approach for ticketId: ${ticketId}`);
     } catch (objectIdError) {
       // If ObjectId conversion fails, use string (ticket IDs like "BUG-123456")
-      console.log(`[DEBUG] ObjectId conversion failed (${objectIdError.message}), using string ticketId: ${ticketId}`);
+      // ObjectId conversion failed, using string ticketId
       subscriptionData = {
         ticketId: ticketId,
         subscribedAt: new Date(),
@@ -325,7 +320,6 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
       };
     }
 
-    console.log(`[DEBUG] Adding subscription data:`, subscriptionData);
 
     const result = await Staff.updateOne(
       { username: staffUsername },
@@ -351,7 +345,6 @@ export async function ensureTicketSubscription(db: any, ticketId: string, staffU
 // Helper function to mark ticket as read when staff opens it
 export async function markTicketAsRead(db: any, ticketId: string, staffUsername: string) {
   try {
-    console.log(`[DEBUG] markTicketAsRead called for ${staffUsername} on ticket ${ticketId}`);
     
     const Staff = db.model('Staff');
     
@@ -386,7 +379,7 @@ export async function markTicketAsRead(db: any, ticketId: string, staffUsername:
           }
         );
       } catch (objectIdError) {
-        console.log(`[DEBUG] ObjectId approach failed, sticking with string approach`);
+        // ObjectId approach failed, using string approach
       }
     }
     

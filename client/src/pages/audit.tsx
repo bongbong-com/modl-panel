@@ -1089,8 +1089,7 @@ const StaffDetailModal = ({ staff, isOpen, onClose }: {
                                     className="text-xs h-5 px-1"
                                     onClick={async () => {
                                       try {
-                                        console.log(`Attempting to rollback punishment ID: ${punishment.id}`);
-                                        
+                                                                          
                                         const response = await fetch(`/api/panel/audit/punishment/${punishment.id}/rollback`, {
                                           method: 'POST',
                                           headers: { 'Content-Type': 'application/json' },

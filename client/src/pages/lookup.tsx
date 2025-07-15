@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { usePlayers, usePlayer } from '@/hooks/use-data';
 import ResizableWindow from '@/components/layout/ResizableWindow';
+import { useToast } from '@/hooks/use-toast';
 
 interface Warning {
   type: string;
@@ -318,6 +319,7 @@ const Lookup = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: players, isLoading: isLoadingPlayers } = usePlayers();
   const [recentLookups, setRecentLookups] = useState<any[]>([]);
+  const { toast } = useToast();
   
   // More generous left margin to prevent text overlap with sidebar
   const mainContentClass = "ml-[32px] pl-8";
@@ -380,23 +382,35 @@ const Lookup = () => {
             // Player found
             window.location.href = `/lookup?id=${playerData.uuid}`;
           } else {
-            console.error('Player found but UUID is missing in data');
-            alert('Invalid player data returned. Please try a different username.');
+            toast({
+              title: "Error",
+              description: "Invalid player data returned. Please try a different username.",
+              variant: "destructive",
+            });
           }
         } else {
           // Try to parse error message
           try {
             const errorData = await response.json();
-            console.error('Failed to search for player:', errorData);
-            alert(errorData.message || 'Player not found. Please check the username and try again.');
+            toast({
+              title: "Player Not Found",
+              description: errorData.message || 'Player not found. Please check the username and try again.',
+              variant: "destructive",
+            });
           } catch (e) {
-            console.error('Failed to search for player:', response.statusText);
-            alert(`Error searching for player: ${response.statusText}`);
+            toast({
+              title: "Search Error",
+              description: `Error searching for player: ${response.statusText}`,
+              variant: "destructive",
+            });
           }
         }
       } catch (error) {
-        console.error('Error during player search:', error);
-        alert('An error occurred during search. Please try again.');
+        toast({
+          title: "Search Error",
+          description: "An error occurred during search. Please try again.",
+          variant: "destructive",
+        });
       } finally {
         setIsSearching(false);
       }

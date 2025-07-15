@@ -490,7 +490,3 @@ export function startDomainStatusUpdater(serverDbConnection: any, intervalMinute
   }, intervalMinutes * 60 * 1000);
 }
 
-// Legacy function names for backward compatibility
-export const handleCloudflareCustomDomain = createCustomHostname;
-export const verifyCloudflareCustomDomain = verifyCustomHostname;
-export const deleteCloudflareCustomDomain = deleteCustomHostname;

@@ -1578,11 +1578,9 @@ const Settings = () => {
   // Save settings to backend
   const saveSettings = useCallback(async () => {
     if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current) {
-      // console.log("[SettingsPage] Skipping auto-save during initial load"); // Removed
       return; // Skip saving during initial load
     }
 
-    // console.log("[SettingsPage] Auto-saving settings..."); // Removed
     setIsSaving(true);
     pendingChangesRef.current = false;
 
@@ -1643,35 +1641,28 @@ const Settings = () => {
   // Effect: Load settings from React Query into local component state
   useEffect(() => {
     if (isLoadingSettings || isFetchingSettings) {
-      // console.log('[SettingsPage] settingsData is loading/fetching. Waiting...'); // Removed
       return;
     }
 
     // Log the raw settingsData received from the hook
-    // console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData); // Removed
 
-    // console.log('[SettingsPage] Raw settingsData from useSettings:', settingsData); // Already removed
 
     if (settingsData?.settings && Object.keys(settingsData.settings).length > 0 && !initialLoadCompletedRef.current) {
-      // console.log('[SettingsPage] Valid settingsData.settings received for the first time. Applying to local state.'); // Removed
       applySettingsObjectToState(settingsData.settings); // Call directly
 
       // Capture settings for future reference and mark initial load as complete
       // This timeout ensures state updates from applySettingsObjectToState have settled
       // before capturing and enabling auto-save.
       setTimeout(() => {
-        // console.log('[SettingsPage] Capturing initial settings snapshot after data load.'); // Removed
         captureInitialSettings(); // Call directly
         initialLoadCompletedRef.current = true;
-        // console.log('[SettingsPage] Initial load process fully complete after timeout.'); // Removed
       }, 600); // Delay to ensure state updates propagate
     } else if (!settingsData?.settings && !initialLoadCompletedRef.current && !isLoadingSettings && !isFetchingSettings) {
       // This case handles if the API returns no settings (e.g. empty object) on the first load
-      // console.log('[SettingsPage] No valid settings data received on first successful fetch, or data was empty. Marking initial load as complete.'); // Removed
       initialLoadCompletedRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsData, isLoadingSettings, isFetchingSettings]); // Removed applySettingsObjectToState and captureInitialSettings
+  }, [settingsData, isLoadingSettings, isFetchingSettings]);
 
   // Debounced auto-save effect - only trigger when settings change after initial load
   useEffect(() => {
@@ -1680,7 +1671,6 @@ const Settings = () => {
       return;
     }
 
-    // console.log("[SettingsPage] Settings changed, scheduling auto-save"); // Removed
 
     // If there's a pending save, clear it
     if (saveTimeoutRef.current) {
@@ -1751,7 +1741,6 @@ const Settings = () => {
     if (justLoadedFromServerRef.current || !initialLoadCompletedRef.current) {
       setPunishmentTypesState(value);
     } else {
-      // console.log("[SettingsPage] Setting punishmentTypes and flagging for auto-save"); // Removed
       setPunishmentTypesState(value);
     }
   };
@@ -1819,10 +1808,6 @@ const Settings = () => {
   
   // Save profile settings function
   const saveProfileSettings = useCallback(async () => {
-    console.log('saveProfileSettings called with:', {
-      username: profileUsernameState
-    });
-    
     try {
       const response = await fetch('/api/auth/profile', {
         method: 'PATCH',
@@ -2448,22 +2433,18 @@ const Settings = () => {
   // Missing function implementations for ticket form management
   const onEditSection = useCallback((section: TicketFormSection) => {
     // Placeholder implementation - could open a dialog to edit section
-    console.log('Edit section:', section);
   }, []);
 
   const onDeleteSection = useCallback((sectionId: string) => {
     // Placeholder implementation - remove section from form
-    console.log('Delete section:', sectionId);
   }, []);
 
   const onEditField = useCallback((field: TicketFormField) => {
     // Placeholder implementation - could open a dialog to edit field
-    console.log('Edit field:', field);
   }, []);
 
   const onDeleteField = useCallback((fieldId: string) => {
     // Placeholder implementation - remove field from form
-    console.log('Delete field:', fieldId);
   }, []);
 
   const onAddField = useCallback((sectionId: string) => {

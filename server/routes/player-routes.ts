@@ -224,12 +224,6 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
             hosting: latestIP.hosting || false,
             asn: latestIP.asn
           };
-          console.log(`[Player API] Latest IP data for ${player.minecraftUuid}:`, {
-            country: latestIP.country,
-            region: latestIP.region,
-            proxy: latestIP.proxy,
-            hosting: latestIP.hosting
-          });
         }
       }
 
@@ -317,12 +311,6 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
             hosting: latestIP.hosting || false,
             asn: latestIP.asn
           };
-          console.log(`[Player API] Latest IP data for ${player.minecraftUuid}:`, {
-            country: latestIP.country,
-            region: latestIP.region,
-            proxy: latestIP.proxy,
-            hosting: latestIP.hosting
-          });
         }
       }
       

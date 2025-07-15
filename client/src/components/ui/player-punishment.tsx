@@ -43,6 +43,36 @@ interface PlayerPunishmentProps {
   compact?: boolean;
 }
 
+// Constants
+const ADMINISTRATIVE_PUNISHMENTS = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
+const SEVERITY_OPTIONS = ['Lenient', 'Regular', 'Aggravated'];
+const OFFENSE_LEVELS = [
+  { id: 'first', label: 'First Offense' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'habitual', label: 'Habitual' }
+];
+const DURATION_UNITS = [
+  { value: 'seconds', label: 'Seconds' },
+  { value: 'minutes', label: 'Minutes' },
+  { value: 'hours', label: 'Hours' },
+  { value: 'days', label: 'Days' },
+  { value: 'weeks', label: 'Weeks' },
+  { value: 'months', label: 'Months' }
+];
+
+const DEFAULT_PUNISHMENT_TYPES = {
+  Administrative: [
+    { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
+    { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
+    { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
+    { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
+    { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
+    { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
+  ],
+  Social: [],
+  Gameplay: []
+};
+
 const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
   playerId,
   playerName,
@@ -50,18 +80,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
   data,
   onChange,
   onApply,
-  punishmentTypesByCategory = {
-    Administrative: [
-      { id: 0, name: 'Kick', category: 'Administrative', isCustomizable: false, ordinal: 0 },
-      { id: 1, name: 'Manual Mute', category: 'Administrative', isCustomizable: false, ordinal: 1 },
-      { id: 2, name: 'Manual Ban', category: 'Administrative', isCustomizable: false, ordinal: 2 },
-      { id: 3, name: 'Security Ban', category: 'Administrative', isCustomizable: false, ordinal: 3 },
-      { id: 4, name: 'Linked Ban', category: 'Administrative', isCustomizable: false, ordinal: 4 },
-      { id: 5, name: 'Blacklist', category: 'Administrative', isCustomizable: false, ordinal: 5 }
-    ],
-    Social: [],
-    Gameplay: []
-  },
+  punishmentTypesByCategory = DEFAULT_PUNISHMENT_TYPES,
   isLoading = false,
   compact = false
 }) => {
@@ -241,11 +260,8 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       statWiping: false
     };
 
-    // Administrative punishments don't use automatic offense level setting
-    const administrativePunishments = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
-    
     // For single-severity punishments (non-administrative), automatically set default offense level
-    if (type.singleSeverityPunishment && !administrativePunishments.includes(type.name)) {
+    if (type.singleSeverityPunishment && !ADMINISTRATIVE_PUNISHMENTS.includes(type.name)) {
       newData.selectedOffenseLevel = 'first' as const;
     }
 
@@ -260,16 +276,10 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     }
 
     try {
-      // Search for punishments by ID or player name
       const response = await fetch(`/api/panel/punishments/search?q=${encodeURIComponent(query)}&activeOnly=true`);
-      if (response.ok) {
-        const results = await response.json();
-        setLinkedBanSearchResults(results);
-      } else {
-        setLinkedBanSearchResults([]);
-      }
+      const results = response.ok ? await response.json() : [];
+      setLinkedBanSearchResults(results);
     } catch (error) {
-      console.error('Error searching for punishments:', error);
       setLinkedBanSearchResults([]);
     }
   };
@@ -308,9 +318,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     const punishmentType = getCurrentPunishmentType();
     if (!punishmentType) return null;
     
-    // Administrative punishments don't show severity selection - they have their own logic
-    const administrativePunishments = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
-    if (administrativePunishments.includes(punishmentType.name)) return null;
+    if (ADMINISTRATIVE_PUNISHMENTS.includes(punishmentType.name)) return null;
     
     // Single severity punishments show offense level instead of severity
     if (punishmentType.singleSeverityPunishment) return null;
@@ -322,7 +330,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       <div className="space-y-2">
         <label className="text-sm font-medium">Severity</label>
         <div className="flex gap-2">
-          {['Lenient', 'Regular', 'Aggravated'].map((severity) => (
+          {SEVERITY_OPTIONS.map((severity) => (
             <Button
               key={severity}
               variant={data.selectedSeverity === severity ? "default" : "outline"}
@@ -342,9 +350,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     const punishmentType = getCurrentPunishmentType();
     if (!punishmentType) return null;
     
-    // Administrative punishments don't show offense selection - they have their own logic
-    const administrativePunishments = ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'];
-    if (administrativePunishments.includes(punishmentType.name)) return null;
+    if (ADMINISTRATIVE_PUNISHMENTS.includes(punishmentType.name)) return null;
     
     // Only show offense selection for single severity punishments
     if (!punishmentType.singleSeverityPunishment) return null;
@@ -356,11 +362,7 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
       <div className="space-y-2">
         <label className="text-sm font-medium">Offense Level</label>
         <div className="flex gap-2">
-          {[
-            { id: 'first', label: 'First Offense' },
-            { id: 'medium', label: 'Medium' },
-            { id: 'habitual', label: 'Habitual' }
-          ].map((level) => (
+          {OFFENSE_LEVELS.map((level) => (
             <Button
               key={level.id}
               variant={data.selectedOffenseLevel === level.id ? "default" : "outline"}
@@ -435,12 +437,9 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
                 }
               })}
             >
-              <option value="seconds">Seconds</option>
-              <option value="minutes">Minutes</option>
-              <option value="hours">Hours</option>
-              <option value="days">Days</option>
-              <option value="weeks">Weeks</option>
-              <option value="months">Months</option>
+              {DURATION_UNITS.map(unit => (
+                <option key={unit.value} value={unit.value}>{unit.label}</option>
+              ))}
             </select>
           </div>
         )}
@@ -492,9 +491,6 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
           </label>
         </div>
       );
-    } else if (punishmentType.name === 'Manual Mute') {
-      // Manual Mute has no special options
-      return null;
     } else if (punishmentType.name === 'Linked Ban') {
       // Linked Ban requires selecting an existing punishment to link to
       return (
@@ -603,19 +599,21 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
     );
   };
 
+  const reasonRequiredPunishments = ['Kick', 'Manual Mute', 'Manual Ban'];
+
   const renderTextFields = () => {
     const punishmentType = getCurrentPunishmentType();
     if (!punishmentType) return null;
     
     const sections = [];
     
-    // Reason field - shown for specific punishments
-    const needsReason = ['Kick', 'Manual Mute', 'Manual Ban'].includes(punishmentType.name);
-    if (needsReason) {
-      const reasonPlaceholder = punishmentType.name === 'Kick' ? 'Enter reason for kick' :
-                               punishmentType.name === 'Manual Mute' ? 'Enter reason for mute' :
-                               punishmentType.name === 'Manual Ban' ? 'Enter reason for ban' :
-                               'Enter punishment reason...';
+    if (reasonRequiredPunishments.includes(punishmentType.name)) {
+      const reasonPlaceholders = {
+        'Kick': 'Enter reason for kick',
+        'Manual Mute': 'Enter reason for mute',
+        'Manual Ban': 'Enter reason for ban'
+      };
+      const reasonPlaceholder = reasonPlaceholders[punishmentType.name as keyof typeof reasonPlaceholders] || 'Enter punishment reason...';
       
       sections.push(
         <div key="reason" className="space-y-2">
@@ -773,21 +771,18 @@ const PlayerPunishment: React.FC<PlayerPunishmentProps> = ({
 
       <Button
         onClick={handleApplyPunishment}
-        disabled={isApplying || ((['Kick', 'Manual Mute', 'Manual Ban'].includes(data.selectedPunishmentCategory || '')) && !data.reason?.trim()) || (() => {
+        disabled={isApplying || (reasonRequiredPunishments.includes(data.selectedPunishmentCategory || '') && !data.reason?.trim()) || (() => {
           const punishmentType = getCurrentPunishmentType();
           if (!punishmentType) return true;
           
-          // Special permanent punishments don't require severity or offense level
           if (punishmentType.permanentUntilSkinChange || punishmentType.permanentUntilNameChange) {
             return false;
           }
           
-          // For multi-severity punishments, severity is required
-          if (!punishmentType.singleSeverityPunishment && !['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(data.selectedPunishmentCategory || '')) {
+          if (!punishmentType.singleSeverityPunishment && !ADMINISTRATIVE_PUNISHMENTS.includes(data.selectedPunishmentCategory || '')) {
             return !data.selectedSeverity;
           }
           
-          // For single-severity punishments, offense level is required
           if (punishmentType.singleSeverityPunishment) {
             return !data.selectedOffenseLevel;
           }

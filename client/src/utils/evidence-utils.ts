@@ -100,39 +100,3 @@ export function getEvidenceShortName(evidenceItem: any, maxLength: number = 15):
   return fileName.substring(0, maxLength) + '...';
 }
 
-/**
- * Get evidence type for display (with fallback)
- */
-export function getEvidenceType(evidenceItem: any): string {
-  if (typeof evidenceItem === 'string') {
-    return evidenceItem.startsWith('http') ? 'url' : 'text';
-  }
-  
-  if (evidenceItem && typeof evidenceItem === 'object' && evidenceItem.type) {
-    return evidenceItem.type;
-  }
-  
-  return 'text';
-}
-
-/**
- * Format evidence for debugging/logging (safely converts to string)
- */
-export function formatEvidenceForLogging(evidenceItem: any): string {
-  if (typeof evidenceItem === 'string') {
-    return evidenceItem;
-  }
-  
-  if (evidenceItem && typeof evidenceItem === 'object') {
-    const parts = [];
-    
-    if (evidenceItem.type) parts.push(`type: ${evidenceItem.type}`);
-    if (evidenceItem.text) parts.push(`text: ${evidenceItem.text}`);
-    if (evidenceItem.fileName) parts.push(`fileName: ${evidenceItem.fileName}`);
-    if (evidenceItem.fileUrl) parts.push(`fileUrl: ${evidenceItem.fileUrl}`);
-    
-    return `Evidence(${parts.join(', ')})`;
-  }
-  
-  return 'Unknown Evidence';
-}
