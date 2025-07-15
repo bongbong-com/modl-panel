@@ -10,7 +10,44 @@ interface MarkdownRendererProps {
 
 // Function to process chat message lines and make usernames clickable
 const processMarkdownContent = (content: string): string => {
-  // Look for chat message pattern: `[timestamp]` **username**: message
+  // First, check if content contains JSON-formatted chat messages
+  if (content.includes('**Chat Messages:**')) {
+    const parts = content.split('**Chat Messages:**');
+    let processedContent = parts[0] + '**Chat Messages:**';
+    
+    if (parts[1]) {
+      // Look for JSON objects in the chat messages section
+      const lines = parts[1].split('\n');
+      let formattedMessages = '';
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        // Try to parse JSON objects like {"username":"tigerbong","message":"a","timestamp":"2025-07-15T23:18:20.829347033Z"}
+        if (trimmedLine.startsWith('{') && trimmedLine.includes('"username"') && trimmedLine.includes('"message"')) {
+          try {
+            const msgObj = JSON.parse(trimmedLine);
+            if (msgObj.username && msgObj.message) {
+              const timestamp = msgObj.timestamp ? new Date(msgObj.timestamp).toLocaleString() : 'Unknown time';
+              formattedMessages += `\n\`[${timestamp}]\` **[PLAYER:${msgObj.username}]**: ${msgObj.message}`;
+            } else {
+              formattedMessages += '\n' + line;
+            }
+          } catch (e) {
+            // If JSON parsing fails, keep the original line
+            formattedMessages += '\n' + line;
+          }
+        } else if (trimmedLine) {
+          formattedMessages += '\n' + line;
+        }
+      }
+      
+      processedContent += formattedMessages;
+      content = processedContent;
+    }
+  }
+  
+  // Look for already formatted chat message pattern: `[timestamp]` **username**: message
   const chatMessagePattern = /(`\[.*?\]`\s+\*\*([^*]+)\*\*:\s+.*)/g;
   
   return content.replace(chatMessagePattern, (match, fullLine, username) => {
