@@ -203,16 +203,14 @@ export class PunishmentService {
       console.log(`[Punishment Service] Calculating punishment data for type ${punishmentTypeId}, severity ${severity}`);
       
       const Settings = this.dbConnection.model('Settings');
-      const settings = await Settings.findOne({});
+      const punishmentTypesDoc = await Settings.findOne({ type: 'punishmentTypes' });
       
-      if (!settings?.settings?.punishmentTypes) {
+      if (!punishmentTypesDoc?.data) {
         console.log(`[Punishment Service] No punishment types found in settings`);
         return null;
       }
 
-      const punishmentTypes = typeof settings.settings.punishmentTypes === 'string' 
-        ? JSON.parse(settings.settings.punishmentTypes) 
-        : settings.settings.punishmentTypes;
+      const punishmentTypes = punishmentTypesDoc.data;
       
       console.log(`[Punishment Service] Available punishment types: ${JSON.stringify(punishmentTypes.map((pt: any) => ({ id: pt.id, ordinal: pt.ordinal, name: pt.name })))}`);
       

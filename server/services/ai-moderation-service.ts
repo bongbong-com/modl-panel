@@ -20,8 +20,9 @@ interface AIPunishmentType {
 interface AIAnalysisResult {
   analysis: string;
   suggestedAction: {
-    punishmentTypeId: string;
+    punishmentTypeId: string | number;
     severity: 'low' | 'regular' | 'severe';
+    originalAITypeId?: string; // Store original AI type ID for reference
   } | null;
   wasAppliedAutomatically: boolean;
   createdAt: Date;
@@ -85,23 +86,33 @@ export class AIModerationService {
         playerNameForAI
       );
 
-      // Prepare AI analysis result
+      // Map AI punishment type ID to actual punishment type ID for storage
+      let mappedPunishmentTypeId: number | null = null;
+      if (geminiResponse.suggestedAction) {
+        console.log(`[AI Moderation] AI returned punishment type ID: ${geminiResponse.suggestedAction.punishmentTypeId} (type: ${typeof geminiResponse.suggestedAction.punishmentTypeId})`);
+        console.log(`[AI Moderation] Full AI response: ${JSON.stringify(geminiResponse)}`);
+        
+        mappedPunishmentTypeId = await this.mapAIPunishmentTypeToActual(geminiResponse.suggestedAction.punishmentTypeId);
+        if (!mappedPunishmentTypeId) {
+          console.error(`[AI Moderation] No mapping found for AI punishment type ${geminiResponse.suggestedAction.punishmentTypeId}`);
+        }
+      }
+
+      // Prepare AI analysis result with mapped punishment type ID
       const analysisResult: AIAnalysisResult = {
         analysis: geminiResponse.analysis,
-        suggestedAction: geminiResponse.suggestedAction,
+        suggestedAction: geminiResponse.suggestedAction ? {
+          punishmentTypeId: mappedPunishmentTypeId || geminiResponse.suggestedAction.punishmentTypeId, // Use mapped ID if available
+          severity: geminiResponse.suggestedAction.severity,
+          originalAITypeId: geminiResponse.suggestedAction.punishmentTypeId // Store original for reference
+        } : null,
         wasAppliedAutomatically: false,
         createdAt: new Date()
       };
 
       // Apply punishment automatically if enabled and action is suggested
-      if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && playerIdentifier) {
+      if (aiSettings.enableAutomatedActions && geminiResponse.suggestedAction && playerIdentifier && mappedPunishmentTypeId) {
         try {
-          // Map AI punishment type ID to actual punishment type ID
-          const mappedPunishmentTypeId = await this.mapAIPunishmentTypeToActual(geminiResponse.suggestedAction.punishmentTypeId);
-          if (!mappedPunishmentTypeId) {
-            console.error(`[AI Moderation] No mapping found for AI punishment type ${geminiResponse.suggestedAction.punishmentTypeId}`);
-            throw new Error(`No mapping found for AI punishment type ${geminiResponse.suggestedAction.punishmentTypeId}`);
-          }
 
           const punishmentResult = await this.punishmentService.applyPunishment(
             playerIdentifier,

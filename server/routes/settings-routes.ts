@@ -3335,9 +3335,21 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
 
     // Initialize punishment service and apply the punishment
     const punishmentService = new PunishmentService(req.serverDbConnection);
+    
+    // Ensure punishment type ID is a number
+    const punishmentTypeId = typeof aiAnalysis.suggestedAction.punishmentTypeId === 'string' 
+      ? parseInt(aiAnalysis.suggestedAction.punishmentTypeId) 
+      : aiAnalysis.suggestedAction.punishmentTypeId;
+    
+    if (isNaN(punishmentTypeId)) {
+      return res.status(400).json({ 
+        error: `Invalid punishment type ID: ${aiAnalysis.suggestedAction.punishmentTypeId}` 
+      });
+    }
+    
     const punishmentResult = await punishmentService.applyPunishment(
       playerIdentifier,
-      aiAnalysis.suggestedAction.punishmentTypeId,
+      punishmentTypeId,
       aiAnalysis.suggestedAction.severity,
       `AI-suggested moderation (applied by ${staffName}) - ${aiAnalysis.analysis}`,
       ticketId,
