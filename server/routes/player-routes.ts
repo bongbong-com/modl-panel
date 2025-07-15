@@ -198,7 +198,6 @@ router.get('/:uuid', async (req: Request<{ uuid: string }>, res: Response): Prom
       );      // Calculate latest IP data with proxy/non-proxy priority
       let latestIPData = null;
       const ipList = player.ipList || player.ipAddresses || []; // Support both field names
-      console.log(`[Player API] Processing IP data for ${player.minecraftUuid}: ${ipList.length} IPs found`);
       if (ipList && ipList.length > 0) {
         // Sort IPs by recency first
         const sortedIPs = ipList.sort((a, b) => {
@@ -1200,7 +1199,16 @@ router.post('/:uuid/find-linked', async (req: Request<{ uuid: string }>, res: Re
     });
   } catch (error) {
     console.error('Error triggering account linking search:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      uuid: minecraftUuid,
+      serverName: serverName
+    });
+    res.status(500).json({ 
+      error: 'Failed to trigger linked account search',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -1303,6 +1311,14 @@ async function findAndLinkAccountsForPanel(
     }
   } catch (error) {
     console.error(`[Panel Account Linking] Error finding linked accounts:`, error);
+    console.error(`[Panel Account Linking] Error details:`, {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      currentPlayerUuid,
+      ipAddresses,
+      serverName
+    });
+    throw error; // Re-throw to be caught by the endpoint handler
   }
 }
 
