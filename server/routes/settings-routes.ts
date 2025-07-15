@@ -3404,6 +3404,7 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     // Add staff note with AI analysis details
     const staffNote = {
       content: `AI Analysis: ${aiAnalysis.analysis}\n\nPunishment Applied: ${punishmentResult.punishmentId}\nApplied by: ${staffName} (${staffRole})\nSeverity: ${aiAnalysis.suggestedAction.severity}`,
+      author: staffName,
       createdBy: staffName,
       createdAt: new Date(),
       type: 'ai_analysis'

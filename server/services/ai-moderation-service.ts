@@ -372,6 +372,7 @@ export class AIModerationService {
       // Add staff note with AI analysis details
       const staffNote = {
         content: `AI Analysis: ${analysis}\n\nPunishment Applied: ${punishmentId}\nApplied by: ${staffName}\nSeverity: ${severity}`,
+        author: staffName,
         createdBy: staffName,
         createdAt: new Date(),
         type: 'ai_analysis'

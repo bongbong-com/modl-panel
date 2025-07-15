@@ -229,8 +229,9 @@ export class PunishmentService {
       let offenseLevel = 'first'; // Default to first offense
       
       try {
-        // Get status thresholds from settings
-        const statusThresholds = settings?.settings?.statusThresholds || {
+        // Get status thresholds from settings (separate document)
+        const statusThresholdsDoc = await Settings.findOne({ type: 'statusThresholds' });
+        const statusThresholds = statusThresholdsDoc?.data || {
           gameplay: { medium: 5, habitual: 10 },
           social: { medium: 4, habitual: 8 }
         };
