@@ -4,6 +4,7 @@ import { Connection, Document } from 'mongoose';
 import { createSystemLog } from './log-routes';
 import { calculatePlayerStatus, updatePunishmentDataStructure } from '../utils/player-status-calculator';
 import { checkPermission } from '../middleware/permission-middleware';
+import { checkRole } from '../middleware/role-middleware';
 
 // Local type definitions (temporary replacement for missing shared types)
 interface IIPAddress {
