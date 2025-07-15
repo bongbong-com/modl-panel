@@ -1346,47 +1346,56 @@ export function setupMinecraftRoutes(app: Express): void {
           const messages = Array.isArray(chatMessages) ? chatMessages : [];
           
           messages.forEach((msg: any) => {
+            // Check if msg is a JSON string that needs parsing
+            let parsedMsg = msg;
+            if (typeof msg === 'string') {
+              try {
+                parsedMsg = JSON.parse(msg);
+              } catch (e) {
+                // Not valid JSON, treat as plain string
+                contentString += `${msg}\n`;
+                return;
+              }
+            }
+            
             // Handle different possible message formats
-            if (typeof msg === 'object' && msg !== null) {
+            if (typeof parsedMsg === 'object' && parsedMsg !== null) {
               // Format 1: { username, message, timestamp }
-              if (msg.username && msg.message) {
-                const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
-                const username = msg.username;
-                const message = msg.message;
+              if (parsedMsg.username && parsedMsg.message) {
+                const timestamp = parsedMsg.timestamp ? new Date(parsedMsg.timestamp).toLocaleString() : 'Unknown time';
+                const username = parsedMsg.username;
+                const message = parsedMsg.message;
                 contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
               }
               // Format 2: { player, text, time } (alternative format)
-              else if (msg.player && msg.text) {
-                const timestamp = msg.time ? new Date(msg.time).toLocaleString() : 'Unknown time';
-                const username = msg.player;
-                const message = msg.text;
+              else if (parsedMsg.player && parsedMsg.text) {
+                const timestamp = parsedMsg.time ? new Date(parsedMsg.time).toLocaleString() : 'Unknown time';
+                const username = parsedMsg.player;
+                const message = parsedMsg.text;
                 contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
               }
               // Format 3: { name, content, date } (another alternative)
-              else if (msg.name && msg.content) {
-                const timestamp = msg.date ? new Date(msg.date).toLocaleString() : 'Unknown time';
-                const username = msg.name;
-                const message = msg.content;
+              else if (parsedMsg.name && parsedMsg.content) {
+                const timestamp = parsedMsg.date ? new Date(parsedMsg.date).toLocaleString() : 'Unknown time';
+                const username = parsedMsg.name;
+                const message = parsedMsg.content;
                 contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
               }
               // Format 4: Object with unknown structure - try to extract useful info
               else {
                 // Look for any property that might be a username
-                const usernameField = msg.username || msg.player || msg.name || msg.user || 'Unknown';
+                const usernameField = parsedMsg.username || parsedMsg.player || parsedMsg.name || parsedMsg.user || 'Unknown';
                 // Look for any property that might be a message
-                const messageField = msg.message || msg.text || msg.content || msg.msg || JSON.stringify(msg);
+                const messageField = parsedMsg.message || parsedMsg.text || parsedMsg.content || parsedMsg.msg || JSON.stringify(parsedMsg);
                 // Look for any property that might be a timestamp
-                const timestampField = msg.timestamp || msg.time || msg.date || msg.when;
+                const timestampField = parsedMsg.timestamp || parsedMsg.time || parsedMsg.date || parsedMsg.when;
                 const timestamp = timestampField ? new Date(timestampField).toLocaleString() : 'Unknown time';
                 
                 contentString += `\`[${timestamp}]\` **${usernameField}**: ${messageField}\n`;
               }
-            } else if (typeof msg === 'string') {
-              // Handle string format messages
-              contentString += `${msg}\n`;
             } else {
               // Fallback for any other format
-              contentString += `${JSON.stringify(msg)}\n`;
+              contentString += `${JSON.stringify(parsedMsg)}\n`;
             }
           });
         } catch (error) {
