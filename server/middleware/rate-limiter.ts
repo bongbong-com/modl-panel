@@ -12,17 +12,20 @@ export function getRealClientIP(req: Request): string {
   // Fallback to connection remote address
   const connectionIP = req.connection.remoteAddress;
   
-  // Determine which IP to use
-  const clientIP = cfConnectingIP || expressIP || connectionIP || 'unknown';
+  // Also check X-Forwarded-For directly as additional fallback
+  const xForwardedFor = req.headers['x-forwarded-for'] as string;
+  const firstForwardedIP = xForwardedFor?.split(',')[0]?.trim();
   
+  // Determine which IP to use (prioritize Cloudflare, then Express, then X-Forwarded-For, then connection)
+  const clientIP = cfConnectingIP || expressIP || firstForwardedIP || connectionIP || 'unknown';
   
   return clientIP;
 }
 
-// Global rate limit: 200 requests per minute per IP
+// Global rate limit: 1000 requests per minute per IP (generous for development/testing)
 export const globalRateLimit: RateLimitRequestHandler = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 200, // Limit each IP to 200 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: 60
@@ -47,7 +50,7 @@ export const globalRateLimit: RateLimitRequestHandler = rateLimit({
       error: 'You have exceeded the maximum number of API requests allowed. Please slow down and try again in a minute.',
       retryAfter: 60,
       timeRemaining: '1 minute',
-      rateLimit: '200 API requests per minute',
+      rateLimit: '1000 API requests per minute',
       nextAttemptAt: new Date(Date.now() + 60000).toISOString(),
       message: 'This limit helps ensure fair usage for all users and protects server performance for API endpoints.'
     });
