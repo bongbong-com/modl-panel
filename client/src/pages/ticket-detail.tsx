@@ -448,6 +448,10 @@ const TicketDetail = () => {
           
           // Update the state with the loaded punishment types
           setPunishmentTypesByCategory(categorized);
+          
+          // Also create a flattened array for AI suggestion lookup
+          const allTypes = [...mergedAdminTypes, ...categorized.Social, ...categorized.Gameplay];
+          setPunishmentTypes(allTypes);
         }
       } catch (error) {
         console.error("Error parsing punishment types:", error);
@@ -561,7 +565,12 @@ const TicketDetail = () => {
 
       if (response.ok) {
         // Refresh ticket data to show updated AI analysis
-        await mutate();
+        if (mutate && typeof mutate === 'function') {
+          await mutate();
+        } else {
+          console.error('mutate is not a function:', mutate);
+          window.location.reload();
+        }
         
         toast({
           title: "Success",
@@ -606,7 +615,12 @@ const TicketDetail = () => {
 
       if (response.ok) {
         // Refresh ticket data to show dismissed AI analysis
-        await mutate();
+        if (mutate && typeof mutate === 'function') {
+          await mutate();
+        } else {
+          console.error('mutate is not a function:', mutate);
+          window.location.reload();
+        }
         
         toast({
           title: "Success",
