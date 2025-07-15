@@ -1331,7 +1331,48 @@ export function setupMinecraftRoutes(app: Express): void {
       // Generate a unique ticket ID (example format, adjust as needed)
       const ticketId = `${type.toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      const newTicket = new Ticket({
+      // Build content string for initial message
+      let contentString = '';
+      
+      // Add subject as description if different from default pattern
+      if (subject && !subject.includes(`Report against ${reportedPlayerUsername}`)) {
+        contentString += `Description: ${subject}\n\n`;
+      }
+      
+      // Special handling for chat reports
+      if (type === 'chat' && chatMessages && chatMessages.length > 0) {
+        contentString += `**Chat Messages:**\n`;
+        try {
+          const messages = Array.isArray(chatMessages) ? chatMessages : [];
+          messages.forEach((msg: any) => {
+            if (typeof msg === 'object' && msg.username && msg.message) {
+              const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
+              const username = msg.username;
+              const message = msg.message;
+              contentString += `\`[${timestamp}]\` **${username}**: ${message}\n`;
+            } else if (typeof msg === 'string') {
+              contentString += `${msg}\n`;
+            }
+          });
+        } catch (error) {
+          // Fallback to basic format if parsing fails
+          contentString += `${chatMessages.join('\n')}\n`;
+        }
+        contentString += `\n`;
+      }
+      
+      // Add form data if present
+      if (formData && Object.keys(formData).length > 0) {
+        Object.entries(formData).forEach(([key, value]) => {
+          if (value && value.toString().trim()) {
+            const fieldLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
+            contentString += `**${fieldLabel}:**\n${value}\n\n`;
+          }
+        });
+      }
+
+      // Prepare ticket data
+      const ticketData = {
         _id: ticketId,
         type,
         subject,
@@ -1348,7 +1389,21 @@ export function setupMinecraftRoutes(app: Express): void {
         tags: [],
         locked: false,
         data: new Map<string, any>()
-      });
+      };
+
+      // Add initial message if there's content
+      if (contentString.trim()) {
+        const initialMessage = {
+          name: creatorUsername,
+          content: contentString.trim(),
+          type: 'user',
+          created: new Date(),
+          staff: false
+        };
+        ticketData.replies = [initialMessage];
+      }
+
+      const newTicket = new Ticket(ticketData);
 
       await newTicket.save();
       await createSystemLog(serverDbConnection, serverName, `New ticket ${ticketId} created by ${creatorUsername} (${creatorUuid}). Type: ${type}.`, 'info', 'minecraft-api');
