@@ -3295,7 +3295,11 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
   let aiAnalysis;
   
   try {
+    console.log(`[AI Apply] Starting AI punishment application for ticket ${ticketId}`);
+    console.log(`[AI Apply] Database connection available: ${!!req.serverDbConnection}`);
+    
     if (!req.serverDbConnection) {
+      console.error(`[AI Apply] No database connection available`);
       return res.status(500).json({ error: 'Database connection not available' });
     }
     
@@ -3365,21 +3369,22 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
     }
 
     // Update the AI analysis to mark it as manually applied
-    aiAnalysis.wasAppliedAutomatically = true; // Mark as applied (even though manually)
-    aiAnalysis.appliedBy = staffName;
-    aiAnalysis.appliedByRole = staffRole;
-    aiAnalysis.appliedAt = new Date();
-    aiAnalysis.appliedPunishmentId = punishmentResult.punishmentId;
-
     console.log(`[AI Apply] Updating AI analysis for ticket ${ticketId}: wasAppliedAutomatically=true`);
     console.log(`[AI Apply] AI analysis before update:`, JSON.stringify(aiAnalysis, null, 2));
-    ticket.data.set('aiAnalysis', aiAnalysis);
     
-    // Also try direct assignment as fallback
-    if (!ticket.data) {
-      ticket.data = new Map();
-    }
-    ticket.data.set('aiAnalysis', aiAnalysis);
+    // Create a new object to ensure MongoDB detects the change
+    const updatedAiAnalysis = {
+      ...aiAnalysis,
+      wasAppliedAutomatically: true, // Mark as applied (even though manually)
+      appliedBy: staffName,
+      appliedByRole: staffRole,
+      appliedAt: new Date(),
+      appliedPunishmentId: punishmentResult.punishmentId
+    };
+
+    console.log(`[AI Apply] Updated AI analysis:`, JSON.stringify(updatedAiAnalysis, null, 2));
+    
+    ticket.data.set('aiAnalysis', updatedAiAnalysis);
     ticket.markModified('data');
     
     // Create an "Accept Report" reply to replace the AI suggestion
@@ -3456,7 +3461,11 @@ router.post('/ai-apply-punishment/:ticketId', async (req: Request, res: Response
 // Dismiss AI suggestion for a ticket
 router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Response) => {
   try {
+    console.log(`[AI Dismiss] Starting AI suggestion dismissal for ticket ${req.params.ticketId}`);
+    console.log(`[AI Dismiss] Database connection available: ${!!req.serverDbConnection}`);
+    
     if (!req.serverDbConnection) {
+      console.error(`[AI Dismiss] No database connection available`);
       return res.status(500).json({ error: 'Database connection not available' });
     }
 
@@ -3480,27 +3489,48 @@ router.post('/ai-dismiss-suggestion/:ticketId', async (req: Request, res: Respon
     }
 
     const aiAnalysis = ticket.data?.get ? ticket.data.get('aiAnalysis') : ticket.data?.aiAnalysis;
+    console.log(`[AI Dismiss] Found AI analysis for ticket ${ticketId}:`, JSON.stringify(aiAnalysis, null, 2));
+    
     if (!aiAnalysis) {
+      console.error(`[AI Dismiss] No AI analysis found for ticket ${ticketId}`);
       return res.status(400).json({ error: 'No AI analysis found for this ticket' });
     }
 
     if (aiAnalysis.wasAppliedAutomatically) {
+      console.error(`[AI Dismiss] Cannot dismiss - punishment was already applied for ticket ${ticketId}`);
       return res.status(400).json({ error: 'Cannot dismiss - punishment was already applied' });
     }
 
     if (aiAnalysis.dismissed) {
+      console.error(`[AI Dismiss] AI suggestion was already dismissed for ticket ${ticketId}`);
       return res.status(400).json({ error: 'AI suggestion was already dismissed' });
     }
 
     // Mark the suggestion as dismissed
-    aiAnalysis.dismissed = true;
-    aiAnalysis.dismissedBy = staffName;
-    aiAnalysis.dismissedByRole = staffRole;
-    aiAnalysis.dismissedAt = new Date();
-    aiAnalysis.dismissalReason = reason || 'No reason provided';
+    console.log(`[AI Dismiss] Marking AI suggestion as dismissed for ticket ${ticketId}`);
+    
+    // Create a new object to ensure MongoDB detects the change
+    const updatedAiAnalysis = {
+      ...aiAnalysis,
+      dismissed: true,
+      dismissedBy: staffName,
+      dismissedByRole: staffRole,
+      dismissedAt: new Date(),
+      dismissalReason: reason || 'No reason provided'
+    };
 
-    ticket.data.set('aiAnalysis', aiAnalysis);
+    console.log(`[AI Dismiss] Updated AI analysis:`, JSON.stringify(updatedAiAnalysis, null, 2));
+    
+    ticket.data.set('aiAnalysis', updatedAiAnalysis);
+    ticket.markModified('data');
+    
+    console.log(`[AI Dismiss] Saving ticket ${ticketId}`);
     await ticket.save();
+    
+    // Verify the changes were saved
+    const updatedTicket = await TicketModel.findById(ticketId);
+    const updatedAiAnalysis = updatedTicket.data?.get ? updatedTicket.data.get('aiAnalysis') : updatedTicket.data?.aiAnalysis;
+    console.log(`[AI Dismiss] Verification - dismissed: ${updatedAiAnalysis?.dismissed}`);
 
     console.log(`[AI Moderation] AI suggestion dismissed for ticket ${ticketId} by ${staffName} (${staffRole}). Reason: ${aiAnalysis.dismissalReason}`);
 

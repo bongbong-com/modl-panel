@@ -575,7 +575,17 @@ const TicketDetail = () => {
           console.error('refetch is not a function:', refetch);
           console.log('Falling back to page reload');
           window.location.reload();
+          return;
         }
+        
+        // Force reload if the AI suggestion is still showing after 2 seconds
+        setTimeout(() => {
+          const aiAnalysis = document.querySelector('[data-testid="ai-analysis"]');
+          if (aiAnalysis) {
+            console.log('AI analysis still visible, forcing page reload');
+            window.location.reload();
+          }
+        }, 2000);
         
         // Give a small delay to ensure data is refreshed
         setTimeout(() => {
@@ -636,7 +646,17 @@ const TicketDetail = () => {
         } else {
           console.error('refetch is not a function:', refetch);
           window.location.reload();
+          return;
         }
+        
+        // Force reload if the AI suggestion is still showing after 2 seconds
+        setTimeout(() => {
+          const aiAnalysis = document.querySelector('[data-testid="ai-analysis"]');
+          if (aiAnalysis) {
+            console.log('AI analysis still visible after dismiss, forcing page reload');
+            window.location.reload();
+          }
+        }, 2000);
         
         toast({
           title: "Success",
