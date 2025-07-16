@@ -471,7 +471,7 @@ const TicketDetail = () => {
         return (
           <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
             <img 
-              src={`https://crafatar.com/avatars/${creatorUuid}?size=32&default=MHF_Steve&overlay`}
+              src={`/api/panel/players/avatar/${creatorUuid}?size=32&overlay=true`}
               alt={`${message.sender} Avatar`}
               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
               onError={() => {
@@ -508,7 +508,7 @@ const TicketDetail = () => {
         return (
           <div className="relative h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
             <img 
-              src={`https://crafatar.com/avatars/${minecraftUuid}?size=32&default=MHF_Steve&overlay`}
+              src={`/api/panel/players/avatar/${minecraftUuid}?size=32&overlay=true`}
               alt={`${message.sender} Avatar`}
               className={`w-full h-full object-cover transition-opacity duration-200 ${avatarLoading ? 'opacity-0' : 'opacity-100'}`}
               onError={() => {
