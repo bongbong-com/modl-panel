@@ -61,7 +61,8 @@ const InviteStaffModal: React.FC<InviteStaffModalProps> = ({ isOpen, onClose, on
   const onSubmit = async (values: InviteFormValues) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/panel/staff/invite', {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch('/api/panel/staff/invite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

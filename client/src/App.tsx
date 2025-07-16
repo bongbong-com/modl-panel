@@ -8,6 +8,7 @@ import MobileNavbar from "@/components/layout/MobileNavbar";
 import { SidebarProvider } from "@/hooks/use-sidebar";
 import { DashboardProvider } from "@/contexts/DashboardContext";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { ProtectedRoute, AuthRoute } from "@/lib/protected-route";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -188,7 +189,8 @@ function AppContent() {
     );
   }
 
-  const isAdmin = user?.role === 'Super Admin' || user?.role === 'Admin';
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission('admin.settings.view');
 
   if (maintenanceMode && !isAdmin) {
     return <MaintenancePage message={maintenanceMessage} />;

@@ -37,7 +37,7 @@ router.get('/check-username/:username', async (req: Request<{ username: string }
 // Apply isAuthenticated middleware to all routes in this router
 router.use(isAuthenticated);
 
-router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.get('/', checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
   try {
     const db = req.serverDbConnection!;
     const UserModel = db.model('Staff');
@@ -73,12 +73,28 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
 });
 // Email transporter moved to EmailTemplateService
 
-router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invite', authRateLimit, checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
   const { email, role } = req.body;
   const invitingUser = req.currentUser!;
 
-  if (invitingUser.role === 'Admin' && role === 'Admin') {
-    return res.status(403).json({ message: 'Admins cannot invite other Admins.' });
+  // Check if inviting user can invite users with this role level
+  // Users can only invite users with roles that have equal or fewer permissions than themselves
+  try {
+    const { getUserPermissions } = await import('../middleware/permission-middleware');
+    const inviterPermissions = await getUserPermissions(req, invitingUser.role);
+    
+    // Get target role permissions to compare
+    const targetRolePermissions = await getUserPermissions(req, role);
+    
+    // Check if inviter has more permissions than target role
+    const hasMorePermissions = targetRolePermissions.every(perm => inviterPermissions.includes(perm));
+    
+    if (!hasMorePermissions) {
+      return res.status(403).json({ message: 'Cannot invite users with higher permission levels than your own.' });
+    }
+  } catch (error) {
+    console.error('Error checking invite permissions:', error);
+    return res.status(500).json({ message: 'Permission check failed' });
   }
 
   // Check if the email is the admin email
@@ -135,7 +151,7 @@ router.post('/invite', authRateLimit, checkRole(['Super Admin', 'Admin']), async
   }
 });
 
-router.post('/invitations/:id/resend', authRateLimit, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.post('/invitations/:id/resend', authRateLimit, checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
       try {
         const db = req.serverDbConnection!;
         const InvitationModel = db.model('Invitation');
@@ -175,7 +191,7 @@ router.post('/invitations/:id/resend', authRateLimit, checkRole(['Super Admin', 
       }
     });
 
-router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.delete('/:id', checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
     const { id } = req.params;
     const removerUser = req.currentUser!;
 
@@ -194,9 +210,21 @@ router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, 
             return res.status(404).json({ message: 'User or invitation not found.' });
         }
 
-        // Prevent Admins from removing other Admins or Super Admins
-        if (removerUser.role === 'Admin' && (userToRemove.role === 'Admin' || userToRemove.role === 'Super Admin')) {
-            return res.status(403).json({ message: 'Admins can only remove Moderators and Helpers.' });
+        // Check if remover has permission to remove this user based on permission levels
+        try {
+            const { getUserPermissions } = await import('../middleware/permission-middleware');
+            const removerPermissions = await getUserPermissions(req, removerUser.role);
+            const targetPermissions = await getUserPermissions(req, userToRemove.role);
+            
+            // Can only remove users with equal or fewer permissions
+            const canRemove = targetPermissions.every(perm => removerPermissions.includes(perm));
+            
+            if (!canRemove) {
+                return res.status(403).json({ message: 'Cannot remove users with higher permission levels than your own.' });
+            }
+        } catch (error) {
+            console.error('Error checking removal permissions:', error);
+            return res.status(500).json({ message: 'Permission check failed' });
         }
 
         // Prevent removing yourself
@@ -238,7 +266,7 @@ router.delete('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, 
 });
 
 
-router.get('/:username', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request<{ username: string }>, res: Response) => {
+router.get('/:username', isAuthenticated, checkPermission('admin.staff.manage'), async (req: Request<{ username: string }>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staffMember = await Staff.findOne({ username: req.params.username })
@@ -260,7 +288,7 @@ interface CreateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
-router.post('/', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
+router.post('/', isAuthenticated, checkPermission('admin.staff.manage'), async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const { email, username, role } = req.body;
@@ -274,10 +302,32 @@ router.post('/', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (re
     }
     
     const twoFaSecret = crypto.randomBytes(10).toString('hex');    
+    // Validate role exists or use a default
+    let finalRole = role;
+    if (!finalRole) {
+      // Try to find a default low-privilege role, fallback to 'Helper' for backward compatibility
+      try {
+        const StaffRoles = req.serverDbConnection!.model('StaffRole');
+        const lowPrivRole = await StaffRoles.findOne({ permissions: { $size: 2 } }) // Find role with minimal permissions
+          .sort({ permissions: 1 }); // Sort by permission count ascending
+        finalRole = lowPrivRole?.name || 'Helper';
+      } catch (error) {
+        finalRole = 'Helper'; // Fallback for backward compatibility
+      }
+    } else {
+      // Validate that the specified role exists
+      try {
+        const { getUserPermissions } = await import('../middleware/permission-middleware');
+        await getUserPermissions(req, finalRole);
+      } catch (error) {
+        return res.status(400).json({ error: 'Specified role does not exist' });
+      }
+    }
+
     const newStaff = new Staff({
       email,
       username,
-      role: role || 'Helper',
+      role: finalRole,
       twoFaSecret
     });
     
@@ -358,16 +408,24 @@ interface AddPasskeyBody {
 }
 
 // Route to change a staff member's role
-router.patch('/:id/role', checkRole(['Super Admin', 'Admin']), async (req: Request<{ id: string }, {}, { role: IStaff['role'] }>, res: Response) => {
+router.patch('/:id/role', checkPermission('admin.staff.manage'), async (req: Request<{ id: string }, {}, { role: IStaff['role'] }>, res: Response) => {
   const { id } = req.params;
   const { role: newRole } = req.body;
   const performingUser = req.currentUser!;
 
-  if (!newRole || !['Super Admin', 'Admin', 'Moderator', 'Helper'].includes(newRole)) {
+  if (!newRole || typeof newRole !== 'string') {
     return res.status(400).json({ message: 'Invalid role specified.' });
   }
 
   try {
+    // Validate that the new role exists (either in defaults or custom roles)
+    const { getUserPermissions } = await import('../middleware/permission-middleware');
+    try {
+      await getUserPermissions(req, newRole);
+    } catch (error) {
+      return res.status(400).json({ message: 'Specified role does not exist.' });
+    }
+
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staffToUpdate = await Staff.findById(id);
 
@@ -375,31 +433,32 @@ router.patch('/:id/role', checkRole(['Super Admin', 'Admin']), async (req: Reque
       return res.status(404).json({ message: 'Staff member not found.' });
     }
 
-    // Additional protection: Prevent changing role of the server admin (Super Admin with admin email)
+    // Additional protection: Prevent changing role of the server admin
     const adminEmail = req.modlServer?.adminEmail?.toLowerCase();
-    if (staffToUpdate.role === 'Super Admin' && adminEmail && staffToUpdate.email.toLowerCase() === adminEmail) {
+    if (adminEmail && staffToUpdate.email.toLowerCase() === adminEmail) {
       return res.status(403).json({ message: 'Cannot change the role of the server administrator.' });
     }
 
-    // Super Admin can change any role to any other role.
-    if (performingUser.role === 'Super Admin') {
-      // No restrictions for Super Admin (except server admin protection above)
-    } else if (performingUser.role === 'Admin') {
-      // Admins cannot change their own role.
-      if (staffToUpdate._id.toString() === performingUser.userId) {
-        return res.status(403).json({ message: 'Admins cannot change their own role.' });
-      }
-      // Admins cannot change anyone to Admin or Super Admin.
-      if (newRole === 'Admin' || newRole === 'Super Admin') {
-        return res.status(403).json({ message: 'Admins cannot assign Admin or Super Admin roles.' });
-      }
-      // Admins cannot change an existing Admin or Super Admin's role.
-      if (staffToUpdate.role === 'Admin' || staffToUpdate.role === 'Super Admin') {
-        return res.status(403).json({ message: 'Admins cannot change the role of other Admins or Super Admins.' });
-      }
-    } else {
-      // Other roles (Moderator, Helper) cannot change roles. This should be caught by checkRole, but as a safeguard:
-      return res.status(403).json({ message: 'Forbidden: You do not have permission to change roles.' });
+    // Permission-based role change validation
+    const performerPermissions = await getUserPermissions(req, performingUser.role);
+    const currentTargetPermissions = await getUserPermissions(req, staffToUpdate.role);
+    const newTargetPermissions = await getUserPermissions(req, newRole);
+
+    // Cannot change your own role
+    if (staffToUpdate._id.toString() === performingUser.userId) {
+      return res.status(403).json({ message: 'You cannot change your own role.' });
+    }
+
+    // Can only change roles if you have more permissions than both the current and target roles
+    const canChangeCurrentRole = currentTargetPermissions.every(perm => performerPermissions.includes(perm));
+    const canAssignNewRole = newTargetPermissions.every(perm => performerPermissions.includes(perm));
+
+    if (!canChangeCurrentRole) {
+      return res.status(403).json({ message: 'Cannot modify users with higher permission levels than your own.' });
+    }
+
+    if (!canAssignNewRole) {
+      return res.status(403).json({ message: 'Cannot assign roles with higher permission levels than your own.' });
     }
 
     if (staffToUpdate.role === newRole) {

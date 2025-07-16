@@ -69,7 +69,8 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, staf
     if (!staffMember || !selectedRole) return;
 
     try {
-      const response = await fetch(`/api/panel/staff/${staffMember._id}/role`, {
+      const { csrfFetch } = await import('@/utils/csrf');
+      const response = await csrfFetch(`/api/panel/staff/${staffMember._id}/role`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
