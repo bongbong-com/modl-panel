@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument, Schema } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { checkPermission } from '../middleware/permission-middleware';
+// Note: Permission functions will be imported dynamically to avoid circular dependency issues
 import { checkRole } from '../middleware/role-middleware';
 import domainRoutes from './domain-routes';
 import PunishmentService from '../services/punishment-service';
@@ -2467,7 +2467,29 @@ async function cleanupOrphanedAIPunishmentConfigsHelper(dbConnection: Connection
   }
 }
 
-router.get('/', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
+// Helper function to check permissions
+async function checkRoutePermission(req: Request, res: Response, permission: string): Promise<boolean> {
+  try {
+    const { hasPermission } = await import('../middleware/permission-middleware');
+    const hasRequiredPermission = await hasPermission(req, permission);
+    
+    if (!hasRequiredPermission) {
+      res.status(403).json({ 
+        message: 'Forbidden: You do not have the required permissions.',
+        required: [permission]
+      });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error checking permissions:', error);
+    res.status(500).json({ message: 'Internal server error while checking permissions.' });
+    return false;
+  }
+}
+
+router.get('/', async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.view'))) return;
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
@@ -2490,7 +2512,8 @@ router.get('/', checkPermission('admin.settings.view'), async (req: Request, res
   }
 });
 
-router.patch('/', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+router.patch('/', async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     // Update settings documents
     await updateSettings(req.serverDbConnection!, req.body);
@@ -2508,7 +2531,8 @@ router.patch('/', checkPermission('admin.settings.modify'), async (req: Request,
   }
 });
 
-router.post('/reset', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+router.post('/reset', async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     
@@ -2544,7 +2568,8 @@ router.post('/migrate-ticket-forms', checkPermission('admin.settings.modify'), a
 // Unified API Key Management Routes - Moved before generic /:key route to prevent interception
 
 // Get current unified API key (masked for security)
-router.get('/api-key', checkPermission('admin.settings.view'), async (req: Request, res: Response) => {
+router.get('/api-key', async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.view'))) return;
   try {
     console.log('[Unified API Key GET] Request received');
     console.log('[Unified API Key GET] Server name:', req.serverName);
@@ -2582,7 +2607,8 @@ router.get('/api-key', checkPermission('admin.settings.view'), async (req: Reque
 });
 
 // Generate new unified API key
-router.post('/api-key/generate', checkPermission('admin.settings.modify'), async (req: Request, res: Response) => {
+router.post('/api-key/generate', async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     console.log('[Unified API Key GENERATE] Request received');
     console.log('[Unified API Key GENERATE] Server name:', req.serverName);
@@ -3591,7 +3617,8 @@ router.get('/:key', async (req: Request<{ key: string }>, res: Response) => {
   }
 });
 
-router.put('/:key', checkPermission('admin.settings.modify'), async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
+router.put('/:key', async (req: Request<{ key: string }, {}, { value: any }>, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     const Settings = req.serverDbConnection!.model<ISettingsDocument>('Settings');
     let settingsDoc = await Settings.findOne({});

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 import { checkRole } from '../middleware/role-middleware';
+// Note: checkPermission will be imported dynamically to avoid circular dependency issues
 import { IPasskey, IStaff, IModlServer, Invitation } from 'modl-shared-web';
 import nodemailer from 'nodemailer';
 import { getModlServersModel } from '../db/connectionManager';
@@ -37,8 +38,18 @@ router.get('/check-username/:username', async (req: Request<{ username: string }
 // Apply isAuthenticated middleware to all routes in this router
 router.use(isAuthenticated);
 
-router.get('/', checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
+    // Check permissions
+    const { hasPermission } = await import('../middleware/permission-middleware');
+    const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+    
+    if (!canManageStaff) {
+      return res.status(403).json({ 
+        message: 'Forbidden: You do not have the required permissions.',
+        required: ['admin.staff.manage']
+      });
+    }
     const db = req.serverDbConnection!;
     const UserModel = db.model('Staff');
     const InvitationModel = db.model('Invitation');
@@ -73,7 +84,18 @@ router.get('/', checkPermission('admin.staff.manage'), async (req: Request, res:
 });
 // Email transporter moved to EmailTemplateService
 
-router.post('/invite', authRateLimit, checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
+router.post('/invite', authRateLimit, async (req: Request, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
+
   const { email, role } = req.body;
   const invitingUser = req.currentUser!;
 
@@ -151,7 +173,17 @@ router.post('/invite', authRateLimit, checkPermission('admin.staff.manage'), asy
   }
 });
 
-router.post('/invitations/:id/resend', authRateLimit, checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
+router.post('/invitations/:id/resend', authRateLimit, async (req: Request, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
       try {
         const db = req.serverDbConnection!;
         const InvitationModel = db.model('Invitation');
@@ -191,7 +223,17 @@ router.post('/invitations/:id/resend', authRateLimit, checkPermission('admin.sta
       }
     });
 
-router.delete('/:id', checkPermission('admin.staff.manage'), async (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
     const { id } = req.params;
     const removerUser = req.currentUser!;
 
@@ -266,7 +308,17 @@ router.delete('/:id', checkPermission('admin.staff.manage'), async (req: Request
 });
 
 
-router.get('/:username', isAuthenticated, checkPermission('admin.staff.manage'), async (req: Request<{ username: string }>, res: Response) => {
+router.get('/:username', isAuthenticated, async (req: Request<{ username: string }>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const staffMember = await Staff.findOne({ username: req.params.username })
@@ -288,7 +340,17 @@ interface CreateStaffBody {
   role?: 'Super Admin' | 'Admin' | 'Moderator' | 'Helper';
 }
 
-router.post('/', isAuthenticated, checkPermission('admin.staff.manage'), async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
+router.post('/', isAuthenticated, async (req: Request<{}, {}, CreateStaffBody>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const { email, username, role } = req.body;
@@ -408,7 +470,17 @@ interface AddPasskeyBody {
 }
 
 // Route to change a staff member's role
-router.patch('/:id/role', checkPermission('admin.staff.manage'), async (req: Request<{ id: string }, {}, { role: IStaff['role'] }>, res: Response) => {
+router.patch('/:id/role', async (req: Request<{ id: string }, {}, { role: IStaff['role'] }>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
   const { id } = req.params;
   const { role: newRole } = req.body;
   const performingUser = req.currentUser!;

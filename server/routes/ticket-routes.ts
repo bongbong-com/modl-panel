@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Document as MongooseDocument, Connection } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { checkPermission } from '../middleware/permission-middleware';
+// Note: Permission functions will be imported dynamically to avoid circular dependency issues
 import AIModerationService from '../services/ai-moderation-service';
 import { IReply, ITicket } from 'modl-shared-web/types';
 import { getSettingsValue } from './settings-routes';
@@ -199,7 +199,17 @@ function getCategoryFromType(type: string): string {
   }
 }
 
-router.get('/', checkPermission('ticket.view.all'), async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canViewTickets = await hasPermission(req, 'ticket.view.all');
+  
+  if (!canViewTickets) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['ticket.view.all']
+    });
+  }
   try {
     const Ticket = req.serverDbConnection!.model('Ticket');
     
@@ -445,7 +455,17 @@ interface AddReplyBody {
   attachments?: any[];
 }
 
-router.post('/:id/replies', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
+router.post('/:id/replies', async (req: Request<{ id: string }, {}, AddReplyBody>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canReplyToTickets = await hasPermission(req, 'ticket.reply.all');
+  
+  if (!canReplyToTickets) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['ticket.reply.all']
+    });
+  }
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const ticket = await Ticket.findById(req.params.id);
@@ -603,7 +623,17 @@ interface UpdateTicketBody {
 }
 
 // General PATCH route for ticket updates
-router.patch('/:id', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, UpdateTicketBody>, res: Response) => {
+router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canReplyToTickets = await hasPermission(req, 'ticket.reply.all');
+  
+  if (!canReplyToTickets) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['ticket.reply.all']
+    });
+  }
   console.log(`[Ticket PATCH] Updating ticket ${req.params.id}`);
   console.log(`[Ticket PATCH] Request body:`, JSON.stringify(req.body, null, 2));
   
@@ -837,7 +867,17 @@ interface QuickResponseBody {
   appealAction?: 'pardon' | 'reduce' | 'reject' | 'none';
 }
 
-router.post('/:id/quick-response', checkPermission('ticket.reply.all'), async (req: Request<{ id: string }, {}, QuickResponseBody>, res: Response) => {
+router.post('/:id/quick-response', async (req: Request<{ id: string }, {}, QuickResponseBody>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canReplyToTickets = await hasPermission(req, 'ticket.reply.all');
+  
+  if (!canReplyToTickets) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['ticket.reply.all']
+    });
+  }
   try {
     const Ticket = req.serverDbConnection!.model<ITicket>('Ticket');
     const Settings = req.serverDbConnection!.model('Settings');
