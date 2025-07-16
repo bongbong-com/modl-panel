@@ -7,9 +7,8 @@ import { IReply, ITicket } from 'modl-shared-web/types';
 import { getSettingsValue } from './settings-routes';
 
 interface INote {
-  text: string;
-  issuerName: string;
-  issuerAvatar?: string;
+  content: string;
+  author: string;
   date: Date;
 }
 
@@ -744,8 +743,8 @@ router.patch('/:id', async (req: Request<{ id: string }, {}, UpdateTicketBody>, 
     // Add new note if provided
     if (updates.newNote) {
       const newNote: INote = {
-        text: updates.newNote.content,
-        issuerName: updates.newNote.author,
+        content: updates.newNote.content,
+        author: updates.newNote.author,
         date: new Date(updates.newNote.date)
       };
       ticket.notes.push(newNote);
