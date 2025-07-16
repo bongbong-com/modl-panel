@@ -32,27 +32,44 @@ export function usePermissions() {
   const { user } = useAuth();
   
   // Fetch user permissions from server (with fallback to defaults)
-  const { data: serverPermissions } = useQuery({
+  const { data: serverPermissions, error } = useQuery({
     queryKey: ['userPermissions', user?.role],
     queryFn: async () => {
       if (!user?.role) return [];
-      const response = await fetch('/api/auth/permissions');
-      if (!response.ok) throw new Error('Failed to fetch permissions');
-      return response.json();
+      try {
+        const response = await fetch('/api/auth/permissions');
+        if (!response.ok) {
+          // If server returns 401, user is not authenticated - return empty array
+          if (response.status === 401) return [];
+          throw new Error('Failed to fetch permissions');
+        }
+        return response.json();
+      } catch (error) {
+        console.warn('Failed to fetch user permissions from server, using fallback:', error);
+        return null; // Signal to use fallback permissions
+      }
     },
     enabled: !!user?.role,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: false, // Don't retry on error, fallback to default permissions
   });
+  
+  // Log any permission fetch errors for debugging
+  if (error) {
+    console.warn('Permission query error:', error);
+  }
 
   // Get user permissions (from server or fallback to defaults)
   const userPermissions = useMemo(() => {
     if (!user || !user.role) return [];
     
-    // Use server permissions if available
+    // Use server permissions if available and valid
     if (serverPermissions && Array.isArray(serverPermissions)) {
       return serverPermissions;
     }
     
+    // If serverPermissions is explicitly null, it means fetch failed - use fallback
+    // If serverPermissions is undefined, query is still loading - also use fallback
     // Fallback to default role permissions for backward compatibility
     const defaultPermissions: Record<string, string[]> = {
       'Super Admin': [

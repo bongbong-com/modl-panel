@@ -156,6 +156,11 @@ function AppContent() {
   useDocumentTitle();
   useProvisioningStatusCheck();
   
+  // Must call hooks before any conditional returns to maintain hook order
+  const { hasPermission } = usePermissions();
+  // Safe permission check - returns false if user is not loaded yet
+  const isAdmin = user ? hasPermission('admin.settings.view') : false;
+  
   useEffect(() => {
     const hasSeenModal = localStorage.getItem("hasSeenWelcomeModal");
     const isOnPanelHomePage = location === '/panel';
@@ -188,9 +193,6 @@ function AppContent() {
       </div>
     );
   }
-
-  const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission('admin.settings.view');
 
   if (maintenanceMode && !isAdmin) {
     return <MaintenancePage message={maintenanceMessage} />;
