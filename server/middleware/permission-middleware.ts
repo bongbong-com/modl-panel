@@ -44,7 +44,10 @@ export async function getUserPermissions(req: Request, userRole: string): Promis
 
   // Check if user has a custom role defined in the database
   try {
-    const StaffRoles = req.serverDbConnection.model('StaffRole');
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(req.serverDbConnection);
+    
     const roleDoc = await StaffRoles.findOne({ name: userRole });
     
     if (roleDoc && roleDoc.permissions && Array.isArray(roleDoc.permissions)) {

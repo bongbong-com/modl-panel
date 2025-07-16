@@ -138,22 +138,9 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const db = req.serverDbConnection!;
     
-    // Try to get all roles from the database
-    let StaffRoles;
-    try {
-      StaffRoles = db.model('StaffRole');
-    } catch {
-      // If model doesn't exist, create it and return empty roles array
-      const StaffRoleSchema = new Schema({
-        id: { type: String, required: true, unique: true },
-        name: { type: String, required: true },
-        description: { type: String, required: true },
-        permissions: [{ type: String }],
-        isDefault: { type: Boolean, default: false }
-      }, { timestamps: true });
-      
-      StaffRoles = db.model('StaffRole', StaffRoleSchema);
-    }
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(db);
     
     const allRoles = await StaffRoles.find({});
 
@@ -188,14 +175,9 @@ router.get('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const db = req.serverDbConnection!;
     
-    // Try to get role from database
-    let StaffRoles;
-    try {
-      StaffRoles = db.model('StaffRole');
-    } catch {
-      // If model doesn't exist, role doesn't exist
-      return res.status(404).json({ error: 'Role not found' });
-    }
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(db);
     
     const role = await StaffRoles.findOne({ id });
     if (!role) {
@@ -230,21 +212,9 @@ router.post('/', strictRateLimit, async (req: Request, res: Response) => {
     
     const db = req.serverDbConnection!;
     
-    // Create/get the StaffRole model
-    let StaffRoles;
-    try {
-      StaffRoles = db.model('StaffRole');
-    } catch {
-      const StaffRoleSchema = new Schema({
-        id: { type: String, required: true, unique: true },
-        name: { type: String, required: true },
-        description: { type: String, required: true },
-        permissions: [{ type: String }],
-        isDefault: { type: Boolean, default: false }
-      }, { timestamps: true });
-      
-      StaffRoles = db.model('StaffRole', StaffRoleSchema);
-    }
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(db);
     
     // Generate unique ID
     const id = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -303,7 +273,9 @@ router.put('/:id', strictRateLimit, async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Cannot modify Super Admin role' });
     }
     
-    const StaffRoles = db.model('StaffRole');
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(db);
     
     // Validate permissions
     const basePermissions = getBasePermissions();
@@ -350,7 +322,9 @@ router.delete('/:id', strictRateLimit, async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Cannot delete Super Admin role' });
     }
     
-    const StaffRoles = db.model('StaffRole');
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(db);
     const Staff = db.model('Staff');
     
     // Check if any staff members are using this role
@@ -381,21 +355,9 @@ router.delete('/:id', strictRateLimit, async (req: Request, res: Response) => {
  */
 export async function createDefaultRoles(dbConnection: Connection): Promise<void> {
   try {
-    // Create StaffRole model if it doesn't exist
-    let StaffRoles;
-    try {
-      StaffRoles = dbConnection.model('StaffRole');
-    } catch {
-      const StaffRoleSchema = new Schema({
-        id: { type: String, required: true, unique: true },
-        name: { type: String, required: true },
-        description: { type: String, required: true },
-        permissions: [{ type: String }],
-        isDefault: { type: Boolean, default: false }
-      }, { timestamps: true });
-      
-      StaffRoles = dbConnection.model('StaffRole', StaffRoleSchema);
-    }
+    // Get StaffRole model with consistent schema
+    const { getStaffRoleModel } = await import('../utils/schema-utils');
+    const StaffRoles = getStaffRoleModel(dbConnection);
 
     // Get punishment permissions for default roles
     const punishmentPermissions = await getPunishmentPermissions(dbConnection);

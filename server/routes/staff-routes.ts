@@ -369,7 +369,8 @@ router.post('/', isAuthenticated, async (req: Request<{}, {}, CreateStaffBody>, 
     if (!finalRole) {
       // Try to find a default low-privilege role, fallback to 'Helper' for backward compatibility
       try {
-        const StaffRoles = req.serverDbConnection!.model('StaffRole');
+        const { getStaffRoleModel } = await import('../utils/schema-utils');
+        const StaffRoles = getStaffRoleModel(req.serverDbConnection!);
         const lowPrivRole = await StaffRoles.findOne({ permissions: { $size: 2 } }) // Find role with minimal permissions
           .sort({ permissions: 1 }); // Sort by permission count ascending
         finalRole = lowPrivRole?.name || 'Helper';
