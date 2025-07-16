@@ -87,7 +87,7 @@ interface PlayerInfo {
 }
 
 const PlayerDetailPage = () => {
-  const [_, params] = useRoute('/player/:uuid');
+  const [_, params] = useRoute('/panel/player/:uuid');
   const [location, navigate] = useLocation();
   const playerId = params?.uuid || '';
   
@@ -395,7 +395,7 @@ const PlayerDetailPage = () => {
       <div className="container py-8 flex flex-col items-center justify-center min-h-[50vh]">
         <div className="text-center space-y-4">
           <p className="text-destructive font-medium">Could not find player data.</p>
-          <Button onClick={() => navigate("/lookup")}>Return to Lookup</Button>
+          <Button onClick={() => navigate("/panel/lookup")}>Return to Lookup</Button>
         </div>
       </div>
     );
@@ -407,7 +407,7 @@ const PlayerDetailPage = () => {
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={() => navigate('/lookup')}
+          onClick={() => navigate('/panel/lookup')}
           className="mr-2"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -418,11 +418,11 @@ const PlayerDetailPage = () => {
       <div className="space-y-4">
         <div className="bg-background-lighter p-4 rounded-lg border border-border">
           <div className="flex items-start gap-4">
-            <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
+            <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
               <span className="text-2xl font-bold text-primary">{playerInfo.username.substring(0, 2)}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h5 className="text-lg font-medium">{playerInfo.username}</h5>
+              <h5 className="text-lg font-medium truncate">{playerInfo.username}</h5>
               <div className="flex flex-wrap gap-2 mt-1">
                 <Badge variant="outline" className={playerInfo.status === 'Online' ? 
                   "bg-success/10 text-success border-success/20" : 
@@ -458,7 +458,7 @@ const PlayerDetailPage = () => {
                 )}
               </div>
               
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Region:</span>
                   <span className="ml-1">{playerInfo.region}</span>
@@ -489,30 +489,30 @@ const PlayerDetailPage = () => {
         </div>
         
         <Tabs defaultValue="history" className="w-full" onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 gap-1 px-1">
-            <TabsTrigger value="history" className="text-xs py-2">
-              <History className="h-3.5 w-3.5 mr-1.5" />
-              History
+          <TabsList className="grid grid-cols-6 gap-1 px-1 h-auto">
+            <TabsTrigger value="history" className="text-xs py-2 px-1 flex flex-col items-center gap-1">
+              <History className="h-3.5 w-3.5" />
+              <span className="hidden sm:block">History</span>
             </TabsTrigger>
-            <TabsTrigger value="linked" className="text-xs py-2">
-              <Link2 className="h-3.5 w-3.5 mr-1.5" />
-              Linked
+            <TabsTrigger value="linked" className="text-xs py-2 px-1 flex flex-col items-center gap-1">
+              <Link2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:block">Linked</span>
             </TabsTrigger>
-            <TabsTrigger value="notes" className="text-xs py-2">
-              <StickyNote className="h-3.5 w-3.5 mr-1.5" />
-              Notes
+            <TabsTrigger value="notes" className="text-xs py-2 px-1 flex flex-col items-center gap-1">
+              <StickyNote className="h-3.5 w-3.5" />
+              <span className="hidden sm:block">Notes</span>
             </TabsTrigger>
-            <TabsTrigger value="tickets" className="text-xs py-2">
-              <Ticket className="h-3.5 w-3.5 mr-1.5" />
-              Tickets
+            <TabsTrigger value="tickets" className="text-xs py-2 px-1 flex flex-col items-center gap-1">
+              <Ticket className="h-3.5 w-3.5" />
+              <span className="hidden sm:block">Tickets</span>
             </TabsTrigger>
-            <TabsTrigger value="names" className="text-xs py-2">
-              <UserRound className="h-3.5 w-3.5 mr-1.5" />
-              Names
+            <TabsTrigger value="names" className="text-xs py-2 px-1 flex flex-col items-center gap-1">
+              <UserRound className="h-3.5 w-3.5" />
+              <span className="hidden sm:block">Names</span>
             </TabsTrigger>
-            <TabsTrigger value="punishment" className="text-xs py-2">
-              <Shield className="h-3.5 w-3.5 mr-1.5" />
-              Punish
+            <TabsTrigger value="punishment" className="text-xs py-2 px-1 flex flex-col items-center gap-1">
+              <Shield className="h-3.5 w-3.5" />
+              <span className="hidden sm:block">Punish</span>
             </TabsTrigger>
           </TabsList>
           
@@ -662,13 +662,13 @@ const PlayerDetailPage = () => {
         {/* Administrative Punishment Types */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Administrative Actions</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {punishmentTypesByCategory.Administrative.length > 0 ? punishmentTypesByCategory.Administrative.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
                 size="sm" 
-                className={`py-1 text-xs ${type.name === 'Kick' && playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`py-2 text-xs ${type.name === 'Kick' && playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => {
                   if (type.name === 'Kick' && playerInfo.status !== 'Online') {
                     // Prevent kick for offline players
@@ -684,7 +684,7 @@ const PlayerDetailPage = () => {
                 {type.name}
               </Button>
             )) : (
-              <div className="col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+              <div className="col-span-2 sm:col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
                 {isLoadingSettings ? 'Loading punishment types...' : 'No administrative punishment types configured'}
               </div>
             )}
@@ -694,13 +694,13 @@ const PlayerDetailPage = () => {
         {/* Social Punishment Types */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {punishmentTypesByCategory.Social.length > 0 ? punishmentTypesByCategory.Social.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
                 size="sm" 
-                className="py-1 text-xs" 
+                className="py-2 text-xs" 
                 onClick={() => setPlayerInfo(prev => ({
                   ...prev, 
                   selectedPunishmentCategory: type.name
@@ -710,7 +710,7 @@ const PlayerDetailPage = () => {
                 {type.name}
               </Button>
             )) : (
-              <div className="col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+              <div className="col-span-2 sm:col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
                 {isLoadingSettings ? 'Loading punishment types...' : 'No social punishment types configured'}
               </div>
             )}
@@ -720,13 +720,13 @@ const PlayerDetailPage = () => {
         {/* Gameplay Punishment Types */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">Game & Account</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {punishmentTypesByCategory.Gameplay.length > 0 ? punishmentTypesByCategory.Gameplay.map(type => (
               <Button 
                 key={type.id}
                 variant="outline" 
                 size="sm" 
-                className="py-1 text-xs" 
+                className="py-2 text-xs" 
                 onClick={() => setPlayerInfo(prev => ({
                   ...prev, 
                   selectedPunishmentCategory: type.name
@@ -736,7 +736,7 @@ const PlayerDetailPage = () => {
                 {type.name}
               </Button>
             )) : (
-              <div className="col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+              <div className="col-span-2 sm:col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
                 {isLoadingSettings ? 'Loading punishment types...' : 'No gameplay punishment types configured'}
               </div>
             )}
@@ -840,11 +840,11 @@ const PlayerDetailPage = () => {
               </div>
 
               {!playerInfo.isPermanent && (
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <input 
                     type="number" 
                     placeholder="Duration" 
-                    className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
                     value={playerInfo.duration?.value || ''}
                     onChange={(e) => setPlayerInfo(prev => ({
                       ...prev, 
@@ -856,7 +856,7 @@ const PlayerDetailPage = () => {
                     min={1}
                   />
                   <select 
-                    className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
                     value={playerInfo.duration?.unit || 'hours'}
                     onChange={(e) => setPlayerInfo(prev => ({
                       ...prev, 
@@ -983,11 +983,11 @@ const PlayerDetailPage = () => {
               </div>
 
               {!playerInfo.isPermanent && (
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <input 
                     type="number" 
                     placeholder="Duration" 
-                    className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
                     value={playerInfo.duration?.value || ''}
                     onChange={(e) => setPlayerInfo(prev => ({
                       ...prev, 
@@ -999,7 +999,7 @@ const PlayerDetailPage = () => {
                     min={1}
                   />
                   <select 
-                    className="w-24 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                    className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
                     value={playerInfo.duration?.unit || 'hours'}
                     onChange={(e) => setPlayerInfo(prev => ({
                       ...prev, 
@@ -1413,11 +1413,11 @@ const PlayerDetailPage = () => {
           <>
             <div className="space-y-2">
               <label className="text-sm font-medium">Severity</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Lenient'}))}
                 >
                   Lenient
@@ -1425,7 +1425,7 @@ const PlayerDetailPage = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Regular'}))}
                 >
                   Regular
@@ -1433,7 +1433,7 @@ const PlayerDetailPage = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Aggravated'}))}
                 >
                   Aggravated
@@ -1516,11 +1516,11 @@ const PlayerDetailPage = () => {
           <>
             <div className="space-y-2">
               <label className="text-sm font-medium">Severity</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Lenient'}))}
                 >
                   Lenient
@@ -1528,7 +1528,7 @@ const PlayerDetailPage = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Regular'}))}
                 >
                   Regular
@@ -1536,7 +1536,7 @@ const PlayerDetailPage = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Aggravated'}))}
                 >
                   Aggravated
@@ -1623,11 +1623,11 @@ const PlayerDetailPage = () => {
           <>
             <div className="space-y-2">
               <label className="text-sm font-medium">Severity</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Lenient'}))}
                 >
                   Lenient
@@ -1635,7 +1635,7 @@ const PlayerDetailPage = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Regular'}))}
                 >
                   Regular
@@ -1643,7 +1643,7 @@ const PlayerDetailPage = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className={`flex-1 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
+                  className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
                   onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Aggravated'}))}
                 >
                   Aggravated
