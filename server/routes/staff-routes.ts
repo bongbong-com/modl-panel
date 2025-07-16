@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import mongoose, { Document as MongooseDocument, Connection, Model } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { checkRole } from '../middleware/role-middleware';
+// Note: checkRole replaced with permission-based checks
 // Note: checkPermission will be imported dynamically to avoid circular dependency issues
 import { IPasskey, IStaff, IModlServer, Invitation } from 'modl-shared-web';
 import nodemailer from 'nodemailer';
@@ -568,7 +568,17 @@ router.patch('/:id/role', async (req: Request<{ id: string }, {}, { role: IStaff
 });
 
 // Route to assign/unassign Minecraft player to staff member
-router.patch('/:username/minecraft-player', checkRole(['Super Admin']), async (req: Request<{ username: string }, {}, AssignPlayerBody>, res: Response) => {
+router.patch('/:username/minecraft-player', async (req: Request<{ username: string }, {}, AssignPlayerBody>, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
   try {
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');
     const Player = req.serverDbConnection!.model('Player');
@@ -648,7 +658,17 @@ router.patch('/:username/minecraft-player', checkRole(['Super Admin']), async (r
 });
 
 // Route to get available Minecraft players for assignment
-router.get('/available-players', checkRole(['Super Admin']), async (req: Request, res: Response) => {
+router.get('/available-players', async (req: Request, res: Response) => {
+  // Check permissions
+  const { hasPermission } = await import('../middleware/permission-middleware');
+  const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+  
+  if (!canManageStaff) {
+    return res.status(403).json({ 
+      message: 'Forbidden: You do not have the required permissions.',
+      required: ['admin.staff.manage']
+    });
+  }
   try {
     const Player = req.serverDbConnection!.model('Player');
     const Staff = req.serverDbConnection!.model<IStaff>('Staff');

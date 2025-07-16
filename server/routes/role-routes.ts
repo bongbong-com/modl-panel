@@ -1,10 +1,46 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Schema } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
-import { checkRole } from '../middleware/role-middleware';
+// Note: Permission functions will be imported dynamically to avoid circular dependency issues
 import { strictRateLimit } from '../middleware/rate-limiter';
 
 const router = express.Router();
+
+// Helper function to check role management permissions
+async function checkRolePermission(req: Request, res: Response, requireSuperAdmin: boolean = false): Promise<boolean> {
+  try {
+    const { hasPermission } = await import('../middleware/permission-middleware');
+    const canManageStaff = await hasPermission(req, 'admin.staff.manage');
+    
+    if (!canManageStaff) {
+      res.status(403).json({ 
+        message: 'Forbidden: You do not have permission to manage roles.',
+        required: ['admin.staff.manage']
+      });
+      return false;
+    }
+    
+    // For destructive operations (create/modify/delete), also check if user is server admin
+    if (requireSuperAdmin) {
+      const adminEmail = req.modlServer?.adminEmail?.toLowerCase();
+      const userEmail = req.currentUser?.email?.toLowerCase();
+      
+      if (!adminEmail || !userEmail || userEmail !== adminEmail) {
+        res.status(403).json({ 
+          message: 'Forbidden: Only the server administrator can modify roles.',
+          required: ['server_admin']
+        });
+        return false;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking role permissions:', error);
+    res.status(500).json({ message: 'Internal server error while checking permissions.' });
+    return false;
+  }
+}
 
 // Permission definitions
 interface Permission {
@@ -74,7 +110,8 @@ const getPunishmentPermissions = async (dbConnection: Connection): Promise<Permi
 };
 
 // GET /api/panel/roles/permissions - Get all available permissions
-router.get('/permissions', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.get('/permissions', async (req: Request, res: Response) => {
+  if (!(await checkRolePermission(req, res))) return;
   try {
     const basePermissions = getBasePermissions();
     const punishmentPermissions = await getPunishmentPermissions(req.serverDbConnection!);
@@ -96,7 +133,8 @@ router.get('/permissions', checkRole(['Super Admin', 'Admin']), async (req: Requ
 });
 
 // GET /api/panel/roles - Get all roles
-router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  if (!(await checkRolePermission(req, res))) return;
   try {
     const db = req.serverDbConnection!;
     
@@ -144,7 +182,8 @@ router.get('/', checkRole(['Super Admin', 'Admin']), async (req: Request, res: R
 });
 
 // GET /api/panel/roles/:id - Get a specific role by ID
-router.get('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
+  if (!(await checkRolePermission(req, res))) return;
   try {
     const { id } = req.params;
     const db = req.serverDbConnection!;
@@ -180,7 +219,8 @@ router.get('/:id', checkRole(['Super Admin', 'Admin']), async (req: Request, res
 });
 
 // POST /api/panel/roles - Create a new custom role
-router.post('/', checkRole(['Super Admin']), strictRateLimit, async (req: Request, res: Response) => {
+router.post('/', strictRateLimit, async (req: Request, res: Response) => {
+  if (!(await checkRolePermission(req, res, true))) return;
   try {
     const { name, description, permissions } = req.body;
     
@@ -246,7 +286,8 @@ router.post('/', checkRole(['Super Admin']), strictRateLimit, async (req: Reques
 });
 
 // PUT /api/panel/roles/:id - Update a custom role
-router.put('/:id', checkRole(['Super Admin']), strictRateLimit, async (req: Request, res: Response) => {
+router.put('/:id', strictRateLimit, async (req: Request, res: Response) => {
+  if (!(await checkRolePermission(req, res, true))) return;
   try {
     const { id } = req.params;
     const { name, description, permissions } = req.body;
@@ -298,7 +339,8 @@ router.put('/:id', checkRole(['Super Admin']), strictRateLimit, async (req: Requ
 });
 
 // DELETE /api/panel/roles/:id - Delete a custom role
-router.delete('/:id', checkRole(['Super Admin']), strictRateLimit, async (req: Request, res: Response) => {
+router.delete('/:id', strictRateLimit, async (req: Request, res: Response) => {
+  if (!(await checkRolePermission(req, res, true))) return;
   try {
     const { id } = req.params;
     const db = req.serverDbConnection!;

@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { Connection, Document as MongooseDocument, HydratedDocument, Schema } from 'mongoose';
 import { isAuthenticated } from '../middleware/auth-middleware';
 // Note: Permission functions will be imported dynamically to avoid circular dependency issues
-import { checkRole } from '../middleware/role-middleware';
+// Note: checkRole replaced with permission-based checks
 import domainRoutes from './domain-routes';
 import PunishmentService from '../services/punishment-service';
 import multer from 'multer';
@@ -3038,7 +3038,8 @@ router.post('/ai-punishment-types', async (req: Request, res: Response) => {
 });
 
 // Update AI punishment type configuration - ADMIN ONLY
-router.put('/ai-punishment-types/:id', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.put('/ai-punishment-types/:id', isAuthenticated, async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
@@ -3122,7 +3123,8 @@ router.put('/ai-punishment-types/:id', isAuthenticated, checkRole(['Super Admin'
 });
 
 // Remove/Disable AI punishment type - ADMIN ONLY
-router.delete('/ai-punishment-types/:id', isAuthenticated, checkRole(['Super Admin', 'Admin']), async (req: Request, res: Response) => {
+router.delete('/ai-punishment-types/:id', isAuthenticated, async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     if (!req.serverDbConnection) {
       return res.status(500).json({ error: 'Database connection not available' });
@@ -3171,7 +3173,8 @@ router.delete('/ai-punishment-types/:id', isAuthenticated, checkRole(['Super Adm
 });
 
 // Debug route to test if settings routes are working - ADMIN ONLY
-router.get('/debug', isAuthenticated, checkRole(['Super Admin']), async (req: Request, res: Response) => {
+router.get('/debug', isAuthenticated, async (req: Request, res: Response) => {
+  if (!(await checkRoutePermission(req, res, 'admin.settings.modify'))) return;
   try {
     const models = getSettingsModels(req.serverDbConnection!);
     

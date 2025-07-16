@@ -13,6 +13,7 @@ import type { GenerateAuthenticationOptionsOpts } from '@simplewebauthn/server';
 import type { AuthenticatorTransport } from '@simplewebauthn/types';
 import { strictRateLimit, authRateLimit } from '../middleware/rate-limiter';
 import { getModlServersModel } from '../db/connectionManager';
+import { isAuthenticated } from '../middleware/auth-middleware';
 
 
 const rpID = process.env.APP_DOMAIN || 'localhost';
