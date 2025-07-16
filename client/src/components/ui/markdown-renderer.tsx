@@ -40,7 +40,7 @@ const processMarkdownContent = (content: string): string => {
           if (msgObj.username && msgObj.message) {
             const timestamp = msgObj.timestamp ? new Date(msgObj.timestamp).toLocaleString() : 'Unknown time';
             // Format as a single line with proper spacing
-            formattedMessages += `  \n\`[${timestamp}]\` **${msgObj.username}**: ${msgObj.message}`;
+            formattedMessages += `  \n[${timestamp}] **${msgObj.username}**: ${msgObj.message}`;
           } else {
             formattedMessages += `  \n${line}`;
           }
