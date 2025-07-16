@@ -64,7 +64,7 @@ const LookupPage = () => {
     }
     
     // Navigate to player detail page
-    navigate(`/player/${player.uuid}`);
+    navigate(`/panel/player/${player.uuid}`);
   };
 
   // Handle clearing search
