@@ -2,9 +2,14 @@ import { Card, CardContent } from "modl-shared-web/components/ui/card";
 import { Button } from "modl-shared-web/components/ui/button";
 import { AlertCircle, Home } from "lucide-react";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function NotFound() {
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    document.title = "Page Not Found";
+  }, []);
 
   const handleReturnHome = () => {
     // Check if we're on a panel route, redirect to panel home, otherwise to public home

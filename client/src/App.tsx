@@ -55,11 +55,11 @@ function Router() {
     return (
       <main className="h-full bg-background"> {/* Basic wrapper for public pages */}
         <Switch>
-          <Route path="/knowledgebase" component={KnowledgebasePage} />
-          <Route path="/:articleSlug" component={ArticleDetailPage} />
           <Route path="/" component={HomePage} />
-          {/* Fallback for unmatched public routes, ensure it's placed after specific public routes */}
-          {/* <Route component={NotFound} />  Consider if a global NotFound is better */}
+          <Route path="/knowledgebase" component={KnowledgebasePage} />
+          <Route path="/article/:articleSlug" component={ArticleDetailPage} />
+          {/* Fallback for unmatched public routes */}
+          <Route component={NotFound} />
         </Switch>
       </main>
     );
@@ -106,7 +106,7 @@ function Router() {
             <Route path="/rate-limit" component={RateLimitPage} />
             {/* Public KB routes for mobile, if accessed directly and not caught by earlier block */}
             <Route path="/knowledgebase" component={KnowledgebasePage} />
-            <Route path="/:articleSlug" component={ArticleDetailPage} />
+            <Route path="/article/:articleSlug" component={ArticleDetailPage} />
             <Route path="/" component={HomePage} />
             <Route component={NotFound} />
           </Switch>
@@ -139,7 +139,7 @@ function Router() {
           <Route path="/rate-limit" component={RateLimitPage} />
           {/* Public KB routes for desktop, if accessed directly and not caught by earlier block */}
           <Route path="/knowledgebase" component={KnowledgebasePage} />
-          <Route path="/:articleSlug" component={ArticleDetailPage} />
+          <Route path="/article/:articleSlug" component={ArticleDetailPage} />
           <Route path="/" component={HomePage} />
           <Route component={NotFound} />
         </Switch>
