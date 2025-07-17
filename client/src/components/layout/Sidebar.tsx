@@ -53,7 +53,7 @@ const Sidebar = () => {
   } = usePunishmentLookup(debouncedPunishmentQuery);
 
   // Load recent searches from localStorage on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const savedSearches = localStorage.getItem('recentPlayerSearches');
     if (savedSearches) {
       try {
