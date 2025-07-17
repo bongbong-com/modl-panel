@@ -1222,41 +1222,133 @@ const PlayerDetailPage = () => {
                     {isExpanded && isPunishment && (
                       <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
                         {/* Evidence */}
-                        {warning.evidence && warning.evidence.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Evidence:</p>
-                            <ul className="text-xs space-y-1">
-                              {warning.evidence.map((evidence, idx) => {
-                                const evidenceText = typeof evidence === 'string' ? evidence : evidence.text;
-                                const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
-                                const isFileUpload = evidenceText.includes('/api/panel/media/') || evidenceText.includes('uploads/');
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs font-medium text-muted-foreground">Evidence:</p>
+                          </div>
+                          {warning.evidence && warning.evidence.length > 0 ? (
+                            <ul className="text-xs space-y-2">
+                              {warning.evidence.map((evidenceItem, idx) => {
+                                // Handle both legacy string format and new object format
+                                let evidenceText = '';
+                                let issuerInfo = '';
+                                let evidenceType = 'text';
+                                let fileUrl = '';
+                                let fileName = '';
+                                let fileType = '';
+                                
+                                if (typeof evidenceItem === 'string') {
+                                  // Legacy string format
+                                  evidenceText = evidenceItem;
+                                  issuerInfo = 'By: System on Unknown';
+                                  evidenceType = evidenceItem.match(/^https?:\/\//) ? 'url' : 'text';
+                                } else if (typeof evidenceItem === 'object' && evidenceItem.text) {
+                                  // New object format
+                                  evidenceText = evidenceItem.text;
+                                  const issuer = evidenceItem.issuerName || 'System';
+                                  const date = evidenceItem.date ? formatDateWithTime(evidenceItem.date) : 'Unknown';
+                                  issuerInfo = `By: ${issuer} on ${date}`;
+                                  evidenceType = evidenceItem.type || 'text';
+                                  fileUrl = evidenceItem.fileUrl || '';
+                                  fileName = evidenceItem.fileName || '';
+                                  fileType = evidenceItem.fileType || '';
+                                }
+                                
+                                // Helper function to detect media type from URL
+                                const getMediaType = (url: string) => {
+                                  if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+                                    return 'image';
+                                  } else if (url.match(/\.(mp4|webm|ogg)$/i)) {
+                                    return 'video';
+                                  } else if (url.match(/^https?:\/\//)) {
+                                    return 'link';
+                                  }
+                                  return 'link';
+                                };
+                                
+                                // For file evidence, use the file URL for media detection
+                                const displayUrl = evidenceType === 'file' ? fileUrl : evidenceText;
+                                const mediaType = (evidenceType === 'url' || evidenceType === 'file') ? getMediaType(displayUrl) : 'text';
                                 
                                 return (
-                                  <li key={idx} className="bg-muted/20 p-2 rounded text-xs break-all">
-                                    {isUrl ? (
-                                      <a 
-                                        href={evidenceText} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-800 underline"
-                                      >
-                                        {isFileUpload ? (
-                                          <>
-                                            📁 {evidenceText.split('/').pop() || 'View File'}
-                                          </>
+                                  <li key={idx} className="bg-muted/20 p-2 rounded text-xs border-l-2 border-blue-500">
+                                    <div className="flex items-start">
+                                      <FileText className="h-3 w-3 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        {evidenceType === 'file' ? (
+                                          <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-medium">File:</span>
+                                              <a 
+                                                href={fileUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                                              >
+                                                <Upload className="h-3 w-3" />
+                                                {fileName || 'Unknown file'}
+                                              </a>
+                                            </div>
+                                            {evidenceText && evidenceText !== fileName && (
+                                              <div className="text-muted-foreground">{evidenceText}</div>
+                                            )}
+                                            {mediaType === 'image' && (
+                                              <img 
+                                                src={fileUrl} 
+                                                alt="Evidence" 
+                                                className="max-w-full max-h-48 rounded border cursor-pointer"
+                                                style={{ maxWidth: '300px' }}
+                                                onClick={() => window.open(fileUrl, '_blank')}
+                                              />
+                                            )}
+                                            {mediaType === 'video' && (
+                                              <video 
+                                                src={fileUrl} 
+                                                controls 
+                                                className="max-w-full max-h-48 rounded border"
+                                                style={{ maxWidth: '300px' }}
+                                              />
+                                            )}
+                                          </div>
+                                        ) : mediaType === 'image' ? (
+                                          <img 
+                                            src={evidenceText} 
+                                            alt="Evidence" 
+                                            className="max-w-full max-h-48 rounded border"
+                                            style={{ maxWidth: '300px' }}
+                                          />
+                                        ) : mediaType === 'video' ? (
+                                          <video 
+                                            src={evidenceText} 
+                                            controls 
+                                            className="max-w-full max-h-48 rounded border"
+                                            style={{ maxWidth: '300px' }}
+                                          />
+                                        ) : evidenceType === 'url' ? (
+                                          <a 
+                                            href={evidenceText} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800 underline break-all"
+                                          >
+                                            {evidenceText}
+                                          </a>
                                         ) : (
-                                          evidenceText
+                                          <span className="break-all">{evidenceText}</span>
                                         )}
-                                      </a>
-                                    ) : (
-                                      evidenceText
-                                    )}
+                                        <p className="text-muted-foreground text-xs mt-1">
+                                          {issuerInfo}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </li>
                                 );
                               })}
                             </ul>
-                          </div>
-                        )}
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No evidence added</p>
+                          )}
+                        </div>
                         
                         {/* Staff Notes */}
                         {warning.notes && warning.notes.length > 0 && (
@@ -1523,20 +1615,52 @@ const PlayerDetailPage = () => {
                                 size="sm"
                                 disabled={!playerInfo.newPunishmentEvidence?.trim() && !playerInfo.uploadedEvidenceFile}
                                 onClick={async () => {
-                                  const evidenceToAdd = playerInfo.uploadedEvidenceFile ? 
-                                    playerInfo.uploadedEvidenceFile.url : 
-                                    playerInfo.newPunishmentEvidence?.trim();
-                                    
-                                  if (!evidenceToAdd) return;
+                                  if (!playerInfo.newPunishmentEvidence?.trim() && !playerInfo.uploadedEvidenceFile) return;
                                   
                                   try {
-                                    // This would be implemented with a proper API call
-                                    toast({
-                                      title: "Evidence functionality",
-                                      description: "Evidence addition would be implemented here"
+                                    // Prepare evidence data based on whether it's a file or text
+                                    let evidenceData: any;
+                                    
+                                    if (playerInfo.uploadedEvidenceFile) {
+                                      // File evidence
+                                      evidenceData = {
+                                        text: playerInfo.uploadedEvidenceFile.fileName,
+                                        issuerName: user?.username || 'Admin',
+                                        date: new Date().toISOString(),
+                                        type: 'file',
+                                        fileUrl: playerInfo.uploadedEvidenceFile.url,
+                                        fileName: playerInfo.uploadedEvidenceFile.fileName,
+                                        fileType: playerInfo.uploadedEvidenceFile.fileType,
+                                        fileSize: playerInfo.uploadedEvidenceFile.fileSize
+                                      };
+                                    } else {
+                                      // Text evidence
+                                      evidenceData = {
+                                        text: playerInfo.newPunishmentEvidence.trim(),
+                                        issuerName: user?.username || 'Admin',
+                                        date: new Date().toISOString()
+                                      };
+                                    }
+                                    
+                                    const { csrfFetch } = await import('@/utils/csrf');
+                                    const response = await csrfFetch(`/api/panel/players/${playerId}/punishments/${warning.id}/evidence`, {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: JSON.stringify(evidenceData)
                                     });
                                     
-                                    // Reset form
+                                    if (!response.ok) {
+                                      throw new Error('Failed to add evidence');
+                                    }
+                                    
+                                    toast({
+                                      title: "Evidence added",
+                                      description: "Evidence has been added to the punishment successfully"
+                                    });
+                                    
+                                    // Reset form and refetch data
                                     setPlayerInfo(prev => ({
                                       ...prev,
                                       isAddingPunishmentEvidence: false,
@@ -1544,14 +1668,17 @@ const PlayerDetailPage = () => {
                                       newPunishmentEvidence: '',
                                       uploadedEvidenceFile: null
                                     }));
+                                    
+                                    refetch();
                                   } catch (error) {
+                                    console.error('Error adding evidence to punishment:', error);
                                     toast({
                                       title: "Failed to add evidence",
-                                      description: error instanceof Error ? error.message : "An error occurred",
+                                      description: error instanceof Error ? error.message : "An unknown error occurred",
                                       variant: "destructive"
                                     });
                                   }
-                                }}
+                                }
                               >
                                 Add Evidence
                               </Button>
