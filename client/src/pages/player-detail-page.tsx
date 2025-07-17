@@ -1678,7 +1678,7 @@ const PlayerDetailPage = () => {
                                       variant: "destructive"
                                     });
                                   }
-                                }
+                                }}
                               >
                                 Add Evidence
                               </Button>
