@@ -92,8 +92,8 @@ const LookupPage = () => {
   };
 
   return (
-    <div className="w-full px-4 py-4 pb-20">
-      <h1 className="text-2xl font-bold mb-4">Player Lookup</h1>
+    <div className="transition-all duration-300 bg-background/50 border rounded-xl shadow-sm md:p-8 md:my-8 md:mx-8 p-4 my-0 mx-0 mb-20">
+      <h1 className="text-2xl font-bold mb-6">Player Lookup</h1>
       
       <div className="relative mb-6">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -129,14 +129,14 @@ const LookupPage = () => {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : searchQuery ? (
-        <div className="space-y-1">
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">Search Results</h2>
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground mb-4">Search Results</h2>
           
           {filteredPlayers.length > 0 ? (
             filteredPlayers.map((player: Player) => (
               <div 
                 key={getPlayerUuid(player)}
-                className="flex items-center justify-between p-3 bg-card rounded-lg hover:bg-card/80 cursor-pointer"
+                className="flex items-center justify-between p-4 bg-background border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                 onClick={() => handlePlayerSelect(player)}
               >
                 <div className="flex items-center">
@@ -174,8 +174,8 @@ const LookupPage = () => {
       ) : (
         <div>
           {recentSearches.length > 0 && (
-            <div className="space-y-1">
-              <h2 className="text-sm font-medium text-muted-foreground mb-2">Recent Lookups</h2>
+            <div className="space-y-3">
+              <h2 className="text-sm font-medium text-muted-foreground mb-4">Recent Lookups</h2>
               
               {recentSearches
                 .sort((a, b) => b.timestamp - a.timestamp)
@@ -183,7 +183,7 @@ const LookupPage = () => {
                 .map(({player}) => (
                 <div 
                   key={getPlayerUuid(player)}
-                  className="flex items-center justify-between p-3 bg-card rounded-lg hover:bg-card/80 cursor-pointer"
+                  className="flex items-center justify-between p-4 bg-background border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => handlePlayerSelect(player)}
                 >
                   <div className="flex items-center">
