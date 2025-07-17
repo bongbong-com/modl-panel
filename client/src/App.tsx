@@ -123,7 +123,8 @@ function Router() {
       <main className={`flex-1 ${location.startsWith("/panel") ? 'pl-24' : ''} overflow-y-auto bg-background transition-all duration-300 ease-in-out scrollbar`}>
         <Switch>
           <ProtectedRoute path="/panel" component={Home} />
-          <ProtectedRoute path="/panel/lookup" component={Lookup} />
+          <ProtectedRoute path="/panel/lookup" component={LookupPage} />
+          <ProtectedRoute path="/panel/player/:uuid" component={PlayerDetailPage} />
           <ProtectedRoute path="/panel/tickets" component={Tickets} />
           <ProtectedRoute path="/panel/tickets/:id" component={TicketDetail} />
           <ProtectedRoute path="/panel/audit" component={Audit} />
