@@ -1060,27 +1060,27 @@ const PlayerDetailPage = () => {
         <Tabs defaultValue="history" className="w-full" onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-6 gap-1 px-1">
             <TabsTrigger value="history" className="text-xs py-2">
-              <History className="h-3.5 w-3.5 mr-1.5" />
+              <History className="h-3.5 w-3.5 mr-1.5 hidden md:block" />
               History
             </TabsTrigger>
             <TabsTrigger value="linked" className="text-xs py-2">
-              <Link2 className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+              <Link2 className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 hidden md:block" />
               Connected
             </TabsTrigger>
             <TabsTrigger value="notes" className="text-xs py-2">
-              <StickyNote className="h-3.5 w-3.5 mr-1.5" />
+              <StickyNote className="h-3.5 w-3.5 mr-1.5 hidden md:block" />
               Notes
             </TabsTrigger>
             <TabsTrigger value="tickets" className="text-xs py-2">
-              <Ticket className="h-3.5 w-3.5 mr-1.5" />
+              <Ticket className="h-3.5 w-3.5 mr-1.5 hidden md:block" />
               Tickets
             </TabsTrigger>
             <TabsTrigger value="names" className="text-xs py-2">
-              <UserRound className="h-3.5 w-3.5 mr-1.5" />
+              <UserRound className="h-3.5 w-3.5 mr-1.5 hidden md:block" />
               Names
             </TabsTrigger>
             <TabsTrigger value="punishment" className="text-xs py-2">
-              <Shield className="h-3.5 w-3.5 mr-1.5" />
+              <Shield className="h-3.5 w-3.5 mr-1.5 hidden md:block" />
               Punish
             </TabsTrigger>
           </TabsList>
