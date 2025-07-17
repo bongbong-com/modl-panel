@@ -603,7 +603,7 @@ const PlayerDetailPage = () => {
             const statusText = statusInfo.length > 0 ? ` (${statusInfo.join(', ')})` : '';
             linkedAccounts.push({
               username: account.username,
-              uuid: account.uuid || account._id,
+              uuid: account.uuid || account._id || account.minecraftUuid,
               statusText: statusText
             });
           });
@@ -1226,11 +1226,34 @@ const PlayerDetailPage = () => {
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Evidence:</p>
                             <ul className="text-xs space-y-1">
-                              {warning.evidence.map((evidence, idx) => (
-                                <li key={idx} className="bg-muted/20 p-2 rounded text-xs break-all">
-                                  {typeof evidence === 'string' ? evidence : evidence.text}
-                                </li>
-                              ))}
+                              {warning.evidence.map((evidence, idx) => {
+                                const evidenceText = typeof evidence === 'string' ? evidence : evidence.text;
+                                const isUrl = evidenceText.startsWith('http://') || evidenceText.startsWith('https://');
+                                const isFileUpload = evidenceText.includes('/api/panel/media/') || evidenceText.includes('uploads/');
+                                
+                                return (
+                                  <li key={idx} className="bg-muted/20 p-2 rounded text-xs break-all">
+                                    {isUrl ? (
+                                      <a 
+                                        href={evidenceText} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 underline"
+                                      >
+                                        {isFileUpload ? (
+                                          <>
+                                            📁 {evidenceText.split('/').pop() || 'View File'}
+                                          </>
+                                        ) : (
+                                          evidenceText
+                                        )}
+                                      </a>
+                                    ) : (
+                                      evidenceText
+                                    )}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         )}
@@ -1745,8 +1768,19 @@ const PlayerDetailPage = () => {
                           className="text-xs h-6 px-2"
                           onClick={() => {
                             // Navigate to the linked account's player page using UUID
-                            navigate(`/panel/player/${account.uuid}`);
+                            const uuid = account.uuid || account._id;
+                            if (uuid) {
+                              navigate(`/panel/player/${uuid}`);
+                            } else {
+                              console.warn('No UUID found for linked account:', account);
+                              toast({
+                                title: "Navigation Error",
+                                description: "Unable to navigate to linked account - no UUID found",
+                                variant: "destructive"
+                              });
+                            }
                           }}
+                          disabled={!account.uuid && !account._id}
                         >
                           <Search className="h-3 w-3 mr-1" />
                           View
