@@ -417,6 +417,78 @@ const PlayerDetailPage = () => {
     return `${month}/${day}/${year} ${hours}:${minutes}`;
   };
 
+  // Helper function to check if a value is a valid display value for badges
+  const isValidBadgeValue = (value: any): boolean => {
+    if (!value || value === null || value === undefined) return false;
+    if (typeof value === 'number' && value === 0) return false;
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return false;
+    if (trimmed === '0' || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'false') return false;
+    return true;
+  };
+
+  // Helper function to determine if a punishment is currently active based on expiry logic
+  const isPunishmentCurrentlyActive = (warning: any, effectiveState: any) => {
+    // Check if punishment is pardoned/revoked
+    const pardonModification = effectiveState.modifications.find((mod: any) => 
+      mod.type === 'MANUAL_PARDON' || mod.type === 'APPEAL_ACCEPT'
+    );
+    
+    if (pardonModification) {
+      return false; // Pardoned punishments are always inactive
+    }
+    
+    // Check if punishment has modifications with effective expiry
+    if (effectiveState.hasModifications && effectiveState.effectiveExpiry) {
+      const expiryDate = new Date(effectiveState.effectiveExpiry);
+      if (!isNaN(expiryDate.getTime())) {
+        const now = new Date();
+        return expiryDate.getTime() > now.getTime(); // Active if expiry is in the future
+      }
+    }
+    
+    // Check original expiry for unmodified punishments
+    if (warning.expires) {
+      const expiryDate = new Date(warning.expires);
+      if (!isNaN(expiryDate.getTime())) {
+        const now = new Date();
+        return expiryDate.getTime() > now.getTime(); // Active if expiry is in the future
+      }
+    }
+    
+    // For punishments without expiry (permanent), check effective active state
+    return effectiveState.effectiveActive;
+  };
+
+  // Helper function to format duration in milliseconds to human readable
+  const formatDuration = (milliseconds: number) => {
+    if (milliseconds === 0 || milliseconds === -1 || milliseconds < 0) {
+      return 'Permanent';
+    }
+    
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30);
+    
+    if (months > 0) {
+      return `${months} month${months > 1 ? 's' : ''}`;
+    } else if (weeks > 0) {
+      return `${weeks} week${weeks > 1 ? 's' : ''}`;
+    } else if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''}`;
+    } else if (minutes > 0) {
+      return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+    } else {
+      return `${seconds} second${seconds > 1 ? 's' : ''}`;
+    }
+  };
+
   // Load player data into state when it changes
   useEffect(() => {
     if (player) {
@@ -629,6 +701,211 @@ const PlayerDetailPage = () => {
     navigate(`/panel/tickets/${ticketId}`);
   };
 
+  // Mapping of punishment type names to their ordinals
+  const getPunishmentOrdinal = (punishmentName: string): number => {
+    const punishmentMap: { [key: string]: number } = {
+      // Administrative punishments
+      'Kick': 0,
+      'Manual Mute': 1,
+      'Manual Ban': 2,
+      'Security Ban': 3,
+      'Linked Ban': 4,
+      'Blacklist': 5,
+      // Social punishments
+      'Chat Abuse': 6,
+      'Anti Social': 7,
+      'Targeting': 8,
+      'Bad Content': 9,
+      'Bad Skin': 10,
+      'Bad Name': 11,
+      // Gameplay punishments
+      'Team Abuse': 12,
+      'Game Abuse': 13,
+      'Systems Abuse': 14,
+      'Account Abuse': 15,
+      'Game Trading': 16,
+      'Cheating': 17
+    };
+    
+    return punishmentMap[punishmentName] ?? -1;
+  };
+
+  // Convert duration to milliseconds
+  const durationToMilliseconds = (duration: { value: number; unit: string }) => {
+    const { value, unit } = duration;
+    
+    switch (unit) {
+      case 'seconds':
+        return value * 1000;
+      case 'minutes':
+        return value * 60 * 1000;
+      case 'hours':
+        return value * 60 * 60 * 1000;
+      case 'days':
+        return value * 24 * 60 * 60 * 1000;
+      case 'weeks':
+        return value * 7 * 24 * 60 * 60 * 1000;
+      case 'months':
+        return value * 30 * 24 * 60 * 60 * 1000; // Approximate month
+      default:
+        return 0;
+    }
+  };
+
+  // Handler for applying punishment
+  const handleApplyPunishment = async () => {
+    if (!playerInfo.selectedPunishmentCategory) {
+      toast({
+        title: "Missing information",
+        description: "Please select a punishment type",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsApplyingPunishment(true);
+      
+      // Get the punishment type ordinal
+      const typeOrdinal = getPunishmentOrdinal(playerInfo.selectedPunishmentCategory);
+      if (typeOrdinal === -1) {
+        throw new Error(`Unknown punishment type: ${playerInfo.selectedPunishmentCategory}`);
+      }
+      
+      // Determine severity and status based on punishment type
+      let severity = null;
+      let status = null;
+      let data: { [key: string]: any } = {};
+      
+      // For non-administrative punishments that use severity/status
+      if (!['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory)) {
+        if (playerInfo.selectedSeverity) {
+          severity = playerInfo.selectedSeverity;
+        }
+        if (playerInfo.selectedOffenseLevel) {
+          status = playerInfo.selectedOffenseLevel;
+        }
+      }
+      
+      // Handle duration for manual punishments
+      if (['Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory)) {
+        if (playerInfo.isPermanent) {
+          data.duration = -1; // Permanent
+        } else if (playerInfo.duration) {
+          data.duration = durationToMilliseconds(playerInfo.duration);
+        }
+      }
+      
+      // Add other data fields
+      if (playerInfo.altBlocking) data.altBlocking = true;
+      if (playerInfo.statWiping) data.statWiping = true;
+      if (playerInfo.banLinkedAccounts) data.banLinkedAccounts = true;
+      if (playerInfo.wipeAccountAfterExpiry) data.wipeAccountAfterExpiry = true;
+      if (playerInfo.kickSameIP) data.kickSameIP = true;
+      if (playerInfo.silentPunishment) data.silent = true;
+      
+      // Set severity and status in data as well
+      if (severity) data.severity = severity;
+      if (status) data.status = status;
+      
+      // Prepare notes array
+      const notes: Array<{text: string; issuerName: string; date?: string}> = [];
+      
+      // For manual punishments that need a reason, make the reason the first note
+      const needsReasonAsFirstNote = ['Kick', 'Manual Mute', 'Manual Ban'].includes(playerInfo.selectedPunishmentCategory);
+      if (needsReasonAsFirstNote && playerInfo.reason?.trim()) {
+        notes.push({
+          text: playerInfo.reason.trim(),
+          issuerName: user?.username || 'Admin'
+        });
+      }
+      
+      // Add staff notes as additional notes
+      if (playerInfo.staffNotes?.trim()) {
+        notes.push({
+          text: playerInfo.staffNotes.trim(),
+          issuerName: user?.username || 'Admin'
+        });
+      }
+      
+      // Prepare attached ticket IDs
+      const attachedTicketIds: string[] = [];
+      if (playerInfo.attachedReports) {
+        playerInfo.attachedReports.forEach(report => {
+          if (report && report !== 'ticket-new') {
+            // Extract ticket ID from format like "ticket-123"
+            const ticketMatch = report.match(/ticket-(\w+)/);
+            if (ticketMatch) {
+              attachedTicketIds.push(ticketMatch[1]);
+            }
+          }
+        });
+      }
+      
+      // Prepare evidence array
+      const evidence = playerInfo.evidenceList?.filter(e => e.trim()).map(e => e.trim()) || [];
+      
+      // Prepare punishment data in the format expected by the server
+      const punishmentData: { [key: string]: any } = {
+        issuerName: user?.username || 'Admin',
+        type_ordinal: typeOrdinal,
+        notes: notes,
+        evidence: evidence,
+        attachedTicketIds: attachedTicketIds,
+        severity: severity,
+        status: status,
+        data: data
+      };
+      
+      // Call the API
+      await applyPunishment.mutateAsync({
+        uuid: playerId,
+        punishmentData
+      });
+      
+      // Refetch player data
+      refetch();
+      
+      // Show success message
+      toast({
+        title: "Punishment applied",
+        description: `Successfully applied ${playerInfo.selectedPunishmentCategory} to ${playerInfo.username}`
+      });
+      
+      // Reset the punishment form
+      setPlayerInfo(prev => ({
+        ...prev,
+        selectedPunishmentCategory: undefined,
+        selectedSeverity: undefined,
+        selectedOffenseLevel: undefined,
+        duration: undefined,
+        isPermanent: false,
+        reason: '',
+        evidence: '',
+        evidenceList: [],
+        attachedReports: [],
+        banLinkedAccounts: false,
+        wipeAccountAfterExpiry: false,
+        kickSameIP: false,
+        banToLink: '',
+        staffNotes: '',
+        silentPunishment: false,
+        altBlocking: false,
+        statWiping: false
+      }));
+      
+    } catch (error) {
+      console.error('Error applying punishment:', error);
+      toast({
+        title: "Failed to apply punishment",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsApplyingPunishment(false);
+    }
+  };
+
   // Show loading state
   if (isLoading || isLoadingSettings) {
     return (
@@ -823,55 +1100,243 @@ const PlayerDetailPage = () => {
           <TabsContent value="history" className="space-y-2 mx-1 mt-3">
             <h4 className="font-medium">Player History</h4>
             <div className="space-y-2">
-              {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => (
-                <div 
-                  key={warning.id || `warning-${index}`} 
-                  className="bg-muted/30 p-3 rounded-lg"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
-                          {warning.type}
-                        </Badge>
-                        {warning.severity && (
-                          <Badge variant="outline" className={`text-xs ${
-                            (warning.severity && warning.severity.toLowerCase() === 'low') || (warning.severity && warning.severity.toLowerCase() === 'lenient') ? 
-                              'bg-green-100 text-green-800 border-green-300' :
-                            (warning.severity && warning.severity.toLowerCase() === 'regular') || (warning.severity && warning.severity.toLowerCase() === 'medium') ?
-                              'bg-orange-100 text-orange-800 border-orange-300' :
-                              'bg-red-100 text-red-800 border-red-300'
-                          }`}>
-                            {warning.severity}
+              {playerInfo.warnings.length > 0 ? playerInfo.warnings.map((warning, index) => {
+                const isExpanded = expandedPunishments.has(warning.id || `warning-${index}`);
+                const isPunishment = warning.id && (
+                  warning.severity || 
+                  warning.status || 
+                  warning.evidence?.length || 
+                  warning.notes?.length ||
+                  warning.type === 'Linked Ban' ||
+                  (warning.type && ['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Blacklist'].includes(warning.type))
+                );
+                
+                // Calculate effective status and expiry based on modifications
+                const effectiveState = getEffectivePunishmentState(warning);
+                
+                return (
+                  <div 
+                    key={warning.id || `warning-${index}`} 
+                    data-punishment-id={warning.id}
+                    className={`${
+                      isPunishmentCurrentlyActive(warning, effectiveState) ? 'bg-muted/30 border-l-4 border-red-500' : 
+                      'bg-muted/30'
+                    } p-3 rounded-lg transition-all duration-300`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {/* Show punishment status: Active, Inactive, or Unstarted */}
+                          {isPunishment && (() => {
+                            // Check if punishment is unstarted (started field is null/undefined)
+                            if (!warning.started) {
+                              return (
+                                <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
+                                  Unstarted
+                                </Badge>
+                              );
+                            }
+                            
+                            // Check if punishment is inactive (based on effective state)
+                            const effectiveState = getEffectivePunishmentState(warning);
+                            const isInactive = !effectiveState.effectiveActive;
+                            
+                            if (isInactive) {
+                              return (
+                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800 border-gray-300">
+                                  Inactive
+                                </Badge>
+                              );
+                            }
+                            
+                            // Punishment is active
+                            return (
+                              <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
+                                Active
+                              </Badge>
+                            );
+                          })()}
+                          <Badge variant="outline" className="bg-gray-50 text-gray-900 border-gray-300">
+                            {warning.type}
                           </Badge>
-                        )}
-                        {warning.status && (
-                          <Badge variant="outline" className={`text-xs ${
-                            (warning.status && warning.status.toLowerCase() === 'low') || (warning.status && warning.status.toLowerCase() === 'first') ? 
-                              'bg-green-100 text-green-800 border-green-300' :
-                            warning.status && warning.status.toLowerCase() === 'medium' ?
-                              'bg-orange-100 text-orange-800 border-orange-300' :
-                              'bg-red-100 text-red-800 border-red-300'
-                          }`}>
-                            {warning.status}
-                          </Badge>
-                        )}
-                        {warning.altBlocking && (
-                          <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
-                            Alt-blocking
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm mt-1 space-y-1">
-                        <p>{warning.reason}</p>
-                        <div className="text-xs text-muted-foreground">
-                          {warning.date} by {warning.by}
+                          {warning.altBlocking && (
+                            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-200">
+                              Alt-blocking
+                            </Badge>
+                          )}
+                          {isValidBadgeValue(warning.severity) && (
+                            <Badge variant="outline" className={`text-xs ${
+                              (warning.severity && warning.severity.toLowerCase() === 'low') || (warning.severity && warning.severity.toLowerCase() === 'lenient') ? 
+                                'bg-green-100 text-green-800 border-green-300' :
+                              (warning.severity && warning.severity.toLowerCase() === 'regular') || (warning.severity && warning.severity.toLowerCase() === 'medium') ?
+                                'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                            }`}>
+                              {warning.severity}
+                            </Badge>
+                          )}
+                          {isValidBadgeValue(warning.status) && (
+                            <Badge variant="outline" className={`text-xs ${
+                              (warning.status && warning.status.toLowerCase() === 'low') || (warning.status && warning.status.toLowerCase() === 'first') ? 
+                                'bg-green-100 text-green-800 border-green-300' :
+                              warning.status && warning.status.toLowerCase() === 'medium' ?
+                                'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                            }`}>
+                              {warning.status}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm mt-1 space-y-1">
+                          <p>{warning.reason}</p>
+                          
+                          {/* Show expiry/duration information */}
+                          <div className="text-xs text-muted-foreground">
+                            {warning.date} by {warning.by}
+                            {warning.expires && (
+                              <span className="ml-2">
+                                • Expires: {formatDateWithTime(warning.expires)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      
+                      {/* Expand/Collapse button for punishments with additional details */}
+                      {isPunishment && (warning.evidence?.length || warning.notes?.length || warning.attachedTicketIds?.length || effectiveState.hasModifications) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="p-1 h-6 w-6"
+                          onClick={() => {
+                            const id = warning.id || `warning-${index}`;
+                            setExpandedPunishments(prev => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(id)) {
+                                newSet.delete(id);
+                              } else {
+                                newSet.add(id);
+                              }
+                              return newSet;
+                            });
+                          }}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                     </div>
+                    
+                    {/* Expanded details */}
+                    {isExpanded && isPunishment && (
+                      <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+                        {/* Evidence */}
+                        {warning.evidence && warning.evidence.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Evidence:</p>
+                            <ul className="text-xs space-y-1">
+                              {warning.evidence.map((evidence, idx) => (
+                                <li key={idx} className="bg-muted/20 p-2 rounded text-xs break-all">
+                                  {typeof evidence === 'string' ? evidence : evidence.text}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Staff Notes */}
+                        {warning.notes && warning.notes.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Staff Notes:</p>
+                            <ul className="text-xs space-y-1">
+                              {warning.notes.map((note, idx) => {
+                                // For manual punishments, skip the first note as it's displayed as the reason
+                                const isManualPunishment = ['Kick', 'Manual Mute', 'Manual Ban'].includes(warning.type);
+                                if (isManualPunishment && idx === 0) {
+                                  return null; // Skip first note for manual punishments
+                                }
+                                
+                                const noteText = typeof note === 'string' ? note : note.text;
+                                const noteIssuer = typeof note === 'string' ? 'Unknown' : note.issuerName;
+                                const noteDate = typeof note === 'string' ? 'Unknown' : formatDateWithTime(note.date);
+                                
+                                return (
+                                  <li key={idx} className="bg-muted/20 p-2 rounded text-xs">
+                                    <p className="mb-1">{noteText}</p>
+                                    <p className="text-muted-foreground text-xs">
+                                      By: {noteIssuer} on {noteDate}
+                                    </p>
+                                  </li>
+                                );
+                              }).filter(Boolean)}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Attached Tickets */}
+                        {warning.attachedTicketIds && warning.attachedTicketIds.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Attached Tickets:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {warning.attachedTicketIds.map((ticketId, idx) => (
+                                <Button
+                                  key={idx}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => {
+                                    // Navigate to ticket detail page
+                                    const urlSafeTicketId = ticketId.replace('#', 'ID-');
+                                    navigate(`/panel/tickets/${urlSafeTicketId}`);
+                                  }}
+                                >
+                                  <Ticket className="h-3 w-3 mr-1" />
+                                  {ticketId}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Modification History */}
+                        {effectiveState.hasModifications && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Modification History:</p>
+                            <div className="space-y-1">
+                              {effectiveState.modifications.map((mod: any, idx: number) => (
+                                <div key={idx} className="bg-muted/20 p-2 rounded text-xs border-l-2 border-blue-500">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-700 border-blue-500/30">
+                                      {mod.type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                    </Badge>
+                                    <span className="text-muted-foreground text-xs">
+                                      {formatDateWithTime(mod.issued)}
+                                    </span>
+                                  </div>
+                                  {mod.reason && (
+                                    <p className="mb-1">{mod.reason}</p>
+                                  )}
+                                  {mod.effectiveDuration !== undefined && (
+                                    <p className="text-muted-foreground">
+                                      New duration: {(mod.effectiveDuration === 0 || mod.effectiveDuration === -1 || mod.effectiveDuration < 0) ? 'Permanent' : formatDuration(mod.effectiveDuration)}
+                                    </p>
+                                  )}
+                                  <p className="text-muted-foreground text-xs">
+                                    By: {mod.issuerName}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div className="bg-muted/30 p-3 rounded-lg">
                   <p className="text-sm">No moderation history found for this player.</p>
                 </div>
@@ -880,20 +1345,95 @@ const PlayerDetailPage = () => {
           </TabsContent>
           
           <TabsContent value="linked" className="space-y-2 mx-1 mt-3">
-            <h4 className="font-medium">Linked Accounts</h4>
-            <div className="bg-muted/30 p-3 rounded-lg">
-              <ul className="space-y-2">
-                {playerInfo.linkedAccounts.length > 0 ? (
-                  playerInfo.linkedAccounts.map((account, idx) => (
-                    <li key={idx} className="text-sm flex items-center">
-                      <Link2 className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                      {account}
-                    </li>
-                  ))
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">Linked Accounts</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setHasTriggeredLinkedSearch(false);
+                  triggerLinkedAccountSearch();
+                  refetchLinkedAccounts();
+                }}
+                disabled={findLinkedAccountsMutation.isPending || isLoadingLinkedAccounts}
+                className="text-xs h-7 px-2"
+              >
+                {findLinkedAccountsMutation.isPending || isLoadingLinkedAccounts ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Searching...
+                  </>
                 ) : (
-                  <li className="text-sm text-muted-foreground">No linked accounts found.</li>
+                  <>
+                    <RefreshCcw className="h-3 w-3 mr-1" />
+                    Refresh Search
+                  </>
                 )}
-              </ul>
+              </Button>
+            </div>
+            <div className="bg-muted/30 p-3 rounded-lg">
+              {isLoadingLinkedAccounts ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm text-muted-foreground">Loading linked accounts...</span>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {playerInfo.linkedAccounts.length > 0 ? (
+                    playerInfo.linkedAccounts.map((account, idx) => {
+                      // Parse account string to extract username and status
+                      const accountParts = account.match(/^(.+?)(\s*\(.*\))?$/);
+                      const username = accountParts ? accountParts[1] : account;
+                      const statusInfo = accountParts ? accountParts[2] : '';
+                      
+                      return (
+                        <li key={idx} className="text-sm flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Link2 className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                            <span className="font-medium">{username}</span>
+                            {statusInfo && (
+                              <span className="text-muted-foreground ml-1">{statusInfo}</span>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-6 px-2"
+                            onClick={() => {
+                              // Navigate to the linked account's player page
+                              navigate(`/panel/player/${username}`);
+                            }}
+                          >
+                            <Search className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        </li>
+                      );
+                    })
+                  ) : (
+                    <li className="text-sm text-muted-foreground text-center py-2">
+                      {findLinkedAccountsMutation.isPending ? 
+                        'Searching for linked accounts...' : 
+                        'No linked accounts found.'
+                      }
+                    </li>
+                  )}
+                </ul>
+              )}
+              
+              {linkedAccountsData?.searchStatus && (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="text-xs text-muted-foreground">
+                    <p>Search Status: {linkedAccountsData.searchStatus}</p>
+                    {linkedAccountsData.lastSearched && (
+                      <p>Last Searched: {formatDateWithTime(linkedAccountsData.lastSearched)}</p>
+                    )}
+                    {linkedAccountsData.totalFound !== undefined && (
+                      <p>Total Found: {linkedAccountsData.totalFound}</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
           
@@ -912,13 +1452,119 @@ const PlayerDetailPage = () => {
                   <li className="text-sm text-muted-foreground">No staff notes found.</li>
                 )}
               </ul>
+              
+              {playerInfo.isAddingNote && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <textarea 
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-20"
+                    placeholder="Enter your note here..."
+                    value={playerInfo.newNote || ''}
+                    onChange={(e) => setPlayerInfo(prev => ({...prev, newNote: e.target.value}))}
+                  ></textarea>
+                  <div className="flex justify-end mt-2 gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setPlayerInfo(prev => ({
+                        ...prev, 
+                        isAddingNote: false,
+                        newNote: ''
+                      }))}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm"
+                      disabled={!playerInfo.newNote?.trim()}
+                      onClick={() => {
+                        if (!playerInfo.newNote?.trim()) return;
+                        // Add the note
+                        setPlayerInfo(prev => ({
+                          ...prev,
+                          notes: [...prev.notes, `${prev.newNote} (Added by ${user?.username || 'Staff'} on ${formatDateWithTime(new Date())})`],
+                          isAddingNote: false,
+                          newNote: ''
+                        }));
+                        toast({
+                          title: "Note added",
+                          description: "Staff note has been added successfully"
+                        });
+                      }}
+                    >
+                      Add Note
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {!playerInfo.isAddingNote && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-3"
+                  onClick={() => setPlayerInfo(prev => ({...prev, isAddingNote: true}))}
+                >
+                  <StickyNote className="h-3.5 w-3.5 mr-1.5" />
+                  Add Note
+                </Button>
+              )}
             </div>
           </TabsContent>
           
           <TabsContent value="tickets" className="space-y-2 mx-1 mt-3">
             <h4 className="font-medium">Player Tickets</h4>
-            <div className="bg-muted/30 p-3 rounded-lg">
-              <p className="text-sm">No tickets found for this player.</p>
+            <div className="space-y-2">
+              {isLoadingTickets ? (
+                <div className="bg-muted/30 p-3 rounded-lg flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm">Loading tickets...</span>
+                </div>
+              ) : playerTickets && playerTickets.length > 0 ? (
+                playerTickets.map((ticket: any) => (
+                  <div 
+                    key={ticket._id} 
+                    className="bg-muted/30 p-3 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer"
+                    onClick={() => handleTicketClick(ticket._id)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className={`text-xs ${
+                            ticket.status === 'open' ? 'bg-green-100 text-green-800 border-green-300' :
+                            ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                            ticket.status === 'resolved' ? 'bg-gray-100 text-gray-800 border-gray-300' :
+                            'bg-red-100 text-red-800 border-red-300'
+                          }`}>
+                            {ticket.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-900 border-blue-200">
+                            {ticket.category || 'General'}
+                          </Badge>
+                        </div>
+                        <div className="text-sm">
+                          <p className="font-medium">{ticket.subject || 'No subject'}</p>
+                          <p className="text-muted-foreground mt-1 line-clamp-2">
+                            {ticket.description || ticket.message || 'No description available'}
+                          </p>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-2">
+                          Created: {ticket.createdAt ? formatDateWithTime(ticket.createdAt) : 'Unknown'} 
+                          {ticket.assignedTo && ` • Assigned to: ${ticket.assignedTo}`}
+                        </div>
+                      </div>
+                      <div className="ml-2">
+                        <Badge variant="outline" className="text-xs">
+                          #{ticket._id.slice(-6)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-muted/30 p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground">No tickets found for this player.</p>
+                </div>
+              )}
             </div>
           </TabsContent>
           
@@ -943,7 +1589,397 @@ const PlayerDetailPage = () => {
           <TabsContent value="punishment" className="space-y-3 mx-1 mt-3">
             <h4 className="font-medium">Create Punishment</h4>
             <div className="bg-muted/30 p-4 rounded-lg space-y-4">
-              <p className="text-sm text-muted-foreground">Punishment creation interface will be implemented here.</p>
+              {!playerInfo.selectedPunishmentCategory ? (
+                <div className="space-y-3">
+                  {/* Administrative Punishment Types */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Administrative Actions</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {punishmentTypesByCategory.Administrative.length > 0 ? punishmentTypesByCategory.Administrative.map(type => (
+                        <Button 
+                          key={type.id}
+                          variant="outline" 
+                          size="sm" 
+                          className={`py-2 text-xs ${type.name === 'Kick' && playerInfo.status !== 'Online' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          onClick={() => {
+                            if (type.name === 'Kick' && playerInfo.status !== 'Online') {
+                              return;
+                            }
+                            setPlayerInfo(prev => ({
+                              ...prev, 
+                              selectedPunishmentCategory: type.name,
+                              evidenceList: []
+                            }))
+                          }}
+                          title={type.name === 'Kick' && playerInfo.status !== 'Online' ? 'Player must be online to kick' : ''}
+                        >
+                          {type.name}
+                        </Button>
+                      )) : (
+                        <div className="col-span-2 sm:col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                          {isLoadingSettings ? 'Loading punishment types...' : 'No administrative punishment types configured'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Social Punishment Types */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Chat & Social</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {punishmentTypesByCategory.Social.length > 0 ? punishmentTypesByCategory.Social.map(type => (
+                        <Button 
+                          key={type.id}
+                          variant="outline" 
+                          size="sm" 
+                          className="py-2 text-xs" 
+                          onClick={() => setPlayerInfo(prev => ({
+                            ...prev, 
+                            selectedPunishmentCategory: type.name,
+                            evidenceList: []
+                          }))}
+                        >
+                          {type.name}
+                        </Button>
+                      )) : (
+                        <div className="col-span-2 sm:col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                          {isLoadingSettings ? 'Loading punishment types...' : 'No social punishment types configured'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Gameplay Punishment Types */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Game & Account</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {punishmentTypesByCategory.Gameplay.length > 0 ? punishmentTypesByCategory.Gameplay.map(type => (
+                        <Button 
+                          key={type.id}
+                          variant="outline" 
+                          size="sm" 
+                          className="py-2 text-xs" 
+                          onClick={() => setPlayerInfo(prev => ({
+                            ...prev, 
+                            selectedPunishmentCategory: type.name,
+                            evidenceList: []
+                          }))}
+                        >
+                          {type.name}
+                        </Button>
+                      )) : (
+                        <div className="col-span-2 sm:col-span-3 text-xs text-muted-foreground p-2 border border-dashed rounded">
+                          {isLoadingSettings ? 'Loading punishment types...' : 'No gameplay punishment types configured'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="p-0 h-8 w-8 mr-2" 
+                      onClick={() => setPlayerInfo(prev => ({
+                        ...prev, 
+                        selectedPunishmentCategory: undefined,
+                        selectedSeverity: undefined,
+                        selectedOffenseLevel: undefined,
+                        duration: undefined,
+                        isPermanent: false,
+                        reason: '',
+                        evidence: '',
+                        evidenceList: [],
+                        attachedReports: [],
+                        banLinkedAccounts: false,
+                        wipeAccountAfterExpiry: false,
+                        kickSameIP: false,
+                        banToLink: '',
+                        staffNotes: '',
+                        silentPunishment: false,
+                        altBlocking: false,
+                        statWiping: false
+                      }))}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h3 className="text-sm font-medium">{playerInfo.selectedPunishmentCategory}</h3>
+                  </div>
+
+                  {/* Kick Interface */}
+                  {playerInfo.selectedPunishmentCategory === 'Kick' && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Reason (shown to player)</label>
+                        <textarea 
+                          className={`w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16 ${playerInfo.status !== 'Online' ? 'opacity-50' : ''}`}
+                          placeholder="Enter reason for kick"
+                          disabled={playerInfo.status !== 'Online'}
+                          value={playerInfo.reason || ''}
+                          onChange={(e) => setPlayerInfo(prev => ({...prev, reason: e.target.value}))}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <input 
+                            type="checkbox" 
+                            id="kick-same-ip" 
+                            className="rounded mr-2"
+                            disabled={playerInfo.status !== 'Online'} 
+                            checked={!!playerInfo.kickSameIP}
+                            onChange={(e) => setPlayerInfo(prev => ({...prev, kickSameIP: e.target.checked}))}
+                          />
+                          <label htmlFor="kick-same-ip" className={`text-sm ${playerInfo.status !== 'Online' ? 'opacity-50' : ''}`}>
+                            Kick Same IP
+                          </label>
+                        </div>
+                      </div>
+
+                      {playerInfo.status !== 'Online' && (
+                        <div className="bg-warning/10 p-3 rounded-lg text-sm text-warning">
+                          Player is not currently online. Kick action is only available for online players.
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Manual Mute/Ban Interface */}
+                  {(playerInfo.selectedPunishmentCategory === 'Manual Mute' || playerInfo.selectedPunishmentCategory === 'Manual Ban') && (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium">Duration</label>
+                          <div className="flex items-center">
+                            <input 
+                              type="checkbox" 
+                              id="permanent" 
+                              className="rounded mr-2"
+                              checked={!!playerInfo.isPermanent}
+                              onChange={(e) => {
+                                const isPermanent = e.target.checked;
+                                setPlayerInfo(prev => ({
+                                  ...prev, 
+                                  isPermanent,
+                                  duration: !isPermanent ? {
+                                    value: prev.duration?.value || 24,
+                                    unit: prev.duration?.unit || 'hours'
+                                  } : undefined
+                                }));
+                              }}
+                            />
+                            <label htmlFor="permanent" className="text-sm">Permanent</label>
+                          </div>
+                        </div>
+
+                        {!playerInfo.isPermanent && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <input 
+                              type="number" 
+                              placeholder="Duration" 
+                              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                              value={playerInfo.duration?.value || ''}
+                              onChange={(e) => setPlayerInfo(prev => ({
+                                ...prev, 
+                                duration: {
+                                  value: parseInt(e.target.value) || 0,
+                                  unit: prev.duration?.unit || 'hours'
+                                }
+                              }))}
+                              min={1}
+                            />
+                            <select 
+                              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+                              value={playerInfo.duration?.unit || 'hours'}
+                              onChange={(e) => setPlayerInfo(prev => ({
+                                ...prev, 
+                                duration: {
+                                  value: prev.duration?.value || 1,
+                                  unit: e.target.value as any
+                                }
+                              }))}
+                            >
+                              <option value="seconds">Seconds</option>
+                              <option value="minutes">Minutes</option>
+                              <option value="hours">Hours</option>
+                              <option value="days">Days</option>
+                              <option value="weeks">Weeks</option>
+                              <option value="months">Months</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Reason (shown to player)</label>
+                        <textarea 
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16"
+                          placeholder={`Enter reason for ${playerInfo.selectedPunishmentCategory.toLowerCase()}`}
+                          value={playerInfo.reason || ''}
+                          onChange={(e) => setPlayerInfo(prev => ({...prev, reason: e.target.value}))}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Severity Selection for Custom Punishment Types */}
+                  {!['Kick', 'Manual Mute', 'Manual Ban', 'Security Ban', 'Linked Ban', 'Blacklist'].includes(playerInfo.selectedPunishmentCategory || '') && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Severity</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Lenient' ? 'bg-primary/20 border-primary/40' : ''}`}
+                          onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Lenient'}))}
+                        >
+                          Lenient
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Regular' ? 'bg-primary/20 border-primary/40' : ''}`}
+                          onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Regular'}))}
+                        >
+                          Regular
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`text-xs py-2 ${playerInfo.selectedSeverity === 'Aggravated' ? 'bg-primary/20 border-primary/40' : ''}`}
+                          onClick={() => setPlayerInfo(prev => ({...prev, selectedSeverity: 'Aggravated'}))}
+                        >
+                          Aggravated
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evidence Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Evidence</label>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setPlayerInfo(prev => ({
+                          ...prev, 
+                          evidenceList: [...(prev.evidenceList || []), '']
+                        }))}
+                        className="text-xs h-7 px-2"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {(playerInfo.evidenceList || []).map((evidence, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <input 
+                            type="text" 
+                            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm" 
+                            placeholder="URLs, screenshots, or text evidence"
+                            value={evidence}
+                            onChange={(e) => {
+                              const newEvidence = [...(playerInfo.evidenceList || [])];
+                              newEvidence[index] = e.target.value;
+                              setPlayerInfo(prev => ({...prev, evidenceList: newEvidence}));
+                            }}
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="p-0 h-8 w-8 text-destructive"
+                            onClick={() => {
+                              const newEvidence = [...(playerInfo.evidenceList || [])];
+                              newEvidence.splice(index, 1);
+                              setPlayerInfo(prev => ({...prev, evidenceList: newEvidence}));
+                            }}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                      {(!playerInfo.evidenceList || playerInfo.evidenceList.length === 0) && (
+                        <div className="text-xs text-muted-foreground p-2 border border-dashed rounded text-center">
+                          No evidence added yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Staff Notes */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Staff Notes (internal only)</label>
+                    <textarea 
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm h-16"
+                      placeholder="Internal notes visible only to staff"
+                      value={playerInfo.staffNotes || ''}
+                      onChange={(e) => setPlayerInfo(prev => ({...prev, staffNotes: e.target.value}))}
+                    />
+                  </div>
+
+                  {/* Options */}
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        id="silent" 
+                        className="rounded mr-2"
+                        checked={!!playerInfo.silentPunishment}
+                        onChange={(e) => setPlayerInfo(prev => ({...prev, silentPunishment: e.target.checked}))}
+                      />
+                      <label htmlFor="silent" className="text-sm">Silent (No Notification)</label>
+                    </div>
+
+                    {(playerInfo.selectedPunishmentCategory === 'Manual Ban' || playerInfo.selectedPunishmentCategory === 'Blacklist') && (
+                      <>
+                        <div className="flex items-center">
+                          <input 
+                            type="checkbox" 
+                            id="ban-linked" 
+                            className="rounded mr-2"
+                            checked={!!playerInfo.banLinkedAccounts}
+                            onChange={(e) => setPlayerInfo(prev => ({...prev, banLinkedAccounts: e.target.checked}))}
+                          />
+                          <label htmlFor="ban-linked" className="text-sm">Ban Linked Accounts</label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input 
+                            type="checkbox" 
+                            id="wipe-account" 
+                            className="rounded mr-2"
+                            checked={!!playerInfo.wipeAccountAfterExpiry}
+                            onChange={(e) => setPlayerInfo(prev => ({...prev, wipeAccountAfterExpiry: e.target.checked}))}
+                          />
+                          <label htmlFor="wipe-account" className="text-sm">Wipe Account After Expiry</label>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Apply Button */}
+                  <div className="pt-2">
+                    <Button 
+                      className="w-full" 
+                      onClick={handleApplyPunishment}
+                      disabled={isApplyingPunishment}
+                    >
+                      {isApplyingPunishment ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        <>Apply Punishment</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
